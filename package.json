@@ -1,0 +1,60 @@
+{
+  "name": "webpods-monorepo",
+  "version": "0.0.1",
+  "description": "WebPods - Append-only log service with OAuth authentication",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "./build.sh",
+    "clean": "./clean.sh",
+    "start": "./start.sh",
+    "test": "npm run test:integration",
+    "migrate:all": "./scripts/db-all.sh migrate:latest",
+    "migrate:all:rollback": "./scripts/db-all.sh migrate:rollback",
+    "migrate:all:status": "./scripts/db-all.sh migrate:status",
+    "migrate:webpods:make": "knex migrate:make --knexfile database/webpods/knexfile.js",
+    "migrate:webpods:latest": "knex migrate:latest --knexfile database/webpods/knexfile.js",
+    "migrate:webpods:rollback": "knex migrate:rollback --knexfile database/webpods/knexfile.js",
+    "migrate:webpods:status": "knex migrate:status --knexfile database/webpods/knexfile.js",
+    "db:dump-schema": "./scripts/dump-db-schema.sh",
+    "test:integration": "cd node/packages/webpods-integration-tests && npm test",
+    "lint": "./lint-all.sh",
+    "docker:build": "./scripts/docker-build.sh",
+    "docker:test": "./scripts/docker-test.sh",
+    "docker:push": "./scripts/docker-push.sh"
+  },
+  "devDependencies": {
+    "@types/chai": "^5.2.2",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^24.1.0",
+    "@typescript-eslint/eslint-plugin": "^8.38.0",
+    "@typescript-eslint/parser": "^8.38.0",
+    "chai": "^5.2.1",
+    "eslint": "^9.32.0",
+    "globals": "^15.13.0",
+    "knex": "^3.1.0",
+    "mocha": "^11.7.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.2"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/webpods-org/webpods.git"
+  },
+  "keywords": [
+    "append-only",
+    "log",
+    "queue",
+    "oauth",
+    "api",
+    "typescript"
+  ],
+  "author": "WebPods",
+  "license": "MIT",
+  "dependencies": {
+    "pg": "^8.16.3"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "name": "webpods-integration-tests",
+  "version": "0.0.1",
+  "description": "Integration tests for WebPods",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "mocha --exit",
+    "test:grep": "mocha --exit --grep"
+  },
+  "devDependencies": {
+    "webpods-test-utils": "file:../webpods-test-utils",
+    "@types/chai": "^5.2.2",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^24.1.0",
+    "chai": "^5.2.1",
+    "mocha": "^11.7.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3",
+    "jsonwebtoken": "^9.0.2"
+  }
+}

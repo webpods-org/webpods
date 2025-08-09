@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: webpods-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: webpods
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  webpods:
+    build: .
+    container_name: webpods-server
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      WEBPODS_PORT: 3000
+      WEBPODS_DB_HOST: postgres
+      WEBPODS_DB_PORT: 5432
+      WEBPODS_DB_NAME: webpods
+      WEBPODS_DB_USER: postgres
+      WEBPODS_DB_PASSWORD: postgres
+      WEBPODS_AUTO_MIGRATE: "true"
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-this}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:-http://localhost:3000/auth/google/callback}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      RATE_LIMIT_WRITES: ${RATE_LIMIT_WRITES:-2000}
+      RATE_LIMIT_READS: ${RATE_LIMIT_READS:-10000}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./node/packages/webpods/src:/app/node/packages/webpods/src:ro
+      - ./database:/app/database:ro
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
