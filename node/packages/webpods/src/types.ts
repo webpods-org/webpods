@@ -42,15 +42,12 @@ export interface Pod {
   updated_at: Date;
 }
 
-export type StreamType = 'normal' | 'system' | 'permission';
-
 export interface Stream {
   id: string;
   pod_id: string;
   stream_id: string; // Stream path within pod (can include slashes)
   creator_id: string;
   access_permission: string; // 'public', 'private', or '/streamname'
-  stream_type: StreamType;
   metadata?: any;
   created_at: Date;
   updated_at: Date;

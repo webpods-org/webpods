@@ -52,37 +52,48 @@ async function checkPermissionStream(
     
     logger.info('Permission stream found', { 
       streamId: stream.stream_id, 
-      streamType: stream.stream_type,
       id: stream.id 
     });
     
-    // Get the latest permission record for this user
-    // Note: content is stored as text, need to cast to jsonb for querying
-    const record = await db('record')
+    // Get ALL records from the permission stream
+    const records = await db('record')
       .where('stream_id', stream.id)
-      .whereRaw(`content::jsonb->>'id' = ?`, [authId])
-      .orderBy('created_at', 'desc')
-      .select('*')
-      .first();
+      .orderBy('sequence_num', 'asc')
+      .select('*');
     
-    logger.info('Permission record query result', { 
-      found: !!record, 
+    // Process records in memory to find the latest permission for this user
+    let userPermission = null;
+    for (const record of records) {
+      try {
+        const content = typeof record.content === 'string' 
+          ? JSON.parse(record.content)
+          : record.content;
+        
+        // Check if this record is for our user
+        if (content.id === authId) {
+          // Last record wins
+          userPermission = content;
+        }
+      } catch (e) {
+        // Skip records that aren't valid JSON or don't have the right structure
+        logger.debug('Skipping non-permission record', { recordId: record.id });
+      }
+    }
+    
+    logger.info('Permission check result', { 
+      found: !!userPermission, 
       authId, 
       streamId,
-      recordContent: record?.content 
+      permission: userPermission 
     });
     
-    if (!record) {
+    if (!userPermission) {
       return false;
     }
     
     // Check if action is allowed
-    const permissions = typeof record.content === 'string' 
-      ? JSON.parse(record.content)
-      : record.content;
-    
-    const allowed = permissions[action] === true;
-    logger.debug('Permission check result', { authId, action, allowed, permissions });
+    const allowed = userPermission[action] === true;
+    logger.debug('Permission check result', { authId, action, allowed, userPermission });
     
     return allowed;
   } catch (error) {

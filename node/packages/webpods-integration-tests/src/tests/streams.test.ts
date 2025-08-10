@@ -62,7 +62,6 @@ describe('WebPods Stream Operations', () => {
         .first();
       expect(stream).to.exist;
       expect(stream.creator_id).to.equal(userId);
-      expect(stream.stream_type).to.equal('normal');
     });
 
     it('should support nested stream paths', async () => {
@@ -256,7 +255,6 @@ describe('WebPods Stream Operations', () => {
         .first();
       
       expect(ownerStream).to.exist;
-      expect(ownerStream.stream_type).to.equal('system');
       expect(ownerStream.access_permission).to.equal('private');
       
       // Check owner record

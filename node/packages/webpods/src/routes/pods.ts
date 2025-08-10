@@ -368,21 +368,6 @@ router.post('/*', extractPod, authenticate, rateLimit('write'), async (req: Requ
       return;
     }
     
-    // Check if this is a permission record (has id, read, write fields)
-    const isPermissionRecord = typeof content === 'object' && 
-      content !== null && 
-      'id' in content && 
-      ('read' in content || 'write' in content);
-    
-    // If writing a permission record, mark the stream as a permission stream
-    if (isPermissionRecord && streamResult.data.stream.stream_type !== 'permission') {
-      const { markAsPermissionStream } = await import('../domain/streams.js');
-      const markResult = await markAsPermissionStream(db, req.pod!.id, streamId);
-      if (!markResult.success) {
-        logger.error('Failed to mark permission stream', { error: markResult.error, streamId });
-      }
-    }
-    
     // Write record
     const recordResult = await writeRecord(
       db,

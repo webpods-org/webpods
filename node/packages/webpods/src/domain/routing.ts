@@ -138,7 +138,6 @@ export async function updateLinks(
             stream_id: '.meta/links',
             creator_id: userId,
             access_permission: 'private',  // Only owner can modify
-            stream_type: 'system',
             created_at: new Date()
           })
           .returning('*');
@@ -264,7 +263,6 @@ export async function updateCustomDomains(
             stream_id: '.meta/domains',
             creator_id: userId,
             access_permission: 'private',  // Only owner can modify
-            stream_type: 'system',
             created_at: new Date()
           })
           .returning('*');

@@ -62,7 +62,6 @@ export async function createPod(
           stream_id: '.meta/owner',
           creator_id: userId,
           access_permission: 'private',  // Only owner can modify
-          stream_type: 'system',
           created_at: new Date()
         })
         .returning('*');

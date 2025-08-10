@@ -30,13 +30,7 @@ export async function getOrCreateStream(
     };
   }
 
-  // Determine stream type
-  let streamType: 'normal' | 'system' | 'permission' = 'normal';
   const actualStreamId = streamId;
-  
-  if (streamId.startsWith('.meta/')) {
-    streamType = 'system';
-  }
 
   try {
     // Try to find existing stream
@@ -57,7 +51,6 @@ export async function getOrCreateStream(
         stream_id: actualStreamId,
         creator_id: userId,
         access_permission: accessPermission || 'public',
-        stream_type: streamType,
         created_at: new Date()
       })
       .returning('*');
@@ -108,36 +101,6 @@ export async function getStream(
       error: {
         code: 'DATABASE_ERROR',
         message: 'Failed to get stream'
-      }
-    };
-  }
-}
-
-/**
- * Mark a stream as a permission stream
- */
-export async function markAsPermissionStream(
-  db: Knex,
-  podId: string,
-  streamId: string
-): Promise<Result<void>> {
-  try {
-    await db('stream')
-      .where('pod_id', podId)
-      .where('stream_id', streamId)
-      .update({
-        stream_type: 'permission'
-      });
-    
-    logger.info('Stream marked as permission stream', { podId, streamId });
-    return { success: true, data: undefined };
-  } catch (error: any) {
-    logger.error('Failed to mark stream as permission stream', { error, podId, streamId });
-    return {
-      success: false,
-      error: {
-        code: 'DATABASE_ERROR',
-        message: 'Failed to update stream type'
       }
     };
   }
