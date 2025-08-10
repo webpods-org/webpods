@@ -1,5 +1,6 @@
 // Health check tests for WebPods
 import { expect } from 'chai';
+import jwt from 'jsonwebtoken';
 import { client, testDb } from '../test-setup.js';
 
 describe('WebPods Health Checks', () => {
@@ -98,7 +99,6 @@ describe('WebPods Health Checks', () => {
         provider: 'github'
       }).returning('*');
       
-      const jwt = require('jsonwebtoken');
       const token = jwt.sign({
         user_id: user.id,
         auth_id: user.auth_id,

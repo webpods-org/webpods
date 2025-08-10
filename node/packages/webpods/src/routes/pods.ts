@@ -296,6 +296,20 @@ router.post('/*', extractPod, authenticate, rateLimit('write'), async (req: Requ
     
     // Create pod if it doesn't exist
     if (!req.pod && req.pod_id) {
+      // Check pod creation rate limit first
+      const { checkRateLimit } = await import('../domain/ratelimit.js');
+      const podLimitResult = await checkRateLimit(db, req.auth.auth_id, 'pod_create');
+      
+      if (!podLimitResult.success || !podLimitResult.data.allowed) {
+        res.status(429).json({
+          error: {
+            code: 'RATE_LIMIT_EXCEEDED',
+            message: 'Too many pods created'
+          }
+        });
+        return;
+      }
+      
       const podResult = await createPod(db, req.auth.user_id, req.pod_id);
       if (!podResult.success) {
         res.status(500).json({
@@ -304,10 +318,26 @@ router.post('/*', extractPod, authenticate, rateLimit('write'), async (req: Requ
         return;
       }
       req.pod = podResult.data;
+    }
+    
+    // Check if stream exists first
+    const { getStream } = await import('../domain/streams.js');
+    const existingStream = await getStream(db, req.pod!.id, streamId);
+    
+    // If stream doesn't exist, check rate limit before creating
+    if (!existingStream.success) {
+      const { checkRateLimit } = await import('../domain/ratelimit.js');
+      const streamLimitResult = await checkRateLimit(db, req.auth.auth_id, 'stream_create');
       
-      // Track pod creation for rate limiting
-      const { incrementRateLimit } = await import('../domain/ratelimit.js');
-      await incrementRateLimit(db, req.auth.auth_id, 'pod_create');
+      if (!streamLimitResult.success || !streamLimitResult.data.allowed) {
+        res.status(429).json({
+          error: {
+            code: 'RATE_LIMIT_EXCEEDED',
+            message: 'Too many streams created'
+          }
+        });
+        return;
+      }
     }
     
     // Get or create stream
@@ -324,12 +354,6 @@ router.post('/*', extractPod, authenticate, rateLimit('write'), async (req: Requ
         error: streamResult.error
       });
       return;
-    }
-    
-    // Track stream creation for rate limiting
-    if (streamResult.data.created) {
-      const { incrementRateLimit } = await import('../domain/ratelimit.js');
-      await incrementRateLimit(db, req.auth.auth_id, 'stream_create');
     }
     
     // Check write permission
@@ -398,6 +422,56 @@ router.post('/*', extractPod, authenticate, rateLimit('write'), async (req: Requ
       }
     });
   }
+});
+
+/**
+ * Root path handler with .meta/links support
+ * GET {pod}.webpods.org/
+ */
+router.get('/', extractPod, optionalAuth, async (req: Request, res: Response) => {
+  if (!req.pod || !req.pod_id) {
+    res.status(404).json({
+      error: {
+        code: 'POD_NOT_FOUND',
+        message: 'Pod not found'
+      }
+    });
+    return;
+  }
+
+  const db = getDb();
+  
+  // Check if path "/" is mapped in .meta/links
+  const linkResult = await resolveLink(db, req.pod_id, '/');
+  
+  if (linkResult.success && linkResult.data) {
+    // Redirect to the mapped stream/record
+    const { streamId, target } = linkResult.data;
+    
+    // Rewrite URL and forward to the stream handler
+    if (target && target.startsWith('?')) {
+      // Handle query parameters (e.g., "?i=-1")
+      req.url = `/${streamId}${target}`;
+      req.query = Object.fromEntries(new URLSearchParams(target.substring(1)));
+    } else if (target) {
+      // Handle path targets (e.g., "my-post")
+      req.url = `/${streamId}/${target}`;
+    } else {
+      // Just the stream
+      req.url = `/${streamId}`;
+    }
+    
+    // Let Express router handle the rewritten request
+    return router(req, res, () => {});
+  }
+  
+  // No mapping, return 404
+  res.status(404).json({
+    error: {
+      code: 'NOT_FOUND',
+      message: 'No content configured for root path. Use .meta/links to configure.'
+    }
+  });
 });
 
 /**
@@ -632,56 +706,6 @@ router.delete('/*', extractPod, authenticate, async (req: Request, res: Response
   }
 
   res.status(204).send();
-});
-
-/**
- * Root path handler with .meta/links support
- * GET {pod}.webpods.org/
- */
-router.get('/', extractPod, optionalAuth, async (req: Request, res: Response) => {
-  if (!req.pod || !req.pod_id) {
-    res.status(404).json({
-      error: {
-        code: 'POD_NOT_FOUND',
-        message: 'Pod not found'
-      }
-    });
-    return;
-  }
-
-  const db = getDb();
-  
-  // Check if path "/" is mapped in .meta/links
-  const linkResult = await resolveLink(db, req.pod_id, '/');
-  
-  if (linkResult.success && linkResult.data) {
-    // Redirect to the mapped stream/record
-    const { streamId, target } = linkResult.data;
-    
-    // Rewrite URL and forward to the stream handler
-    if (target && target.startsWith('?')) {
-      // Handle query parameters (e.g., "?i=-1")
-      req.url = `/${streamId}${target}`;
-      req.query = Object.fromEntries(new URLSearchParams(target.substring(1)));
-    } else if (target) {
-      // Handle path targets (e.g., "my-post")
-      req.url = `/${streamId}/${target}`;
-    } else {
-      // Just the stream
-      req.url = `/${streamId}`;
-    }
-    
-    // Let Express router handle the rewritten request
-    return router(req, res, () => {});
-  }
-  
-  // No mapping, return 404
-  res.status(404).json({
-    error: {
-      code: 'NOT_FOUND',
-      message: 'No content configured for root path. Use .meta/links to configure.'
-    }
-  });
 });
 
 export default router;
