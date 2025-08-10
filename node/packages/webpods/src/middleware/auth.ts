@@ -1,26 +1,21 @@
-// Authentication middleware for WebPods
+/**
+ * Authentication middleware for WebPods
+ */
+
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
+import { verifyToken } from '../domain/auth.js';
+import { JWTPayload } from '../types.js';
 import { createLogger } from '../logger.js';
+import { getIpAddress } from '../utils.js';
 
 const logger = createLogger('webpods:auth');
 
 // Extend Express Request type
 declare module 'express-serve-static-core' {
   interface Request {
-    auth?: {
-      userId: string;
-      authId: string;
-    };
+    auth?: JWTPayload;
+    ip_address?: string;
   }
-}
-
-interface JwtPayload {
-  userId: string;
-  authId: string;
-  email?: string;
-  name?: string;
-  provider: string;
 }
 
 /**
@@ -32,20 +27,15 @@ export async function authenticate(
   next: NextFunction
 ): Promise<void> {
   try {
-    // Get token from Authorization header
-    const authHeader = req.headers.authorization;
+    // Get token from cookie or Authorization header
+    let token = (req as any).cookies?.token;
     
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      res.status(401).json({ 
-        error: {
-          code: 'UNAUTHORIZED',
-          message: 'Missing or invalid authorization header'
-        }
-      });
-      return;
+    if (!token) {
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7); // Remove 'Bearer ' prefix
+      }
     }
-    
-    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
     
     if (!token) {
       res.status(401).json({ 
@@ -58,44 +48,30 @@ export async function authenticate(
     }
     
     // Verify JWT token
-    const jwtSecret = process.env.JWT_SECRET;
-    if (!jwtSecret) {
-      logger.error('JWT_SECRET not configured');
-      res.status(500).json({ 
+    const result = verifyToken(token);
+    
+    if (!result.success) {
+      logger.warn('Invalid JWT token', { error: result.error });
+      res.status(401).json({ 
         error: {
-          code: 'INTERNAL_ERROR',
-          message: 'Authentication not properly configured'
+          code: 'UNAUTHORIZED',
+          message: result.error.message
         }
       });
       return;
     }
     
-    try {
-      const decoded = jwt.verify(token, jwtSecret) as JwtPayload;
-      
-      // Attach user info to request
-      req.auth = {
-        userId: decoded.userId,
-        authId: decoded.authId
-      };
-      
-      logger.debug('User authenticated', { 
-        userId: decoded.userId,
-        provider: decoded.provider,
-        ip: req.ip || req.socket.remoteAddress
-      });
-      
-      next();
-    } catch (jwtError) {
-      logger.warn('Invalid JWT token', { error: jwtError });
-      res.status(401).json({ 
-        error: {
-          code: 'UNAUTHORIZED',
-          message: 'Invalid or expired token'
-        }
-      });
-      return;
-    }
+    // Attach user info to request
+    req.auth = result.data;
+    req.ip_address = getIpAddress(req);
+    
+    logger.debug('User authenticated', { 
+      userId: result.data.user_id,
+      provider: result.data.provider,
+      ip: req.ip_address
+    });
+    
+    next();
   } catch (error) {
     logger.error('Authentication error', { error });
     res.status(500).json({ 
@@ -116,31 +92,27 @@ export async function optionalAuth(
   next: NextFunction
 ): Promise<void> {
   try {
-    const authHeader = req.headers.authorization;
+    req.ip_address = getIpAddress(req);
     
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    // Get token from cookie or Authorization header
+    let token = (req as any).cookies?.token;
+    
+    if (!token) {
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7);
+      }
+    }
+    
+    if (!token) {
       // No auth provided, continue without it
       next();
       return;
     }
+    const result = verifyToken(token);
     
-    const token = authHeader.substring(7);
-    const jwtSecret = process.env.JWT_SECRET;
-    
-    if (!jwtSecret) {
-      // Auth not configured, continue without it
-      next();
-      return;
-    }
-    
-    try {
-      const decoded = jwt.verify(token, jwtSecret) as JwtPayload;
-      req.auth = {
-        userId: decoded.userId,
-        authId: decoded.authId
-      };
-    } catch {
-      // Invalid token, continue without auth
+    if (result.success) {
+      req.auth = result.data;
     }
     
     next();

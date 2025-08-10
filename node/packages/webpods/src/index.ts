@@ -1,15 +1,17 @@
-// WebPods server entry point
+/**
+ * WebPods server entry point
+ */
+
 import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import compression from 'compression';
-import rateLimit from 'express-rate-limit';
-import passport from 'passport';
+import cookieParser from 'cookie-parser';
 import { config } from 'dotenv';
 import { createLogger } from './logger.js';
 import { closeDb, checkDbConnection } from './db.js';
-import { queuesRouter } from './routes/queues.js';
-import { authRouter } from './routes/auth.js';
+import authRouter from './auth/routes.js';
+import podsRouter from './routes/pods.js';
 
 // Load environment variables
 config();
@@ -30,19 +32,7 @@ app.use(express.json({ limit: '1mb' }));
 app.use(express.text({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(compression());
-
-// Passport initialization
-app.use(passport.initialize());
-
-// Global rate limiting (disabled in test mode)
-if (process.env.NODE_ENV !== 'test') {
-  const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 1000, // limit each IP to 1000 requests per windowMs
-    message: 'Too many requests from this IP, please try again later.'
-  });
-  app.use(limiter);
-}
+app.use(cookieParser());
 
 // Request logging
 app.use((req, res, next) => {
@@ -52,6 +42,7 @@ app.use((req, res, next) => {
     logger.info('Request completed', {
       method: req.method,
       url: req.url,
+      hostname: req.hostname,
       status: res.statusCode,
       duration,
       ip: req.ip
@@ -60,8 +51,19 @@ app.use((req, res, next) => {
   next();
 });
 
-// Health check
-app.get('/health', async (_req, res) => {
+// Health check (on main domain)
+app.get('/health', async (req, res) => {
+  // Only allow health check on main domain
+  if (req.hostname !== 'webpods.org' && req.hostname !== 'localhost') {
+    res.status(404).json({ 
+      error: {
+        code: 'NOT_FOUND',
+        message: 'Endpoint not found'
+      }
+    });
+    return;
+  }
+  
   const services: Record<string, string> = {};
   
   // Check database connection
@@ -76,9 +78,20 @@ app.get('/health', async (_req, res) => {
   });
 });
 
-// API routes
-app.use('/', authRouter);
-app.use('/', queuesRouter);
+// Route based on hostname
+app.use((req, res, next) => {
+  const hostname = req.hostname || req.headers.host?.split(':')[0] || '';
+  
+  // Auth routes only on main domain
+  if (hostname === 'webpods.org' || hostname === 'localhost') {
+    if (req.path.startsWith('/auth')) {
+      return authRouter(req, res, next);
+    }
+  }
+  
+  // All other routes go to pod router
+  podsRouter(req, res, next);
+});
 
 // 404 handler
 app.use((_req, res) => {
@@ -127,8 +140,18 @@ async function start() {
     }
     
     // Check OAuth configuration
+    if (!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET) {
+      logger.warn('GitHub OAuth not configured');
+    }
+    
     if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-      logger.warn('Google OAuth not configured - authentication will not work');
+      logger.warn('Google OAuth not configured');
+    }
+    
+    if ((!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET) &&
+        (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET)) {
+      logger.error('At least one OAuth provider must be configured');
+      process.exit(1);
     }
     
     // Test database connection
@@ -142,7 +165,8 @@ async function start() {
       logger.info(`WebPods server started`, {
         port,
         environment: process.env.NODE_ENV || 'development',
-        cors: process.env.CORS_ORIGIN || '*'
+        cors: process.env.CORS_ORIGIN || '*',
+        domain: process.env.DOMAIN || 'webpods.org'
       });
     });
     
