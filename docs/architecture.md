@@ -22,23 +22,24 @@ WebPods is designed as a simple, scalable append-only log service with OAuth aut
 - **Audit Trail**: Complete history preservation for compliance and debugging
 - **Simplicity**: No complex conflict resolution or merge strategies needed
 
-### 2. Queue-Based Organization
-- **Named Queues**: User-defined identifiers for logical data separation
-- **Auto-Creation**: Queues created on first write, reducing API complexity
-- **Independent Scaling**: Queues can be partitioned and scaled independently
+### 2. Pod and Stream Organization
+- **Pods**: Subdomain namespaces for multi-tenancy
+- **Named Streams**: User-defined identifiers for logical data separation
+- **Auto-Creation**: Pods and streams created on first write, reducing API complexity
+- **Independent Scaling**: Streams can be partitioned and scaled independently
 - **Multi-Tenancy**: Natural isolation between different users' data
 
 ### 3. RESTful API Design
-- **Standard HTTP Verbs**: POST for writes, GET for reads, DELETE for queue removal
+- **Standard HTTP Verbs**: POST for writes, GET for reads, DELETE for stream removal
 - **Stateless**: Each request contains all necessary information
-- **Resource-Oriented**: URLs represent resources (queues, records)
+- **Resource-Oriented**: URLs represent resources (pods, streams, records)
 - **Content Negotiation**: Support for both JSON and plain text
 
 ### 4. OAuth-First Authentication
 - **Industry Standard**: OAuth 2.0 with JWT tokens
 - **Provider Flexibility**: Starting with Google, extensible to other providers
 - **Stateless Authentication**: JWT tokens eliminate session storage needs
-- **Fine-Grained Permissions**: Per-queue read/write permissions
+- **Fine-Grained Permissions**: Per-stream read/write permissions
 
 ## System Components
 
@@ -66,7 +67,7 @@ WebPods is designed as a simple, scalable append-only log service with OAuth aut
 │  │  └──────────────────────────────────────────┘    │   │
 │  │  ┌──────────────────────────────────────────┐    │   │
 │  │  │         Business Logic Layer             │    │   │
-│  │  │    (Queue, Permission, Record Mgmt)     │    │   │
+│  │  │    (Pod, Stream, Permission, Record Mgmt) │    │   │
 │  │  └──────────────────────────────────────────┘    │   │
 │  └──────────────────────────────────────────────────┘   │
 └─────────────────────┬───────────────────────────────────┘
@@ -74,7 +75,7 @@ WebPods is designed as a simple, scalable append-only log service with OAuth aut
 ┌─────────────────────▼───────────────────────────────────┐
 │                    PostgreSQL Database                   │
 │  ┌──────────────────────────────────────────────────┐   │
-│  │ Tables: user, queue, record, rate_limit         │   │
+│  │ Tables: user, pod, stream, record, rate_limit    │   │
 │  │ Indexes: Optimized for append and range queries  │   │
 │  │ Constraints: Foreign keys, unique constraints    │   │
 │  └──────────────────────────────────────────────────┘   │
@@ -158,10 +159,10 @@ WebPods is designed as a simple, scalable append-only log service with OAuth aut
 
 ### Key Design Decisions
 
-1. **UUIDs for User/Queue IDs**: Globally unique, no central coordination needed
+1. **UUIDs for User/Pod/Stream IDs**: Globally unique, no central coordination needed
 2. **Sequential IDs for Records**: Efficient append operations, natural ordering
 3. **JSONB for Content/Metadata**: Flexible schema, queryable in PostgreSQL
-4. **Denormalized Permissions**: Stored directly on queue for fast access
+4. **Denormalized Permissions**: Stored directly on stream for fast access
 5. **Sliding Window Rate Limiting**: Accurate rate limiting without fixed windows
 
 ## Request Flow
@@ -174,7 +175,7 @@ WebPods is designed as a simple, scalable append-only log service with OAuth aut
        └─> JWT Validation
            └─> Rate Limit Check
                └─> Permission Check
-                   └─> Queue Creation/Update (if needed)
+                   └─> Pod/Stream Creation (if needed)
                        └─> Record Insertion
                            └─> Response
 ```
@@ -185,7 +186,7 @@ WebPods is designed as a simple, scalable append-only log service with OAuth aut
 1. Client Request
    └─> Optional Authentication
        └─> Rate Limit Check (if authenticated)
-           └─> Queue Lookup
+           └─> Stream Lookup
                └─> Permission Check
                    └─> Record Retrieval
                        └─> Response Formatting
@@ -241,14 +242,14 @@ WebPods is designed as a simple, scalable append-only log service with OAuth aut
 ### Performance Optimizations
 1. **Connection Pooling**: Reuse database connections
 2. **Index Strategy**: Optimized for append and range queries
-3. **Pagination**: Limit-based pagination for large queues
+3. **Pagination**: Limit-based pagination for large streams
 4. **Stateless Design**: Any server can handle any request
 
 ### Future Scaling Options
 1. **Read Replicas**: Offload read traffic from primary
-2. **Queue Partitioning**: Distribute queues across databases
+2. **Stream Partitioning**: Distribute streams across databases
 3. **Caching Layer**: Add Redis for hot data (if needed)
-4. **CDN**: Cache public queue responses at edge
+4. **CDN**: Cache public stream responses at edge
 
 ## Technology Stack
 

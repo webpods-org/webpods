@@ -196,7 +196,7 @@ fi
 
 # Test 3: Unauthenticated write (should fail)
 print_info "Testing: Unauthenticated write rejection"
-RESPONSE=$(curl -s -X POST http://localhost:$TEST_PORT/q/test-queue \
+RESPONSE=$(curl -s -X POST http://test.localhost:$TEST_PORT/test-stream \
     -H "Content-Type: application/json" \
     -d '{"message": "test"}' 2>/dev/null)
 if echo "$RESPONSE" | grep -q "\"code\":\"UNAUTHORIZED\""; then
@@ -207,14 +207,14 @@ else
     TESTS_FAILED=$((TESTS_FAILED + 1))
 fi
 
-# Test 4: Public queue read (should work)
-print_info "Testing: Public queue read"
-RESPONSE=$(curl -s http://localhost:$TEST_PORT/q/public-test)
+# Test 4: Public stream read (should work)
+print_info "Testing: Public stream read"
+RESPONSE=$(curl -s http://test.localhost:$TEST_PORT/public-test)
 if echo "$RESPONSE" | grep -q "\"code\":\"NOT_FOUND\""; then
-    print_success "Public queue read (queue not found as expected)"
+    print_success "Public stream read (stream not found as expected)"
     TESTS_PASSED=$((TESTS_PASSED + 1))
 else
-    print_error "Public queue read failed: $RESPONSE"
+    print_error "Public stream read failed: $RESPONSE"
     TESTS_FAILED=$((TESTS_FAILED + 1))
 fi
 

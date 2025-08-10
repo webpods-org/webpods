@@ -83,7 +83,7 @@ export interface CustomDomain {
 export interface RateLimit {
   id: string;
   key: string; // user_id or ip_address
-  action: 'read' | 'write' | 'pod_create' | 'queue_create';
+  action: 'read' | 'write' | 'pod_create' | 'stream_create';
   count: number;
   window_start: Date;
   window_end: Date;

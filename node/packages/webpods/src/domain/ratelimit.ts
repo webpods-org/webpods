@@ -8,13 +8,13 @@ import { createLogger } from '../logger.js';
 
 const logger = createLogger('webpods:domain:ratelimit');
 
-export type RateLimitType = 'read' | 'write' | 'pod_create' | 'queue_create';
+export type RateLimitType = 'read' | 'write' | 'pod_create' | 'stream_create';
 
 interface RateLimitConfig {
   read: number;
   write: number;
   pod_create: number;
-  queue_create: number;
+  stream_create: number;
 }
 
 // Default rate limits (per hour)
@@ -22,7 +22,7 @@ const DEFAULT_LIMITS: RateLimitConfig = {
   read: parseInt(process.env.RATE_LIMIT_READS || '10000'),
   write: parseInt(process.env.RATE_LIMIT_WRITES || '1000'),
   pod_create: parseInt(process.env.RATE_LIMIT_POD_CREATE || '10'),
-  queue_create: parseInt(process.env.RATE_LIMIT_STREAM_CREATE || '100')
+  stream_create: parseInt(process.env.RATE_LIMIT_STREAM_CREATE || '100')
 };
 
 /**

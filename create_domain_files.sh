@@ -11,7 +11,7 @@ files=(
   "auth.ts"
   "permissions.ts"  
   "pods.ts"
-  "queues.ts"
+  "streams.ts"
   "ratelimit.ts"
   "records.ts"
   "routing.ts"
