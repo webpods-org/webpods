@@ -129,6 +129,7 @@ GET {pod_id}.webpods.org/{queue_id}
     {
       "index": 0,
       "content": "string1",
+      "author": "auth:github:1234567",
       "hash": "sha256:abc123...",
       "previous_hash": null,
       "timestamp": "2025-01-15T10:00:00Z"
@@ -136,6 +137,7 @@ GET {pod_id}.webpods.org/{queue_id}
     {
       "index": 1,
       "content": {"json": "object"},
+      "author": "auth:google:110169484474386276334",
       "hash": "sha256:def456...",
       "previous_hash": "sha256:abc123...",
       "timestamp": "2025-01-15T10:01:00Z"
@@ -157,32 +159,15 @@ GET {pod_id}.webpods.org/{queue_id}/{index}
 - Positive: 0-based from start (0, 1, 2...)
 - Negative: From end (-1 = last, -2 = second to last)
 
-**Response:**
-```json
-{
-  "index": 5,
-  "content": "Blog post content",
-  "hash": "sha256:7d865e959b2466918c9863afca942d0fb89d7c9ac0c99bafc3749504ded97730",
-  "previous_hash": "sha256:4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
-  "timestamp": "2025-01-15T10:05:00Z"
-}
-```
+**Response:** Returns raw content based on the record's content type.
 
-For HTML/CSS content serving, use `Accept: text/html` header to get raw content.
+**Examples:**
+- HTML record → returns HTML directly
+- CSS record → returns CSS directly  
+- JSON record → returns JSON directly
+- Text record → returns text directly
 
-### Check for Changes
-
-```
-HEAD {pod_id}.webpods.org/{queue_id}
-HEAD {pod_id}.webpods.org/{queue_id}/{index}
-```
-
-**Response Headers:**
-- `X-Hash`: Latest record hash (for queue) or record hash (for single record)
-- `X-Previous-Hash`: Previous record hash in chain
-- `X-Chain-Hash`: Hash of entire chain (merkle root)
-- `X-Last-Modified`: Last write timestamp
-- `X-Total-Records`: Record count
+This enables direct content serving for websites and APIs.
 
 ### List Queues in Pod
 
@@ -311,6 +296,7 @@ All API responses include hash information for verification:
     {
       "index": 0,
       "content": "any content here",
+      "author": "auth:github:1234567",
       "hash": "sha256:...",
       "previous_hash": null,
       "timestamp": "2025-01-15T10:00:00Z"
@@ -323,22 +309,13 @@ All API responses include hash information for verification:
 ```
 
 ### Single Record Response
-```json
-{
-  "index": 42,
-  "content": {"json": "data"},
-  "hash": "sha256:...",
-  "previous_hash": "sha256:...",
-  "timestamp": "2025-01-15T10:00:00Z"
-}
-```
+Returns the raw content directly:
+- HTML → `<!DOCTYPE html><html>...</html>`
+- JSON → `{"json": "data"}`
+- Text → `Plain text content`
+- CSS → `body { font-family: serif; }`
 
-### Raw Content (with Accept header)
-When `Accept: text/html` or matching content-type:
-```html
-<!DOCTYPE html>
-<html>...</html>
-```
+To get the full record with metadata (author, hash, etc), use the queue listing endpoint with appropriate filters.
 
 ## Common Patterns
 
