@@ -1,5 +1,5 @@
 /**
- * Pod and queue routes
+ * Pod and stream routes
  */
 
 import { Router, Request, Response } from 'express';
@@ -10,14 +10,14 @@ import { rateLimit } from '../middleware/ratelimit.js';
 import { getDb } from '../db.js';
 import { createLogger } from '../logger.js';
 import { 
-  parseRange, 
+  parseIndexQuery, 
   detectContentType,
-  isSystemQueue
+  isSystemStream
 } from '../utils.js';
 
 // Import domain functions
-import { createPod, deletePod, listPodQueues, transferPodOwnership, getPodOwner } from '../domain/pods.js';
-import { getOrCreateQueue, getQueue, deleteQueue } from '../domain/queues.js';
+import { createPod, deletePod, listPodStreams, transferPodOwnership, getPodOwner } from '../domain/pods.js';
+import { getOrCreateStream, getStream, deleteStream } from '../domain/streams.js';
 import { writeRecord, getRecord, getRecordRange, listRecords, recordToResponse } from '../domain/records.js';
 import { canRead, canWrite } from '../domain/permissions.js';
 import { resolveLink, updateLinks, updateCustomDomains } from '../domain/routing.js';
@@ -43,10 +43,10 @@ const domainsSchema = z.object({
 });
 
 /**
- * List queues in pod
- * GET {pod}.webpods.org/_queues
+ * List streams in pod
+ * GET {pod}.webpods.org/.system/streams
  */
-router.get('/_queues', extractPod, async (req: Request, res: Response) => {
+router.get('/.system/streams', extractPod, async (req: Request, res: Response) => {
   if (!req.pod || !req.pod_id) {
     res.status(404).json({
       error: {
@@ -58,7 +58,7 @@ router.get('/_queues', extractPod, async (req: Request, res: Response) => {
   }
 
   const db = getDb();
-  const result = await listPodQueues(db, req.pod_id);
+  const result = await listPodStreams(db, req.pod_id);
   
   if (!result.success) {
     res.status(500).json({
@@ -69,7 +69,7 @@ router.get('/_queues', extractPod, async (req: Request, res: Response) => {
 
   res.json({
     pod: req.pod_id,
-    queues: result.data
+    streams: result.data
   });
 });
 
@@ -103,12 +103,12 @@ router.delete('/', extractPod, authenticate, rateLimit('pod_create'), async (req
 });
 
 /**
- * Write to system queues
- * POST {pod}.webpods.org/_owner
- * POST {pod}.webpods.org/_links
- * POST {pod}.webpods.org/_domains
+ * Write to system streams
+ * POST {pod}.webpods.org/.system/owner
+ * POST {pod}.webpods.org/.system/links
+ * POST {pod}.webpods.org/.system/domains
  */
-router.post('/_owner', extractPod, authenticate, async (req: Request, res: Response) => {
+router.post('/.system/owner', extractPod, authenticate, async (req: Request, res: Response) => {
   if (!req.pod || !req.pod_id || !req.auth) {
     res.status(404).json({
       error: {
@@ -154,7 +154,7 @@ router.post('/_owner', extractPod, authenticate, async (req: Request, res: Respo
   }
 });
 
-router.post('/_links', extractPod, authenticate, async (req: Request, res: Response) => {
+router.post('/.system/links', extractPod, authenticate, async (req: Request, res: Response) => {
   if (!req.pod || !req.pod_id || !req.auth) {
     res.status(404).json({
       error: {
@@ -211,7 +211,7 @@ router.post('/_links', extractPod, authenticate, async (req: Request, res: Respo
   }
 });
 
-router.post('/_domains', extractPod, authenticate, async (req: Request, res: Response) => {
+router.post('/.system/domains', extractPod, authenticate, async (req: Request, res: Response) => {
   if (!req.pod || !req.pod_id || !req.auth) {
     res.status(404).json({
       error: {
@@ -269,11 +269,11 @@ router.post('/_domains', extractPod, authenticate, async (req: Request, res: Res
 });
 
 /**
- * Write to queue (with optional alias)
- * POST {pod}.webpods.org/{queue}
- * POST {pod}.webpods.org/{queue}/{alias}
+ * Write to stream
+ * POST {pod}.webpods.org/{stream_path}?alias={alias}
+ * Supports nested paths: /blog/posts/2024
  */
-router.post('/:queue/:alias?', extractPod, authenticate, rateLimit('write'), async (req: Request, res: Response) => {
+router.post('/*', extractPod, authenticate, rateLimit('write'), async (req: Request, res: Response) => {
   if (!req.pod || !req.auth) {
     res.status(404).json({
       error: {
@@ -285,8 +285,9 @@ router.post('/:queue/:alias?', extractPod, authenticate, rateLimit('write'), asy
   }
 
   try {
-    const queueId = req.params.queue!;
-    const alias = req.params.alias || null;
+    // Get stream path from URL (everything after domain)
+    const streamId = req.path.substring(1); // Remove leading /
+    const alias = req.query.alias as string | undefined;
     const content = writeSchema.parse(req.body);
     const contentType = detectContentType(req.headers);
     const readPermission = req.query.read as string | undefined;
@@ -306,30 +307,30 @@ router.post('/:queue/:alias?', extractPod, authenticate, rateLimit('write'), asy
       req.pod = podResult.data;
     }
     
-    // Get or create queue
-    const queueResult = await getOrCreateQueue(
+    // Get or create stream
+    const streamResult = await getOrCreateStream(
       db,
       req.pod!.id,
-      queueId,
+      streamId,
       req.auth!.user_id,
       readPermission,
       writePermission
     );
     
-    if (!queueResult.success) {
+    if (!streamResult.success) {
       res.status(500).json({
-        error: queueResult.error
+        error: streamResult.error
       });
       return;
     }
     
     // Check write permission
-    const canWriteResult = await canWrite(db, queueResult.data, req.auth.auth_id);
+    const canWriteResult = await canWrite(db, streamResult.data, req.auth.auth_id);
     if (!canWriteResult) {
       res.status(403).json({
         error: {
           code: 'FORBIDDEN',
-          message: 'No write permission for this queue'
+          message: 'No write permission for this stream'
         }
       });
       return;
@@ -338,7 +339,7 @@ router.post('/:queue/:alias?', extractPod, authenticate, rateLimit('write'), asy
     // Write record
     const recordResult = await writeRecord(
       db,
-      queueResult.data.id,
+      streamResult.data.id,
       content,
       contentType,
       req.auth.auth_id,
@@ -375,13 +376,14 @@ router.post('/:queue/:alias?', extractPod, authenticate, rateLimit('write'), asy
 });
 
 /**
- * Read from queue
- * GET {pod}.webpods.org/{queue} - List records
- * GET {pod}.webpods.org/{queue}/{index} - Get single record
- * GET {pod}.webpods.org/{queue}/{range} - Get range
- * GET {pod}.webpods.org/{queue}/{alias} - Get by alias
+ * Read from stream
+ * GET {pod}.webpods.org/{stream_path} - List records or get by query param
+ * GET {pod}.webpods.org/{stream_path}?i=0 - Get by index
+ * GET {pod}.webpods.org/{stream_path}?i=-1 - Get latest
+ * GET {pod}.webpods.org/{stream_path}?i=10:20 - Get range
+ * GET {pod}.webpods.org/{stream_path}/{alias} - Get by alias
  */
-router.get('/:queue/:target?', extractPod, optionalAuth, rateLimit('read'), async (req: Request, res: Response) => {
+router.get('/*', extractPod, optionalAuth, rateLimit('read'), async (req: Request, res: Response) => {
   if (!req.pod) {
     res.status(404).json({
       error: {
@@ -392,78 +394,77 @@ router.get('/:queue/:target?', extractPod, optionalAuth, rateLimit('read'), asyn
     return;
   }
 
-  const queueId = req.params.queue;
-  const target = req.params.target;
+  const pathParts = req.path.substring(1).split('/'); // Remove leading /
   const db = getDb();
   
-  // Get queue
-  const queueResult = await getQueue(db, req.pod!.id, queueId!);
+  // Check for index query parameter
+  const indexQuery = req.query.i as string | undefined;
   
-  if (!queueResult.success) {
+  // Determine if last part is an alias or part of stream path
+  let streamId: string;
+  let alias: string | undefined;
+  
+  if (indexQuery) {
+    // If using index query, entire path is stream ID
+    streamId = pathParts.join('/');
+  } else if (pathParts.length > 1) {
+    // Check if last part could be an alias (not using index query)
+    // Try to find stream with full path first
+    const fullPath = pathParts.join('/');
+    const streamResult = await getStream(db, req.pod!.id, fullPath);
+    
+    if (streamResult.success) {
+      streamId = fullPath;
+    } else {
+      // Assume last part is alias
+      alias = pathParts.pop();
+      streamId = pathParts.join('/');
+    }
+  } else {
+    streamId = pathParts[0]!;
+  }
+  
+  // Get stream
+  const streamResult = await getStream(db, req.pod!.id, streamId);
+  
+  if (!streamResult.success) {
     res.status(404).json({
       error: {
-        code: 'QUEUE_NOT_FOUND',
-        message: 'Queue not found'
+        code: 'STREAM_NOT_FOUND',
+        message: 'Stream not found'
       }
     });
     return;
   }
   
   // Check read permission
-  const canReadResult = await canRead(db, queueResult.data, req.auth?.auth_id || null);
+  const canReadResult = await canRead(db, streamResult.data, req.auth?.auth_id || null);
   if (!canReadResult) {
     res.status(403).json({
       error: {
         code: 'FORBIDDEN',
-        message: 'No read permission for this queue'
+        message: 'No read permission for this stream'
       }
     });
     return;
   }
   
-  // Handle different target types
-  if (!target) {
-    // List all records
-    const limit = parseInt(req.query.limit as string) || 100;
-    const after = req.query.after ? parseInt(req.query.after as string) : undefined;
-    
-    const result = await listRecords(db, queueResult.data.id, limit, after);
-    
-    if (!result.success) {
-      res.status(500).json({
-        error: result.error
+  // Handle index query parameter
+  if (indexQuery) {
+    const parsed = parseIndexQuery(indexQuery);
+    if (!parsed) {
+      res.status(400).json({
+        error: {
+          code: 'INVALID_INDEX',
+          message: 'Invalid index format. Use ?i=0, ?i=-1, or ?i=10:20'
+        }
       });
       return;
     }
     
-    res.json({
-      records: result.data.records.map(recordToResponse),
-      total: result.data.total,
-      has_more: result.data.hasMore,
-      next_id: result.data.hasMore ? result.data.records[result.data.records.length - 1]?.sequence_num : null
-    });
-  } else {
-    // Check if it's a range
-    const range = parseRange(target);
-    if (range) {
-      const result = await getRecordRange(db, queueResult.data.id, range.start, range.end);
-      
-      if (!result.success) {
-        res.status(500).json({
-          error: result.error
-        });
-        return;
-      }
-      
-      res.json({
-        records: result.data.map(recordToResponse),
-        total: result.data.length,
-        has_more: false,
-        next_id: null
-      });
-    } else {
-      // Single record (by index or alias)
-      const result = await getRecord(db, queueResult.data.id, target);
+    if (parsed.type === 'single') {
+      // Single record by index
+      const result = await getRecord(db, streamResult.data.id, parsed.start.toString());
       
       if (!result.success) {
         res.status(404).json({
@@ -490,15 +491,80 @@ router.get('/:queue/:target?', extractPod, optionalAuth, rateLimit('read'), asyn
       } else {
         res.send(record.content);
       }
+    } else {
+      // Range of records
+      const result = await getRecordRange(db, streamResult.data.id, parsed.start, parsed.end!);
+      
+      if (!result.success) {
+        res.status(500).json({
+          error: result.error
+        });
+        return;
+      }
+      
+      res.json({
+        records: result.data.map(recordToResponse),
+        range: { start: parsed.start, end: parsed.end },
+        total: result.data.length
+      });
     }
+  } else if (alias) {
+    // Get by alias
+    const result = await getRecord(db, streamResult.data.id, alias);
+    
+    if (!result.success) {
+      res.status(404).json({
+        error: result.error
+      });
+      return;
+    }
+    
+    // Return raw content for single records
+    const record = result.data;
+    res.setHeader('Content-Type', record.content_type);
+    res.setHeader('X-Hash', record.hash);
+    res.setHeader('X-Previous-Hash', record.previous_hash || '');
+    res.setHeader('X-Author', record.author_id);
+    res.setHeader('X-Timestamp', record.created_at.toISOString());
+    
+    // Parse JSON content if needed
+    if (record.content_type === 'application/json' && typeof record.content === 'string') {
+      try {
+        res.json(JSON.parse(record.content));
+      } catch {
+        res.send(record.content);
+      }
+    } else {
+      res.send(record.content);
+    }
+  } else {
+    // List all records
+    const limit = parseInt(req.query.limit as string) || 100;
+    const after = req.query.after ? parseInt(req.query.after as string) : undefined;
+    
+    const result = await listRecords(db, streamResult.data.id, limit, after);
+    
+    if (!result.success) {
+      res.status(500).json({
+        error: result.error
+      });
+      return;
+    }
+    
+    res.json({
+      records: result.data.records.map(recordToResponse),
+      total: result.data.total,
+      has_more: result.data.hasMore,
+      next_id: result.data.hasMore ? result.data.records[result.data.records.length - 1]?.sequence_num : null
+    });
   }
 });
 
 /**
- * Delete queue
- * DELETE {pod}.webpods.org/{queue}
+ * Delete stream
+ * DELETE {pod}.webpods.org/{stream_path}
  */
-router.delete('/:queue', extractPod, authenticate, async (req: Request, res: Response) => {
+router.delete('/*', extractPod, authenticate, async (req: Request, res: Response) => {
   if (!req.pod || !req.auth) {
     res.status(404).json({
       error: {
@@ -509,25 +575,25 @@ router.delete('/:queue', extractPod, authenticate, async (req: Request, res: Res
     return;
   }
 
-  const queueId = req.params.queue;
+  const streamId = req.path.substring(1); // Remove leading /
   
-  // Prevent deletion of system queues via this endpoint
-  if (queueId && isSystemQueue(queueId)) {
+  // Prevent deletion of system streams via this endpoint
+  if (streamId && isSystemStream(streamId)) {
     res.status(403).json({
       error: {
         code: 'FORBIDDEN',
-        message: 'System queues cannot be deleted'
+        message: 'System streams cannot be deleted'
       }
     });
     return;
   }
   
   const db = getDb();
-  const result = await deleteQueue(db, req.pod!.id, queueId!, req.auth!.user_id);
+  const result = await deleteStream(db, req.pod!.id, streamId, req.auth!.user_id);
   
   if (!result.success) {
     const status = result.error.code === 'FORBIDDEN' ? 403 : 
-                   result.error.code === 'QUEUE_NOT_FOUND' ? 404 : 500;
+                   result.error.code === 'STREAM_NOT_FOUND' ? 404 : 500;
     res.status(status).json({
       error: result.error
     });
@@ -538,7 +604,7 @@ router.delete('/:queue', extractPod, authenticate, async (req: Request, res: Res
 });
 
 /**
- * Root path handler with _links support
+ * Root path handler with .system/links support
  * GET {pod}.webpods.org/
  */
 router.get('/', extractPod, optionalAuth, async (req: Request, res: Response) => {
@@ -554,16 +620,16 @@ router.get('/', extractPod, optionalAuth, async (req: Request, res: Response) =>
 
   const db = getDb();
   
-  // Check if path "/" is mapped in _links
+  // Check if path "/" is mapped in .system/links
   const linkResult = await resolveLink(db, req.pod_id, '/');
   
   if (linkResult.success && linkResult.data) {
-    // Redirect to the mapped queue/record
-    const { queueId, target } = linkResult.data;
+    // Redirect to the mapped stream/record
+    const { streamId, target } = linkResult.data;
     
-    // Rewrite URL and forward to the queue handler
-    req.url = `/${queueId}${target ? `/${target}` : ''}`;
-    req.params.queue = queueId;
+    // Rewrite URL and forward to the stream handler
+    req.url = `/${streamId}${target ? `/${target}` : ''}`;
+    req.params.stream = streamId;
     req.params.target = target;
     
     // Let Express router handle the rewritten request
@@ -574,7 +640,7 @@ router.get('/', extractPod, optionalAuth, async (req: Request, res: Response) =>
   res.status(404).json({
     error: {
       code: 'NOT_FOUND',
-      message: 'No content configured for root path. Use _links to configure.'
+      message: 'No content configured for root path. Use .system/links to configure.'
     }
   });
 });

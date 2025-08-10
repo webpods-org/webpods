@@ -3,7 +3,7 @@
  */
 
 import { Knex } from 'knex';
-import { QueueItem, Result, QueueItemResponse } from '../types.js';
+import { StreamRecord, Result, StreamRecordResponse } from '../types.js';
 import { calculateRecordHash, isValidAlias, isNumericIndex } from '../utils.js';
 import { createLogger } from '../logger.js';
 
@@ -14,12 +14,12 @@ const logger = createLogger('webpods:domain:records');
  */
 export async function writeRecord(
   db: Knex,
-  queueId: string,
+  streamId: string,
   content: any,
   contentType: string,
   authorId: string,
   alias?: string | null
-): Promise<Result<QueueItem>> {
+): Promise<Result<StreamRecord>> {
   // Validate alias if provided
   if (alias && !isValidAlias(alias)) {
     return {
@@ -35,7 +35,7 @@ export async function writeRecord(
     try {
       // Get the previous record for hash chain
       const previousRecord = await trx('record')
-        .where('queue_id', queueId)
+        .where('stream_id', streamId)
         .orderBy('sequence_num', 'desc')
         .first();
 
@@ -55,7 +55,7 @@ export async function writeRecord(
       // Insert new record
       const [record] = await trx('record')
         .insert({
-          queue_id: queueId,
+          stream_id: streamId,
           sequence_num: sequenceNum,
           content: storedContent,
           content_type: contentType,
@@ -67,7 +67,7 @@ export async function writeRecord(
         })
         .returning('*');
 
-      logger.info('Record written', { queueId, sequenceNum, alias, hash });
+      logger.info('Record written', { streamId, sequenceNum, alias, hash });
       return { success: true, data: record };
     } catch (error: any) {
       if (error.code === '23505' && error.constraint?.includes('alias')) {
@@ -79,7 +79,7 @@ export async function writeRecord(
           }
         };
       }
-      logger.error('Failed to write record', { error, queueId });
+      logger.error('Failed to write record', { error, streamId });
       return {
         success: false,
         error: {
@@ -96,11 +96,11 @@ export async function writeRecord(
  */
 export async function getRecord(
   db: Knex,
-  queueId: string,
+  streamId: string,
   target: string
-): Promise<Result<QueueItem>> {
+): Promise<Result<StreamRecord>> {
   try {
-    let record: QueueItem | undefined;
+    let record: StreamRecord | undefined;
 
     // Check if target is numeric (index)
     if (isNumericIndex(target)) {
@@ -109,7 +109,7 @@ export async function getRecord(
       // Handle negative indexing
       if (index < 0) {
         const countResult = await db('record')
-          .where('queue_id', queueId)
+          .where('stream_id', streamId)
           .count('* as count')
           .first();
         
@@ -128,13 +128,13 @@ export async function getRecord(
       }
 
       record = await db('record')
-        .where('queue_id', queueId)
+        .where('stream_id', streamId)
         .where('sequence_num', index)
         .first();
     } else {
       // Get by alias
       record = await db('record')
-        .where('queue_id', queueId)
+        .where('stream_id', streamId)
         .where('alias', target)
         .first();
     }
@@ -151,7 +151,7 @@ export async function getRecord(
 
     return { success: true, data: record };
   } catch (error: any) {
-    logger.error('Failed to get record', { error, queueId, target });
+    logger.error('Failed to get record', { error, streamId, target });
     return {
       success: false,
       error: {
@@ -167,14 +167,14 @@ export async function getRecord(
  */
 export async function getRecordRange(
   db: Knex,
-  queueId: string,
+  streamId: string,
   start: number,
   end: number
-): Promise<Result<QueueItem[]>> {
+): Promise<Result<StreamRecord[]>> {
   try {
     // Get total count for negative index handling
     const countResult = await db('record')
-      .where('queue_id', queueId)
+      .where('stream_id', streamId)
       .count('* as count')
       .first();
     
@@ -197,13 +197,13 @@ export async function getRecordRange(
     }
 
     const records = await db('record')
-      .where('queue_id', queueId)
+      .where('stream_id', streamId)
       .whereBetween('sequence_num', [start, end])
       .orderBy('sequence_num', 'asc');
 
     return { success: true, data: records };
   } catch (error: any) {
-    logger.error('Failed to get record range', { error, queueId, start, end });
+    logger.error('Failed to get record range', { error, streamId, start, end });
     return {
       success: false,
       error: {
@@ -219,13 +219,13 @@ export async function getRecordRange(
  */
 export async function listRecords(
   db: Knex,
-  queueId: string,
+  streamId: string,
   limit: number = 100,
   after?: number
-): Promise<Result<{ records: QueueItem[], total: number, hasMore: boolean }>> {
+): Promise<Result<{ records: StreamRecord[], total: number, hasMore: boolean }>> {
   try {
     const query = db('record')
-      .where('queue_id', queueId);
+      .where('stream_id', streamId);
 
     if (after !== undefined) {
       query.where('sequence_num', '>', after);
@@ -236,7 +236,7 @@ export async function listRecords(
       .limit(limit + 1);
 
     const countResult = await db('record')
-      .where('queue_id', queueId)
+      .where('stream_id', streamId)
       .count('* as count')
       .first();
 
@@ -253,7 +253,7 @@ export async function listRecords(
       data: { records, total, hasMore }
     };
   } catch (error: any) {
-    logger.error('Failed to list records', { error, queueId });
+    logger.error('Failed to list records', { error, streamId });
     return {
       success: false,
       error: {
@@ -267,7 +267,7 @@ export async function listRecords(
 /**
  * Convert record to API response format
  */
-export function recordToResponse(record: QueueItem): QueueItemResponse {
+export function recordToResponse(record: StreamRecord): StreamRecordResponse {
   let content = record.content;
   
   // Parse JSON content if needed

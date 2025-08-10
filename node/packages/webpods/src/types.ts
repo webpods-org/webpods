@@ -42,28 +42,28 @@ export interface Pod {
   updated_at: Date;
 }
 
-export type QueueType = 'normal' | 'system' | 'permission';
+export type StreamType = 'normal' | 'system' | 'permission';
 
-export interface Queue {
+export interface Stream {
   id: string;
   pod_id: string;
-  queue_id: string; // Queue name within pod
+  stream_id: string; // Stream path within pod (can include slashes)
   creator_id: string;
   read_permission: string;
   write_permission: string;
-  queue_type: QueueType;
+  stream_type: StreamType;
   metadata?: any;
   created_at: Date;
   updated_at: Date;
 }
 
-export interface QueueItem {
+export interface StreamRecord {
   id: number;
-  queue_id: string;
+  stream_id: string;
   sequence_num: number;
   content: string | any; // Can be text or JSON
   content_type: string;
-  alias: string | null;
+  alias: string | null; // Can be any string including numbers
   hash: string;
   previous_hash: string | null;
   author_id: string; // Format: auth:provider:id
@@ -90,7 +90,7 @@ export interface RateLimit {
 }
 
 // API types
-export interface QueueItemResponse {
+export interface StreamRecordResponse {
   sequence_num: number;
   content: any;
   content_type: string;
@@ -101,8 +101,8 @@ export interface QueueItemResponse {
   timestamp: string;
 }
 
-export interface QueueListResponse {
-  records: QueueItemResponse[];
+export interface StreamListResponse {
+  records: StreamRecordResponse[];
   total: number;
   has_more: boolean;
   next_id: number | null;
@@ -110,7 +110,7 @@ export interface QueueListResponse {
 
 export interface PodListResponse {
   pod: string;
-  queues: string[];
+  streams: string[];
 }
 
 export interface AuthResponse {
@@ -138,13 +138,13 @@ export interface PermissionRecord {
   write: boolean;
 }
 
-// System queue content types
+// System stream content types
 export interface OwnerRecord {
   owner: string; // auth:provider:id
 }
 
 export interface LinksRecord {
-  [path: string]: string; // Path to queue/record mapping
+  [path: string]: string; // Path to stream/record mapping
 }
 
 export interface DomainsRecord {
@@ -175,8 +175,8 @@ export interface CreatePodInput {
   pod_id: string;
 }
 
-export interface CreateQueueInput {
-  queue_id: string;
+export interface CreateStreamInput {
+  stream_id: string;
   read_permission?: string;
   write_permission?: string;
 }
@@ -190,6 +190,7 @@ export interface WriteRecordInput {
 export interface ListRecordsQuery {
   limit?: number;
   after?: number;
+  index?: string; // For ?i= query parameter (e.g., "0", "-1", "10:20")
 }
 
 export interface ErrorResponse {

@@ -14,41 +14,49 @@ export function isValidPodId(podId: string): boolean {
 }
 
 /**
- * Validate queue ID
- * Alphanumeric, underscore, hyphen, max 256 chars
+ * Validate stream ID
+ * Alphanumeric, underscore, hyphen, slash for nested paths, max 256 chars
  */
-export function isValidQueueId(queueId: string): boolean {
-  if (!queueId || queueId.length > 256) return false;
-  return /^[a-zA-Z0-9_-]+$/.test(queueId);
+export function isValidStreamId(streamId: string): boolean {
+  if (!streamId || streamId.length > 256) return false;
+  // Allow slashes for nested paths like blog/posts/2024
+  return /^[a-zA-Z0-9_\-\/\.]+$/.test(streamId);
 }
 
 /**
- * Check if queue ID is a system queue (starts with _)
+ * Check if stream ID is a system stream (starts with .system/)
  */
-export function isSystemQueue(queueId: string): boolean {
-  return queueId.startsWith('_');
+export function isSystemStream(streamId: string): boolean {
+  return streamId.startsWith('.system/');
 }
 
 /**
- * Validate alias (must contain at least one non-numeric character)
+ * Validate alias (any string is valid now, including numbers)
  */
 export function isValidAlias(alias: string): boolean {
   if (!alias || alias.length > 256) return false;
-  // Must contain at least one non-numeric character
-  return /[^0-9-]/.test(alias);
+  // Any non-empty string is valid as an alias
+  return true;
 }
 
 /**
- * Parse range string (e.g., "10-20", "-5--1")
+ * Parse index query parameter (e.g., "0", "-1", "10:20")
  */
-export function parseRange(range: string): { start: number; end: number } | null {
-  const match = range.match(/^(-?\d+)-(-?\d+)$/);
-  if (!match) return null;
+export function parseIndexQuery(query: string): { type: 'single' | 'range'; start: number; end?: number } | null {
+  // Single index (including negative)
+  if (/^-?\d+$/.test(query)) {
+    return { type: 'single', start: parseInt(query, 10) };
+  }
   
-  const start = parseInt(match[1]!, 10);
-  const end = parseInt(match[2]!, 10);
+  // Range with colon (e.g., "10:20", "-10:-1")
+  const match = query.match(/^(-?\d+):(-?\d+)$/);
+  if (match) {
+    const start = parseInt(match[1]!, 10);
+    const end = parseInt(match[2]!, 10);
+    return { type: 'range', start, end };
+  }
   
-  return { start, end };
+  return null;
 }
 
 /**
@@ -95,14 +103,14 @@ export function extractPodId(hostname: string): string | null {
  */
 export function parsePermission(permission: string): {
   type: 'public' | 'private' | 'allow' | 'deny';
-  queues: string[];
+  streams: string[];
 } {
   if (permission === 'public') {
-    return { type: 'public', queues: [] };
+    return { type: 'public', streams: [] };
   }
   
   if (permission === 'private') {
-    return { type: 'private', queues: [] };
+    return { type: 'private', streams: [] };
   }
   
   // Parse allow/deny lists
@@ -119,14 +127,14 @@ export function parsePermission(permission: string): {
   }
   
   if (allows.length > 0) {
-    return { type: 'allow', queues: allows };
+    return { type: 'allow', streams: allows };
   }
   
   if (denies.length > 0) {
-    return { type: 'deny', queues: denies };
+    return { type: 'deny', streams: denies };
   }
   
-  return { type: 'public', queues: [] };
+  return { type: 'public', streams: [] };
 }
 
 /**

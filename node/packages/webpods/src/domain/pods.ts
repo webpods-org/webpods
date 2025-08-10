@@ -3,7 +3,7 @@
  */
 
 import { Knex } from 'knex';
-import { Pod, Queue, Result } from '../types.js';
+import { Pod, Stream, Result } from '../types.js';
 import { isValidPodId, calculateRecordHash } from '../utils.js';
 import { createLogger } from '../logger.js';
 
@@ -54,16 +54,16 @@ export async function createPod(
         })
         .returning('*');
 
-      // Create _owner queue with initial owner record
-      const [ownerQueue] = await trx('queue')
+      // Create .system/owner stream with initial owner record
+      const [ownerStream] = await trx('stream')
         .insert({
           id: crypto.randomUUID(),
           pod_id: pod.id,
-          queue_id: '_owner',
+          stream_id: '.system/owner',
           creator_id: userId,
           read_permission: 'public',
           write_permission: 'private',
-          queue_type: 'system',
+          stream_type: 'system',
           created_at: new Date()
         })
         .returning('*');
@@ -75,7 +75,7 @@ export async function createPod(
       
       await trx('record')
         .insert({
-          queue_id: ownerQueue.id,
+          stream_id: ownerStream.id,
           sequence_num: 0,
           content: JSON.stringify(ownerContent),
           content_type: 'application/json',
@@ -136,7 +136,7 @@ export async function getPod(
 }
 
 /**
- * Get pod owner from _owner queue
+ * Get pod owner from .system/owner stream
  */
 export async function getPodOwner(
   db: Knex,
@@ -144,10 +144,10 @@ export async function getPodOwner(
 ): Promise<Result<string>> {
   try {
     const record = await db('record')
-      .join('queue', 'queue.id', 'record.queue_id')
-      .join('pod', 'pod.id', 'queue.pod_id')
+      .join('stream', 'stream.id', 'record.stream_id')
+      .join('pod', 'pod.id', 'stream.pod_id')
       .where('pod.pod_id', podId)
-      .where('queue.queue_id', '_owner')
+      .where('stream.stream_id', '.system/owner')
       .orderBy('record.created_at', 'desc')
       .select('record.*')
       .first();
@@ -202,27 +202,27 @@ export async function transferPodOwnership(
         };
       }
 
-      // Get _owner queue
-      const ownerQueue = await trx('queue')
-        .join('pod', 'pod.id', 'queue.pod_id')
+      // Get .system/owner stream
+      const ownerStream = await trx('stream')
+        .join('pod', 'pod.id', 'stream.pod_id')
         .where('pod.pod_id', podId)
-        .where('queue.queue_id', '_owner')
-        .select('queue.*')
+        .where('stream.stream_id', '.system/owner')
+        .select('stream.*')
         .first();
 
-      if (!ownerQueue) {
+      if (!ownerStream) {
         return {
           success: false,
           error: {
-            code: 'QUEUE_NOT_FOUND',
-            message: '_owner queue not found'
+            code: 'STREAM_NOT_FOUND',
+            message: '.system/owner stream not found'
           }
         };
       }
 
       // Get last record for hash chain
       const lastRecord = await trx('record')
-        .where('queue_id', ownerQueue.id)
+        .where('stream_id', ownerStream.id)
         .orderBy('sequence_num', 'desc')
         .first();
 
@@ -233,7 +233,7 @@ export async function transferPodOwnership(
       
       await trx('record')
         .insert({
-          queue_id: ownerQueue.id,
+          stream_id: ownerStream.id,
           sequence_num: (lastRecord?.sequence_num || 0) + 1,
           content: JSON.stringify(ownerContent),
           content_type: 'application/json',
@@ -259,7 +259,7 @@ export async function transferPodOwnership(
 }
 
 /**
- * Delete pod and all its queues
+ * Delete pod and all its streams
  */
 export async function deletePod(
   db: Knex,
@@ -295,7 +295,7 @@ export async function deletePod(
         };
       }
 
-      // Delete pod (cascades to queues and records)
+      // Delete pod (cascades to streams and records)
       await trx('pod')
         .where('id', pod.id)
         .delete();
@@ -321,12 +321,12 @@ export async function deletePod(
 }
 
 /**
- * List all queues in a pod
+ * List all streams in a pod
  */
-export async function listPodQueues(
+export async function listPodStreams(
   db: Knex,
   podId: string
-): Promise<Result<Queue[]>> {
+): Promise<Result<Stream[]>> {
   try {
     const pod = await db('pod')
       .where('pod_id', podId)
@@ -342,18 +342,18 @@ export async function listPodQueues(
       };
     }
 
-    const queues = await db('queue')
+    const streams = await db('stream')
       .where('pod_id', pod.id)
       .orderBy('created_at', 'asc');
 
-    return { success: true, data: queues };
+    return { success: true, data: streams };
   } catch (error: any) {
-    logger.error('Failed to list pod queues', { error, podId });
+    logger.error('Failed to list pod streams', { error, podId });
     return {
       success: false,
       error: {
         code: 'DATABASE_ERROR',
-        message: 'Failed to list queues'
+        message: 'Failed to list streams'
       }
     };
   }

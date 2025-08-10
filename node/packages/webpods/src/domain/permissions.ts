@@ -3,7 +3,7 @@
  */
 
 import { Knex } from 'knex';
-import { Queue } from '../types.js';
+import { Stream } from '../types.js';
 import { createLogger } from '../logger.js';
 
 const logger = createLogger('webpods:domain:permissions');
@@ -11,40 +11,40 @@ const logger = createLogger('webpods:domain:permissions');
 /**
  * Parse permission string into components
  */
-export function parsePermission(permission: string): { type: 'allow' | 'deny' | 'direct', queue?: string } {
+export function parsePermission(permission: string): { type: 'allow' | 'deny' | 'direct', stream?: string } {
   if (permission === 'public' || permission === 'private') {
     return { type: 'direct' };
   }
   
   if (permission.startsWith('~/')) {
-    return { type: 'deny', queue: permission.substring(2) };
+    return { type: 'deny', stream: permission.substring(2) };
   }
   
   if (permission.startsWith('/')) {
-    return { type: 'allow', queue: permission.substring(1) };
+    return { type: 'allow', stream: permission.substring(1) };
   }
   
   return { type: 'direct' };
 }
 
 /**
- * Check if user exists in permission queue
+ * Check if user exists in permission stream
  */
-async function checkPermissionQueue(
+async function checkPermissionStream(
   db: Knex,
   podId: string,
-  queueId: string,
+  streamId: string,
   authId: string,
   action: 'read' | 'write'
 ): Promise<boolean> {
   try {
     // Get the latest permission record for this user
     const record = await db('record')
-      .join('queue', 'queue.id', 'record.queue_id')
-      .join('pod', 'pod.id', 'queue.pod_id')
+      .join('stream', 'stream.id', 'record.stream_id')
+      .join('pod', 'pod.id', 'stream.pod_id')
       .where('pod.pod_id', podId)
-      .where('queue.queue_id', queueId)
-      .where('queue.queue_type', 'permission')
+      .where('stream.stream_id', streamId)
+      .where('stream.stream_type', 'permission')
       .whereRaw(`content->>'id' = ?`, [authId])
       .orderBy('record.created_at', 'desc')
       .select('record.*')
@@ -61,27 +61,27 @@ async function checkPermissionQueue(
     
     return permissions[action] === true;
   } catch (error) {
-    logger.error('Failed to check permission queue', { error, podId, queueId, authId });
+    logger.error('Failed to check permission stream', { error, podId, streamId, authId });
     return false;
   }
 }
 
 /**
- * Check if user can read from queue
+ * Check if user can read from stream
  */
 export async function canRead(
   db: Knex,
-  queue: Queue,
+  stream: Stream,
   authId: string | null
 ): Promise<boolean> {
   // Public read access
-  if (queue.read_permission === 'public') {
+  if (stream.read_permission === 'public') {
     return true;
   }
   
   // Private access - only creator
-  if (queue.read_permission === 'private') {
-    return authId === queue.creator_id;
+  if (stream.read_permission === 'private') {
+    return authId === stream.creator_id;
   }
   
   // No auth means no access for non-public
@@ -90,28 +90,28 @@ export async function canRead(
   }
   
   // Parse permission
-  const perm = parsePermission(queue.read_permission);
+  const perm = parsePermission(stream.read_permission);
   
-  if (perm.type === 'allow' && perm.queue) {
-    // Get pod for this queue
+  if (perm.type === 'allow' && perm.stream) {
+    // Get pod for this stream
     const pod = await db('pod')
-      .where('id', queue.pod_id)
+      .where('id', stream.pod_id)
       .first();
     
     if (!pod) return false;
     
-    return await checkPermissionQueue(db, pod.pod_id, perm.queue, authId, 'read');
+    return await checkPermissionStream(db, pod.pod_id, perm.stream, authId, 'read');
   }
   
-  if (perm.type === 'deny' && perm.queue) {
-    // Get pod for this queue
+  if (perm.type === 'deny' && perm.stream) {
+    // Get pod for this stream
     const pod = await db('pod')
-      .where('id', queue.pod_id)
+      .where('id', stream.pod_id)
       .first();
     
     if (!pod) return false;
     
-    const denied = await checkPermissionQueue(db, pod.pod_id, perm.queue, authId, 'read');
+    const denied = await checkPermissionStream(db, pod.pod_id, perm.stream, authId, 'read');
     return !denied;
   }
   
@@ -119,46 +119,46 @@ export async function canRead(
 }
 
 /**
- * Check if user can write to queue
+ * Check if user can write to stream
  */
 export async function canWrite(
   db: Knex,
-  queue: Queue,
+  stream: Stream,
   authId: string
 ): Promise<boolean> {
   // Public write access (authenticated users only)
-  if (queue.write_permission === 'public') {
+  if (stream.write_permission === 'public') {
     return true;
   }
   
   // Private access - only creator
-  if (queue.write_permission === 'private') {
-    return authId === queue.creator_id;
+  if (stream.write_permission === 'private') {
+    return authId === stream.creator_id;
   }
   
   // Parse permission
-  const perm = parsePermission(queue.write_permission);
+  const perm = parsePermission(stream.write_permission);
   
-  if (perm.type === 'allow' && perm.queue) {
-    // Get pod for this queue
+  if (perm.type === 'allow' && perm.stream) {
+    // Get pod for this stream
     const pod = await db('pod')
-      .where('id', queue.pod_id)
+      .where('id', stream.pod_id)
       .first();
     
     if (!pod) return false;
     
-    return await checkPermissionQueue(db, pod.pod_id, perm.queue, authId, 'write');
+    return await checkPermissionStream(db, pod.pod_id, perm.stream, authId, 'write');
   }
   
-  if (perm.type === 'deny' && perm.queue) {
-    // Get pod for this queue
+  if (perm.type === 'deny' && perm.stream) {
+    // Get pod for this stream
     const pod = await db('pod')
-      .where('id', queue.pod_id)
+      .where('id', stream.pod_id)
       .first();
     
     if (!pod) return false;
     
-    const denied = await checkPermissionQueue(db, pod.pod_id, perm.queue, authId, 'write');
+    const denied = await checkPermissionStream(db, pod.pod_id, perm.stream, authId, 'write');
     return !denied;
   }
   

@@ -22,7 +22,7 @@ const DEFAULT_LIMITS: RateLimitConfig = {
   read: parseInt(process.env.RATE_LIMIT_READS || '10000'),
   write: parseInt(process.env.RATE_LIMIT_WRITES || '1000'),
   pod_create: parseInt(process.env.RATE_LIMIT_POD_CREATE || '10'),
-  queue_create: parseInt(process.env.RATE_LIMIT_QUEUE_CREATE || '100')
+  queue_create: parseInt(process.env.RATE_LIMIT_STREAM_CREATE || '100')
 };
 
 /**

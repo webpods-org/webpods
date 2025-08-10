@@ -10,12 +10,12 @@ import { calculateRecordHash } from '../utils.js';
 const logger = createLogger('webpods:domain:routing');
 
 interface LinkMapping {
-  queueId: string;
+  streamId: string;
   target: string;
 }
 
 /**
- * Resolve a path using _links configuration
+ * Resolve a path using .system/links configuration
  */
 export async function resolveLink(
   db: Knex,
@@ -23,12 +23,12 @@ export async function resolveLink(
   path: string
 ): Promise<Result<LinkMapping | null>> {
   try {
-    // Get the latest _links record
+    // Get the latest .system/links record
     const record = await db('record')
-      .join('queue', 'queue.id', 'record.queue_id')
-      .join('pod', 'pod.id', 'queue.pod_id')
+      .join('stream', 'stream.id', 'record.stream_id')
+      .join('pod', 'pod.id', 'stream.pod_id')
       .where('pod.pod_id', podId)
-      .where('queue.queue_id', '_links')
+      .where('stream.stream_id', '.system/links')
       .orderBy('record.created_at', 'desc')
       .select('record.*')
       .first();
@@ -57,7 +57,7 @@ export async function resolveLink(
     return {
       success: true,
       data: {
-        queueId: parts[0],
+        streamId: parts[0],
         target: parts[1]
       }
     };
@@ -74,7 +74,7 @@ export async function resolveLink(
 }
 
 /**
- * Update _links configuration
+ * Update .system/links configuration
  */
 export async function updateLinks(
   db: Knex,
@@ -99,22 +99,22 @@ export async function updateLinks(
         };
       }
 
-      // Get or create _links queue
-      let linksQueue = await trx('queue')
+      // Get or create .system/links stream
+      let linksStream = await trx('stream')
         .where('pod_id', pod.id)
-        .where('queue_id', '_links')
+        .where('stream_id', '.system/links')
         .first();
 
-      if (!linksQueue) {
-        [linksQueue] = await trx('queue')
+      if (!linksStream) {
+        [linksStream] = await trx('stream')
           .insert({
             id: crypto.randomUUID(),
             pod_id: pod.id,
-            queue_id: '_links',
+            stream_id: '.system/links',
             creator_id: authorId.split(':').pop()!, // Extract user ID from auth ID
             read_permission: 'public',
             write_permission: 'private',
-            queue_type: 'system',
+            stream_type: 'system',
             created_at: new Date()
           })
           .returning('*');
@@ -122,7 +122,7 @@ export async function updateLinks(
 
       // Get previous record for hash chain
       const previousRecord = await trx('record')
-        .where('queue_id', linksQueue.id)
+        .where('stream_id', linksStream.id)
         .orderBy('sequence_num', 'desc')
         .first();
 
@@ -136,7 +136,7 @@ export async function updateLinks(
       // Write new links record
       await trx('record')
         .insert({
-          queue_id: linksQueue.id,
+          stream_id: linksStream.id,
           sequence_num: sequenceNum,
           content: JSON.stringify(links),
           content_type: 'application/json',
@@ -225,22 +225,22 @@ export async function updateCustomDomains(
         };
       }
 
-      // Get or create _domains queue
-      let domainsQueue = await trx('queue')
+      // Get or create .system/domains stream
+      let domainsStream = await trx('stream')
         .where('pod_id', pod.id)
-        .where('queue_id', '_domains')
+        .where('stream_id', '.system/domains')
         .first();
 
-      if (!domainsQueue) {
-        [domainsQueue] = await trx('queue')
+      if (!domainsStream) {
+        [domainsStream] = await trx('stream')
           .insert({
             id: crypto.randomUUID(),
             pod_id: pod.id,
-            queue_id: '_domains',
+            stream_id: '.system/domains',
             creator_id: authorId.split(':').pop()!, // Extract user ID from auth ID
             read_permission: 'public',
             write_permission: 'private',
-            queue_type: 'system',
+            stream_type: 'system',
             created_at: new Date()
           })
           .returning('*');
@@ -248,7 +248,7 @@ export async function updateCustomDomains(
 
       // Get previous record for hash chain
       const previousRecord = await trx('record')
-        .where('queue_id', domainsQueue.id)
+        .where('stream_id', domainsStream.id)
         .orderBy('sequence_num', 'desc')
         .first();
 
@@ -262,7 +262,7 @@ export async function updateCustomDomains(
       // Write new domains record
       await trx('record')
         .insert({
-          queue_id: domainsQueue.id,
+          stream_id: domainsStream.id,
           sequence_num: sequenceNum,
           content: JSON.stringify({ domains }),
           content_type: 'application/json',
