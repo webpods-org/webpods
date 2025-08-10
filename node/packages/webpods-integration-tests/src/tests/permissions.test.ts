@@ -170,16 +170,6 @@ describe('WebPods Permissions', () => {
       const response5 = await client.get('/restricted?i=0');
       expect(response5.status).to.equal(403);
     });
-
-    // Skipping deny list tests - no longer supported in simplified permission model
-    it.skip('should support deny lists for writing', async () => {
-      // Deny lists removed in favor of simpler permission model
-    });
-
-    // Skipping multiple permission tests - only single permission stream supported
-    it.skip('should support multiple permission streams', async () => {
-      // Multiple permissions not supported in simplified model
-    });
   });
 
   describe('Pod Ownership', () => {

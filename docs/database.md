@@ -38,9 +38,7 @@ Stores stream metadata and permissions.
 | pod_id | UUID | Foreign key to pod |
 | stream_id | VARCHAR(256) | Stream path within pod (supports nested paths) |
 | creator_id | UUID | Foreign key to user |
-| read_permission | VARCHAR(500) | Permission expression |
-| write_permission | VARCHAR(500) | Permission expression |
-| stream_type | VARCHAR(50) | 'normal', 'system', or 'permission' |
+| access_permission | VARCHAR(500) | Permission expression (single unified field) |
 | metadata | JSONB | Stream metadata |
 | created_at | TIMESTAMP | Creation time |
 | updated_at | TIMESTAMP | Last update time |

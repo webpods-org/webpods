@@ -74,7 +74,7 @@ async function checkPermissionStream(
           // Last record wins
           userPermission = content;
         }
-      } catch (e) {
+      } catch {
         // Skip records that aren't valid JSON or don't have the right structure
         logger.debug('Skipping non-permission record', { recordId: record.id });
       }
