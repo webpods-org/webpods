@@ -290,8 +290,7 @@ router.post('/*', extractPod, authenticate, rateLimit('write'), async (req: Requ
     const alias = req.query.alias as string | undefined;
     const content = writeSchema.parse(req.body);
     const contentType = detectContentType(req.headers);
-    const readPermission = req.query.read as string | undefined;
-    const writePermission = req.query.write as string | undefined;
+    const accessPermission = req.query.access as string | undefined;
     
     const db = getDb();
     
@@ -313,8 +312,7 @@ router.post('/*', extractPod, authenticate, rateLimit('write'), async (req: Requ
       req.pod!.id,
       streamId,
       req.auth!.user_id,
-      readPermission,
-      writePermission
+      accessPermission
     );
     
     if (!streamResult.success) {

@@ -17,8 +17,7 @@ export async function getOrCreateStream(
   podId: string,
   streamId: string,
   userId: string,
-  readPermission?: string,
-  writePermission?: string
+  accessPermission?: string
 ): Promise<Result<Stream>> {
   // Validate stream ID
   if (!isValidStreamId(streamId)) {
@@ -57,8 +56,7 @@ export async function getOrCreateStream(
         pod_id: podId,
         stream_id: actualStreamId,
         creator_id: userId,
-        read_permission: readPermission || 'public',
-        write_permission: writePermission || 'public',
+        access_permission: accessPermission || 'public',
         stream_type: streamType,
         created_at: new Date()
       })
@@ -217,13 +215,11 @@ export async function deleteStream(
 export async function updateStreamPermissions(
   db: Knex,
   streamId: string,
-  readPermission?: string,
-  writePermission?: string
+  accessPermission?: string
 ): Promise<Result<Stream>> {
   try {
     const updates: any = {};
-    if (readPermission !== undefined) updates.read_permission = readPermission;
-    if (writePermission !== undefined) updates.write_permission = writePermission;
+    if (accessPermission !== undefined) updates.access_permission = accessPermission;
 
     const [stream] = await db('stream')
       .where('id', streamId)

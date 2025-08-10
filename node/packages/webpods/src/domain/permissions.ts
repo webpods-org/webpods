@@ -11,54 +11,18 @@ const logger = createLogger('webpods:domain:permissions');
 /**
  * Parse permission string into components
  */
-export function parsePermission(permission: string): { type: 'allow' | 'deny' | 'direct', stream?: string } {
+export function parsePermission(permission: string): { type: 'basic' | 'stream', stream?: string } {
   if (permission === 'public' || permission === 'private') {
-    return { type: 'direct' };
-  }
-  
-  if (permission.startsWith('~/')) {
-    return { type: 'deny', stream: permission.substring(2) };
+    return { type: 'basic' };
   }
   
   if (permission.startsWith('/')) {
-    return { type: 'allow', stream: permission.substring(1) };
+    return { type: 'stream', stream: permission.substring(1) };
   }
   
-  return { type: 'direct' };
+  return { type: 'basic' };
 }
 
-/**
- * Check if a user has a record in the permission stream
- */
-async function hasPermissionRecord(
-  db: Knex,
-  podId: string,
-  streamId: string,
-  authId: string
-): Promise<boolean> {
-  try {
-    const stream = await db('stream')
-      .join('pod', 'pod.id', 'stream.pod_id')
-      .where('pod.pod_id', podId)
-      .where('stream.stream_id', streamId)
-      .select('stream.*')
-      .first();
-    
-    if (!stream) return false;
-    
-    const record = await db('record')
-      .where('stream_id', stream.id)
-      .whereRaw(`content::jsonb->>'id' = ?`, [authId])
-      .orderBy('created_at', 'desc')
-      .select('*')
-      .first();
-    
-    return !!record;
-  } catch (error) {
-    logger.error('Failed to check permission record existence', { error, podId, streamId, authId });
-    return false;
-  }
-}
 
 /**
  * Check if user exists in permission stream
@@ -138,24 +102,24 @@ export async function canRead(
 ): Promise<boolean> {
   logger.info('canRead check', { 
     streamId: stream.stream_id, 
-    readPermission: stream.read_permission,
+    accessPermission: stream.access_permission,
     authId,
     userId,
     creatorId: stream.creator_id
   });
   
-  // Public read access
-  if (stream.read_permission === 'public') {
-    return true;
-  }
-  
-  // Creator always has access (check by user_id)
+  // Creator always has access
   if (userId && userId === stream.creator_id) {
     return true;
   }
   
+  // Public read access - anyone can read
+  if (stream.access_permission === 'public') {
+    return true;
+  }
+  
   // Private access - only creator
-  if (stream.read_permission === 'private') {
+  if (stream.access_permission === 'private') {
     return userId === stream.creator_id;
   }
   
@@ -165,10 +129,10 @@ export async function canRead(
   }
   
   // Parse permission
-  const perm = parsePermission(stream.read_permission);
-  logger.debug('Parsed permission', { perm, readPermission: stream.read_permission });
+  const perm = parsePermission(stream.access_permission);
+  logger.debug('Parsed permission', { perm, accessPermission: stream.access_permission });
   
-  if (perm.type === 'allow' && perm.stream) {
+  if (perm.type === 'stream' && perm.stream) {
     // Get pod for this stream
     const pod = await db('pod')
       .where('id', stream.pod_id)
@@ -176,27 +140,8 @@ export async function canRead(
     
     if (!pod) return false;
     
+    // Check if user has read permission in the permission stream
     return await checkPermissionStream(db, pod.pod_id, perm.stream, authId, 'read');
-  }
-  
-  if (perm.type === 'deny' && perm.stream) {
-    // Get pod for this stream
-    const pod = await db('pod')
-      .where('id', stream.pod_id)
-      .first();
-    
-    if (!pod) return false;
-    
-    // For deny lists: 
-    // - If user not in list → allow
-    // - If user in list with read:true → allow
-    // - If user in list with read:false → deny
-    const inDenyList = await hasPermissionRecord(db, pod.pod_id, perm.stream, authId);
-    if (!inDenyList) return true; // Not in deny list, allow
-    
-    // User is in deny list, check their permission
-    const hasPermission = await checkPermissionStream(db, pod.pod_id, perm.stream, authId, 'read');
-    return hasPermission; // If they have read:true, allow; if read:false, deny
   }
   
   return false;
@@ -211,25 +156,25 @@ export async function canWrite(
   authId: string,
   userId?: string | null
 ): Promise<boolean> {
-  // Creator always has access (check by user_id)
+  // Creator always has access
   if (userId && userId === stream.creator_id) {
     return true;
   }
   
-  // Public write access (authenticated users only)
-  if (stream.write_permission === 'public') {
+  // Public write access - authenticated users can write
+  if (stream.access_permission === 'public') {
     return true;
   }
   
   // Private access - only creator
-  if (stream.write_permission === 'private') {
+  if (stream.access_permission === 'private') {
     return userId === stream.creator_id;
   }
   
   // Parse permission
-  const perm = parsePermission(stream.write_permission);
+  const perm = parsePermission(stream.access_permission);
   
-  if (perm.type === 'allow' && perm.stream) {
+  if (perm.type === 'stream' && perm.stream) {
     // Get pod for this stream
     const pod = await db('pod')
       .where('id', stream.pod_id)
@@ -237,27 +182,8 @@ export async function canWrite(
     
     if (!pod) return false;
     
+    // Check if user has write permission in the permission stream
     return await checkPermissionStream(db, pod.pod_id, perm.stream, authId, 'write');
-  }
-  
-  if (perm.type === 'deny' && perm.stream) {
-    // Get pod for this stream
-    const pod = await db('pod')
-      .where('id', stream.pod_id)
-      .first();
-    
-    if (!pod) return false;
-    
-    // For deny lists: 
-    // - If user not in list → allow
-    // - If user in list with write:true → allow
-    // - If user in list with write:false → deny
-    const inDenyList = await hasPermissionRecord(db, pod.pod_id, perm.stream, authId);
-    if (!inDenyList) return true; // Not in deny list, allow
-    
-    // User is in deny list, check their permission
-    const hasPermission = await checkPermissionStream(db, pod.pod_id, perm.stream, authId, 'write');
-    return hasPermission; // If they have write:true, allow; if write:false, deny
   }
   
   return false;

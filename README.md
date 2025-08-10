@@ -103,8 +103,7 @@ Creates pod and stream if they don't exist. Supports nested stream paths with sl
 
 **Query Parameters:**
 - `alias` (optional): Named reference for this record (any string including numbers)
-- `read` (optional): Read permission for stream (first write only)
-- `write` (optional): Write permission for stream (first write only)
+- `access` (optional): Access permission for stream (first write only)
 
 **Headers:**
 - `Authorization: Bearer {token}` (required)
@@ -194,25 +193,31 @@ Returns all streams in the pod.
 
 ## Permissions
 
-Streams support sophisticated permission models:
+Streams support flexible permission models:
 
-### Basic Permissions
+### Access Modes
 - `public` (default): Anyone can read, authenticated users can write
 - `private`: Only the creator can read/write
-- `auth`: Any authenticated user can read/write
+- `/streamname`: Permission stream - users listed in that stream control access
 
 ### Permission Streams
-- `/members`: Allow list - users in this stream can access
-- `~/blocked`: Deny list - users in this stream are blocked
+Permission streams contain JSON records that specify user access:
+```json
+{
+  "id": "auth:github:123",  // User's auth ID
+  "read": true,              // Can read
+  "write": false             // Cannot write
+}
+```
 
 Example:
 ```bash
 # Create a members-only blog
-curl -X POST "alice.webpods.org/private-blog?read=/members&write=/members" \
+curl -X POST "alice.webpods.org/private-blog?access=/members" \
   -H "Authorization: Bearer $TOKEN" \
   -d "Members only content"
 
-# Add member
+# Add member with read/write access
 curl -X POST alice.webpods.org/members \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
