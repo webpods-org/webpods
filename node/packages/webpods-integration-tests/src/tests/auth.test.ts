@@ -80,7 +80,7 @@ describe('WebPods Authentication', () => {
       }).returning('*');
       
       userId = user.id;
-      authToken = createTestToken(user.id, user.auth_id);
+      authToken = createTestToken(user.id, user.auth_id, user.email);
       client.setBaseUrl(baseUrl);
     });
 
@@ -100,6 +100,10 @@ describe('WebPods Authentication', () => {
       const response = await client.post('/protected-stream', {
         content: 'authenticated content'
       });
+      
+      if (response.status === 500) {
+        console.error('Server error:', response.data);
+      }
       
       expect(response.status).to.equal(201);
       expect(response.data).to.have.property('sequence_num', 0);
@@ -231,7 +235,7 @@ describe('WebPods Authentication', () => {
         provider: 'google'
       }).returning('*');
       
-      authToken = createTestToken(user.id, user.auth_id);
+      authToken = createTestToken(user.id, user.auth_id, user.email);
     });
 
     it('should accept Bearer token in Authorization header', async () => {
@@ -280,7 +284,7 @@ describe('WebPods Authentication', () => {
       }).returning('*');
       
       userId = user.id;
-      authToken = createTestToken(user.id, user.auth_id);
+      authToken = createTestToken(user.id, user.auth_id, user.email);
     });
 
     it('should use same auth token across different pods', async () => {

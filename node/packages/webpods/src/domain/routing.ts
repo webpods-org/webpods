@@ -137,8 +137,7 @@ export async function updateLinks(
             pod_id: pod.id,
             stream_id: '.meta/links',
             creator_id: userId,
-            read_permission: 'public',
-            write_permission: 'private',
+            access_permission: 'private',  // Only owner can modify
             stream_type: 'system',
             created_at: new Date()
           })
@@ -264,8 +263,7 @@ export async function updateCustomDomains(
             pod_id: pod.id,
             stream_id: '.meta/domains',
             creator_id: userId,
-            read_permission: 'public',
-            write_permission: 'private',
+            access_permission: 'private',  // Only owner can modify
             stream_type: 'system',
             created_at: new Date()
           })

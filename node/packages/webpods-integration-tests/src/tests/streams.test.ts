@@ -84,7 +84,7 @@ describe('WebPods Stream Operations', () => {
     });
 
     it('should set custom permissions on stream creation', async () => {
-      const response = await client.post('/private-stream?read=private&write=private', {
+      const response = await client.post('/private-stream?access=private', {
         content: 'Secret data'
       });
       
@@ -343,7 +343,7 @@ describe('WebPods Stream Operations', () => {
 
   describe('Permissions', () => {
     it('should enforce private read permissions', async () => {
-      await client.post('/private?read=private&write=private', 'Secret');
+      await client.post('/private?access=private', 'Secret');
       
       // Can read as owner
       const response1 = await client.get('/private?i=0');
@@ -364,7 +364,7 @@ describe('WebPods Stream Operations', () => {
       });
       
       // Create restricted stream
-      await client.post('/restricted?read=/members&write=/members', 'Members only');
+      await client.post('/restricted?access=/members', 'Members only');
       
       // Verify permissions stored correctly
       const db = testDb.getDb();
@@ -373,8 +373,7 @@ describe('WebPods Stream Operations', () => {
         .where('pod_id', pod.id)
         .where('stream_id', 'restricted')
         .first();
-      expect(stream.read_permission).to.equal('/members');
-      expect(stream.write_permission).to.equal('/members');
+      expect(stream.access_permission).to.equal('/members');
     });
   });
 

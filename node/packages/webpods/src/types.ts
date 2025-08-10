@@ -176,8 +176,7 @@ export interface CreatePodInput {
 
 export interface CreateStreamInput {
   stream_id: string;
-  read_permission?: string;
-  write_permission?: string;
+  access_permission?: string;
 }
 
 export interface WriteRecordInput {

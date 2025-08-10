@@ -59,7 +59,7 @@ describe('WebPods Permissions', () => {
     it('should only allow creator to read private stream', async () => {
       // User1 creates private stream
       client.setAuthToken(user1Token);
-      await client.post('/private-read?read=private', 'Secret message');
+      await client.post('/private-read?access=private', 'Secret message');
       
       // User1 can read
       const response1 = await client.get('/private-read?i=0');
@@ -79,9 +79,9 @@ describe('WebPods Permissions', () => {
     });
 
     it('should only allow creator to write to private stream', async () => {
-      // User1 creates private write stream
+      // User1 creates private stream
       client.setAuthToken(user1Token);
-      await client.post('/private-write?write=private', 'First message');
+      await client.post('/private-write?access=private', 'First message');
       
       // User2 cannot write
       client.setAuthToken(user2Token);
@@ -136,91 +136,49 @@ describe('WebPods Permissions', () => {
   });
 
   describe('Permission Streams (Allow/Deny Lists)', () => {
-    it('should support allow lists for reading', async () => {
+    it('should support permission streams for access control', async () => {
       client.setAuthToken(user1Token);
       
-      // Create permission stream with user2 allowed
-      await client.post('/allowed-users', {
+      // Create permission stream with user2 allowed to read but not write
+      await client.post('/members', {
         id: user2.auth_id,
         read: true,
         write: false
       });
       
-      // Create stream with allow list
-      await client.post('/restricted?read=/allowed-users', 'Restricted content');
+      // Create stream with permission-based access
+      await client.post('/restricted?access=/members', 'Restricted content');
       
-      // User2 can read (in allow list)
+      // User2 can read (has read permission)
       client.setAuthToken(user2Token);
       const response1 = await client.get('/restricted?i=0');
       expect(response1.status).to.equal(200);
       
-      // User1 can read (creator always has access)
-      client.setAuthToken(user1Token);
-      const response2 = await client.get('/restricted?i=0');
-      expect(response2.status).to.equal(200);
+      // User2 cannot write (no write permission)
+      const response2 = await client.post('/restricted', 'Should fail');
+      expect(response2.status).to.equal(403);
       
-      // Anonymous cannot read
-      client.clearAuthToken();
+      // User1 can read and write (creator always has access)
+      client.setAuthToken(user1Token);
       const response3 = await client.get('/restricted?i=0');
-      expect(response3.status).to.equal(403);
+      expect(response3.status).to.equal(200);
+      const response4 = await client.post('/restricted', 'Creator can write');
+      expect(response4.status).to.equal(201);
+      
+      // Anonymous cannot read or write
+      client.clearAuthToken();
+      const response5 = await client.get('/restricted?i=0');
+      expect(response5.status).to.equal(403);
     });
 
-    it('should support deny lists for writing', async () => {
-      client.setAuthToken(user1Token);
-      
-      // Create deny list stream
-      await client.post('/blocked-users', {
-        id: user2.auth_id,
-        read: false,
-        write: false
-      });
-      
-      // Create stream with deny list
-      await client.post('/moderated?write=~/blocked-users', 'Initial message');
-      
-      // User2 cannot write (in deny list)
-      client.setAuthToken(user2Token);
-      const response = await client.post('/moderated', 'Blocked attempt');
-      expect(response.status).to.equal(403);
-      
-      // Update deny list to unblock user2
-      client.setAuthToken(user1Token);
-      await client.post('/blocked-users', {
-        id: user2.auth_id,
-        read: true,
-        write: true
-      });
-      
-      // Now user2 can write (last-write-wins in permission stream)
-      client.setAuthToken(user2Token);
-      const response2 = await client.post('/moderated', 'Now allowed');
-      expect(response2.status).to.equal(201);
+    // Skipping deny list tests - no longer supported in simplified permission model
+    it.skip('should support deny lists for writing', async () => {
+      // Deny lists removed in favor of simpler permission model
     });
 
-    it('should support multiple permission streams', async () => {
-      client.setAuthToken(user1Token);
-      
-      // Create VIP users list
-      await client.post('/vip-users', {
-        id: user2.auth_id,
-        read: true,
-        write: true
-      });
-      
-      // Create banned users list
-      await client.post('/banned-users', {
-        id: 'auth:google:banned-user',
-        read: false,
-        write: false
-      });
-      
-      // Create stream with both allow and deny lists
-      await client.post('/exclusive?read=/vip-users,~/banned-users', 'VIP only content');
-      
-      // User2 can access (in VIP list, not in banned list)
-      client.setAuthToken(user2Token);
-      const response = await client.get('/exclusive?i=0');
-      expect(response.status).to.equal(200);
+    // Skipping multiple permission tests - only single permission stream supported
+    it.skip('should support multiple permission streams', async () => {
+      // Multiple permissions not supported in simplified model
     });
   });
 
@@ -265,7 +223,7 @@ describe('WebPods Permissions', () => {
       await client.post('/perm-update', 'Initial');
       
       // User1 can update permissions by writing with new permissions
-      const response = await client.post('/perm-update?read=private&write=private', 'Updated');
+      const response = await client.post('/perm-update?access=private', 'Updated');
       expect(response.status).to.equal(201);
       
       // Verify permissions were updated for new records
@@ -278,8 +236,7 @@ describe('WebPods Permissions', () => {
         .first();
       
       // Original permissions should remain (first write sets them)
-      expect(stream.read_permission).to.equal('public');
-      expect(stream.write_permission).to.equal('public');
+      expect(stream.access_permission).to.equal('public');
     });
   });
 
@@ -288,7 +245,7 @@ describe('WebPods Permissions', () => {
       client.setAuthToken(user1Token);
       
       // Create private blog posts
-      await client.post('/blog/private/draft?read=private', 'Draft post');
+      await client.post('/blog/private/draft?access=private', 'Draft post');
       await client.post('/blog/public/published', 'Published post');
       
       // User2 cannot read private
@@ -305,7 +262,7 @@ describe('WebPods Permissions', () => {
       client.setAuthToken(user1Token);
       
       // Create private stream with alias
-      await client.post('/secrets?read=private&alias=topsecret', 'Classified');
+      await client.post('/secrets?access=private&alias=topsecret', 'Classified');
       
       // User2 cannot read via alias
       client.setAuthToken(user2Token);
@@ -330,7 +287,7 @@ describe('WebPods Permissions', () => {
       });
       
       // Create restricted stream
-      await client.post('/member-only?read=/members', 'Members content');
+      await client.post('/member-only?access=/members', 'Members content');
       
       // User2 can read
       client.setAuthToken(user2Token);

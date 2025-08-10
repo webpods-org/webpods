@@ -1,0 +1,2212 @@
+
+> webpods-integration-tests@0.0.1 test
+> mocha --exit --reporter json
+
+🚀 Starting WebPods integration test setup...
+✅ WebPods integration test setup complete
+🛑 Shutting down WebPods integration tests...
+✅ WebPods integration test teardown complete
+{
+  "stats": {
+    "suites": 39,
+    "tests": 90,
+    "passes": 37,
+    "pending": 2,
+    "failures": 51,
+    "start": "2025-08-10T13:57:13.029Z",
+    "end": "2025-08-10T13:57:57.492Z",
+    "duration": 44463
+  },
+  "tests": [
+    {
+      "title": "should redirect to Google OAuth",
+      "fullTitle": "WebPods Authentication OAuth Endpoints should redirect to Google OAuth",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/auth.test.ts",
+      "duration": 174,
+      "currentRetry": 0,
+      "speed": "slow",
+      "err": {}
+    },
+    {
+      "title": "should redirect to GitHub OAuth",
+      "fullTitle": "WebPods Authentication OAuth Endpoints should redirect to GitHub OAuth",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/auth.test.ts",
+      "duration": 3,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should reject invalid OAuth provider",
+      "fullTitle": "WebPods Authentication OAuth Endpoints should reject invalid OAuth provider",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/auth.test.ts",
+      "duration": 2,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should handle OAuth callback",
+      "fullTitle": "WebPods Authentication OAuth Endpoints should handle OAuth callback",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/auth.test.ts",
+      "duration": 2,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should reject requests without auth token to write operations",
+      "fullTitle": "WebPods Authentication JWT Authentication should reject requests without auth token to write operations",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/auth.test.ts",
+      "duration": 9,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should accept requests with valid auth token",
+      "fullTitle": "WebPods Authentication JWT Authentication should accept requests with valid auth token",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/auth.test.ts",
+      "duration": 14,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 500 to equal 201\n    at Context.<anonymous> (src/tests/auth.test.ts:104:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 500 to equal 201",
+        "actual": "500",
+        "expected": "201",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should reject expired JWT token",
+      "fullTitle": "WebPods Authentication JWT Authentication should reject expired JWT token",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/auth.test.ts",
+      "duration": 3,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should reject invalid JWT signature",
+      "fullTitle": "WebPods Authentication JWT Authentication should reject invalid JWT signature",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/auth.test.ts",
+      "duration": 2,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should reject malformed JWT token",
+      "fullTitle": "WebPods Authentication JWT Authentication should reject malformed JWT token",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/auth.test.ts",
+      "duration": 2,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should allow anonymous read on public streams",
+      "fullTitle": "WebPods Authentication Public vs Authenticated Access should allow anonymous read on public streams",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/auth.test.ts",
+      "duration": 16,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 404 to equal 200\n    at Context.<anonymous> (src/tests/auth.test.ts:184:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 404 to equal 200",
+        "actual": "404",
+        "expected": "200",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should require auth for write on public streams",
+      "fullTitle": "WebPods Authentication Public vs Authenticated Access should require auth for write on public streams",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/auth.test.ts",
+      "duration": 2,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should track author correctly",
+      "fullTitle": "WebPods Authentication Public vs Authenticated Access should track author correctly",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/auth.test.ts",
+      "duration": 8,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 500 to equal 201\n    at Context.<anonymous> (src/tests/auth.test.ts:203:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 500 to equal 201",
+        "actual": "500",
+        "expected": "201",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should accept Bearer token in Authorization header",
+      "fullTitle": "WebPods Authentication Bearer Token Format should accept Bearer token in Authorization header",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/auth.test.ts",
+      "duration": 8,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 500 to equal 201\n    at Context.<anonymous> (src/tests/auth.test.ts:244:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 500 to equal 201",
+        "actual": "500",
+        "expected": "201",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should accept token without Bearer prefix",
+      "fullTitle": "WebPods Authentication Bearer Token Format should accept token without Bearer prefix",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/auth.test.ts",
+      "duration": 9,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 500 to equal 201\n    at Context.<anonymous> (src/tests/auth.test.ts:254:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 500 to equal 201",
+        "actual": "500",
+        "expected": "201",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should reject other auth schemes",
+      "fullTitle": "WebPods Authentication Bearer Token Format should reject other auth schemes",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/auth.test.ts",
+      "duration": 2,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should use same auth token across different pods",
+      "fullTitle": "WebPods Authentication Cross-Pod Authentication should use same auth token across different pods",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/auth.test.ts",
+      "duration": 9,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 500 to equal 201\n    at Context.<anonymous> (src/tests/auth.test.ts:292:35)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 500 to equal 201",
+        "actual": "500",
+        "expected": "201",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should store user metadata from OAuth",
+      "fullTitle": "WebPods Authentication User Metadata should store user metadata from OAuth",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/auth.test.ts",
+      "duration": 3,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should handle users from different OAuth providers",
+      "fullTitle": "WebPods Authentication User Metadata should handle users from different OAuth providers",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/auth.test.ts",
+      "duration": 6,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should return healthy status",
+      "fullTitle": "WebPods Health Checks Main Domain Health should return healthy status",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/health.test.ts",
+      "duration": 3,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should include service statuses",
+      "fullTitle": "WebPods Health Checks Main Domain Health should include service statuses",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/health.test.ts",
+      "duration": 2,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should include uptime information",
+      "fullTitle": "WebPods Health Checks Main Domain Health should include uptime information",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/health.test.ts",
+      "duration": 2,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should return proper content type",
+      "fullTitle": "WebPods Health Checks Main Domain Health should return proper content type",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/health.test.ts",
+      "duration": 1,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should detect database connection",
+      "fullTitle": "WebPods Health Checks Database Health should detect database connection",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/health.test.ts",
+      "duration": 2,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should report database version",
+      "fullTitle": "WebPods Health Checks Database Health should report database version",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/health.test.ts",
+      "duration": 1,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should handle health checks on pod subdomains",
+      "fullTitle": "WebPods Health Checks Pod Subdomain Health should handle health checks on pod subdomains",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/health.test.ts",
+      "duration": 1,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should verify wildcard subdomain routing works",
+      "fullTitle": "WebPods Health Checks Pod Subdomain Health should verify wildcard subdomain routing works",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/health.test.ts",
+      "duration": 3,
+      "currentRetry": 0,
+      "err": {
+        "stack": "ReferenceError: require is not defined\n    at Context.<anonymous> (src/tests/health.test.ts:101:19)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "require is not defined"
+      }
+    },
+    {
+      "title": "should have a readiness endpoint",
+      "fullTitle": "WebPods Health Checks Readiness Check should have a readiness endpoint",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/health.test.ts",
+      "duration": 1,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should have a liveness endpoint",
+      "fullTitle": "WebPods Health Checks Liveness Check should have a liveness endpoint",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/health.test.ts",
+      "duration": 1,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should expose metrics if configured",
+      "fullTitle": "WebPods Health Checks Metrics Endpoint should expose metrics if configured",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/health.test.ts",
+      "duration": 1,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should handle invalid health check paths",
+      "fullTitle": "WebPods Health Checks Error Handling should handle invalid health check paths",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/health.test.ts",
+      "duration": 1,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should return JSON error for health check failures",
+      "fullTitle": "WebPods Health Checks Error Handling should return JSON error for health check failures",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/health.test.ts",
+      "duration": 2,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should respond quickly to health checks",
+      "fullTitle": "WebPods Health Checks Performance should respond quickly to health checks",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/health.test.ts",
+      "duration": 2,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should handle concurrent health checks",
+      "fullTitle": "WebPods Health Checks Performance should handle concurrent health checks",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/health.test.ts",
+      "duration": 7,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should include environment details",
+      "fullTitle": "WebPods Health Checks Environment Information should include environment details",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/health.test.ts",
+      "duration": 1,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should include node version",
+      "fullTitle": "WebPods Health Checks Environment Information should include node version",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/health.test.ts",
+      "duration": 1,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should only allow creator to read private stream",
+      "fullTitle": "WebPods Permissions Private Streams should only allow creator to read private stream",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/permissions.test.ts",
+      "duration": 16,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 404 to equal 200\n    at Context.<anonymous> (src/tests/permissions.test.ts:66:35)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 404 to equal 200",
+        "actual": "404",
+        "expected": "200",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should only allow creator to write to private stream",
+      "fullTitle": "WebPods Permissions Private Streams should only allow creator to write to private stream",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/permissions.test.ts",
+      "duration": 15,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 500 to equal 403\n    at Context.<anonymous> (src/tests/permissions.test.ts:89:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 500 to equal 403",
+        "actual": "500",
+        "expected": "403",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should allow anyone to read public stream",
+      "fullTitle": "WebPods Permissions Public Streams should allow anyone to read public stream",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/permissions.test.ts",
+      "duration": 13,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 404 to equal 200\n    at Context.<anonymous> (src/tests/permissions.test.ts:109:35)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 404 to equal 200",
+        "actual": "404",
+        "expected": "200",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should allow any authenticated user to write to public stream",
+      "fullTitle": "WebPods Permissions Public Streams should allow any authenticated user to write to public stream",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/permissions.test.ts",
+      "duration": 14,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 500 to equal 201\n    at Context.<anonymous> (src/tests/permissions.test.ts:125:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 500 to equal 201",
+        "actual": "500",
+        "expected": "201",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should support permission streams for access control",
+      "fullTitle": "WebPods Permissions Permission Streams (Allow/Deny Lists) should support permission streams for access control",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/permissions.test.ts",
+      "duration": 17,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 404 to equal 200\n    at Context.<anonymous> (src/tests/permissions.test.ts:155:35)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 404 to equal 200",
+        "actual": "404",
+        "expected": "200",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should support deny lists for writing",
+      "fullTitle": "WebPods Permissions Permission Streams (Allow/Deny Lists) should support deny lists for writing",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/permissions.test.ts",
+      "currentRetry": 0,
+      "err": {}
+    },
+    {
+      "title": "should support multiple permission streams",
+      "fullTitle": "WebPods Permissions Permission Streams (Allow/Deny Lists) should support multiple permission streams",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/permissions.test.ts",
+      "currentRetry": 0,
+      "err": {}
+    },
+    {
+      "title": "should transfer pod ownership via .meta/owner",
+      "fullTitle": "WebPods Permissions Pod Ownership should transfer pod ownership via .meta/owner",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/permissions.test.ts",
+      "duration": 11,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 403 to equal 201\n    at Context.<anonymous> (src/tests/permissions.test.ts:193:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 403 to equal 201",
+        "actual": "403",
+        "expected": "201",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should only allow current owner to transfer ownership",
+      "fullTitle": "WebPods Permissions Pod Ownership should only allow current owner to transfer ownership",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/permissions.test.ts",
+      "duration": 9,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should allow creator to update stream permissions",
+      "fullTitle": "WebPods Permissions Stream Permission Updates should allow creator to update stream permissions",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/permissions.test.ts",
+      "duration": 12,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 500 to equal 201\n    at Context.<anonymous> (src/tests/permissions.test.ts:227:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 500 to equal 201",
+        "actual": "500",
+        "expected": "201",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should handle nested stream paths with permissions",
+      "fullTitle": "WebPods Permissions Complex Permission Scenarios should handle nested stream paths with permissions",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/permissions.test.ts",
+      "duration": 17,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 404 to equal 403\n    at Context.<anonymous> (src/tests/permissions.test.ts:254:35)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 404 to equal 403",
+        "actual": "404",
+        "expected": "403",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should respect permissions on aliased content",
+      "fullTitle": "WebPods Permissions Complex Permission Scenarios should respect permissions on aliased content",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/permissions.test.ts",
+      "duration": 13,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 404 to equal 403\n    at Context.<anonymous> (src/tests/permissions.test.ts:270:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 404 to equal 403",
+        "actual": "404",
+        "expected": "403",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should handle permission stream updates correctly",
+      "fullTitle": "WebPods Permissions Complex Permission Scenarios should handle permission stream updates correctly",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/permissions.test.ts",
+      "duration": 17,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 404 to equal 200\n    at Context.<anonymous> (src/tests/permissions.test.ts:295:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 404 to equal 200",
+        "actual": "404",
+        "expected": "200",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should track write rate limits per user",
+      "fullTitle": "WebPods Rate Limiting Write Rate Limits should track write rate limits per user",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/rate-limit.test.ts",
+      "duration": 21,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should track pod creation rate limits separately",
+      "fullTitle": "WebPods Rate Limiting Write Rate Limits should track pod creation rate limits separately",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/rate-limit.test.ts",
+      "duration": 13,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected undefined to exist\n    at Context.<anonymous> (src/tests/rate-limit.test.ts:72:26)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected undefined to exist",
+        "showDiff": false,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should track stream creation rate limits",
+      "fullTitle": "WebPods Rate Limiting Write Rate Limits should track stream creation rate limits",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/rate-limit.test.ts",
+      "duration": 21,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected undefined to exist\n    at Context.<anonymous> (src/tests/rate-limit.test.ts:89:29)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected undefined to exist",
+        "showDiff": false,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should not count writes to existing streams as stream creation",
+      "fullTitle": "WebPods Rate Limiting Write Rate Limits should not count writes to existing streams as stream creation",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/rate-limit.test.ts",
+      "duration": 16,
+      "currentRetry": 0,
+      "err": {
+        "stack": "TypeError: Cannot read properties of undefined (reading 'count')\n    at Context.<anonymous> (src/tests/rate-limit.test.ts:108:26)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "Cannot read properties of undefined (reading 'count')"
+      }
+    },
+    {
+      "title": "should track read rate limits separately from writes",
+      "fullTitle": "WebPods Rate Limiting Read Rate Limits should track read rate limits separately from writes",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/rate-limit.test.ts",
+      "duration": 12,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should track anonymous read rate limits by IP",
+      "fullTitle": "WebPods Rate Limiting Read Rate Limits should track anonymous read rate limits by IP",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/rate-limit.test.ts",
+      "duration": 9,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected undefined to exist\n    at Context.<anonymous> (src/tests/rate-limit.test.ts:163:25)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected undefined to exist",
+        "showDiff": false,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should use hourly windows for rate limiting",
+      "fullTitle": "WebPods Rate Limiting Rate Limit Windows should use hourly windows for rate limiting",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/rate-limit.test.ts",
+      "duration": 7,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should reset count when window expires",
+      "fullTitle": "WebPods Rate Limiting Rate Limit Windows should reset count when window expires",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/rate-limit.test.ts",
+      "duration": 12,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 500 to equal 201\n    at Context.<anonymous> (src/tests/rate-limit.test.ts:205:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 500 to equal 201",
+        "actual": "500",
+        "expected": "201",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should clean up old rate limit windows",
+      "fullTitle": "WebPods Rate Limiting Rate Limit Windows should clean up old rate limit windows",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/rate-limit.test.ts",
+      "duration": 13,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should return rate limit headers in responses",
+      "fullTitle": "WebPods Rate Limiting Rate Limit Headers should return rate limit headers in responses",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/rate-limit.test.ts",
+      "duration": 8,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should decrease remaining count with each request",
+      "fullTitle": "WebPods Rate Limiting Rate Limit Headers should decrease remaining count with each request",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/rate-limit.test.ts",
+      "duration": 13,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should return 429 when rate limit is exceeded",
+      "fullTitle": "WebPods Rate Limiting Rate Limit Enforcement should return 429 when rate limit is exceeded",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/rate-limit.test.ts",
+      "duration": 5,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should allow requests from different users independently",
+      "fullTitle": "WebPods Rate Limiting Rate Limit Enforcement should allow requests from different users independently",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/rate-limit.test.ts",
+      "duration": 14,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 500 to equal 201\n    at Context.<anonymous> (src/tests/rate-limit.test.ts:350:35)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 500 to equal 201",
+        "actual": "500",
+        "expected": "201",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should apply different limits for different actions",
+      "fullTitle": "WebPods Rate Limiting Different Rate Limits by Action should apply different limits for different actions",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/rate-limit.test.ts",
+      "duration": 8,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 500 to equal 201\n    at Context.<anonymous> (src/tests/rate-limit.test.ts:388:39)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 500 to equal 201",
+        "actual": "500",
+        "expected": "201",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should create pod and stream on first write",
+      "fullTitle": "WebPods Stream Operations Pod and Stream Creation should create pod and stream on first write",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 9,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 500 to equal 201\n    at Context.<anonymous> (src/tests/streams.test.ts:46:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 500 to equal 201",
+        "actual": "500",
+        "expected": "201",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should support nested stream paths",
+      "fullTitle": "WebPods Stream Operations Pod and Stream Creation should support nested stream paths",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 9,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 500 to equal 201\n    at Context.<anonymous> (src/tests/streams.test.ts:73:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 500 to equal 201",
+        "actual": "500",
+        "expected": "201",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should set custom permissions on stream creation",
+      "fullTitle": "WebPods Stream Operations Pod and Stream Creation should set custom permissions on stream creation",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 8,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 500 to equal 201\n    at Context.<anonymous> (src/tests/streams.test.ts:91:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 500 to equal 201",
+        "actual": "500",
+        "expected": "201",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should write string content",
+      "fullTitle": "WebPods Stream Operations Writing Records should write string content",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 5,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 500 to equal 201\n    at Context.<anonymous> (src/tests/streams.test.ts:114:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 500 to equal 201",
+        "actual": "500",
+        "expected": "201",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should write JSON content",
+      "fullTitle": "WebPods Stream Operations Writing Records should write JSON content",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 6,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 500 to equal 201\n    at Context.<anonymous> (src/tests/streams.test.ts:124:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 500 to equal 201",
+        "actual": "500",
+        "expected": "201",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should respect X-Content-Type header",
+      "fullTitle": "WebPods Stream Operations Writing Records should respect X-Content-Type header",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 4,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 500 to equal 201\n    at Context.<anonymous> (src/tests/streams.test.ts:134:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 500 to equal 201",
+        "actual": "500",
+        "expected": "201",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should maintain hash chain",
+      "fullTitle": "WebPods Stream Operations Writing Records should maintain hash chain",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 12,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected undefined to be null\n    at Context.<anonymous> (src/tests/streams.test.ts:143:49)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected undefined to be null",
+        "showDiff": false,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should support aliases (including numeric)",
+      "fullTitle": "WebPods Stream Operations Writing Records should support aliases (including numeric)",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 4,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 500 to equal 201\n    at Context.<anonymous> (src/tests/streams.test.ts:154:35)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 500 to equal 201",
+        "actual": "500",
+        "expected": "201",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should reject duplicate aliases",
+      "fullTitle": "WebPods Stream Operations Writing Records should reject duplicate aliases",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 8,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 500 to equal 409\n    at Context.<anonymous> (src/tests/streams.test.ts:172:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 500 to equal 409",
+        "actual": "500",
+        "expected": "409",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should get record by positive index",
+      "fullTitle": "WebPods Stream Operations Reading Records should get record by positive index",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 6,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 404 to equal 200\n    at Context.<anonymous> (src/tests/streams.test.ts:189:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 404 to equal 200",
+        "actual": "404",
+        "expected": "200",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should get record by negative index",
+      "fullTitle": "WebPods Stream Operations Reading Records should get record by negative index",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 5,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 404 to equal 200\n    at Context.<anonymous> (src/tests/streams.test.ts:199:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 404 to equal 200",
+        "actual": "404",
+        "expected": "200",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should get range of records",
+      "fullTitle": "WebPods Stream Operations Reading Records should get range of records",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 5,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 404 to equal 200\n    at Context.<anonymous> (src/tests/streams.test.ts:209:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 404 to equal 200",
+        "actual": "404",
+        "expected": "200",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should get record by string alias",
+      "fullTitle": "WebPods Stream Operations Reading Records should get record by string alias",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 5,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 404 to equal 200\n    at Context.<anonymous> (src/tests/streams.test.ts:217:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 404 to equal 200",
+        "actual": "404",
+        "expected": "200",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should get record by numeric alias",
+      "fullTitle": "WebPods Stream Operations Reading Records should get record by numeric alias",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 5,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 404 to equal 200\n    at Context.<anonymous> (src/tests/streams.test.ts:223:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 404 to equal 200",
+        "actual": "404",
+        "expected": "200",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should list all records with pagination",
+      "fullTitle": "WebPods Stream Operations Reading Records should list all records with pagination",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 5,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 404 to equal 200\n    at Context.<anonymous> (src/tests/streams.test.ts:229:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 404 to equal 200",
+        "actual": "404",
+        "expected": "200",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should return raw content with metadata in headers",
+      "fullTitle": "WebPods Stream Operations Reading Records should return raw content with metadata in headers",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 5,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 'application/json; charset=utf-8' to equal 'text/plain'\n    at Context.<anonymous> (src/tests/streams.test.ts:241:51)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 'application/json; charset=utf-8' to equal 'text/plain'",
+        "actual": "application/json; charset=utf-8",
+        "expected": "text/plain",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should create .meta/owner stream on pod creation",
+      "fullTitle": "WebPods Stream Operations System Streams (.meta/) should create .meta/owner stream on pod creation",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 8,
+      "currentRetry": 0,
+      "err": {
+        "stack": "TypeError: Cannot read properties of undefined (reading 'id')\n    at Context.<anonymous> (src/tests/streams.test.ts:255:30)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "Cannot read properties of undefined (reading 'id')"
+      }
+    },
+    {
+      "title": "should list streams via .meta/streams",
+      "fullTitle": "WebPods Stream Operations System Streams (.meta/) should list streams via .meta/streams",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 16,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 404 to equal 200\n    at Context.<anonymous> (src/tests/streams.test.ts:278:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 404 to equal 200",
+        "actual": "404",
+        "expected": "200",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should update .meta/links for URL routing",
+      "fullTitle": "WebPods Stream Operations System Streams (.meta/) should update .meta/links for URL routing",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 9,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 403 to equal 201\n    at Context.<anonymous> (src/tests/streams.test.ts:301:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 403 to equal 201",
+        "actual": "403",
+        "expected": "201",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should only allow owner to write to .meta/ streams",
+      "fullTitle": "WebPods Stream Operations System Streams (.meta/) should only allow owner to write to .meta/ streams",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 11,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should enforce private read permissions",
+      "fullTitle": "WebPods Stream Operations Permissions should enforce private read permissions",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 13,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 404 to equal 200\n    at Context.<anonymous> (src/tests/streams.test.ts:350:35)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 404 to equal 200",
+        "actual": "404",
+        "expected": "200",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should support permission streams (allow lists)",
+      "fullTitle": "WebPods Stream Operations Permissions should support permission streams (allow lists)",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 12,
+      "currentRetry": 0,
+      "err": {
+        "stack": "TypeError: Cannot read properties of undefined (reading 'id')\n    at Context.<anonymous> (src/tests/streams.test.ts:373:30)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "Cannot read properties of undefined (reading 'id')"
+      }
+    },
+    {
+      "title": "should delete stream and all records",
+      "fullTitle": "WebPods Stream Operations Stream Deletion should delete stream and all records",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 19,
+      "currentRetry": 0,
+      "err": {
+        "stack": "TypeError: fetch failed\n    at node:internal/deps/undici/undici:15433:13\n    at async TestHttpClient.delete (file:///home/jester/repos/webpods-org/webpods/node/packages/webpods-test-utils/dist/utils/test-http-client.js:159:26)\n    at async Context.<anonymous> (src/tests/streams.test.ts:385:24)",
+        "message": "fetch failed",
+        "cause": {
+          "name": "SocketError",
+          "code": "UND_ERR_SOCKET",
+          "socket": {
+            "localAddress": "::1",
+            "localPort": 60696,
+            "remoteAddress": "::1",
+            "remotePort": 3099,
+            "remoteFamily": "IPv6",
+            "bytesWritten": 24423,
+            "bytesRead": 46200
+          }
+        }
+      }
+    },
+    {
+      "title": "should prevent deletion of system streams",
+      "fullTitle": "WebPods Stream Operations Stream Deletion should prevent deletion of system streams",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 1,
+      "currentRetry": 0,
+      "err": {
+        "stack": "TypeError: fetch failed\n    at node:internal/deps/undici/undici:15433:13\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async TestHttpClient.post (file:///home/jester/repos/webpods-org/webpods/node/packages/webpods-test-utils/dist/utils/test-http-client.js:102:26)\n    at async Context.<anonymous> (src/tests/streams.test.ts:394:7)",
+        "message": "fetch failed",
+        "cause": {
+          "code": "ECONNREFUSED"
+        }
+      }
+    },
+    {
+      "title": "should only allow creator to delete stream",
+      "fullTitle": "WebPods Stream Operations Stream Deletion should only allow creator to delete stream",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 1,
+      "currentRetry": 0,
+      "err": {
+        "stack": "TypeError: fetch failed\n    at node:internal/deps/undici/undici:15433:13\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async TestHttpClient.post (file:///home/jester/repos/webpods-org/webpods/node/packages/webpods-test-utils/dist/utils/test-http-client.js:102:26)\n    at async Context.<anonymous> (src/tests/streams.test.ts:402:7)",
+        "message": "fetch failed",
+        "cause": {
+          "code": "ECONNREFUSED"
+        }
+      }
+    },
+    {
+      "title": "should serve HTML directly with correct content type",
+      "fullTitle": "WebPods Stream Operations Content Types and Serving should serve HTML directly with correct content type",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 1,
+      "currentRetry": 0,
+      "err": {
+        "stack": "TypeError: fetch failed\n    at node:internal/deps/undici/undici:15433:13\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async TestHttpClient.post (file:///home/jester/repos/webpods-org/webpods/node/packages/webpods-test-utils/dist/utils/test-http-client.js:102:26)\n    at async Context.<anonymous> (src/tests/streams.test.ts:429:7)",
+        "message": "fetch failed",
+        "cause": {
+          "code": "ECONNREFUSED"
+        }
+      }
+    },
+    {
+      "title": "should serve CSS with correct content type",
+      "fullTitle": "WebPods Stream Operations Content Types and Serving should serve CSS with correct content type",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 1,
+      "currentRetry": 0,
+      "err": {
+        "stack": "TypeError: fetch failed\n    at node:internal/deps/undici/undici:15433:13\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async TestHttpClient.post (file:///home/jester/repos/webpods-org/webpods/node/packages/webpods-test-utils/dist/utils/test-http-client.js:102:26)\n    at async Context.<anonymous> (src/tests/streams.test.ts:441:7)",
+        "message": "fetch failed",
+        "cause": {
+          "code": "ECONNREFUSED"
+        }
+      }
+    },
+    {
+      "title": "should serve JSON with correct content type",
+      "fullTitle": "WebPods Stream Operations Content Types and Serving should serve JSON with correct content type",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 1,
+      "currentRetry": 0,
+      "err": {
+        "stack": "TypeError: fetch failed\n    at node:internal/deps/undici/undici:15433:13\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async TestHttpClient.post (file:///home/jester/repos/webpods-org/webpods/node/packages/webpods-test-utils/dist/utils/test-http-client.js:102:26)\n    at async Context.<anonymous> (src/tests/streams.test.ts:452:7)",
+        "message": "fetch failed",
+        "cause": {
+          "code": "ECONNREFUSED"
+        }
+      }
+    }
+  ],
+  "pending": [
+    {
+      "title": "should support deny lists for writing",
+      "fullTitle": "WebPods Permissions Permission Streams (Allow/Deny Lists) should support deny lists for writing",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/permissions.test.ts",
+      "currentRetry": 0,
+      "err": {}
+    },
+    {
+      "title": "should support multiple permission streams",
+      "fullTitle": "WebPods Permissions Permission Streams (Allow/Deny Lists) should support multiple permission streams",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/permissions.test.ts",
+      "currentRetry": 0,
+      "err": {}
+    }
+  ],
+  "failures": [
+    {
+      "title": "should accept requests with valid auth token",
+      "fullTitle": "WebPods Authentication JWT Authentication should accept requests with valid auth token",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/auth.test.ts",
+      "duration": 14,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 500 to equal 201\n    at Context.<anonymous> (src/tests/auth.test.ts:104:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 500 to equal 201",
+        "actual": "500",
+        "expected": "201",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should allow anonymous read on public streams",
+      "fullTitle": "WebPods Authentication Public vs Authenticated Access should allow anonymous read on public streams",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/auth.test.ts",
+      "duration": 16,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 404 to equal 200\n    at Context.<anonymous> (src/tests/auth.test.ts:184:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 404 to equal 200",
+        "actual": "404",
+        "expected": "200",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should track author correctly",
+      "fullTitle": "WebPods Authentication Public vs Authenticated Access should track author correctly",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/auth.test.ts",
+      "duration": 8,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 500 to equal 201\n    at Context.<anonymous> (src/tests/auth.test.ts:203:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 500 to equal 201",
+        "actual": "500",
+        "expected": "201",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should accept Bearer token in Authorization header",
+      "fullTitle": "WebPods Authentication Bearer Token Format should accept Bearer token in Authorization header",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/auth.test.ts",
+      "duration": 8,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 500 to equal 201\n    at Context.<anonymous> (src/tests/auth.test.ts:244:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 500 to equal 201",
+        "actual": "500",
+        "expected": "201",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should accept token without Bearer prefix",
+      "fullTitle": "WebPods Authentication Bearer Token Format should accept token without Bearer prefix",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/auth.test.ts",
+      "duration": 9,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 500 to equal 201\n    at Context.<anonymous> (src/tests/auth.test.ts:254:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 500 to equal 201",
+        "actual": "500",
+        "expected": "201",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should use same auth token across different pods",
+      "fullTitle": "WebPods Authentication Cross-Pod Authentication should use same auth token across different pods",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/auth.test.ts",
+      "duration": 9,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 500 to equal 201\n    at Context.<anonymous> (src/tests/auth.test.ts:292:35)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 500 to equal 201",
+        "actual": "500",
+        "expected": "201",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should verify wildcard subdomain routing works",
+      "fullTitle": "WebPods Health Checks Pod Subdomain Health should verify wildcard subdomain routing works",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/health.test.ts",
+      "duration": 3,
+      "currentRetry": 0,
+      "err": {
+        "stack": "ReferenceError: require is not defined\n    at Context.<anonymous> (src/tests/health.test.ts:101:19)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "require is not defined"
+      }
+    },
+    {
+      "title": "should only allow creator to read private stream",
+      "fullTitle": "WebPods Permissions Private Streams should only allow creator to read private stream",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/permissions.test.ts",
+      "duration": 16,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 404 to equal 200\n    at Context.<anonymous> (src/tests/permissions.test.ts:66:35)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 404 to equal 200",
+        "actual": "404",
+        "expected": "200",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should only allow creator to write to private stream",
+      "fullTitle": "WebPods Permissions Private Streams should only allow creator to write to private stream",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/permissions.test.ts",
+      "duration": 15,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 500 to equal 403\n    at Context.<anonymous> (src/tests/permissions.test.ts:89:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 500 to equal 403",
+        "actual": "500",
+        "expected": "403",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should allow anyone to read public stream",
+      "fullTitle": "WebPods Permissions Public Streams should allow anyone to read public stream",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/permissions.test.ts",
+      "duration": 13,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 404 to equal 200\n    at Context.<anonymous> (src/tests/permissions.test.ts:109:35)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 404 to equal 200",
+        "actual": "404",
+        "expected": "200",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should allow any authenticated user to write to public stream",
+      "fullTitle": "WebPods Permissions Public Streams should allow any authenticated user to write to public stream",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/permissions.test.ts",
+      "duration": 14,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 500 to equal 201\n    at Context.<anonymous> (src/tests/permissions.test.ts:125:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 500 to equal 201",
+        "actual": "500",
+        "expected": "201",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should support permission streams for access control",
+      "fullTitle": "WebPods Permissions Permission Streams (Allow/Deny Lists) should support permission streams for access control",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/permissions.test.ts",
+      "duration": 17,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 404 to equal 200\n    at Context.<anonymous> (src/tests/permissions.test.ts:155:35)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 404 to equal 200",
+        "actual": "404",
+        "expected": "200",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should transfer pod ownership via .meta/owner",
+      "fullTitle": "WebPods Permissions Pod Ownership should transfer pod ownership via .meta/owner",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/permissions.test.ts",
+      "duration": 11,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 403 to equal 201\n    at Context.<anonymous> (src/tests/permissions.test.ts:193:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 403 to equal 201",
+        "actual": "403",
+        "expected": "201",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should allow creator to update stream permissions",
+      "fullTitle": "WebPods Permissions Stream Permission Updates should allow creator to update stream permissions",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/permissions.test.ts",
+      "duration": 12,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 500 to equal 201\n    at Context.<anonymous> (src/tests/permissions.test.ts:227:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 500 to equal 201",
+        "actual": "500",
+        "expected": "201",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should handle nested stream paths with permissions",
+      "fullTitle": "WebPods Permissions Complex Permission Scenarios should handle nested stream paths with permissions",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/permissions.test.ts",
+      "duration": 17,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 404 to equal 403\n    at Context.<anonymous> (src/tests/permissions.test.ts:254:35)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 404 to equal 403",
+        "actual": "404",
+        "expected": "403",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should respect permissions on aliased content",
+      "fullTitle": "WebPods Permissions Complex Permission Scenarios should respect permissions on aliased content",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/permissions.test.ts",
+      "duration": 13,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 404 to equal 403\n    at Context.<anonymous> (src/tests/permissions.test.ts:270:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 404 to equal 403",
+        "actual": "404",
+        "expected": "403",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should handle permission stream updates correctly",
+      "fullTitle": "WebPods Permissions Complex Permission Scenarios should handle permission stream updates correctly",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/permissions.test.ts",
+      "duration": 17,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 404 to equal 200\n    at Context.<anonymous> (src/tests/permissions.test.ts:295:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 404 to equal 200",
+        "actual": "404",
+        "expected": "200",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should track pod creation rate limits separately",
+      "fullTitle": "WebPods Rate Limiting Write Rate Limits should track pod creation rate limits separately",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/rate-limit.test.ts",
+      "duration": 13,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected undefined to exist\n    at Context.<anonymous> (src/tests/rate-limit.test.ts:72:26)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected undefined to exist",
+        "showDiff": false,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should track stream creation rate limits",
+      "fullTitle": "WebPods Rate Limiting Write Rate Limits should track stream creation rate limits",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/rate-limit.test.ts",
+      "duration": 21,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected undefined to exist\n    at Context.<anonymous> (src/tests/rate-limit.test.ts:89:29)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected undefined to exist",
+        "showDiff": false,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should not count writes to existing streams as stream creation",
+      "fullTitle": "WebPods Rate Limiting Write Rate Limits should not count writes to existing streams as stream creation",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/rate-limit.test.ts",
+      "duration": 16,
+      "currentRetry": 0,
+      "err": {
+        "stack": "TypeError: Cannot read properties of undefined (reading 'count')\n    at Context.<anonymous> (src/tests/rate-limit.test.ts:108:26)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "Cannot read properties of undefined (reading 'count')"
+      }
+    },
+    {
+      "title": "should track anonymous read rate limits by IP",
+      "fullTitle": "WebPods Rate Limiting Read Rate Limits should track anonymous read rate limits by IP",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/rate-limit.test.ts",
+      "duration": 9,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected undefined to exist\n    at Context.<anonymous> (src/tests/rate-limit.test.ts:163:25)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected undefined to exist",
+        "showDiff": false,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should reset count when window expires",
+      "fullTitle": "WebPods Rate Limiting Rate Limit Windows should reset count when window expires",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/rate-limit.test.ts",
+      "duration": 12,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 500 to equal 201\n    at Context.<anonymous> (src/tests/rate-limit.test.ts:205:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 500 to equal 201",
+        "actual": "500",
+        "expected": "201",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should allow requests from different users independently",
+      "fullTitle": "WebPods Rate Limiting Rate Limit Enforcement should allow requests from different users independently",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/rate-limit.test.ts",
+      "duration": 14,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 500 to equal 201\n    at Context.<anonymous> (src/tests/rate-limit.test.ts:350:35)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 500 to equal 201",
+        "actual": "500",
+        "expected": "201",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should apply different limits for different actions",
+      "fullTitle": "WebPods Rate Limiting Different Rate Limits by Action should apply different limits for different actions",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/rate-limit.test.ts",
+      "duration": 8,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 500 to equal 201\n    at Context.<anonymous> (src/tests/rate-limit.test.ts:388:39)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 500 to equal 201",
+        "actual": "500",
+        "expected": "201",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should create pod and stream on first write",
+      "fullTitle": "WebPods Stream Operations Pod and Stream Creation should create pod and stream on first write",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 9,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 500 to equal 201\n    at Context.<anonymous> (src/tests/streams.test.ts:46:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 500 to equal 201",
+        "actual": "500",
+        "expected": "201",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should support nested stream paths",
+      "fullTitle": "WebPods Stream Operations Pod and Stream Creation should support nested stream paths",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 9,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 500 to equal 201\n    at Context.<anonymous> (src/tests/streams.test.ts:73:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 500 to equal 201",
+        "actual": "500",
+        "expected": "201",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should set custom permissions on stream creation",
+      "fullTitle": "WebPods Stream Operations Pod and Stream Creation should set custom permissions on stream creation",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 8,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 500 to equal 201\n    at Context.<anonymous> (src/tests/streams.test.ts:91:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 500 to equal 201",
+        "actual": "500",
+        "expected": "201",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should write string content",
+      "fullTitle": "WebPods Stream Operations Writing Records should write string content",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 5,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 500 to equal 201\n    at Context.<anonymous> (src/tests/streams.test.ts:114:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 500 to equal 201",
+        "actual": "500",
+        "expected": "201",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should write JSON content",
+      "fullTitle": "WebPods Stream Operations Writing Records should write JSON content",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 6,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 500 to equal 201\n    at Context.<anonymous> (src/tests/streams.test.ts:124:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 500 to equal 201",
+        "actual": "500",
+        "expected": "201",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should respect X-Content-Type header",
+      "fullTitle": "WebPods Stream Operations Writing Records should respect X-Content-Type header",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 4,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 500 to equal 201\n    at Context.<anonymous> (src/tests/streams.test.ts:134:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 500 to equal 201",
+        "actual": "500",
+        "expected": "201",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should maintain hash chain",
+      "fullTitle": "WebPods Stream Operations Writing Records should maintain hash chain",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 12,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected undefined to be null\n    at Context.<anonymous> (src/tests/streams.test.ts:143:49)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected undefined to be null",
+        "showDiff": false,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should support aliases (including numeric)",
+      "fullTitle": "WebPods Stream Operations Writing Records should support aliases (including numeric)",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 4,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 500 to equal 201\n    at Context.<anonymous> (src/tests/streams.test.ts:154:35)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 500 to equal 201",
+        "actual": "500",
+        "expected": "201",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should reject duplicate aliases",
+      "fullTitle": "WebPods Stream Operations Writing Records should reject duplicate aliases",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 8,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 500 to equal 409\n    at Context.<anonymous> (src/tests/streams.test.ts:172:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 500 to equal 409",
+        "actual": "500",
+        "expected": "409",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should get record by positive index",
+      "fullTitle": "WebPods Stream Operations Reading Records should get record by positive index",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 6,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 404 to equal 200\n    at Context.<anonymous> (src/tests/streams.test.ts:189:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 404 to equal 200",
+        "actual": "404",
+        "expected": "200",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should get record by negative index",
+      "fullTitle": "WebPods Stream Operations Reading Records should get record by negative index",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 5,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 404 to equal 200\n    at Context.<anonymous> (src/tests/streams.test.ts:199:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 404 to equal 200",
+        "actual": "404",
+        "expected": "200",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should get range of records",
+      "fullTitle": "WebPods Stream Operations Reading Records should get range of records",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 5,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 404 to equal 200\n    at Context.<anonymous> (src/tests/streams.test.ts:209:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 404 to equal 200",
+        "actual": "404",
+        "expected": "200",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should get record by string alias",
+      "fullTitle": "WebPods Stream Operations Reading Records should get record by string alias",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 5,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 404 to equal 200\n    at Context.<anonymous> (src/tests/streams.test.ts:217:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 404 to equal 200",
+        "actual": "404",
+        "expected": "200",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should get record by numeric alias",
+      "fullTitle": "WebPods Stream Operations Reading Records should get record by numeric alias",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 5,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 404 to equal 200\n    at Context.<anonymous> (src/tests/streams.test.ts:223:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 404 to equal 200",
+        "actual": "404",
+        "expected": "200",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should list all records with pagination",
+      "fullTitle": "WebPods Stream Operations Reading Records should list all records with pagination",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 5,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 404 to equal 200\n    at Context.<anonymous> (src/tests/streams.test.ts:229:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 404 to equal 200",
+        "actual": "404",
+        "expected": "200",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should return raw content with metadata in headers",
+      "fullTitle": "WebPods Stream Operations Reading Records should return raw content with metadata in headers",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 5,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 'application/json; charset=utf-8' to equal 'text/plain'\n    at Context.<anonymous> (src/tests/streams.test.ts:241:51)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 'application/json; charset=utf-8' to equal 'text/plain'",
+        "actual": "application/json; charset=utf-8",
+        "expected": "text/plain",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should create .meta/owner stream on pod creation",
+      "fullTitle": "WebPods Stream Operations System Streams (.meta/) should create .meta/owner stream on pod creation",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 8,
+      "currentRetry": 0,
+      "err": {
+        "stack": "TypeError: Cannot read properties of undefined (reading 'id')\n    at Context.<anonymous> (src/tests/streams.test.ts:255:30)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "Cannot read properties of undefined (reading 'id')"
+      }
+    },
+    {
+      "title": "should list streams via .meta/streams",
+      "fullTitle": "WebPods Stream Operations System Streams (.meta/) should list streams via .meta/streams",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 16,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 404 to equal 200\n    at Context.<anonymous> (src/tests/streams.test.ts:278:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 404 to equal 200",
+        "actual": "404",
+        "expected": "200",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should update .meta/links for URL routing",
+      "fullTitle": "WebPods Stream Operations System Streams (.meta/) should update .meta/links for URL routing",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 9,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 403 to equal 201\n    at Context.<anonymous> (src/tests/streams.test.ts:301:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 403 to equal 201",
+        "actual": "403",
+        "expected": "201",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should enforce private read permissions",
+      "fullTitle": "WebPods Stream Operations Permissions should enforce private read permissions",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 13,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError: expected 404 to equal 200\n    at Context.<anonymous> (src/tests/streams.test.ts:350:35)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "expected 404 to equal 200",
+        "actual": "404",
+        "expected": "200",
+        "showDiff": true,
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should support permission streams (allow lists)",
+      "fullTitle": "WebPods Stream Operations Permissions should support permission streams (allow lists)",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 12,
+      "currentRetry": 0,
+      "err": {
+        "stack": "TypeError: Cannot read properties of undefined (reading 'id')\n    at Context.<anonymous> (src/tests/streams.test.ts:373:30)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+        "message": "Cannot read properties of undefined (reading 'id')"
+      }
+    },
+    {
+      "title": "should delete stream and all records",
+      "fullTitle": "WebPods Stream Operations Stream Deletion should delete stream and all records",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 19,
+      "currentRetry": 0,
+      "err": {
+        "stack": "TypeError: fetch failed\n    at node:internal/deps/undici/undici:15433:13\n    at async TestHttpClient.delete (file:///home/jester/repos/webpods-org/webpods/node/packages/webpods-test-utils/dist/utils/test-http-client.js:159:26)\n    at async Context.<anonymous> (src/tests/streams.test.ts:385:24)",
+        "message": "fetch failed",
+        "cause": {
+          "name": "SocketError",
+          "code": "UND_ERR_SOCKET",
+          "socket": {
+            "localAddress": "::1",
+            "localPort": 60696,
+            "remoteAddress": "::1",
+            "remotePort": 3099,
+            "remoteFamily": "IPv6",
+            "bytesWritten": 24423,
+            "bytesRead": 46200
+          }
+        }
+      }
+    },
+    {
+      "title": "should prevent deletion of system streams",
+      "fullTitle": "WebPods Stream Operations Stream Deletion should prevent deletion of system streams",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 1,
+      "currentRetry": 0,
+      "err": {
+        "stack": "TypeError: fetch failed\n    at node:internal/deps/undici/undici:15433:13\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async TestHttpClient.post (file:///home/jester/repos/webpods-org/webpods/node/packages/webpods-test-utils/dist/utils/test-http-client.js:102:26)\n    at async Context.<anonymous> (src/tests/streams.test.ts:394:7)",
+        "message": "fetch failed",
+        "cause": {
+          "code": "ECONNREFUSED"
+        }
+      }
+    },
+    {
+      "title": "should only allow creator to delete stream",
+      "fullTitle": "WebPods Stream Operations Stream Deletion should only allow creator to delete stream",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 1,
+      "currentRetry": 0,
+      "err": {
+        "stack": "TypeError: fetch failed\n    at node:internal/deps/undici/undici:15433:13\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async TestHttpClient.post (file:///home/jester/repos/webpods-org/webpods/node/packages/webpods-test-utils/dist/utils/test-http-client.js:102:26)\n    at async Context.<anonymous> (src/tests/streams.test.ts:402:7)",
+        "message": "fetch failed",
+        "cause": {
+          "code": "ECONNREFUSED"
+        }
+      }
+    },
+    {
+      "title": "should serve HTML directly with correct content type",
+      "fullTitle": "WebPods Stream Operations Content Types and Serving should serve HTML directly with correct content type",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 1,
+      "currentRetry": 0,
+      "err": {
+        "stack": "TypeError: fetch failed\n    at node:internal/deps/undici/undici:15433:13\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async TestHttpClient.post (file:///home/jester/repos/webpods-org/webpods/node/packages/webpods-test-utils/dist/utils/test-http-client.js:102:26)\n    at async Context.<anonymous> (src/tests/streams.test.ts:429:7)",
+        "message": "fetch failed",
+        "cause": {
+          "code": "ECONNREFUSED"
+        }
+      }
+    },
+    {
+      "title": "should serve CSS with correct content type",
+      "fullTitle": "WebPods Stream Operations Content Types and Serving should serve CSS with correct content type",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 1,
+      "currentRetry": 0,
+      "err": {
+        "stack": "TypeError: fetch failed\n    at node:internal/deps/undici/undici:15433:13\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async TestHttpClient.post (file:///home/jester/repos/webpods-org/webpods/node/packages/webpods-test-utils/dist/utils/test-http-client.js:102:26)\n    at async Context.<anonymous> (src/tests/streams.test.ts:441:7)",
+        "message": "fetch failed",
+        "cause": {
+          "code": "ECONNREFUSED"
+        }
+      }
+    },
+    {
+      "title": "should serve JSON with correct content type",
+      "fullTitle": "WebPods Stream Operations Content Types and Serving should serve JSON with correct content type",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 1,
+      "currentRetry": 0,
+      "err": {
+        "stack": "TypeError: fetch failed\n    at node:internal/deps/undici/undici:15433:13\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async TestHttpClient.post (file:///home/jester/repos/webpods-org/webpods/node/packages/webpods-test-utils/dist/utils/test-http-client.js:102:26)\n    at async Context.<anonymous> (src/tests/streams.test.ts:452:7)",
+        "message": "fetch failed",
+        "cause": {
+          "code": "ECONNREFUSED"
+        }
+      }
+    }
+  ],
+  "passes": [
+    {
+      "title": "should redirect to Google OAuth",
+      "fullTitle": "WebPods Authentication OAuth Endpoints should redirect to Google OAuth",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/auth.test.ts",
+      "duration": 174,
+      "currentRetry": 0,
+      "speed": "slow",
+      "err": {}
+    },
+    {
+      "title": "should redirect to GitHub OAuth",
+      "fullTitle": "WebPods Authentication OAuth Endpoints should redirect to GitHub OAuth",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/auth.test.ts",
+      "duration": 3,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should reject invalid OAuth provider",
+      "fullTitle": "WebPods Authentication OAuth Endpoints should reject invalid OAuth provider",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/auth.test.ts",
+      "duration": 2,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should handle OAuth callback",
+      "fullTitle": "WebPods Authentication OAuth Endpoints should handle OAuth callback",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/auth.test.ts",
+      "duration": 2,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should reject requests without auth token to write operations",
+      "fullTitle": "WebPods Authentication JWT Authentication should reject requests without auth token to write operations",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/auth.test.ts",
+      "duration": 9,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should reject expired JWT token",
+      "fullTitle": "WebPods Authentication JWT Authentication should reject expired JWT token",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/auth.test.ts",
+      "duration": 3,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should reject invalid JWT signature",
+      "fullTitle": "WebPods Authentication JWT Authentication should reject invalid JWT signature",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/auth.test.ts",
+      "duration": 2,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should reject malformed JWT token",
+      "fullTitle": "WebPods Authentication JWT Authentication should reject malformed JWT token",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/auth.test.ts",
+      "duration": 2,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should require auth for write on public streams",
+      "fullTitle": "WebPods Authentication Public vs Authenticated Access should require auth for write on public streams",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/auth.test.ts",
+      "duration": 2,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should reject other auth schemes",
+      "fullTitle": "WebPods Authentication Bearer Token Format should reject other auth schemes",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/auth.test.ts",
+      "duration": 2,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should store user metadata from OAuth",
+      "fullTitle": "WebPods Authentication User Metadata should store user metadata from OAuth",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/auth.test.ts",
+      "duration": 3,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should handle users from different OAuth providers",
+      "fullTitle": "WebPods Authentication User Metadata should handle users from different OAuth providers",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/auth.test.ts",
+      "duration": 6,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should return healthy status",
+      "fullTitle": "WebPods Health Checks Main Domain Health should return healthy status",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/health.test.ts",
+      "duration": 3,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should include service statuses",
+      "fullTitle": "WebPods Health Checks Main Domain Health should include service statuses",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/health.test.ts",
+      "duration": 2,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should include uptime information",
+      "fullTitle": "WebPods Health Checks Main Domain Health should include uptime information",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/health.test.ts",
+      "duration": 2,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should return proper content type",
+      "fullTitle": "WebPods Health Checks Main Domain Health should return proper content type",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/health.test.ts",
+      "duration": 1,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should detect database connection",
+      "fullTitle": "WebPods Health Checks Database Health should detect database connection",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/health.test.ts",
+      "duration": 2,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should report database version",
+      "fullTitle": "WebPods Health Checks Database Health should report database version",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/health.test.ts",
+      "duration": 1,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should handle health checks on pod subdomains",
+      "fullTitle": "WebPods Health Checks Pod Subdomain Health should handle health checks on pod subdomains",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/health.test.ts",
+      "duration": 1,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should have a readiness endpoint",
+      "fullTitle": "WebPods Health Checks Readiness Check should have a readiness endpoint",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/health.test.ts",
+      "duration": 1,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should have a liveness endpoint",
+      "fullTitle": "WebPods Health Checks Liveness Check should have a liveness endpoint",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/health.test.ts",
+      "duration": 1,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should expose metrics if configured",
+      "fullTitle": "WebPods Health Checks Metrics Endpoint should expose metrics if configured",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/health.test.ts",
+      "duration": 1,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should handle invalid health check paths",
+      "fullTitle": "WebPods Health Checks Error Handling should handle invalid health check paths",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/health.test.ts",
+      "duration": 1,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should return JSON error for health check failures",
+      "fullTitle": "WebPods Health Checks Error Handling should return JSON error for health check failures",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/health.test.ts",
+      "duration": 2,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should respond quickly to health checks",
+      "fullTitle": "WebPods Health Checks Performance should respond quickly to health checks",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/health.test.ts",
+      "duration": 2,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should handle concurrent health checks",
+      "fullTitle": "WebPods Health Checks Performance should handle concurrent health checks",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/health.test.ts",
+      "duration": 7,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should include environment details",
+      "fullTitle": "WebPods Health Checks Environment Information should include environment details",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/health.test.ts",
+      "duration": 1,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should include node version",
+      "fullTitle": "WebPods Health Checks Environment Information should include node version",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/health.test.ts",
+      "duration": 1,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should only allow current owner to transfer ownership",
+      "fullTitle": "WebPods Permissions Pod Ownership should only allow current owner to transfer ownership",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/permissions.test.ts",
+      "duration": 9,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should track write rate limits per user",
+      "fullTitle": "WebPods Rate Limiting Write Rate Limits should track write rate limits per user",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/rate-limit.test.ts",
+      "duration": 21,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should track read rate limits separately from writes",
+      "fullTitle": "WebPods Rate Limiting Read Rate Limits should track read rate limits separately from writes",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/rate-limit.test.ts",
+      "duration": 12,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should use hourly windows for rate limiting",
+      "fullTitle": "WebPods Rate Limiting Rate Limit Windows should use hourly windows for rate limiting",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/rate-limit.test.ts",
+      "duration": 7,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should clean up old rate limit windows",
+      "fullTitle": "WebPods Rate Limiting Rate Limit Windows should clean up old rate limit windows",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/rate-limit.test.ts",
+      "duration": 13,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should return rate limit headers in responses",
+      "fullTitle": "WebPods Rate Limiting Rate Limit Headers should return rate limit headers in responses",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/rate-limit.test.ts",
+      "duration": 8,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should decrease remaining count with each request",
+      "fullTitle": "WebPods Rate Limiting Rate Limit Headers should decrease remaining count with each request",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/rate-limit.test.ts",
+      "duration": 13,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should return 429 when rate limit is exceeded",
+      "fullTitle": "WebPods Rate Limiting Rate Limit Enforcement should return 429 when rate limit is exceeded",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/rate-limit.test.ts",
+      "duration": 5,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should only allow owner to write to .meta/ streams",
+      "fullTitle": "WebPods Stream Operations System Streams (.meta/) should only allow owner to write to .meta/ streams",
+      "file": "/home/jester/repos/webpods-org/webpods/node/packages/webpods-integration-tests/src/tests/streams.test.ts",
+      "duration": 11,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    }
+  ]
+}

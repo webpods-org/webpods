@@ -43,8 +43,7 @@ export async function up(knex) {
     table.uuid('pod_id').references('id').inTable('pod').onDelete('CASCADE');
     table.string('stream_id', 256).notNullable(); // Stream path (can include slashes)
     table.uuid('creator_id').references('id').inTable('user').onDelete('RESTRICT');
-    table.string('read_permission', 500).defaultTo('public');
-    table.string('write_permission', 500).defaultTo('public');
+    table.string('access_permission', 500).defaultTo('public');
     table.string('stream_type', 50).defaultTo('normal'); // 'normal', 'system', 'permission'
     table.jsonb('metadata').defaultTo('{}');
     table.timestamp('created_at').defaultTo(knex.fn.now());

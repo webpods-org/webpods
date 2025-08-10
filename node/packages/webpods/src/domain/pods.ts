@@ -61,8 +61,7 @@ export async function createPod(
           pod_id: pod.id,
           stream_id: '.meta/owner',
           creator_id: userId,
-          read_permission: 'public',
-          write_permission: 'private',
+          access_permission: 'private',  // Only owner can modify
           stream_type: 'system',
           created_at: new Date()
         })
