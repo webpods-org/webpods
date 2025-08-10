@@ -51,26 +51,51 @@ Examples:
 
 WebPods uses OAuth for authentication. Login through supported providers to get a JWT token.
 
-### Login
+### OAuth Login
 ```
-GET https://webpods.org/auth/{provider}?redirect_uri={uri}
+GET https://webpods.org/auth/{provider}?redirect={redirect_path}
 ```
 Providers: `github`, `google`
 
-### Callback
-```
-GET https://webpods.org/auth/{provider}/callback
-```
-Returns:
-```json
-{
-  "token": "jwt_token",
-  "user": {
-    "email": "user@example.com",
-    "name": "John Doe",
-    "provider": "github"
+After OAuth authentication, you'll be redirected to `/auth/success` which:
+- **Displays the JWT token** for copying (CLI/desktop apps)
+- **Posts token to parent window** (popup flows)
+- **Auto-redirects after 5 seconds** (web apps)
+
+### Token Usage
+
+**For Web Apps:**
+```javascript
+// Open in popup
+const authWindow = window.open('https://webpods.org/auth/github');
+
+// Listen for token
+window.addEventListener('message', (e) => {
+  if (e.data.type === 'auth_success') {
+    localStorage.setItem('token', e.data.token);
   }
-}
+});
+```
+
+**For CLI/Desktop Apps:**
+```bash
+# Open browser (add ?no_redirect=1 to prevent auto-redirect)
+https://webpods.org/auth/github?no_redirect=1
+
+# Copy token from success page
+# Use in API calls:
+curl -H "Authorization: Bearer $TOKEN" ...
+```
+
+**For API Requests:**
+```
+Authorization: Bearer {token}
+```
+
+### Logout
+```
+GET https://webpods.org/auth/logout  # Browser redirect
+POST https://webpods.org/auth/logout # API response
 ```
 
 ### Who Am I
