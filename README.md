@@ -143,8 +143,7 @@ GET {pod_id}.webpods.org/{queue_id}
   ],
   "total": 1234,
   "has_more": true,
-  "next_id": 1235,
-  "chain_valid": true
+  "next_id": 1235
 }
 ```
 
@@ -319,8 +318,7 @@ All API responses include hash information for verification:
   ],
   "total": 100,
   "has_more": false,
-  "next_id": null,
-  "chain_valid": true
+  "next_id": null
 }
 ```
 
@@ -355,9 +353,8 @@ POST audit.webpods.org/logs?write=private
   "timestamp": "2025-01-15T10:00:00Z"
 }
 
-# Verify integrity
-GET audit.webpods.org/logs?verify=true
-# chain_valid: true confirms no tampering
+# Read audit log
+GET audit.webpods.org/logs
 ```
 
 ### Static Website
