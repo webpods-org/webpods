@@ -1,152 +1,595 @@
 # WebPods
 
-Append-only log service with OAuth authentication. Users can write strings or JSON to named queues and read them back.
+An append-only log service with OAuth authentication, organized into pods and queues. Write strings or JSON to queues, read them back, serve HTML directly via custom domains.
 
 ## Quick Start
 
-### Prerequisites
-- Node.js 22+
-- PostgreSQL 16+
-- Google OAuth credentials
-
-### Local Development
-
 ```bash
-# Clone and setup
-git clone https://github.com/webpods-org/webpods.git
-cd webpods
+# Login
+curl https://webpods.org/auth/github
 
-# Start PostgreSQL
-cd devenv
-./run.sh up
-cd ..
+# Write to a queue (creates pod + queue automatically)
+curl -X POST https://alice.webpods.org/blog \
+  -H "Authorization: Bearer $TOKEN" \
+  -d "My first post"
 
-# Configure environment
-cp .env.example .env
-# Edit .env with your Google OAuth credentials
+# Read from queue
+curl https://alice.webpods.org/blog
 
-# Build and migrate
-./build.sh --migrate
-
-# Start server
-./start.sh
+# Get latest record
+curl https://alice.webpods.org/blog/-1
 ```
 
-Server runs at `http://localhost:3000`
+## Core Concepts
 
-## API Overview
+- **Pod**: A namespace for queues (e.g., `alice`, `myproject`)
+- **Queue**: An append-only log within a pod (e.g., `blog`, `config`)
+- **Record**: An immutable entry in a queue (string or JSON)
+- **Hash Chain**: Each record contains a hash of the previous record, creating a cryptographically verifiable chain
 
-### Authentication
-```http
-GET /auth/google                     # Initiate OAuth
-GET /auth/google/callback            # OAuth callback (returns JWT)
-GET /auth/me                         # Get current user
+## URL Structure
+
+```
+{pod_id}.webpods.org/{queue_id}
 ```
 
-### Queue Operations
-```http
-POST /q/{queue_id}                   # Write to queue
-  ?read=public|auth|owner            # Set read permission
-  ?write=auth|owner                  # Set write permission
+Examples:
+- `alice.webpods.org/blog`
+- `myproject.webpods.org/config`
+- `acme.webpods.org/team-members`
 
-GET /q/{queue_id}                    # Read from queue
-  ?limit=100&after=50                # Pagination
+## Authentication
 
-GET /q/{queue_id}/{index}            # Get single record
+WebPods uses OAuth for authentication. Login through supported providers to get a JWT token.
 
-DELETE /q/{queue_id}                 # Delete queue (owner only)
+### Login
+```
+GET https://webpods.org/auth/{provider}?redirect_uri={uri}
+```
+Providers: `github`, `google`
 
-HEAD /q/{queue_id}                   # Get queue metadata
+### Callback
+```
+GET https://webpods.org/auth/{provider}/callback
+```
+Returns:
+```json
+{
+  "token": "jwt_token",
+  "user": {
+    "email": "user@example.com",
+    "name": "John Doe",
+    "provider": "github"
+  }
+}
 ```
 
-### Health Check
-```http
-GET /health                          # Service health
+## API Reference
+
+### Write to Queue
+
 ```
+POST {pod_id}.webpods.org/{queue_id}
+```
+
+Creates pod and queue if they don't exist.
+
+**Headers:**
+- `Authorization: Bearer {token}` (required)
+- `Content-Type: application/json` or `text/plain`
+- `X-Content-Type`: Override content type (optional)
+
+**Query Parameters** (optional):
+- `read`: `public` (default), `private`, `/{allow-list}`, `~/{deny-list}`
+- `write`: `public` (default), `private`, `/{allow-list}`, `~/{deny-list}`
+
+**Body:** String or JSON
+
+**Example:**
+```bash
+curl -X POST https://alice.webpods.org/blog \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "X-Content-Type: text/html" \
+  -d "<h1>Hello World</h1>"
+```
+
+### Read from Queue
+
+```
+GET {pod_id}.webpods.org/{queue_id}
+```
+
+**Query Parameters:**
+- `limit`: Number of records (default 100)
+- `after`: ID for pagination
+- `verify`: Include hash verification (true/false, default false)
+
+**Response:**
+```json
+{
+  "records": ["string1", {"json": "object"}, "string2"],
+  "total": 1234,
+  "has_more": true,
+  "next_id": 1235
+}
+```
+
+**Response with verification (`?verify=true`):**
+```json
+{
+  "records": [
+    {
+      "index": 0,
+      "content": "string1",
+      "hash": "sha256:abc123...",
+      "previous_hash": null,
+      "timestamp": "2025-01-15T10:00:00Z"
+    },
+    {
+      "index": 1,
+      "content": {"json": "object"},
+      "hash": "sha256:def456...",
+      "previous_hash": "sha256:abc123...",
+      "timestamp": "2025-01-15T10:01:00Z"
+    }
+  ],
+  "total": 1234,
+  "has_more": true,
+  "next_id": 1235,
+  "chain_valid": true
+}
+```
+
+### Get Single Record
+
+```
+GET {pod_id}.webpods.org/{queue_id}/{index}
+```
+
+**Index:**
+- Positive: 0-based from start (0, 1, 2...)
+- Negative: From end (-1 = last, -2 = second to last)
+
+Returns raw content with appropriate `Content-Type` header.
+
+### Check for Changes
+
+```
+HEAD {pod_id}.webpods.org/{queue_id}
+HEAD {pod_id}.webpods.org/{queue_id}/{index}
+```
+
+**Response Headers:**
+- `X-Hash`: Latest record hash (for queue) or record hash (for single record)
+- `X-Previous-Hash`: Previous record hash in chain
+- `X-Chain-Hash`: Hash of entire chain (merkle root)
+- `X-Last-Modified`: Last write timestamp
+- `X-Total-Records`: Record count
+
+### List Queues in Pod
+
+```
+GET {pod_id}.webpods.org/
+```
+
+**Response:**
+```json
+{
+  "pod": "alice",
+  "queues": ["blog", "config", "public-key"]
+}
+```
+
+### Delete Queue
+
+```
+DELETE {pod_id}.webpods.org/{queue_id}
+```
+
+Requires authentication as pod owner.
+
+### Delete Pod
+
+```
+DELETE {pod_id}.webpods.org/_pod
+```
+
+Deletes entire pod and all queues. Requires authentication as pod owner.
 
 ## Permissions
 
-- `public` - Anyone can read
-- `auth` - Any authenticated user can access
-- `owner` - Only the queue creator can access
+### Permission Models
+
+```bash
+# Public (default)
+POST alice.webpods.org/blog
+# Anyone can read, authenticated users can write
+
+# Private
+POST alice.webpods.org/journal?read=private&write=private
+# Only creator can read and write
+
+# Allow list
+POST company.webpods.org/internal?read=/employees&write=/employees
+
+# Deny list
+POST forum.webpods.org/posts?write=~/banned-users
+
+# Combined
+POST project.webpods.org/docs?read=/members,~/suspended&write=/admins
+```
+
+### Managing Access Lists
+
+Permission queues use JSON objects:
+
+```bash
+# Add to allow list
+POST company.webpods.org/employees
+{
+  "id": "auth:github:1234567",
+  "read": true,
+  "write": true
+}
+
+# Update permissions (last write wins)
+POST company.webpods.org/employees
+{
+  "id": "auth:github:1234567",
+  "read": true,
+  "write": false
+}
+
+# Remove access
+POST company.webpods.org/employees
+{
+  "id": "auth:github:1234567",
+  "read": false,
+  "write": false
+}
+```
+
+## Hash Chain Verification
+
+### Verify Single Record
+```bash
+# Get record with hash info
+curl "https://alice.webpods.org/blog/5?verify=true"
+
+{
+  "index": 5,
+  "content": "Blog post content",
+  "hash": "sha256:7d865e959b2466918c9863afca942d0fb89d7c9ac0c99bafc3749504ded97730",
+  "previous_hash": "sha256:4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+  "timestamp": "2025-01-15T10:05:00Z"
+}
+```
+
+### Verify Entire Chain
+```bash
+# Get all records with verification
+curl "https://alice.webpods.org/blog?verify=true&limit=1000"
+
+# Response includes chain_valid: true/false
+```
+
+### Calculate Hash Locally
+```javascript
+// Hash calculation (for verification)
+function calculateHash(previousHash, timestamp, content) {
+  const data = JSON.stringify({
+    previous_hash: previousHash,
+    timestamp: timestamp,
+    content: content
+  });
+  return crypto.createHash('sha256').update(data).digest('hex');
+}
+```
+
+## Common Patterns
+
+### Audit Trail
+```bash
+# Create tamper-proof audit log
+POST audit.webpods.org/logs?write=private
+{
+  "action": "user_login",
+  "user": "alice@example.com",
+  "ip": "192.168.1.1",
+  "timestamp": "2025-01-15T10:00:00Z"
+}
+
+# Verify integrity
+GET audit.webpods.org/logs?verify=true
+# chain_valid: true confirms no tampering
+```
+
+### Static Website
+
+```bash
+# Write HTML
+POST mysite.webpods.org/homepage
+X-Content-Type: text/html
+
+<!DOCTYPE html>
+<html>
+  <body>
+    <h1>Welcome!</h1>
+  </body>
+</html>
+
+# Always serve latest version
+GET mysite.webpods.org/homepage/-1
+```
+
+### Versioned Content
+
+```bash
+# Version 1
+POST docs.webpods.org/api
+# API v1 documentation...
+
+# Version 2 (append new version)
+POST docs.webpods.org/api
+# API v2 documentation...
+
+# Get latest
+GET docs.webpods.org/api/-1
+
+# Get specific version
+GET docs.webpods.org/api/0  # v1
+GET docs.webpods.org/api/1  # v2
+```
+
+### Configuration
+
+```bash
+# Store config
+POST myapp.webpods.org/config
+Content-Type: application/json
+{
+  "theme": "dark",
+  "version": "2.0"
+}
+
+# Check if changed
+HEAD myapp.webpods.org/config/-1
+X-Hash: sha256:abc123...
+
+# Get if changed
+GET myapp.webpods.org/config/-1
+```
+
+### Public Inbox
+
+```bash
+# Create write-only inbox
+POST contact.webpods.org/messages?read=private
+
+# Anyone can submit
+POST contact.webpods.org/messages
+"Please contact me about..."
+
+# Only owner can read
+GET contact.webpods.org/messages
+```
+
+### Team Workspace
+
+```bash
+# Create team pod with member list
+POST acme.webpods.org/members
+{"id": "auth:github:7777", "read": true, "write": true}
+
+# Create team-only queue
+POST acme.webpods.org/internal?read=/members&write=/members
+"Internal documentation..."
+```
+
+## Custom Domains
+
+Point your domain to your pod using a CNAME record:
+
+```
+# DNS Settings (GoDaddy, Namecheap, etc.)
+Type: CNAME
+Name: @ (or subdomain)
+Value: mycompany.webpods.org
+```
+
+WebPods automatically provisions SSL certificates via Let's Encrypt.
+
+Your content is then accessible at:
+- `https://example.com/blog`
+- `https://mycompany.webpods.org/blog` (still works)
+
+## User Identification
+
+Users are identified in permission lists as:
+```
+auth:{provider}:{id}
+```
+
+Examples:
+- `auth:github:1234567`
+- `auth:google:110169484474386276334`
 
 ## Rate Limits
 
-- Write: 2000 requests/hour per user
-- Read: 10000 requests/hour per user
+- Writes: 1000/hour per user
+- Reads: 10000/hour per IP
+- Pod creation: 10/day per user
+- Queue creation: 100/day per user
 
-## Configuration
+## Content Limits
 
-Required environment variables:
-- `JWT_SECRET` - Secret for JWT signing (production)
-- `GOOGLE_CLIENT_ID` - Google OAuth client ID
-- `GOOGLE_CLIENT_SECRET` - Google OAuth client secret
-- `WEBPODS_DB_PASSWORD` - Database password (production)
+- Maximum content size: 1MB per record
+- Maximum queue ID length: 256 characters
+- Maximum pod ID length: 63 characters (subdomain limit)
+- Allowed custom header: `X-Content-Type` only
 
-See `.env.example` for all options.
+## Implementation Notes
 
-## Docker Deployment
+- All records are immutable (no updates, no deletes)
+- Each record contains SHA-256 hash of previous record, forming an immutable chain
+- Hash includes: previous_hash + timestamp + content
+- First record in queue has `previous_hash: null`
+- Tampering with any record invalidates all subsequent hashes
+- Queues can only be deleted entirely
+- Pod and queue IDs are case-sensitive
+- Pod IDs must be valid subdomains (lowercase, alphanumeric, hyphens)
+- Content-Type determined by: X-Content-Type header, then Content-Type header, defaults to text/plain
+- Negative indexing supported (-1 for last record)
+- Permission lists use last-write-wins pattern
+- Empty POST creates queue without content
+
+## Error Codes
+
+```json
+{
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human readable message"
+  }
+}
+```
+
+- `UNAUTHORIZED` - Missing or invalid authentication
+- `FORBIDDEN` - No permission for this operation
+- `NOT_FOUND` - Queue or record doesn't exist
+- `RATE_LIMIT_EXCEEDED` - Too many requests
+- `CONTENT_TOO_LARGE` - Content exceeds size limit
+- `INVALID_QUEUE_ID` - Invalid characters in queue ID
+- `INVALID_POD_ID` - Invalid characters in pod ID
+- `INVALID_INDEX` - Record index out of range
+
+## Self-Hosting
+
+WebPods is open source. To run your own instance:
 
 ```bash
-# Build and run
-docker build -t webpods .
+# Clone repository
+git clone https://github.com/webpods-org/webpods
+cd webpods
+
+# Configure OAuth providers
+export GITHUB_CLIENT_ID=xxx
+export GITHUB_CLIENT_SECRET=xxx
+export GOOGLE_CLIENT_ID=xxx
+export GOOGLE_CLIENT_SECRET=xxx
+
+# Configure domain
+export DOMAIN=webpods.org
+export WILDCARD_SSL=true
+
+# Run with Docker
 docker compose up -d
 
-# With environment file
-docker run -d \
-  --name webpods \
-  --env-file .env.production \
-  -p 3000:3000 \
-  webpods
+# Or run directly
+npm install
+npm start
 ```
 
-## Example Usage
+### Required DNS
 
-### JavaScript/TypeScript
-```javascript
-// Authenticate
-const response = await fetch('http://localhost:3000/auth/google');
-// Follow OAuth flow to get JWT token
+- `*.yourdomain.org` → Your server IP (wildcard for pods)
+- `yourdomain.org` → Your server IP (for auth endpoints)
 
-// Write to queue
-await fetch('http://localhost:3000/q/my-queue', {
-  method: 'POST',
-  headers: {
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify({ message: 'Hello, World!' })
-});
+### Environment Variables
 
-// Read from queue
-const data = await fetch('http://localhost:3000/q/my-queue', {
-  headers: { 'Authorization': `Bearer ${token}` }
-}).then(r => r.json());
-```
-
-### cURL
 ```bash
-# Write to queue
-curl -X POST http://localhost:3000/q/my-queue \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"message": "Hello, World!"}'
+# OAuth
+GITHUB_CLIENT_ID=xxx
+GITHUB_CLIENT_SECRET=xxx
+GOOGLE_CLIENT_ID=xxx
+GOOGLE_CLIENT_SECRET=xxx
 
-# Read from queue
-curl http://localhost:3000/q/my-queue \
-  -H "Authorization: Bearer $TOKEN"
+# Server
+JWT_SECRET=your-secret-key
+PORT=3000
+DOMAIN=webpods.org
+
+# Database
+DATABASE_URL=postgresql://user:pass@localhost/webpods
+
+# Redis (for caching)
+REDIS_URL=redis://localhost:6379
+
+# Limits
+MAX_CONTENT_SIZE=1048576
+RATE_LIMIT_WRITES=1000
+RATE_LIMIT_READS=10000
+
+# SSL
+LETSENCRYPT_EMAIL=admin@webpods.org
+WILDCARD_SSL=true
 ```
 
-## Google OAuth Setup
+## Examples
 
-1. Go to [Google Cloud Console](https://console.cloud.google.com)
-2. Create project or select existing
-3. Enable Google+ API
-4. Create OAuth 2.0 credentials (Web application)
-5. Add redirect URIs:
-   - Development: `http://localhost:3000/auth/google/callback`
-   - Production: `https://your-domain.com/auth/google/callback`
+### Personal Blog
+
+```bash
+# Setup
+POST alice.webpods.org/posts?write=private
+POST alice.webpods.org/about?write=private
+POST alice.webpods.org/style?write=private
+
+# Publish content
+POST alice.webpods.org/posts
+X-Content-Type: text/html
+<article>...</article>
+
+POST alice.webpods.org/style
+X-Content-Type: text/css
+body { font-family: serif; }
+
+# Access
+https://alice.webpods.org/posts/-1  # Latest post
+https://alice.webpods.org/about/-1   # About page
+```
+
+### API Monitoring
+
+```bash
+# Write status every minute
+POST status.webpods.org/api
+{"status": "up", "latency": 23, "timestamp": "2025-01-15T10:00:00Z"}
+
+# Check current status
+GET status.webpods.org/api/-1
+
+# Get history
+GET status.webpods.org/api?limit=60
+```
+
+### Collaborative Notes
+
+```bash
+# Create shared notes
+POST team.webpods.org/notes?read=/team&write=/team
+
+# Team members add notes
+POST team.webpods.org/notes
+"Meeting scheduled for 3pm"
+
+POST team.webpods.org/notes
+"Deploy postponed to tomorrow"
+
+# Everyone on team can read
+GET team.webpods.org/notes
+```
 
 ## License
 
 MIT
+
+## Contributing
+
+Pull requests welcome! Please read CONTRIBUTING.md first.
+
+## Support
+
+- GitHub Issues: https://github.com/webpods-org/webpods/issues
+- Documentation: https://docs.webpods.org
+- Community: https://discord.gg/webpods
