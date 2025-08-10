@@ -89,9 +89,15 @@ Returns:
 
 ```
 POST {pod_id}.webpods.org/{queue_id}
+POST {pod_id}.webpods.org/{queue_id}/{alias}
 ```
 
 Creates pod and queue if they don't exist.
+
+**Alias Requirements:**
+- Must contain at least one non-numeric character (to distinguish from indices)
+- Valid: `my-post`, `logo.png`, `v2`, `post-123`
+- Invalid: `123`, `456`, `-1` (these would conflict with index access)
 
 **Headers:**
 - `Authorization: Bearer {token}` (required)
@@ -163,13 +169,13 @@ GET {pod_id}.webpods.org/{queue_id}/{start}-{end}
 GET {pod_id}.webpods.org/{queue_id}/{index}
 ```
 
-**Index:**
-- Positive: 0-based from start (0, 1, 2...)
-- Negative: From end (-1 = last, -2 = second to last)
-- Range (e.g., `10-20`): Returns JSON with metadata like queue listing
+**Path Types:**
+- **Numeric index**: `0`, `1`, `-1` (returns raw content)
+- **Range**: `10-20`, `-10--1` (returns JSON with metadata)
+- **Alias**: `my-post`, `logo.png` (returns raw content of latest with this alias)
 
 **Response:** 
-- **Single index**: Returns raw content directly (HTML, CSS, JSON, text)
+- **Single index or alias**: Returns raw content directly (HTML, CSS, JSON, text)
 - **Range**: Returns JSON with records array and metadata
 
 This enables direct content serving for websites and APIs.
@@ -476,7 +482,7 @@ Value: alice.webpods.org
 2. **Register domain with WebPods**:
 ```bash
 POST alice.webpods.org/_domains
-{"domain": "alice-blog.com"}
+{"domains": ["alice-blog.com", "www.alice-blog.com"]}
 ```
 
 3. **Configure root content** (optional):
@@ -642,9 +648,9 @@ body { font-family: serif; }
 POST alice.webpods.org/_root
 {"queue": "posts", "index": -1}
 
-# Add custom domain
+# Add custom domains
 POST alice.webpods.org/_domains
-{"domain": "alice-blog.com"}
+{"domains": ["alice-blog.com", "www.alice-blog.com"]}
 
 # Access
 https://alice.webpods.org/          # Latest post (via _root)
