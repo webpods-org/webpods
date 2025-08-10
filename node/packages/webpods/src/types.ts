@@ -42,6 +42,8 @@ export interface Pod {
   updated_at: Date;
 }
 
+export type QueueType = 'normal' | 'system' | 'permission';
+
 export interface Queue {
   id: string;
   pod_id: string;
@@ -49,7 +51,7 @@ export interface Queue {
   creator_id: string;
   read_permission: string;
   write_permission: string;
-  is_permission_queue: boolean;
+  queue_type: QueueType;
   metadata?: any;
   created_at: Date;
   updated_at: Date;

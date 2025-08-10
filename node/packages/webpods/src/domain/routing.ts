@@ -114,7 +114,7 @@ export async function updateLinks(
             creator_id: authorId.split(':').pop()!, // Extract user ID from auth ID
             read_permission: 'public',
             write_permission: 'private',
-            is_permission_queue: false,
+            queue_type: 'system',
             created_at: new Date()
           })
           .returning('*');
@@ -240,7 +240,7 @@ export async function updateCustomDomains(
             creator_id: authorId.split(':').pop()!, // Extract user ID from auth ID
             read_permission: 'public',
             write_permission: 'private',
-            is_permission_queue: false,
+            queue_type: 'system',
             created_at: new Date()
           })
           .returning('*');

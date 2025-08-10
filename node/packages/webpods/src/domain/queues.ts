@@ -31,11 +31,16 @@ export async function getOrCreateQueue(
     };
   }
 
-  // Check if it's a permission queue
-  const isPermissionQueue = queueId.startsWith('/') || queueId.startsWith('~/');
-  const actualQueueId = isPermissionQueue 
-    ? (queueId.startsWith('~/') ? queueId.substring(2) : queueId.substring(1))
-    : queueId;
+  // Determine queue type
+  let queueType: 'normal' | 'system' | 'permission' = 'normal';
+  let actualQueueId = queueId;
+  
+  if (queueId.startsWith('_')) {
+    queueType = 'system';
+  } else if (queueId.startsWith('/') || queueId.startsWith('~/')) {
+    queueType = 'permission';
+    actualQueueId = queueId.startsWith('~/') ? queueId.substring(2) : queueId.substring(1);
+  }
 
   try {
     // Try to find existing queue
@@ -57,7 +62,7 @@ export async function getOrCreateQueue(
         creator_id: userId,
         read_permission: readPermission || 'public',
         write_permission: writePermission || 'public',
-        is_permission_queue: isPermissionQueue,
+        queue_type: queueType,
         created_at: new Date()
       })
       .returning('*');

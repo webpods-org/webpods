@@ -44,7 +44,7 @@ async function checkPermissionQueue(
       .join('pod', 'pod.id', 'queue.pod_id')
       .where('pod.pod_id', podId)
       .where('queue.queue_id', queueId)
-      .where('queue.is_permission_queue', true)
+      .where('queue.queue_type', 'permission')
       .whereRaw(`content->>'id' = ?`, [authId])
       .orderBy('record.created_at', 'desc')
       .select('record.*')

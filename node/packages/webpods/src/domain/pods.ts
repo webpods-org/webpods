@@ -4,7 +4,7 @@
 
 import { Knex } from 'knex';
 import { Pod, Queue, Result } from '../types.js';
-import { isValidPodId } from '../utils.js';
+import { isValidPodId, calculateRecordHash } from '../utils.js';
 import { createLogger } from '../logger.js';
 
 const logger = createLogger('webpods:domain:pods');
@@ -63,22 +63,26 @@ export async function createPod(
           creator_id: userId,
           read_permission: 'public',
           write_permission: 'private',
-          is_permission_queue: false,
+          queue_type: 'system',
           created_at: new Date()
         })
         .returning('*');
 
       // Write initial owner record
+      const ownerContent = { owner: userId };
+      const timestamp = new Date().toISOString();
+      const hash = calculateRecordHash(null, timestamp, ownerContent);
+      
       await trx('record')
         .insert({
           queue_id: ownerQueue.id,
           sequence_num: 0,
-          content: JSON.stringify({ owner: userId }),
+          content: JSON.stringify(ownerContent),
           content_type: 'application/json',
-          hash: 'initial',
+          hash: hash,
           previous_hash: null,
           author_id: userId,
-          created_at: new Date()
+          created_at: timestamp
         });
 
       logger.info('Pod created', { podId, userId });
@@ -223,16 +227,20 @@ export async function transferPodOwnership(
         .first();
 
       // Write new owner record
+      const ownerContent = { owner: newOwnerId };
+      const timestamp = new Date().toISOString();
+      const hash = calculateRecordHash(lastRecord?.hash || null, timestamp, ownerContent);
+      
       await trx('record')
         .insert({
           queue_id: ownerQueue.id,
           sequence_num: (lastRecord?.sequence_num || 0) + 1,
-          content: JSON.stringify({ owner: newOwnerId }),
+          content: JSON.stringify(ownerContent),
           content_type: 'application/json',
-          hash: 'transfer-' + Date.now(), // Simplified for now
+          hash: hash,
           previous_hash: lastRecord?.hash || null,
           author_id: currentUserId,
-          created_at: new Date()
+          created_at: timestamp
         });
 
       logger.info('Pod ownership transferred', { podId, from: currentUserId, to: newOwnerId });

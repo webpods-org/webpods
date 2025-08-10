@@ -30,13 +30,11 @@ export async function up(knex) {
   await knex.schema.createTable('pod', (table) => {
     table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
     table.string('pod_id', 63).unique().notNullable(); // DNS subdomain limit
-    table.uuid('owner_id').references('id').inTable('user').onDelete('RESTRICT');
     table.jsonb('metadata').defaultTo('{}');
     table.timestamptz('created_at').defaultTo(knex.fn.now());
     table.timestamptz('updated_at').defaultTo(knex.fn.now());
     
     table.index('pod_id');
-    table.index('owner_id');
   });
 
   // Queue table - represents queues within pods
@@ -47,7 +45,7 @@ export async function up(knex) {
     table.uuid('creator_id').references('id').inTable('user').onDelete('RESTRICT');
     table.string('read_permission', 500).defaultTo('public');
     table.string('write_permission', 500).defaultTo('public');
-    table.boolean('is_system').defaultTo(false); // For _owner, _links, _domains
+    table.string('queue_type', 50).defaultTo('normal'); // 'normal', 'system', 'permission'
     table.jsonb('metadata').defaultTo('{}');
     table.timestamptz('created_at').defaultTo(knex.fn.now());
     table.timestamptz('updated_at').defaultTo(knex.fn.now());
@@ -55,7 +53,7 @@ export async function up(knex) {
     table.unique(['pod_id', 'queue_id']);
     table.index(['pod_id', 'queue_id']);
     table.index('creator_id');
-    table.index('is_system');
+    table.index('queue_type');
   });
 
   // Record table - append-only records with hash chain
@@ -84,6 +82,7 @@ export async function up(knex) {
     table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
     table.uuid('pod_id').references('id').inTable('pod').onDelete('CASCADE');
     table.string('domain', 255).unique().notNullable();
+    table.boolean('verified').defaultTo(false); // CNAME verification status
     table.boolean('ssl_provisioned').defaultTo(false);
     table.timestamptz('created_at').defaultTo(knex.fn.now());
     table.timestamptz('updated_at').defaultTo(knex.fn.now());
@@ -95,8 +94,8 @@ export async function up(knex) {
   // Rate limiting
   await knex.schema.createTable('rate_limit', (table) => {
     table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
-    table.string('key', 255).notNullable(); // user_id or ip_address
-    table.string('action', 50).notNullable(); // 'write', 'read', 'pod_create', 'queue_create'
+    table.string('identifier', 255).notNullable(); // user_id or ip_address
+    table.string('type', 50).notNullable(); // 'write', 'read', 'pod_create', 'queue_create'
     table.integer('count').defaultTo(0);
     table.timestamptz('window_start').notNullable();
     table.timestamptz('window_end').notNullable();
