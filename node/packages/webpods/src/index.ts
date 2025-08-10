@@ -62,8 +62,21 @@ function isMainDomain(hostname: string): boolean {
          hostname === `localhost:${port}`;
 }
 
-// Health check (on main domain)
-app.get('/health', async (_req, res) => {
+// Health check (on main domain only)
+app.get('/health', async (req, res) => {
+  const hostname = req.hostname || req.headers.host?.split(':')[0] || '';
+  
+  // Only serve health check on main domain
+  if (!isMainDomain(hostname)) {
+    res.status(404).json({
+      error: {
+        code: 'NOT_FOUND',
+        message: 'Health check only available on main domain'
+      }
+    });
+    return;
+  }
+  
   const services: Record<string, string> = {};
   
   // Check database connection
