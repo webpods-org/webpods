@@ -20,7 +20,7 @@ export function isValidPodId(podId: string): boolean {
 export function isValidStreamId(streamId: string): boolean {
   if (!streamId || streamId.length > 256) return false;
   // Allow slashes for nested paths like blog/posts/2024
-  return /^[a-zA-Z0-9_\-\/\.]+$/.test(streamId);
+  return /^[a-zA-Z0-9_\-/.]+$/.test(streamId);
 }
 
 /**
