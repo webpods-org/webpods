@@ -163,7 +163,8 @@ export interface JWTPayload {
 }
 
 // Express extensions
-export interface AuthRequest extends Express.Request {
+import { Request } from 'express';
+export interface AuthRequest extends Request {
   auth?: JWTPayload;
   pod?: Pod;
   ip_address?: string;

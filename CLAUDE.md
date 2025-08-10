@@ -61,8 +61,9 @@ WebPods is an append-only log service organized into pods and queues. Users auth
 - **Versioning**: Each write creates a new version, aliases always serve latest
 - **Content-Type**: Determined by X-Content-Type or Content-Type headers only
 
-### 5. Functional Programming Only
-- **NO CLASSES** - Export functions from modules only
+### 5. Functional Programming First
+- **PREFER FUNCTIONS OVER CLASSES** - Export functions from modules when possible
+- **Classes only when beneficial**: Use classes for stateful connections, complex state management
 - **Pure Functions**: Use explicit dependency injection
 - **Result Types**: Use Result types for error handling
 - **Type over Interface**: Prefer `type` over `interface`

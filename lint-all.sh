@@ -1,43 +1,44 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------
-# lint-all.sh – Run ESLint across all packages
+# lint-all.sh – run linting across all packages
 # -------------------------------------------------------------------
 set -euo pipefail
 
 echo "Running linting across all packages..."
-echo
 
-# Track overall status
-ALL_PASSED=true
+# Define packages
+PACKAGES=(
+  "webpods-test-utils"
+  "webpods"
+  "webpods-integration-tests"
+)
 
-# Function to run lint in a package
-lint_package() {
-  local pkg_path=$1
-  local pkg_name=$(basename "$pkg_path")
+# Track overall success
+all_passed=true
+
+# Lint each package
+for pkg_name in "${PACKAGES[@]}"; do
+  pkg="node/packages/$pkg_name"
+  if [[ ! -f "$pkg/package.json" ]]; then
+    continue
+  fi
   
-  if [[ -f "$pkg_path/package.json" ]] && [[ -d "$pkg_path/src" ]]; then
+  # Check if lint script exists
+  if node -e "process.exit(require('./$pkg/package.json').scripts?.lint ? 0 : 1)"; then
+    echo ""
     echo "Linting $pkg_name..."
-    
-    if (cd "$pkg_path" && npm run lint 2>&1); then
+    if (cd "$pkg" && npm run lint); then
       echo "✓ $pkg_name lint passed"
     else
       echo "✗ $pkg_name lint failed"
-      ALL_PASSED=false
+      all_passed=false
     fi
-    echo
-  fi
-}
-
-# Lint all packages
-for pkg in node/packages/*; do
-  if [[ -d "$pkg" ]]; then
-    lint_package "$pkg"
   fi
 done
 
-# Summary
+echo ""
 echo "================================"
-if [[ "$ALL_PASSED" == "true" ]]; then
+if [ "$all_passed" = true ]; then
   echo "✓ All packages passed linting!"
   exit 0
 else

@@ -91,7 +91,7 @@ export function verifyToken(token: string): Result<JWTPayload> {
     const secret = process.env.JWT_SECRET || 'dev-secret';
     const payload = jwt.verify(token, secret) as JWTPayload;
     return { success: true, data: payload };
-  } catch (error: any) {
+  } catch {
     return {
       success: false,
       error: {

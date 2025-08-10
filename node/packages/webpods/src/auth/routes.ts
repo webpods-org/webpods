@@ -208,7 +208,7 @@ router.get('/whoami', async (req: Request, res: Response) => {
       name: payload.name,
       provider: payload.provider
     });
-  } catch (error) {
+  } catch {
     res.status(401).json({
       error: {
         code: 'INVALID_TOKEN',

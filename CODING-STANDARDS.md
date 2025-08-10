@@ -6,26 +6,48 @@ This document outlines the coding standards and patterns used throughout the Web
 
 ### 1. Functional Programming First
 
-**ALWAYS USE FUNCTIONS** - Export functions from modules. Never use classes unless absolutely necessary.
+**PREFER FUNCTIONS OVER CLASSES** - Export functions from modules when possible. Classes should only be used when they provide clear benefits.
 
 ```typescript
 // ✅ Good - Pure function with explicit dependencies
 export async function writeRecord(
   db: Knex,
-  userId: string,
   queueId: string,
   content: any,
-  contentType?: string,
-  metadata?: Record<string, any>
-): Promise<Result<QueueRecord>> {
+  contentType: string,
+  authorId: string,
+  alias?: string | null
+): Promise<Result<QueueItem>> {
   // Implementation
 }
 
-// ❌ Bad - Class used unnecessarily
+// ✅ Acceptable - Class when it provides clear value
+// Example: Stateful connection management
+export class WebSocketConnection {
+  private socket: WebSocket;
+  private reconnectAttempts = 0;
+  
+  constructor(private config: WebSocketConfig) {
+    this.socket = new WebSocket(config.url);
+  }
+  
+  async send(message: Message): Promise<void> {
+    if (this.socket.readyState !== WebSocket.OPEN) {
+      await this.reconnect();
+    }
+    this.socket.send(JSON.stringify(message));
+  }
+  
+  private async reconnect(): Promise<void> {
+    // Reconnection logic with exponential backoff
+  }
+}
+
+// ❌ Bad - Class used unnecessarily for stateless operations
 export class QueueService {
   constructor(private db: Knex) {}
   
-  async writeRecord(userId: string, queueId: string, content: any): Promise<QueueRecord> {
+  async writeRecord(queueId: string, content: any): Promise<QueueItem> {
     // This doesn't need to be a class
   }
 }
