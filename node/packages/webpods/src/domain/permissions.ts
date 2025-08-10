@@ -44,7 +44,7 @@ async function checkPermissionStream(
       .join('pod', 'pod.id', 'stream.pod_id')
       .where('pod.pod_id', podId)
       .where('stream.stream_id', streamId)
-      .where('stream.stream_type', 'permission')
+      // Don't require stream_type - any stream can hold permissions
       .whereRaw(`content->>'id' = ?`, [authId])
       .orderBy('record.created_at', 'desc')
       .select('record.*')
@@ -80,7 +80,12 @@ export async function canRead(
     return true;
   }
   
-  // Private access - only creator (check by user_id)
+  // Creator always has access (check by user_id)
+  if (userId && userId === stream.creator_id) {
+    return true;
+  }
+  
+  // Private access - only creator
   if (stream.read_permission === 'private') {
     return userId === stream.creator_id;
   }
@@ -128,12 +133,17 @@ export async function canWrite(
   authId: string,
   userId?: string | null
 ): Promise<boolean> {
+  // Creator always has access (check by user_id)
+  if (userId && userId === stream.creator_id) {
+    return true;
+  }
+  
   // Public write access (authenticated users only)
   if (stream.write_permission === 'public') {
     return true;
   }
   
-  // Private access - only creator (check by user_id)
+  // Private access - only creator
   if (stream.write_permission === 'private') {
     return userId === stream.creator_id;
   }

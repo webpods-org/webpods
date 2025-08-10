@@ -37,9 +37,6 @@ export async function getOrCreateStream(
   
   if (streamId.startsWith('.meta/')) {
     streamType = 'system';
-  } else if (streamId.startsWith('/') || streamId.startsWith('~/')) {
-    streamType = 'permission';
-    actualStreamId = streamId.startsWith('~/') ? streamId.substring(2) : streamId.substring(1);
   }
 
   try {
