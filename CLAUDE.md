@@ -14,6 +14,14 @@ When you begin working on this project, you MUST:
 
 Only after reading these documents should you proceed with any implementation or analysis tasks.
 
+## Documentation Principles
+
+**IMPORTANT**: When writing or updating documentation:
+- Write as if the spec was designed from the beginning, not evolved over time
+- Avoid phrases like "now allows", "changed from", "previously was", "only X is allowed"
+- Present features and constraints as inherent design decisions
+- Documentation should be timeless - readable as a complete spec at any point
+
 ## Overview
 
 WebPods is an append-only log service organized into pods and queues. Users authenticate via OAuth (GitHub/Google), create pods (subdomains), write to queues within pods, and can serve content directly (HTML, CSS, JSON). The system supports sophisticated permission models using allow/deny lists stored as permission queues.
@@ -25,6 +33,7 @@ WebPods is an append-only log service organized into pods and queues. Users auth
 - **Queues**: Append-only logs within pods (e.g., `alice.webpods.org/blog`)
 - **Records**: Immutable entries in queues (strings or JSON)
 - **Hash Chain**: Each record contains hash of previous record for tamper-proof history
+- **System Queues**: Special queues starting with `_` (e.g., `_owner` for ownership tracking)
 - **Auto-creation**: Pods and queues created on first write
 
 ### 2. URL Structure
@@ -105,8 +114,8 @@ npm run migrate:rollback
 #### pod
 - `id`: UUID primary key
 - `pod_id`: Subdomain identifier (e.g., 'alice', 'myproject')
-- `owner_id`: User who created the pod
 - `created_at`: Creation timestamp
+- Note: Ownership tracked in `_owner` queue, not in pod table
 
 #### queue
 - `id`: UUID primary key
@@ -447,9 +456,9 @@ export async function getRecordByIndex(
 4. Update routing to handle both subdomains and custom domains
 
 ### Handling Content Types
-1. Only `X-Content-Type` custom header is allowed
+1. `X-Content-Type` header overrides content type
 2. Content-Type detection: X-Content-Type → Content-Type → text/plain
-3. No other X-* headers permitted
+3. X-Content-Type is the only custom header
 
 ## Testing
 

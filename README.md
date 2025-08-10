@@ -26,6 +26,7 @@ curl https://alice.webpods.org/blog/-1
 - **Queue**: An append-only log within a pod (e.g., `blog`, `config`)
 - **Record**: An immutable entry in a queue (string or JSON)
 - **Hash Chain**: Each record contains a hash of the previous record, creating a cryptographically verifiable chain
+- **System Queues**: Special queues starting with `_` (e.g., `_owner` for pod ownership)
 
 ## URL Structure
 
@@ -61,6 +62,24 @@ Returns:
     "name": "John Doe",
     "provider": "github"
   }
+}
+```
+
+### Who Am I
+```
+GET https://webpods.org/auth/whoami
+```
+
+**Headers:**
+- `Authorization: Bearer {token}` (required)
+
+Returns:
+```json
+{
+  "user_id": "auth:github:1234567",
+  "email": "user@example.com",
+  "name": "John Doe",
+  "provider": "github"
 }
 ```
 
@@ -102,19 +121,8 @@ GET {pod_id}.webpods.org/{queue_id}
 **Query Parameters:**
 - `limit`: Number of records (default 100)
 - `after`: ID for pagination
-- `verify`: Include hash verification (true/false, default false)
 
 **Response:**
-```json
-{
-  "records": ["string1", {"json": "object"}, "string2"],
-  "total": 1234,
-  "has_more": true,
-  "next_id": 1235
-}
-```
-
-**Response with verification (`?verify=true`):**
 ```json
 {
   "records": [
@@ -150,7 +158,18 @@ GET {pod_id}.webpods.org/{queue_id}/{index}
 - Positive: 0-based from start (0, 1, 2...)
 - Negative: From end (-1 = last, -2 = second to last)
 
-Returns raw content with appropriate `Content-Type` header.
+**Response:**
+```json
+{
+  "index": 5,
+  "content": "Blog post content",
+  "hash": "sha256:7d865e959b2466918c9863afca942d0fb89d7c9ac0c99bafc3749504ded97730",
+  "previous_hash": "sha256:4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+  "timestamp": "2025-01-15T10:05:00Z"
+}
+```
+
+For HTML/CSS content serving, use `Accept: text/html` header to get raw content.
 
 ### Check for Changes
 
@@ -195,6 +214,24 @@ DELETE {pod_id}.webpods.org/_pod
 ```
 
 Deletes entire pod and all queues. Requires authentication as pod owner.
+
+### Transfer Pod Ownership
+
+```
+POST {pod_id}.webpods.org/_owner
+```
+
+**Headers:**
+- `Authorization: Bearer {token}` (required - must be current pod owner)
+
+**Body:**
+```json
+{
+  "owner": "auth:github:7891011"
+}
+```
+
+Transfers pod ownership by appending to the `_owner` queue. The last entry determines current owner. Only the current owner (last entry in `_owner` queue) can write new ownership records.
 
 ## Permissions
 
@@ -251,28 +288,6 @@ POST company.webpods.org/employees
 
 ## Hash Chain Verification
 
-### Verify Single Record
-```bash
-# Get record with hash info
-curl "https://alice.webpods.org/blog/5?verify=true"
-
-{
-  "index": 5,
-  "content": "Blog post content",
-  "hash": "sha256:7d865e959b2466918c9863afca942d0fb89d7c9ac0c99bafc3749504ded97730",
-  "previous_hash": "sha256:4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
-  "timestamp": "2025-01-15T10:05:00Z"
-}
-```
-
-### Verify Entire Chain
-```bash
-# Get all records with verification
-curl "https://alice.webpods.org/blog?verify=true&limit=1000"
-
-# Response includes chain_valid: true/false
-```
-
 ### Calculate Hash Locally
 ```javascript
 // Hash calculation (for verification)
@@ -284,6 +299,47 @@ function calculateHash(previousHash, timestamp, content) {
   });
   return crypto.createHash('sha256').update(data).digest('hex');
 }
+```
+
+## Record Format
+
+All API responses include hash information for verification:
+
+### List Response
+```json
+{
+  "records": [
+    {
+      "index": 0,
+      "content": "any content here",
+      "hash": "sha256:...",
+      "previous_hash": null,
+      "timestamp": "2025-01-15T10:00:00Z"
+    }
+  ],
+  "total": 100,
+  "has_more": false,
+  "next_id": null,
+  "chain_valid": true
+}
+```
+
+### Single Record Response
+```json
+{
+  "index": 42,
+  "content": {"json": "data"},
+  "hash": "sha256:...",
+  "previous_hash": "sha256:...",
+  "timestamp": "2025-01-15T10:00:00Z"
+}
+```
+
+### Raw Content (with Accept header)
+When `Accept: text/html` or matching content-type:
+```html
+<!DOCTYPE html>
+<html>...</html>
 ```
 
 ## Common Patterns
@@ -426,7 +482,7 @@ Examples:
 - Maximum content size: 1MB per record
 - Maximum queue ID length: 256 characters
 - Maximum pod ID length: 63 characters (subdomain limit)
-- Allowed custom header: `X-Content-Type` only
+- Custom header: `X-Content-Type` for content type override
 
 ## Implementation Notes
 
@@ -440,7 +496,9 @@ Examples:
 - Pod IDs must be valid subdomains (lowercase, alphanumeric, hyphens)
 - Content-Type determined by: X-Content-Type header, then Content-Type header, defaults to text/plain
 - Negative indexing supported (-1 for last record)
-- Permission lists use last-write-wins pattern
+- Permission lists use last-write-wins pattern (last record in permission queue)
+- Pod ownership determined by last record in `_owner` queue
+- System queues (starting with `_`) have special behaviors
 - Empty POST creates queue without content
 
 ## Error Codes
