@@ -39,7 +39,7 @@ export async function incrementRateLimit(
   const actualWindowStart = new Date(windowEnd.getTime() - windowMs);
   
   try {
-    let rateLimitRecord = await db('rate_limit')
+    const rateLimitRecord = await db('rate_limit')
       .where('identifier', identifier)
       .where('action', type)
       .where('window_start', actualWindowStart)
