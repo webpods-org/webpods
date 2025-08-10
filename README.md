@@ -368,8 +368,12 @@ POST audit.webpods.org/logs?write=private
   "timestamp": "2025-01-15T10:00:00Z"
 }
 
+# Configure API endpoint
+POST audit.webpods.org/_links
+{"api/logs": "logs"}
+
 # Read audit log
-GET audit.webpods.org/logs
+GET audit.webpods.org/api/logs  # Returns JSON
 ```
 
 ### Static Website
@@ -408,38 +412,44 @@ GET mysite.webpods.org/style/-1  # Serves CSS
 
 ```bash
 # Version 1
-POST docs.webpods.org/api
+POST docs.webpods.org/api/v1
 # API v1 documentation...
 
-# Version 2 (append new version)
-POST docs.webpods.org/api
+# Version 2 (using alias)
+POST docs.webpods.org/api/v2
 # API v2 documentation...
 
-# Get latest
-GET docs.webpods.org/api/-1
+# Configure clean URLs
+POST docs.webpods.org/_links
+{
+  "/api/latest": "api/v2",
+  "/api/v1": "api/v1",
+  "/api/v2": "api/v2"
+}
 
-# Get specific version
-GET docs.webpods.org/api/0  # v1
-GET docs.webpods.org/api/1  # v2
+# Access versions
+GET docs.webpods.org/api/latest  # Latest version
+GET docs.webpods.org/api/v1      # Version 1
+GET docs.webpods.org/api/v2      # Version 2
 ```
 
 ### Configuration
 
 ```bash
-# Store config
-POST myapp.webpods.org/config
+# Store config with alias
+POST myapp.webpods.org/settings/current
 Content-Type: application/json
 {
   "theme": "dark",
   "version": "2.0"
 }
 
-# Check if changed
-HEAD myapp.webpods.org/config/-1
-X-Hash: sha256:abc123...
+# Configure API endpoint
+POST myapp.webpods.org/_links
+{"api/config": "settings/current"}
 
-# Get if changed
-GET myapp.webpods.org/config/-1
+# Get current config
+GET myapp.webpods.org/api/config
 ```
 
 ### Public Inbox
@@ -466,6 +476,14 @@ POST acme.webpods.org/members
 # Create team-only queue
 POST acme.webpods.org/internal?read=/members&write=/members
 "Internal documentation..."
+
+# Configure team dashboard
+POST acme.webpods.org/_links
+{
+  "/": "dashboard/-1",
+  "/docs": "internal",
+  "/team": "members"
+}
 ```
 
 ## Custom Domains
@@ -644,18 +662,24 @@ POST alice.webpods.org/style
 X-Content-Type: text/css
 body { font-family: serif; }
 
-# Configure homepage
-POST alice.webpods.org/_root
-{"queue": "posts", "index": -1}
+# Configure URL mappings
+POST alice.webpods.org/_links
+{
+  "/": "posts/-1",
+  "/archive": "posts",
+  "/about": "about/-1",
+  "/style.css": "style/-1"
+}
 
 # Add custom domains
 POST alice.webpods.org/_domains
 {"domains": ["alice-blog.com", "www.alice-blog.com"]}
 
 # Access
-https://alice.webpods.org/          # Latest post (via _root)
+https://alice.webpods.org/          # Latest post (via _links)
 https://alice-blog.com/             # Same content via custom domain
-https://alice.webpods.org/posts/0-9 # First 10 posts with metadata
+https://alice.webpods.org/archive   # All posts with metadata (JSON)
+https://alice.webpods.org/posts/0-9 # First 10 posts (direct queue access)
 ```
 
 ### API Monitoring

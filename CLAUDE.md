@@ -32,15 +32,20 @@ WebPods is an append-only log service organized into pods and queues. Users auth
 - **Pods**: Subdomains that act as namespaces (e.g., `alice.webpods.org`)
 - **Queues**: Append-only logs within pods (e.g., `alice.webpods.org/blog`)
 - **Records**: Immutable entries in queues (strings or JSON)
+- **Aliases**: Named references to records (e.g., `/blog/my-post`, `/assets/logo.png`)
 - **Hash Chain**: Each record contains hash of previous record for tamper-proof history
-- **System Queues**: Special queues starting with `_` (e.g., `_owner` for ownership tracking)
+- **System Queues**: Reserved queues starting with `_` (`_owner`, `_links`, `_domains`, `_queues`)
 - **Auto-creation**: Pods and queues created on first write
 
-### 2. URL Structure
+### 2. URL Structure and Routing
 - **Pattern**: `{pod_id}.webpods.org/{queue_id}`
 - **Subdomain routing**: Each pod is a subdomain
-- **Negative indexing**: `/-1` for latest record, `/-2` for second to last
-- **Pod listing**: `GET {pod_id}.webpods.org/` lists all queues
+- **Record access**:
+  - Index: `/queue/0`, `/queue/-1` (returns raw content)
+  - Range: `/queue/10-20`, `/queue/-10--1` (returns JSON with metadata)
+  - Alias: `/queue/my-post` (returns raw content, must contain non-numeric char)
+- **URL mapping**: `_links` queue maps custom paths to queue/record combinations
+- **Queue listing**: `GET {pod_id}.webpods.org/_queues` lists all queues
 
 ### 3. Permission System
 - **Public** (default): Anyone can read, authenticated users can write
@@ -50,9 +55,10 @@ WebPods is an append-only log service organized into pods and queues. Users auth
 - **Permission queues**: JSON objects with user permissions (last-write-wins)
 
 ### 4. Content Serving
-- **HTML/CSS serving**: Direct content serving with proper Content-Type
-- **Versioning**: Each write creates a new version
-- **Latest access**: `/-1` always serves the latest version
+- **Direct serving**: Single records and aliases return raw content
+- **URL mappings**: Configure via `_links` for clean URLs (e.g., `/` → `homepage/-1`)
+- **Custom domains**: Register via `_domains` queue with CNAME pointing to pod
+- **Versioning**: Each write creates a new version, aliases always serve latest
 - **Content-Type**: Determined by X-Content-Type or Content-Type headers only
 
 ### 5. Functional Programming Only
@@ -146,7 +152,7 @@ npm run migrate:rollback
 
 ## Code Patterns
 
-### Hash Chain Implementation
+### Record Writing with Aliases
 ```typescript
 import { createHash } from 'crypto';
 
@@ -155,7 +161,8 @@ export async function writeRecord(
   queueId: string,
   content: any,
   contentType: string,
-  userId: string
+  userId: string,
+  alias?: string
 ): Promise<Result<Record>> {
   return await db.transaction(async (trx) => {
     // Get the previous record's hash
@@ -178,16 +185,17 @@ export async function writeRecord(
       .update(hashData)
       .digest('hex');
     
-    // Insert new record with hash
+    // Insert new record with hash and optional alias
     const [record] = await trx('record')
       .insert({
         queue_id: queueId,
         sequence_num: (previousRecord?.sequence_num || -1) + 1,
         content: content,
         content_type: contentType,
+        alias: alias || null,
         hash: hash,
         previous_hash: previousHash,
-        created_by: userId,
+        author: userId,
         created_at: timestamp
       })
       .returning('*');
@@ -368,29 +376,45 @@ async function checkPermissionQueue(
 }
 ```
 
-### Subdomain Routing Pattern
+### URL Routing with _links
 ```typescript
-// Extract pod from subdomain
-export function extractPodId(hostname: string): string | null {
-  // hostname: alice.webpods.org
-  const parts = hostname.split('.');
-  if (parts.length < 3) return null;
+// Check if path is mapped in _links
+export async function resolveLink(
+  db: Knex,
+  podId: string,
+  path: string
+): Promise<string | null> {
+  // Get latest _links configuration
+  const linksRecord = await db('record')
+    .join('queue', 'queue.id', 'record.queue_id')
+    .join('pod', 'pod.id', 'queue.pod_id')
+    .where('pod.pod_id', podId)
+    .where('queue.queue_id', '_links')
+    .orderBy('record.created_at', 'desc')
+    .first();
   
-  const podId = parts[0];
-  if (!isValidPodId(podId)) return null;
+  if (!linksRecord || !linksRecord.content[path]) {
+    return null;
+  }
   
-  return podId;
+  return linksRecord.content[path];
 }
 
-// Route handler
-router.post('/:queue_id', authenticate, async (req, res) => {
+// Route handler with _links support
+router.get('/*', async (req, res) => {
   const podId = extractPodId(req.hostname);
-  if (!podId) {
-    res.status(400).json({
-      error: {
-        code: 'INVALID_POD_ID',
-        message: 'Invalid or missing pod ID'
-      }
+  const path = req.path;
+  
+  // Check _links mapping first
+  const mapping = await resolveLink(db, podId, path);
+  if (mapping) {
+    // Parse mapping: "queue/alias" or "queue/-1"
+    const [queueId, target] = mapping.split('/');
+    return serveContent(req, res, podId, queueId, target);
+  }
+  
+  // Fall back to direct queue access
+  // ...
     });
     return;
   }
