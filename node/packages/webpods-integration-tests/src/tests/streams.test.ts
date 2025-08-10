@@ -39,9 +39,7 @@ describe('WebPods Stream Operations', () => {
 
   describe('Pod and Stream Creation', () => {
     it('should create pod and stream on first write', async () => {
-      const response = await client.post('/my-first-stream', {
-        content: 'Hello WebPods!'
-      });
+      const response = await client.post('/my-first-stream', 'Hello WebPods!');
       
       expect(response.status).to.equal(201);
       expect(response.data).to.have.property('sequence_num', 0);
@@ -112,7 +110,7 @@ describe('WebPods Stream Operations', () => {
         headers: { 'Content-Type': 'text/plain' }
       });
       expect(response.status).to.equal(201);
-      expect(response.data.sequence_num).to.equal(0);
+      expect(response.data.sequence_num).to.equal(1);  // Second write, so sequence_num is 1
       expect(response.data.content).to.equal('Plain text message');
       expect(response.data.content_type).to.equal('text/plain');
     });
@@ -238,10 +236,12 @@ describe('WebPods Stream Operations', () => {
 
     it('should return raw content with metadata in headers', async () => {
       const response = await client.get('/read-test?i=0');
-      expect(response.headers['content-type']).to.equal('text/plain');
+      // Express adds charset, so check if content-type starts with expected value
+      expect(response.headers['content-type']).to.include('text/plain');
       expect(response.headers['x-hash']).to.exist;
-      expect(response.headers['x-author']).to.equal('auth:github:123456');
+      expect(response.headers['x-author']).to.equal(user.auth_id);
       expect(response.headers['x-timestamp']).to.exist;
+      expect(response.data).to.equal('First');
     });
   });
 
@@ -258,7 +258,7 @@ describe('WebPods Stream Operations', () => {
       
       expect(ownerStream).to.exist;
       expect(ownerStream.stream_type).to.equal('system');
-      expect(ownerStream.write_permission).to.equal('private');
+      expect(ownerStream.access_permission).to.equal('private');
       
       // Check owner record
       const ownerRecord = await db('record')
@@ -432,7 +432,7 @@ describe('WebPods Stream Operations', () => {
       
       const response = await client.get('/page/index');
       expect(response.status).to.equal(200);
-      expect(response.headers['content-type']).to.equal('text/html');
+      expect(response.headers['content-type']).to.include('text/html');
       expect(response.data).to.equal(html);
     });
 
@@ -443,7 +443,7 @@ describe('WebPods Stream Operations', () => {
       });
       
       const response = await client.get('/assets/styles/main.css');
-      expect(response.headers['content-type']).to.equal('text/css');
+      expect(response.headers['content-type']).to.include('text/css');
       expect(response.data).to.equal(css);
     });
 
@@ -452,7 +452,7 @@ describe('WebPods Stream Operations', () => {
       await client.post('/api/data', data);
       
       const response = await client.get('/api/data?i=-1');
-      expect(response.headers['content-type']).to.equal('application/json');
+      expect(response.headers['content-type']).to.include('application/json');
       expect(response.data).to.deep.equal(data);
     });
   });

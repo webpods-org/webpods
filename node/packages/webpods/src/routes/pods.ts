@@ -490,17 +490,19 @@ router.get('/*', extractPod, optionalAuth, rateLimit('read'), async (req: Reques
       
       // Return raw content for single records
       const record = result.data;
-      // Set content-type without charset suffix
-      res.setHeader('Content-Type', record.content_type);
+      // Set headers
       res.setHeader('X-Hash', record.hash);
       res.setHeader('X-Previous-Hash', record.previous_hash || '');
       res.setHeader('X-Author', record.author_id);
       res.setHeader('X-Timestamp', record.created_at.toISOString());
       
+      // Set content type and send response
+      res.type(record.content_type);
+      
       // Parse JSON content if needed
       if (record.content_type === 'application/json' && typeof record.content === 'string') {
         try {
-          res.json(JSON.parse(record.content));
+          res.send(JSON.parse(record.content));
         } catch {
           res.send(record.content);
         }
@@ -537,17 +539,19 @@ router.get('/*', extractPod, optionalAuth, rateLimit('read'), async (req: Reques
     
     // Return raw content for single records
     const record = result.data;
-    // Set content-type without charset suffix
-    res.setHeader('Content-Type', record.content_type);
+    // Set headers
     res.setHeader('X-Hash', record.hash);
     res.setHeader('X-Previous-Hash', record.previous_hash || '');
     res.setHeader('X-Author', record.author_id);
     res.setHeader('X-Timestamp', record.created_at.toISOString());
     
+    // Set content type and send response
+    res.type(record.content_type);
+    
     // Parse JSON content if needed
     if (record.content_type === 'application/json' && typeof record.content === 'string') {
       try {
-        res.json(JSON.parse(record.content));
+        res.send(JSON.parse(record.content));
       } catch {
         res.send(record.content);
       }
