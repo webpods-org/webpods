@@ -50,7 +50,7 @@ Stores stream records (append-only).
 |--------|------|-------------|
 | id | BIGSERIAL | Primary key |
 | stream_id | UUID | Foreign key to stream |
-| sequence_num | INTEGER | Sequential number within stream |
+| index | INTEGER | Sequential number within stream |
 | content | TEXT | Record content (text or JSON) |
 | content_type | VARCHAR(100) | MIME type |
 | alias | VARCHAR(256) | Optional alias (any string) |
@@ -90,7 +90,7 @@ Tracks rate limiting per user or IP.
 - `pod.pod_id` - Unique index for pod lookups
 - `stream.pod_id, stream.stream_id` - Composite unique index
 - `stream.creator_id` - Index for user's streams
-- `record.stream_id, record.sequence_num` - Composite unique index
+- `record.stream_id, record.index` - Composite unique index
 - `record.stream_id, record.alias` - Composite unique index
 - `custom_domain.domain` - Unique index for domain lookups
 - `rate_limit.identifier, rate_limit.action` - Composite index for rate checks
@@ -124,8 +124,8 @@ WHERE pod_id = :podId AND stream_id = :streamId
 
 ### Append record with sequence number and hash
 ```sql
-INSERT INTO record (stream_id, sequence_num, content, content_type, alias, hash, previous_hash, author_id)
-SELECT :streamId, COALESCE(MAX(sequence_num), -1) + 1, :content, :contentType, :alias, :hash, :previousHash, :authorId
+INSERT INTO record (stream_id, index, content, content_type, alias, hash, previous_hash, author_id)
+SELECT :streamId, COALESCE(MAX(index), -1) + 1, :content, :contentType, :alias, :hash, :previousHash, :authorId
 FROM record WHERE stream_id = :streamId
 RETURNING *;
 ```
@@ -134,7 +134,7 @@ RETURNING *;
 ```sql
 SELECT * FROM record 
 WHERE stream_id = :streamId
-ORDER BY sequence_num DESC 
+ORDER BY index DESC 
 LIMIT 1;
 ```
 

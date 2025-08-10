@@ -146,10 +146,10 @@ export async function updateLinks(
       // Get previous record for hash chain
       const previousRecord = await trx('record')
         .where('stream_id', linksStream.id)
-        .orderBy('sequence_num', 'desc')
+        .orderBy('index', 'desc')
         .first();
 
-      const sequenceNum = (previousRecord?.sequence_num ?? -1) + 1;
+      const index = (previousRecord?.index ?? -1) + 1;
       const previousHash = previousRecord?.hash || null;
       const timestamp = new Date().toISOString();
 
@@ -160,7 +160,7 @@ export async function updateLinks(
       await trx('record')
         .insert({
           stream_id: linksStream.id,
-          sequence_num: sequenceNum,
+          index: index,
           content: JSON.stringify(links),
           content_type: 'application/json',
           hash: hash,
@@ -271,10 +271,10 @@ export async function updateCustomDomains(
       // Get previous record for hash chain
       const previousRecord = await trx('record')
         .where('stream_id', domainsStream.id)
-        .orderBy('sequence_num', 'desc')
+        .orderBy('index', 'desc')
         .first();
 
-      const sequenceNum = (previousRecord?.sequence_num ?? -1) + 1;
+      const index = (previousRecord?.index ?? -1) + 1;
       const previousHash = previousRecord?.hash || null;
       const timestamp = new Date().toISOString();
 
@@ -285,7 +285,7 @@ export async function updateCustomDomains(
       await trx('record')
         .insert({
           stream_id: domainsStream.id,
-          sequence_num: sequenceNum,
+          index: index,
           content: JSON.stringify({ domains }),
           content_type: 'application/json',
           hash: hash,

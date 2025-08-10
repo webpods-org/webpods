@@ -116,7 +116,7 @@ const stream = await db<Stream>('stream')
 const [record] = await db('record')
   .insert({
     stream_id: stream.id,
-    sequence_num: nextSeq,
+    index: nextSeq,
     content: JSON.stringify(content),
     content_type: contentType,
     created_by: userId
@@ -178,7 +178,7 @@ export default class StreamService { ... }
 - **Types/Interfaces**: PascalCase (`Stream`, `StreamRecord`, `User`)
 - **Constants**: UPPER_SNAKE_CASE (`MAX_RETRIES`, `DEFAULT_LIMIT`)
 - **Files**: kebab-case (`create-stream.ts`, `check-permission.ts`)
-- **Database**: snake_case tables and columns (`stream`, `created_at`, `sequence_num`)
+- **Database**: snake_case tables and columns (`stream`, `created_at`, `index`)
 
 #### Database Naming
 - **Tables**: singular, lowercase (`user`, `stream`, `record`, `rate_limit`)
@@ -483,16 +483,16 @@ const stream = await db.raw(
 ```typescript
 // ✅ Good - Named parameters are self-documenting
 await db.raw(
-  `INSERT INTO record (stream_id, sequence_num, content, author_id)
-   SELECT :streamId, COALESCE(MAX(sequence_num), -1) + 1, :content, :authorId
+  `INSERT INTO record (stream_id, index, content, author_id)
+   SELECT :streamId, COALESCE(MAX(index), -1) + 1, :content, :authorId
    FROM record WHERE stream_id = :streamId`,
   { streamId, content, authorId }
 );
 
 // ❌ Bad - Positional parameters are error-prone
 await db.raw(
-  `INSERT INTO record (stream_id, sequence_num, content, author_id)
-   SELECT $1, COALESCE(MAX(sequence_num), -1) + 1, $2, $3
+  `INSERT INTO record (stream_id, index, content, author_id)
+   SELECT $1, COALESCE(MAX(index), -1) + 1, $2, $3
    FROM record WHERE stream_id = $1`,
   [streamId, content, authorId]
 );
@@ -524,8 +524,8 @@ const count = records.length;
 // ✅ Good - Limit-based pagination
 const records = await db('record')
   .where('stream_id', streamId)
-  .where('sequence_num', '>', after || 0)
-  .orderBy('sequence_num', 'asc')
+  .where('index', '>', after || 0)
+  .orderBy('index', 'asc')
   .limit(limit + 1);  // +1 to check if there are more
 
 const hasMore = records.length > limit;

@@ -36,10 +36,10 @@ export async function writeRecord(
       // Get the previous record for hash chain
       const previousRecord = await trx('record')
         .where('stream_id', streamId)
-        .orderBy('sequence_num', 'desc')
+        .orderBy('index', 'desc')
         .first();
 
-      const sequenceNum = (previousRecord?.sequence_num ?? -1) + 1;
+      const index = (previousRecord?.index ?? -1) + 1;
       const previousHash = previousRecord?.hash || null;
       const timestamp = new Date().toISOString();
 
@@ -56,7 +56,7 @@ export async function writeRecord(
       const [record] = await trx('record')
         .insert({
           stream_id: streamId,
-          sequence_num: sequenceNum,
+          index: index,
           content: storedContent,
           content_type: contentType,
           alias: alias || null,
@@ -67,7 +67,7 @@ export async function writeRecord(
         })
         .returning('*');
 
-      logger.info('Record written', { streamId, sequenceNum, alias, hash });
+      logger.info('Record written', { streamId, index, alias, hash });
       return { success: true, data: record };
     } catch (error: any) {
       if (error.code === '23505' && error.constraint?.includes('alias')) {
@@ -138,7 +138,7 @@ export async function getRecord(
 
         record = await db('record')
           .where('stream_id', streamId)
-          .where('sequence_num', index)
+          .where('index', index)
           .first();
       }
     } else {
@@ -169,7 +169,7 @@ export async function getRecord(
 
         record = await db('record')
           .where('stream_id', streamId)
-          .where('sequence_num', index)
+          .where('index', index)
           .first();
       } else {
         // Get by alias
@@ -239,9 +239,9 @@ export async function getRecordRange(
 
     const records = await db('record')
       .where('stream_id', streamId)
-      .where('sequence_num', '>=', start)
-      .where('sequence_num', '<', end)  // Exclusive end (Python-style)
-      .orderBy('sequence_num', 'asc');
+      .where('index', '>=', start)
+      .where('index', '<', end)  // Exclusive end (Python-style)
+      .orderBy('index', 'asc');
 
     return { success: true, data: records };
   } catch (error: any) {
@@ -270,11 +270,11 @@ export async function listRecords(
       .where('stream_id', streamId);
 
     if (after !== undefined) {
-      query.where('sequence_num', '>', after);
+      query.where('index', '>', after);
     }
 
     const records = await query
-      .orderBy('sequence_num', 'asc')
+      .orderBy('index', 'asc')
       .limit(limit + 1);
 
     const countResult = await db('record')
@@ -322,7 +322,7 @@ export function recordToResponse(record: StreamRecord): StreamRecordResponse {
   }
 
   return {
-    sequence_num: record.sequence_num,
+    index: record.index,
     content: content,
     content_type: record.content_type,
     alias: record.alias,

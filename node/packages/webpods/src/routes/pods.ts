@@ -645,7 +645,7 @@ router.get('/*', extractPod, optionalAuth, rateLimit('read'), async (req: Reques
       records: result.data.records.map(recordToResponse),
       total: result.data.total,
       has_more: result.data.hasMore,
-      next_id: result.data.hasMore ? result.data.records[result.data.records.length - 1]?.sequence_num : null
+      next_index: result.data.hasMore ? result.data.records[result.data.records.length - 1]?.index : null
     });
   }
 });

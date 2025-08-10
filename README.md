@@ -115,7 +115,7 @@ Creates pod and stream if they don't exist. Supports nested stream paths with sl
 **Response:**
 ```json
 {
-  "sequence_num": 0,
+  "index": 0,
   "content": "...",
   "content_type": "text/plain",
   "alias": "my-alias",
@@ -154,7 +154,7 @@ GET {pod_id}.webpods.org/{stream_path}?limit=100&after=50
   "records": [...],
   "total": 150,
   "has_more": true,
-  "next_id": 100
+  "next_index": 100
 }
 ```
 

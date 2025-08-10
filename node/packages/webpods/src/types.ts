@@ -56,7 +56,7 @@ export interface Stream {
 export interface StreamRecord {
   id: number;
   stream_id: string;
-  sequence_num: number;
+  index: number; // Position in stream (0-based)
   content: string | any; // Can be text or JSON
   content_type: string;
   alias: string | null; // Can be any string including numbers
@@ -87,7 +87,7 @@ export interface RateLimit {
 
 // API types
 export interface StreamRecordResponse {
-  sequence_num: number;
+  index: number; // Position in stream (0-based)
   content: any;
   content_type: string;
   alias: string | null;
@@ -101,7 +101,7 @@ export interface StreamListResponse {
   records: StreamRecordResponse[];
   total: number;
   has_more: boolean;
-  next_id: number | null;
+  next_index: number | null; // Next index to fetch
 }
 
 export interface PodListResponse {

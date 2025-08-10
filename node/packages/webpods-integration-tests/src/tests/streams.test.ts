@@ -44,7 +44,7 @@ describe('WebPods Stream Operations', () => {
       const response = await client.post('/my-first-stream', 'Hello WebPods!');
       
       expect(response.status).to.equal(201);
-      expect(response.data).to.have.property('sequence_num', 0);
+      expect(response.data).to.have.property('index', 0);
       expect(response.data).to.have.property('content', 'Hello WebPods!');
       expect(response.data).to.have.property('hash');
       expect(response.data).to.have.property('previous_hash', null);
@@ -108,7 +108,7 @@ describe('WebPods Stream Operations', () => {
         headers: { 'Content-Type': 'text/plain' }
       });
       expect(response.status).to.equal(201);
-      expect(response.data.sequence_num).to.equal(1);  // Second write, so sequence_num is 1
+      expect(response.data.index).to.equal(1);  // Second write, so index is 1
       expect(response.data.content).to.equal('Plain text message');
       expect(response.data.content_type).to.equal('text/plain');
     });
@@ -225,10 +225,10 @@ describe('WebPods Stream Operations', () => {
       expect(response.status).to.equal(200);
       expect(response.data.records).to.have.lengthOf(2);
       expect(response.data.has_more).to.be.true;
-      expect(response.data.next_id).to.equal(1);
+      expect(response.data.next_index).to.equal(1);
       
       // Get next page
-      const page2 = await client.get(`/read-test?limit=2&after=${response.data.next_id}`);
+      const page2 = await client.get(`/read-test?limit=2&after=${response.data.next_index}`);
       expect(page2.data.records).to.have.lengthOf(2);
     });
 

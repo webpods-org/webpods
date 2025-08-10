@@ -74,7 +74,7 @@ export async function createPod(
       await trx('record')
         .insert({
           stream_id: ownerStream.id,
-          sequence_num: 0,
+          index: 0,
           content: JSON.stringify(ownerContent),
           content_type: 'application/json',
           hash: hash,
@@ -221,7 +221,7 @@ export async function transferPodOwnership(
       // Get last record for hash chain
       const lastRecord = await trx('record')
         .where('stream_id', ownerStream.id)
-        .orderBy('sequence_num', 'desc')
+        .orderBy('index', 'desc')
         .first();
 
       // Write new owner record
@@ -232,7 +232,7 @@ export async function transferPodOwnership(
       await trx('record')
         .insert({
           stream_id: ownerStream.id,
-          sequence_num: (lastRecord?.sequence_num || 0) + 1,
+          index: (lastRecord?.index || 0) + 1,
           content: JSON.stringify(ownerContent),
           content_type: 'application/json',
           hash: hash,

@@ -128,7 +128,7 @@ Permission checks are done in-memory after fetching records:
 // Get ALL records from permission stream
 const records = await db('record')
   .where('stream_id', streamId)
-  .orderBy('sequence_num', 'asc');
+  .orderBy('index', 'asc');
 
 // Process in memory to find latest permission
 for (const record of records) {

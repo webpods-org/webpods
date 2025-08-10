@@ -60,7 +60,7 @@ Query parameters:
 Response:
 ```json
 {
-  "sequence_num": 0,
+  "index": 0,
   "content": {"message": "Hello, World!"},
   "content_type": "application/json",
   "alias": "my-post",
@@ -97,7 +97,7 @@ GET {pod_id}.webpods.org/{stream_path}/{alias}
 
 #### List all records
 ```http
-GET {pod_id}.webpods.org/{stream_path}?limit={limit}&after={sequence_num}
+GET {pod_id}.webpods.org/{stream_path}?limit={limit}&after={index}
 ```
 
 Response:
@@ -111,7 +111,7 @@ Response:
   },
   "records": [
     {
-      "sequence_num": 0,
+      "index": 0,
       "content": "First post",
       "content_type": "text/plain",
       "hash": "sha256:...",
@@ -120,7 +120,7 @@ Response:
     }
   ],
   "has_more": true,
-  "next_id": 10
+  "next_index": 10
 }
 ```
 

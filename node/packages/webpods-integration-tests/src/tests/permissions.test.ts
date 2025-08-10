@@ -93,7 +93,7 @@ describe('WebPods Permissions', () => {
       client.setAuthToken(user1Token);
       const response2 = await client.post('/private-write', 'Second message');
       expect(response2.status).to.equal(201);
-      expect(response2.data.sequence_num).to.equal(1);
+      expect(response2.data.index).to.equal(1);
     });
   });
 

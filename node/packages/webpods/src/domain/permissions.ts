@@ -58,7 +58,7 @@ async function checkPermissionStream(
     // Get ALL records from the permission stream
     const records = await db('record')
       .where('stream_id', stream.id)
-      .orderBy('sequence_num', 'asc')
+      .orderBy('index', 'asc')
       .select('*');
     
     // Process records in memory to find the latest permission for this user

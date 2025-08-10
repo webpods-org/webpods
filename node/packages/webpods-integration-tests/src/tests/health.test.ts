@@ -114,7 +114,7 @@ describe('WebPods Health Checks', () => {
       
       // Should succeed, proving subdomain routing works
       expect(response.status).to.equal(201);
-      expect(response.data).to.have.property('sequence_num', 0);
+      expect(response.data).to.have.property('index', 0);
       
       // Verify pod was created
       const pod = await db('pod').where('pod_id', uniquePodId).first();

@@ -139,7 +139,7 @@ WebPods is designed as a simple, scalable append-only log service with OAuth aut
 │──────────────│
 │ id           │
 │ stream_id    │
-│ sequence_num │
+│ index │
 │ content      │
 │ content_type │
 │ metadata     │

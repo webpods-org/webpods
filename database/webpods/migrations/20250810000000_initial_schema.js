@@ -57,7 +57,7 @@ export async function up(knex) {
   await knex.schema.createTable('record', (table) => {
     table.bigIncrements('id').primary();
     table.uuid('stream_id').references('id').inTable('stream').onDelete('CASCADE');
-    table.integer('sequence_num').notNullable();
+    table.integer('index').notNullable(); // Position in stream (0-based)
     table.text('content'); // Can be text or JSON
     table.string('content_type', 100).defaultTo('text/plain');
     table.string('alias', 256); // Optional alias (any string allowed)
@@ -66,9 +66,9 @@ export async function up(knex) {
     table.string('author_id', 255).notNullable(); // auth:provider:id format
     table.timestamp('created_at').defaultTo(knex.fn.now());
     
-    table.unique(['stream_id', 'sequence_num']);
+    table.unique(['stream_id', 'index']);
     table.unique(['stream_id', 'alias']);
-    table.index(['stream_id', 'sequence_num']);
+    table.index(['stream_id', 'index']);
     table.index(['stream_id', 'alias']);
     table.index('author_id');
     table.index('hash');

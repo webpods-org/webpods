@@ -106,7 +106,7 @@ describe('WebPods Authentication', () => {
       }
       
       expect(response.status).to.equal(201);
-      expect(response.data).to.have.property('sequence_num', 0);
+      expect(response.data).to.have.property('index', 0);
       expect(response.data).to.have.property('author', 'auth:google:test123');
     });
 
