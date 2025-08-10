@@ -181,7 +181,7 @@ router.post('/.meta/links', extractPod, authenticate, async (req: Request, res: 
       return;
     }
     
-    const result = await updateLinks(db, req.pod_id, data, req.auth.auth_id);
+    const result = await updateLinks(db, req.pod_id, data, req.auth.user_id, req.auth.auth_id);
     
     if (!result.success) {
       res.status(500).json({
@@ -238,7 +238,7 @@ router.post('/.meta/domains', extractPod, authenticate, async (req: Request, res
       return;
     }
     
-    const result = await updateCustomDomains(db, req.pod_id, data.domains, req.auth.auth_id);
+    const result = await updateCustomDomains(db, req.pod_id, data.domains, req.auth.user_id, req.auth.auth_id);
     
     if (!result.success) {
       res.status(500).json({
@@ -632,9 +632,17 @@ router.get('/', extractPod, optionalAuth, async (req: Request, res: Response) =>
     const { streamId, target } = linkResult.data;
     
     // Rewrite URL and forward to the stream handler
-    req.url = `/${streamId}${target ? `/${target}` : ''}`;
-    req.params.stream = streamId;
-    req.params.target = target;
+    if (target && target.startsWith('?')) {
+      // Handle query parameters (e.g., "?i=-1")
+      req.url = `/${streamId}${target}`;
+      req.query = Object.fromEntries(new URLSearchParams(target.substring(1)));
+    } else if (target) {
+      // Handle path targets (e.g., "my-post")
+      req.url = `/${streamId}/${target}`;
+    } else {
+      // Just the stream
+      req.url = `/${streamId}`;
+    }
     
     // Let Express router handle the rewritten request
     return router(req, res, () => {});

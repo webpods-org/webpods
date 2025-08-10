@@ -45,22 +45,46 @@ export async function resolveLink(
       return { success: true, data: null };
     }
 
-    // Parse the mapping (e.g., "homepage/-1" or "blog/my-post")
+    // Parse the mapping (e.g., "homepage/-1", "blog/my-post", or "homepage?i=-1")
     const mapping = links[path];
+    
+    // Check if it has query parameters
+    if (mapping.includes('?')) {
+      // Handle format like "homepage?i=-1"
+      const [streamId, query] = mapping.split('?');
+      return {
+        success: true,
+        data: {
+          streamId: streamId!,
+          target: query ? `?${query}` : ''
+        }
+      };
+    }
+    
+    // Handle format like "homepage/-1" or "homepage/my-post"
     const parts = mapping.split('/');
     
-    if (parts.length !== 2) {
+    if (parts.length === 1) {
+      // Just stream name, no target
+      return {
+        success: true,
+        data: {
+          streamId: parts[0]!,
+          target: ''
+        }
+      };
+    } else if (parts.length === 2) {
+      return {
+        success: true,
+        data: {
+          streamId: parts[0]!,
+          target: parts[1]!
+        }
+      };
+    } else {
       logger.warn('Invalid link mapping', { podId, path, mapping });
       return { success: true, data: null };
     }
-
-    return {
-      success: true,
-      data: {
-        streamId: parts[0],
-        target: parts[1]
-      }
-    };
   } catch (error: any) {
     logger.error('Failed to resolve link', { error, podId, path });
     return {
@@ -80,6 +104,7 @@ export async function updateLinks(
   db: Knex,
   podId: string,
   links: Record<string, string>,
+  userId: string,
   authorId: string
 ): Promise<Result<void>> {
   return await db.transaction(async (trx) => {
@@ -111,7 +136,7 @@ export async function updateLinks(
             id: crypto.randomUUID(),
             pod_id: pod.id,
             stream_id: '.meta/links',
-            creator_id: authorId.split(':').pop()!, // Extract user ID from auth ID
+            creator_id: userId,
             read_permission: 'public',
             write_permission: 'private',
             stream_type: 'system',
@@ -206,6 +231,7 @@ export async function updateCustomDomains(
   db: Knex,
   podId: string,
   domains: string[],
+  userId: string,
   authorId: string
 ): Promise<Result<void>> {
   return await db.transaction(async (trx) => {
@@ -237,7 +263,7 @@ export async function updateCustomDomains(
             id: crypto.randomUUID(),
             pod_id: pod.id,
             stream_id: '.meta/domains',
-            creator_id: authorId.split(':').pop()!, // Extract user ID from auth ID
+            creator_id: userId,
             read_permission: 'public',
             write_permission: 'private',
             stream_type: 'system',
