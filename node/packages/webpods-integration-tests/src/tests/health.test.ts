@@ -100,12 +100,12 @@ describe('WebPods Health Checks', () => {
       
       const jwt = require('jsonwebtoken');
       const token = jwt.sign({
-        userId: user.id,
-        authId: user.auth_id,
+        user_id: user.id,
+        auth_id: user.auth_id,
         email: user.email,
         name: user.name,
         provider: 'github'
-      }, process.env.JWT_SECRET || 'test-secret', { expiresIn: '1h' });
+      }, process.env.JWT_SECRET || 'test-secret-key', { expiresIn: '1h' });
       
       client.setAuthToken(token);
       

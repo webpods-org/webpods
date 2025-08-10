@@ -5,6 +5,7 @@ import { client, testDb } from '../test-setup.js';
 
 describe('WebPods Rate Limiting', () => {
   let userId: string;
+  let authId: string;
   let authToken: string;
   const testPodId = 'rate-test';
   const baseUrl = `http://${testPodId}.localhost:3099`;
@@ -20,13 +21,14 @@ describe('WebPods Rate Limiting', () => {
     }).returning('*');
     
     userId = user.id;
+    authId = user.auth_id;
     authToken = jwt.sign({
-      userId: user.id,
-      authId: user.auth_id,
+      user_id: user.id,
+      auth_id: user.auth_id,
       email: user.email,
       name: user.name,
       provider: 'google'
-    }, process.env.JWT_SECRET || 'test-secret', { expiresIn: '1h' });
+    }, process.env.JWT_SECRET || 'test-secret-key', { expiresIn: '1h' });
     
     client.setBaseUrl(baseUrl);
     client.setAuthToken(authToken);
@@ -43,7 +45,7 @@ describe('WebPods Rate Limiting', () => {
       // Check rate limit record was created
       const db = testDb.getDb();
       const rateLimit = await db('rate_limit')
-        .where('identifier', userId)
+        .where('identifier', authId)
         .where('action', 'write')
         .first();
       
@@ -63,7 +65,7 @@ describe('WebPods Rate Limiting', () => {
       // Check rate limit records
       const db = testDb.getDb();
       const podLimit = await db('rate_limit')
-        .where('identifier', userId)
+        .where('identifier', authId)
         .where('action', 'pod_create')
         .first();
       
@@ -80,7 +82,7 @@ describe('WebPods Rate Limiting', () => {
       
       const db = testDb.getDb();
       const streamLimit = await db('rate_limit')
-        .where('identifier', userId)
+        .where('identifier', authId)
         .where('action', 'stream_create')
         .first();
       
@@ -98,7 +100,7 @@ describe('WebPods Rate Limiting', () => {
       
       const db = testDb.getDb();
       const streamLimit = await db('rate_limit')
-        .where('identifier', userId)
+        .where('identifier', authId)
         .where('action', 'stream_create')
         .first();
       
@@ -107,7 +109,7 @@ describe('WebPods Rate Limiting', () => {
       
       // But 3 writes were made
       const writeLimit = await db('rate_limit')
-        .where('identifier', userId)
+        .where('identifier', authId)
         .where('action', 'write')
         .first();
       expect(writeLimit.count).to.equal(3);
@@ -130,12 +132,12 @@ describe('WebPods Rate Limiting', () => {
       // Check rate limit records
       const db = testDb.getDb();
       const writeLimit = await db('rate_limit')
-        .where('identifier', userId)
+        .where('identifier', authId)
         .where('action', 'write')
         .first();
       
       const readLimit = await db('rate_limit')
-        .where('identifier', userId)
+        .where('identifier', authId)
         .where('action', 'read')
         .first();
       
@@ -172,7 +174,7 @@ describe('WebPods Rate Limiting', () => {
       
       // Check the window
       const rateLimit = await db('rate_limit')
-        .where('identifier', userId)
+        .where('identifier', authId)
         .where('action', 'write')
         .first();
       
@@ -191,9 +193,9 @@ describe('WebPods Rate Limiting', () => {
       // Insert an expired window with high count
       await db('rate_limit').insert({
         id: crypto.randomUUID(),
-        identifier: userId,
+        identifier: authId,  // Rate limiting uses auth_id
         action: 'write',
-        count: 1999, // Just under limit
+        count: 999, // Just under limit
         window_start: new Date(now.getTime() - 2 * 60 * 60 * 1000), // 2 hours ago
         window_end: new Date(now.getTime() - 60 * 60 * 1000) // 1 hour ago
       });
@@ -204,7 +206,7 @@ describe('WebPods Rate Limiting', () => {
       
       // Check new window was created
       const newLimit = await db('rate_limit')
-        .where('identifier', userId)
+        .where('identifier', authId)
         .where('action', 'write')
         .where('window_end', '>', now)
         .first();
@@ -278,14 +280,20 @@ describe('WebPods Rate Limiting', () => {
     it('should return 429 when rate limit is exceeded', async () => {
       const db = testDb.getDb();
       
+      // Calculate proper window boundaries (same as rate limit code)
+      const windowMs = 60 * 60 * 1000; // 1 hour
+      const now = Date.now();
+      const windowEnd = new Date(Math.ceil(now / windowMs) * windowMs);
+      const windowStart = new Date(windowEnd.getTime() - windowMs);
+      
       // Set a rate limit that's already exceeded
       await db('rate_limit').insert({
         id: crypto.randomUUID(),
-        identifier: userId,
+        identifier: authId,  // Rate limiting uses auth_id, not user_id
         action: 'write',
-        count: 2001, // Over the default limit of 2000
-        window_start: new Date(),
-        window_end: new Date(Date.now() + 60 * 60 * 1000)
+        count: 1001, // Over the default limit of 1000
+        window_start: windowStart,
+        window_end: windowEnd
       });
       
       // Try to make another request
@@ -309,21 +317,27 @@ describe('WebPods Rate Limiting', () => {
       }).returning('*');
       
       const token2 = jwt.sign({
-        userId: user2.id,
-        authId: user2.auth_id,
+        user_id: user2.id,
+        auth_id: user2.auth_id,
         email: user2.email,
         name: user2.name,
         provider: 'github'
-      }, process.env.JWT_SECRET || 'test-secret', { expiresIn: '1h' });
+      }, process.env.JWT_SECRET || 'test-secret-key', { expiresIn: '1h' });
+      
+      // Calculate proper window boundaries
+      const windowMs = 60 * 60 * 1000;
+      const now = Date.now();
+      const windowEnd = new Date(Math.ceil(now / windowMs) * windowMs);
+      const windowStart = new Date(windowEnd.getTime() - windowMs);
       
       // Set user1 at limit
       await db('rate_limit').insert({
         id: crypto.randomUUID(),
-        identifier: userId,
+        identifier: authId,  // Rate limiting uses auth_id
         action: 'write',
-        count: 2000,
-        window_start: new Date(),
-        window_end: new Date(Date.now() + 60 * 60 * 1000)
+        count: 1000,  // At the limit
+        window_start: windowStart,
+        window_end: windowEnd
       });
       
       // User1 should be blocked
@@ -339,27 +353,33 @@ describe('WebPods Rate Limiting', () => {
 
   describe('Different Rate Limits by Action', () => {
     it('should apply different limits for different actions', async () => {
-      // Assuming: write=2000/hour, read=10000/hour, pod_create=10/hour, stream_create=100/hour
+      // Assuming: write=1000/hour, read=10000/hour, pod_create=10/hour, stream_create=100/hour
       
       const db = testDb.getDb();
+      
+      // Calculate proper window boundaries
+      const windowMs = 60 * 60 * 1000;
+      const now = Date.now();
+      const windowEnd = new Date(Math.ceil(now / windowMs) * windowMs);
+      const windowStart = new Date(windowEnd.getTime() - windowMs);
       
       // Set different counts for different actions
       await db('rate_limit').insert([
         {
           id: crypto.randomUUID(),
-          identifier: userId,
+          identifier: authId,  // Rate limiting uses auth_id
           action: 'pod_create',
           count: 9, // Just under the limit of 10
-          window_start: new Date(),
-          window_end: new Date(Date.now() + 60 * 60 * 1000)
+          window_start: windowStart,
+          window_end: windowEnd
         },
         {
           id: crypto.randomUUID(),
-          identifier: userId,
+          identifier: authId,  // Rate limiting uses auth_id
           action: 'write',
-          count: 100, // Well under the limit of 2000
-          window_start: new Date(),
-          window_end: new Date(Date.now() + 60 * 60 * 1000)
+          count: 100, // Well under the limit of 1000
+          window_start: windowStart,
+          window_end: windowEnd
         }
       ]);
       

@@ -4,8 +4,10 @@ import jwt from 'jsonwebtoken';
 import { client, testDb } from '../test-setup.js';
 
 describe('WebPods Permissions', () => {
+  let user1: any;
   let user1Id: string;
   let user1Token: string;
+  let user2: any;
   let user2Id: string;
   let user2Token: string;
   const testPodId = 'perm-test';
@@ -15,7 +17,7 @@ describe('WebPods Permissions', () => {
     const db = testDb.getDb();
     
     // Create two test users
-    const [user1] = await db('user').insert({
+    [user1] = await db('user').insert({
       id: crypto.randomUUID(),
       auth_id: 'auth:google:user1',
       email: 'user1@example.com',
@@ -23,7 +25,7 @@ describe('WebPods Permissions', () => {
       provider: 'google'
     }).returning('*');
     
-    const [user2] = await db('user').insert({
+    [user2] = await db('user').insert({
       id: crypto.randomUUID(),
       auth_id: 'auth:google:user2',
       email: 'user2@example.com', 
@@ -35,20 +37,20 @@ describe('WebPods Permissions', () => {
     user2Id = user2.id;
     
     user1Token = jwt.sign({
-      userId: user1.id,
-      authId: user1.auth_id,
+      user_id: user1.id,
+      auth_id: user1.auth_id,
       email: user1.email,
       name: user1.name,
       provider: 'google'
-    }, process.env.JWT_SECRET || 'test-secret', { expiresIn: '1h' });
+    }, process.env.JWT_SECRET || 'test-secret-key', { expiresIn: '1h' });
     
     user2Token = jwt.sign({
-      userId: user2.id,
-      authId: user2.auth_id,
+      user_id: user2.id,
+      auth_id: user2.auth_id,
       email: user2.email,
       name: user2.name,
       provider: 'google'
-    }, process.env.JWT_SECRET || 'test-secret', { expiresIn: '1h' });
+    }, process.env.JWT_SECRET || 'test-secret-key', { expiresIn: '1h' });
     
     client.setBaseUrl(baseUrl);
   });

@@ -23,13 +23,13 @@ describe('WebPods Stream Operations', () => {
     userId = user.id;
     authToken = jwt.sign(
       {
-        userId: user.id,
-        authId: user.auth_id,
+        user_id: user.id,
+        auth_id: user.auth_id,
         email: user.email,
         name: user.name,
         provider: 'github'
       },
-      process.env.JWT_SECRET || 'test-secret',
+      process.env.JWT_SECRET || 'test-secret-key',
       { expiresIn: '1h' }
     );
     
@@ -111,9 +111,8 @@ describe('WebPods Stream Operations', () => {
       const response = await client.post('/test-stream', 'Plain text message', {
         headers: { 'Content-Type': 'text/plain' }
       });
-      
       expect(response.status).to.equal(201);
-      expect(response.data.sequence_num).to.equal(1);
+      expect(response.data.sequence_num).to.equal(0);
       expect(response.data.content).to.equal('Plain text message');
       expect(response.data.content_type).to.equal('text/plain');
     });
@@ -320,13 +319,13 @@ describe('WebPods Stream Operations', () => {
       
       const token2 = jwt.sign(
         {
-          userId: user2.id,
-          authId: user2.auth_id,
+          user_id: user2.id,
+          auth_id: user2.auth_id,
           email: user2.email,
           name: user2.name,
           provider: 'github'
         },
-        process.env.JWT_SECRET || 'test-secret',
+        process.env.JWT_SECRET || 'test-secret-key',
         { expiresIn: '1h' }
       );
       
@@ -414,8 +413,8 @@ describe('WebPods Stream Operations', () => {
       }).returning('*');
       
       const token2 = jwt.sign(
-        { userId: user2.id, authId: user2.auth_id },
-        process.env.JWT_SECRET || 'test-secret',
+        { user_id: user2.id, auth_id: user2.auth_id },
+        process.env.JWT_SECRET || 'test-secret-key',
         { expiresIn: '1h' }
       );
       

@@ -32,8 +32,14 @@ export async function authenticate(
     
     if (!token) {
       const authHeader = req.headers.authorization;
-      if (authHeader && authHeader.startsWith('Bearer ')) {
-        token = authHeader.substring(7); // Remove 'Bearer ' prefix
+      if (authHeader) {
+        // Support both "Bearer token" and plain "token" formats
+        if (authHeader.startsWith('Bearer ')) {
+          token = authHeader.substring(7); // Remove 'Bearer ' prefix
+        } else if (!authHeader.includes(' ')) {
+          // If no space, assume it's just the token
+          token = authHeader;
+        }
       }
     }
     
@@ -41,7 +47,7 @@ export async function authenticate(
       res.status(401).json({ 
         error: {
           code: 'UNAUTHORIZED',
-          message: 'Token required but not provided'
+          message: 'Authentication required'
         }
       });
       return;
@@ -53,10 +59,7 @@ export async function authenticate(
     if (!result.success) {
       logger.warn('Invalid JWT token', { error: result.error });
       res.status(401).json({ 
-        error: {
-          code: 'UNAUTHORIZED',
-          message: result.error.message
-        }
+        error: result.error  // Pass through the specific error from verifyToken
       });
       return;
     }
@@ -99,8 +102,14 @@ export async function optionalAuth(
     
     if (!token) {
       const authHeader = req.headers.authorization;
-      if (authHeader && authHeader.startsWith('Bearer ')) {
-        token = authHeader.substring(7);
+      if (authHeader) {
+        // Support both "Bearer token" and plain "token" formats
+        if (authHeader.startsWith('Bearer ')) {
+          token = authHeader.substring(7);
+        } else if (!authHeader.includes(' ')) {
+          // If no space, assume it's just the token
+          token = authHeader;
+        }
       }
     }
     

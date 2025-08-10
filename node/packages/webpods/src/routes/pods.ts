@@ -78,7 +78,7 @@ router.get('/.meta/streams', extractPod, async (req: Request, res: Response) => 
  * DELETE {pod}.webpods.org/
  */
 router.delete('/', extractPod, authenticate, rateLimit('pod_create'), async (req: Request, res: Response) => {
-  if (!req.pod || !req.pod_id || !req.auth) {
+  if (!req.pod_id || !req.auth) {
     res.status(404).json({
       error: {
         code: 'POD_NOT_FOUND',
@@ -109,7 +109,7 @@ router.delete('/', extractPod, authenticate, rateLimit('pod_create'), async (req
  * POST {pod}.webpods.org/.meta/domains
  */
 router.post('/.meta/owner', extractPod, authenticate, async (req: Request, res: Response) => {
-  if (!req.pod || !req.pod_id || !req.auth) {
+  if (!req.pod_id || !req.auth) {
     res.status(404).json({
       error: {
         code: 'POD_NOT_FOUND',
@@ -155,7 +155,7 @@ router.post('/.meta/owner', extractPod, authenticate, async (req: Request, res: 
 });
 
 router.post('/.meta/links', extractPod, authenticate, async (req: Request, res: Response) => {
-  if (!req.pod || !req.pod_id || !req.auth) {
+  if (!req.pod_id || !req.auth) {
     res.status(404).json({
       error: {
         code: 'POD_NOT_FOUND',
@@ -212,7 +212,7 @@ router.post('/.meta/links', extractPod, authenticate, async (req: Request, res: 
 });
 
 router.post('/.meta/domains', extractPod, authenticate, async (req: Request, res: Response) => {
-  if (!req.pod || !req.pod_id || !req.auth) {
+  if (!req.pod_id || !req.auth) {
     res.status(404).json({
       error: {
         code: 'POD_NOT_FOUND',
@@ -274,7 +274,7 @@ router.post('/.meta/domains', extractPod, authenticate, async (req: Request, res
  * Supports nested paths: /blog/posts/2024
  */
 router.post('/*', extractPod, authenticate, rateLimit('write'), async (req: Request, res: Response) => {
-  if (!req.pod || !req.auth) {
+  if (!req.pod_id || !req.auth) {
     res.status(404).json({
       error: {
         code: 'POD_NOT_FOUND',
@@ -325,7 +325,7 @@ router.post('/*', extractPod, authenticate, rateLimit('write'), async (req: Requ
     }
     
     // Check write permission
-    const canWriteResult = await canWrite(db, streamResult.data, req.auth.auth_id);
+    const canWriteResult = await canWrite(db, streamResult.data, req.auth.auth_id, req.auth.user_id);
     if (!canWriteResult) {
       res.status(403).json({
         error: {
@@ -438,7 +438,7 @@ router.get('/*', extractPod, optionalAuth, rateLimit('read'), async (req: Reques
   }
   
   // Check read permission
-  const canReadResult = await canRead(db, streamResult.data, req.auth?.auth_id || null);
+  const canReadResult = await canRead(db, streamResult.data, req.auth?.auth_id || null, req.auth?.user_id || null);
   if (!canReadResult) {
     res.status(403).json({
       error: {
@@ -565,7 +565,7 @@ router.get('/*', extractPod, optionalAuth, rateLimit('read'), async (req: Reques
  * DELETE {pod}.webpods.org/{stream_path}
  */
 router.delete('/*', extractPod, authenticate, async (req: Request, res: Response) => {
-  if (!req.pod || !req.auth) {
+  if (!req.pod_id || !req.auth) {
     res.status(404).json({
       error: {
         code: 'POD_NOT_FOUND',

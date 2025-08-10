@@ -72,16 +72,17 @@ async function checkPermissionStream(
 export async function canRead(
   db: Knex,
   stream: Stream,
-  authId: string | null
+  authId: string | null,
+  userId?: string | null
 ): Promise<boolean> {
   // Public read access
   if (stream.read_permission === 'public') {
     return true;
   }
   
-  // Private access - only creator
+  // Private access - only creator (check by user_id)
   if (stream.read_permission === 'private') {
-    return authId === stream.creator_id;
+    return userId === stream.creator_id;
   }
   
   // No auth means no access for non-public
@@ -124,16 +125,17 @@ export async function canRead(
 export async function canWrite(
   db: Knex,
   stream: Stream,
-  authId: string
+  authId: string,
+  userId?: string | null
 ): Promise<boolean> {
   // Public write access (authenticated users only)
   if (stream.write_permission === 'public') {
     return true;
   }
   
-  // Private access - only creator
+  // Private access - only creator (check by user_id)
   if (stream.write_permission === 'private') {
-    return authId === stream.creator_id;
+    return userId === stream.creator_id;
   }
   
   // Parse permission

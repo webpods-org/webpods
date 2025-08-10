@@ -91,7 +91,35 @@ export function verifyToken(token: string): Result<JWTPayload> {
     const secret = process.env.JWT_SECRET || 'dev-secret';
     const payload = jwt.verify(token, secret) as JWTPayload;
     return { success: true, data: payload };
-  } catch {
+  } catch (error: any) {
+    // Determine specific error type
+    if (error.name === 'TokenExpiredError') {
+      return {
+        success: false,
+        error: {
+          code: 'TOKEN_EXPIRED',
+          message: 'Token has expired'
+        }
+      };
+    } else if (error.name === 'JsonWebTokenError') {
+      return {
+        success: false,
+        error: {
+          code: 'INVALID_TOKEN',
+          message: 'Invalid token'
+        }
+      };
+    } else if (error.name === 'NotBeforeError') {
+      return {
+        success: false,
+        error: {
+          code: 'TOKEN_NOT_ACTIVE',
+          message: 'Token not yet active'
+        }
+      };
+    }
+    
+    // Default error
     return {
       success: false,
       error: {

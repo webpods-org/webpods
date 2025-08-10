@@ -39,17 +39,32 @@ export async function checkRateLimit(
   const windowStart = new Date(now.getTime() - windowMs);
 
   try {
-    // Get recent requests
-    const recentRequests = await db('rate_limit')
+    // Get or create window
+    const windowEnd = new Date(Math.ceil(now.getTime() / windowMs) * windowMs);
+    const actualWindowStart = new Date(windowEnd.getTime() - windowMs);
+    
+    let rateLimitRecord = await db('rate_limit')
       .where('identifier', identifier)
-      .where('type', type)
-      .where('created_at', '>=', windowStart)
-      .count('* as count')
+      .where('action', type)
+      .where('window_start', actualWindowStart)
       .first();
 
-    const count = parseInt(recentRequests?.count as string || '0');
+    if (!rateLimitRecord) {
+      // Create new window
+      [rateLimitRecord] = await db('rate_limit')
+        .insert({
+          id: crypto.randomUUID(),
+          identifier,
+          action: type,
+          count: 0,
+          window_start: actualWindowStart,
+          window_end: windowEnd
+        })
+        .returning('*');
+    }
+
+    const count = rateLimitRecord.count;
     const remaining = Math.max(0, limit - count);
-    const resetAt = new Date(windowStart.getTime() + windowMs);
 
     if (count >= limit) {
       return {
@@ -57,23 +72,19 @@ export async function checkRateLimit(
         data: {
           allowed: false,
           remaining: 0,
-          resetAt
+          resetAt: windowEnd
         }
       };
     }
 
-    // Record this request
+    // Increment counter
     await db('rate_limit')
-      .insert({
-        id: crypto.randomUUID(),
-        identifier,
-        type,
-        created_at: now
-      });
+      .where('id', rateLimitRecord.id)
+      .increment('count', 1);
 
-    // Clean old entries (older than 1 hour)
+    // Clean old windows
     await db('rate_limit')
-      .where('created_at', '<', windowStart)
+      .where('window_end', '<', windowStart)
       .delete();
 
     return {
@@ -81,7 +92,7 @@ export async function checkRateLimit(
       data: {
         allowed: true,
         remaining: remaining - 1,
-        resetAt
+        resetAt: windowEnd
       }
     };
   } catch (error: any) {
@@ -109,19 +120,20 @@ export async function getRateLimitStatus(
   const limit = DEFAULT_LIMITS[type];
   const windowMs = 60 * 60 * 1000; // 1 hour
   const now = new Date();
-  const windowStart = new Date(now.getTime() - windowMs);
 
   try {
-    const recentRequests = await db('rate_limit')
+    const windowEnd = new Date(Math.ceil(now.getTime() / windowMs) * windowMs);
+    const actualWindowStart = new Date(windowEnd.getTime() - windowMs);
+    
+    const rateLimitRecord = await db('rate_limit')
       .where('identifier', identifier)
-      .where('type', type)
-      .where('created_at', '>=', windowStart)
-      .count('* as count')
+      .where('action', type)
+      .where('window_start', actualWindowStart)
       .first();
 
-    const used = parseInt(recentRequests?.count as string || '0');
+    const used = rateLimitRecord?.count || 0;
     const remaining = Math.max(0, limit - used);
-    const resetAt = new Date(windowStart.getTime() + windowMs);
+    const resetAt = windowEnd;
 
     return {
       success: true,

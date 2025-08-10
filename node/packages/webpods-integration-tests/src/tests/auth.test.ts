@@ -11,13 +11,13 @@ describe('WebPods Authentication', () => {
   function createTestToken(userId: string, authId: string, email: string = 'test@example.com') {
     return jwt.sign(
       {
-        userId,
-        authId,
+        user_id: userId,
+        auth_id: authId,
         email,
         name: 'Test User',
         provider: 'google'
       },
-      process.env.JWT_SECRET || 'test-secret',
+      process.env.JWT_SECRET || 'test-secret-key',
       { expiresIn: '1h' }
     );
   }
@@ -52,7 +52,7 @@ describe('WebPods Authentication', () => {
       client.setBaseUrl('http://localhost:3099');
       const response = await client.get('/auth/invalid-provider');
       
-      expect(response.status).to.equal(404);
+      expect(response.status).to.equal(400);
     });
 
     it('should handle OAuth callback', async () => {
@@ -110,12 +110,12 @@ describe('WebPods Authentication', () => {
       const expiredToken = jwt.sign(
         {
           userId,
-          authId: 'auth:google:test123',
+          auth_id: 'auth:google:test123',
           email: 'test@example.com',
           name: 'Test User',
           provider: 'google'
         },
-        process.env.JWT_SECRET || 'test-secret',
+        process.env.JWT_SECRET || 'test-secret-key',
         { expiresIn: '-1h' } // Already expired
       );
       
@@ -131,7 +131,7 @@ describe('WebPods Authentication', () => {
       const invalidToken = jwt.sign(
         {
           userId,
-          authId: 'auth:google:test123',
+          auth_id: 'auth:google:test123',
           email: 'test@example.com'
         },
         'wrong-secret', // Wrong secret

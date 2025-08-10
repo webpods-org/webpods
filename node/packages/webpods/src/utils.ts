@@ -81,7 +81,7 @@ export function calculateRecordHash(
  */
 export function extractPodId(hostname: string): string | null {
   // Handle custom domains first (check database)
-  // For now, handle standard format: {pod_id}.webpods.org
+  // For now, handle standard format: {pod_id}.webpods.org or {pod_id}.localhost
   
   const parts = hostname.split('.');
   if (parts.length < 2) return null;
@@ -89,6 +89,14 @@ export function extractPodId(hostname: string): string | null {
   // Check if it's a webpods.org subdomain
   if (parts[parts.length - 2] === 'webpods' && parts[parts.length - 1] === 'org') {
     if (parts.length === 3) {
+      const podId = parts[0]!;
+      return isValidPodId(podId) ? podId : null;
+    }
+  }
+  
+  // Check if it's a localhost subdomain (for testing)
+  if (parts[parts.length - 1] === 'localhost') {
+    if (parts.length === 2) {
       const podId = parts[0]!;
       return isValidPodId(podId) ? podId : null;
     }

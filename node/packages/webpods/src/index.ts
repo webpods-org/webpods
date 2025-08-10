@@ -19,6 +19,7 @@ config();
 const logger = createLogger('webpods');
 const app = express();
 const port = process.env.WEBPODS_PORT || process.env.PORT || 3000;
+const startTime = Date.now();
 
 // Security middleware
 app.use(helmet());
@@ -51,19 +52,18 @@ app.use((req, res, next) => {
   next();
 });
 
+// Helper to check if hostname is main domain
+function isMainDomain(hostname: string): boolean {
+  const domain = process.env.DOMAIN || 'webpods.org';
+  // Check for exact match or localhost (with any port)
+  return hostname === domain || 
+         hostname === 'localhost' || 
+         hostname.startsWith('localhost:') ||
+         hostname === `localhost:${port}`;
+}
+
 // Health check (on main domain)
-app.get('/health', async (req, res) => {
-  // Only allow health check on main domain
-  if (req.hostname !== 'webpods.org' && req.hostname !== 'localhost') {
-    res.status(404).json({ 
-      error: {
-        code: 'NOT_FOUND',
-        message: 'Endpoint not found'
-      }
-    });
-    return;
-  }
-  
+app.get('/health', async (_req, res) => {
   const services: Record<string, string> = {};
   
   // Check database connection
@@ -72,24 +72,34 @@ app.get('/health', async (req, res) => {
   
   res.json({
     status: dbConnected ? 'healthy' : 'degraded',
+    version: process.env.npm_package_version || '0.0.1',
+    uptime: Math.floor((Date.now() - startTime) / 1000),
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
     services
   });
 });
 
-// Route based on hostname
+// Auth routes on main domain only
+app.use('/auth', (req, res, next) => {
+  const hostname = req.hostname || req.headers.host?.split(':')[0] || '';
+  if (isMainDomain(hostname)) {
+    authRouter(req, res, next);
+  } else {
+    next();
+  }
+});
+
+// Route based on hostname for pod operations
 app.use((req, res, next) => {
   const hostname = req.hostname || req.headers.host?.split(':')[0] || '';
   
-  // Auth routes only on main domain
-  if (hostname === 'webpods.org' || hostname === 'localhost') {
-    if (req.path.startsWith('/auth')) {
-      return authRouter(req, res, next);
-    }
+  // Skip main domain (already handled auth above)
+  if (isMainDomain(hostname)) {
+    return next();
   }
   
-  // All other routes go to pod router
+  // All other hostnames (subdomains) go to pod router
   podsRouter(req, res, next);
 });
 

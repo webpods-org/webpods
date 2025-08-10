@@ -40,30 +40,21 @@ export async function extractPod(req: Request, res: Response, next: NextFunction
     }
     
     if (!podId) {
-      res.status(404).json({
-        error: {
-          code: 'POD_NOT_FOUND',
-          message: 'Pod not found'
-        }
-      });
+      // No pod found - just continue without setting pod
+      next();
       return;
     }
     
-    // Get the pod
+    // Store the pod_id even if pod doesn't exist yet
+    req.pod_id = podId;
+    
+    // Try to get the pod (may not exist yet)
     const podResult = await getPod(db, podId);
     
-    if (!podResult.success) {
-      res.status(404).json({
-        error: {
-          code: 'POD_NOT_FOUND',
-          message: 'Pod not found'
-        }
-      });
-      return;
+    if (podResult.success) {
+      req.pod = podResult.data;
     }
-    
-    req.pod = podResult.data;
-    req.pod_id = podId;
+    // If pod doesn't exist, it will be created on first write
     
     logger.debug('Pod extracted', { podId, hostname });
     next();

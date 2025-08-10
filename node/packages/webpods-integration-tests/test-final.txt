@@ -14,36 +14,36 @@
       3) should handle OAuth callback
     JWT Authentication
       4) should reject requests without auth token to write operations
-      5) should accept requests with valid auth token
-      6) should reject expired JWT token
-      7) should reject invalid JWT signature
-      8) should reject malformed JWT token
+      ✔ should accept requests with valid auth token
+      5) should reject expired JWT token
+      6) should reject invalid JWT signature
+      7) should reject malformed JWT token
     Public vs Authenticated Access
-      9) should allow anonymous read on public streams
-      10) should require auth for write on public streams
-      11) should track author correctly
+      8) should allow anonymous read on public streams
+      9) should require auth for write on public streams
+      ✔ should track author correctly
     Bearer Token Format
-      12) should accept Bearer token in Authorization header
-      13) should accept token without Bearer prefix
-      14) should reject other auth schemes
+      10) should accept Bearer token in Authorization header
+      11) should accept token without Bearer prefix
+      12) should reject other auth schemes
     Cross-Pod Authentication
-      15) should use same auth token across different pods
+      13) should use same auth token across different pods
     User Metadata
       ✔ should store user metadata from OAuth
       ✔ should handle users from different OAuth providers
 
   WebPods Health Checks
     Main Domain Health
-      16) should return healthy status
+      14) should return healthy status
       ✔ should include service statuses
-      17) should include uptime information
+      15) should include uptime information
       ✔ should return proper content type
     Database Health
       ✔ should detect database connection
       ✔ should report database version
     Pod Subdomain Health
-      18) should handle health checks on pod subdomains
-      19) should verify wildcard subdomain routing works
+      16) should handle health checks on pod subdomains
+      17) should verify wildcard subdomain routing works
     Readiness Check
       ✔ should have a readiness endpoint
     Liveness Check
@@ -62,89 +62,89 @@
 
   WebPods Permissions
     Private Streams
-      20) should only allow creator to read private stream
-      21) should only allow creator to write to private stream
+      18) should only allow creator to read private stream
+      19) should only allow creator to write to private stream
     Public Streams
-      22) should allow anyone to read public stream
-      23) should allow any authenticated user to write to public stream
+      20) should allow anyone to read public stream
+      21) should allow any authenticated user to write to public stream
     Permission Streams (Allow/Deny Lists)
-      24) should support allow lists for reading
-      25) should support deny lists for writing
-      26) should support multiple permission streams
+      22) should support allow lists for reading
+      23) should support deny lists for writing
+      24) should support multiple permission streams
     Pod Ownership
-      27) should transfer pod ownership via .meta/owner
-      28) should only allow current owner to transfer ownership
+      25) should transfer pod ownership via .meta/owner
+      ✔ should only allow current owner to transfer ownership
     Stream Permission Updates
-      29) should allow creator to update stream permissions
+      26) should allow creator to update stream permissions
     Complex Permission Scenarios
-      30) should handle nested stream paths with permissions
-      31) should respect permissions on aliased content
-      32) should handle permission stream updates correctly
+      27) should handle nested stream paths with permissions
+      28) should respect permissions on aliased content
+      29) should handle permission stream updates correctly
 
   WebPods Rate Limiting
     Write Rate Limits
-      33) should track write rate limits per user
-      34) should track pod creation rate limits separately
-      35) should track stream creation rate limits
-      36) should not count writes to existing streams as stream creation
+      30) should track write rate limits per user
+      31) should track pod creation rate limits separately
+      32) should track stream creation rate limits
+      33) should not count writes to existing streams as stream creation
     Read Rate Limits
-      37) should track read rate limits separately from writes
-      38) should track anonymous read rate limits by IP
+      34) should track read rate limits separately from writes
+      35) should track anonymous read rate limits by IP
     Rate Limit Windows
-      39) should use hourly windows for rate limiting
-      40) should reset count when window expires
-      41) should clean up old rate limit windows
+      36) should use hourly windows for rate limiting
+      37) should reset count when window expires
+      38) should clean up old rate limit windows
     Rate Limit Headers
-      42) should return rate limit headers in responses
-      43) should decrease remaining count with each request
+      39) should return rate limit headers in responses
+      40) should decrease remaining count with each request
     Rate Limit Enforcement
-      44) should return 429 when rate limit is exceeded
-      45) should allow requests from different users independently
+      41) should return 429 when rate limit is exceeded
+      42) should allow requests from different users independently
     Different Rate Limits by Action
-      46) should apply different limits for different actions
+      43) should apply different limits for different actions
 
   WebPods Stream Operations
     Pod and Stream Creation
-      47) should create pod and stream on first write
-      48) should support nested stream paths
-      49) should set custom permissions on stream creation
+      44) should create pod and stream on first write
+      ✔ should support nested stream paths
+      45) should set custom permissions on stream creation
     Writing Records
-      50) should write string content
-      51) should write JSON content
-      52) should respect X-Content-Type header
-      53) should maintain hash chain
-      54) should support aliases (including numeric)
-      55) should reject duplicate aliases
+      ✔ should write string content
+      ✔ should write JSON content
+      46) should respect X-Content-Type header
+      47) should maintain hash chain
+      48) should support aliases (including numeric)
+      49) should reject duplicate aliases
     Reading Records
-      56) should get record by positive index
-      57) should get record by negative index
-      58) should get range of records
-      59) should get record by string alias
-      60) should get record by numeric alias
-      61) should list all records with pagination
-      62) should return raw content with metadata in headers
+      50) should get record by positive index
+      51) should get record by negative index
+      52) should get range of records
+      53) should get record by string alias
+      54) should get record by numeric alias
+      55) should list all records with pagination
+      56) should return raw content with metadata in headers
     System Streams (.meta/)
-      63) should create .meta/owner stream on pod creation
-      64) should list streams via .meta/streams
-      65) should update .meta/links for URL routing
-      66) should only allow owner to write to .meta/ streams
+      57) should create .meta/owner stream on pod creation
+      58) should list streams via .meta/streams
+      59) should update .meta/links for URL routing
+      ✔ should only allow owner to write to .meta/ streams
     Permissions
-      67) should enforce private read permissions
-      68) should support permission streams (allow lists)
+      60) should enforce private read permissions
+      61) should support permission streams (allow lists)
     Stream Deletion
-      69) should delete stream and all records
-      70) should prevent deletion of system streams
-      71) should only allow creator to delete stream
+      62) should delete stream and all records
+      63) should prevent deletion of system streams
+      64) should only allow creator to delete stream
     Content Types and Serving
-      72) should serve HTML directly with correct content type
-      73) should serve CSS with correct content type
-      74) should serve JSON with correct content type
+      65) should serve HTML directly with correct content type
+      66) should serve CSS with correct content type
+      67) should serve JSON with correct content type
 
 🛑 Shutting down WebPods integration tests...
 ✅ WebPods integration test teardown complete
 
-  16 passing (43s)
-  74 failing
+  23 passing (45s)
+  67 failing
 
   1) WebPods Authentication
        OAuth Endpoints
@@ -176,19 +176,6 @@
 
   5) WebPods Authentication
        JWT Authentication
-         should accept requests with valid auth token:
-
-      AssertionError: expected 401 to equal 201
-      + expected - actual
-
-      -401
-      +201
-      
-      at Context.<anonymous> (src/tests/auth.test.ts:104:34)
-      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
-
-  6) WebPods Authentication
-       JWT Authentication
          should reject expired JWT token:
 
       AssertionError: expected 400 to equal 401
@@ -200,7 +187,7 @@
       at Context.<anonymous> (src/tests/auth.test.ts:126:34)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  7) WebPods Authentication
+  6) WebPods Authentication
        JWT Authentication
          should reject invalid JWT signature:
 
@@ -213,7 +200,7 @@
       at Context.<anonymous> (src/tests/auth.test.ts:145:34)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  8) WebPods Authentication
+  7) WebPods Authentication
        JWT Authentication
          should reject malformed JWT token:
 
@@ -226,7 +213,7 @@
       at Context.<anonymous> (src/tests/auth.test.ts:154:34)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  9) WebPods Authentication
+  8) WebPods Authentication
        Public vs Authenticated Access
          should allow anonymous read on public streams:
 
@@ -239,7 +226,7 @@
       at Context.<anonymous> (src/tests/auth.test.ts:184:34)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  10) WebPods Authentication
+  9) WebPods Authentication
        Public vs Authenticated Access
          should require auth for write on public streams:
 
@@ -252,20 +239,7 @@
       at Context.<anonymous> (src/tests/auth.test.ts:192:34)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  11) WebPods Authentication
-       Public vs Authenticated Access
-         should track author correctly:
-
-      AssertionError: expected 401 to equal 201
-      + expected - actual
-
-      -401
-      +201
-      
-      at Context.<anonymous> (src/tests/auth.test.ts:203:34)
-      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
-
-  12) WebPods Authentication
+  10) WebPods Authentication
        Bearer Token Format
          should accept Bearer token in Authorization header:
 
@@ -278,7 +252,7 @@
       at Context.<anonymous> (src/tests/auth.test.ts:244:34)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  13) WebPods Authentication
+  11) WebPods Authentication
        Bearer Token Format
          should accept token without Bearer prefix:
 
@@ -291,7 +265,7 @@
       at Context.<anonymous> (src/tests/auth.test.ts:254:34)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  14) WebPods Authentication
+  12) WebPods Authentication
        Bearer Token Format
          should reject other auth schemes:
 
@@ -304,7 +278,7 @@
       at Context.<anonymous> (src/tests/auth.test.ts:264:34)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  15) WebPods Authentication
+  13) WebPods Authentication
        Cross-Pod Authentication
          should use same auth token across different pods:
 
@@ -317,35 +291,35 @@
       at Context.<anonymous> (src/tests/auth.test.ts:292:35)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  16) WebPods Health Checks
+  14) WebPods Health Checks
        Main Domain Health
          should return healthy status:
      AssertionError: expected { status: 'healthy', …(3) } to have property 'version'
       at Context.<anonymous> (src/tests/health.test.ts:19:37)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  17) WebPods Health Checks
+  15) WebPods Health Checks
        Main Domain Health
          should include uptime information:
      AssertionError: expected { status: 'healthy', …(3) } to have property 'uptime'
       at Context.<anonymous> (src/tests/health.test.ts:41:37)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  18) WebPods Health Checks
+  16) WebPods Health Checks
        Pod Subdomain Health
          should handle health checks on pod subdomains:
      AssertionError: expected 200 to be one of [ 404, 302 ]
       at Context.<anonymous> (src/tests/health.test.ts:84:37)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  19) WebPods Health Checks
+  17) WebPods Health Checks
        Pod Subdomain Health
          should verify wildcard subdomain routing works:
      ReferenceError: require is not defined
       at Context.<anonymous> (src/tests/health.test.ts:101:19)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  20) WebPods Permissions
+  18) WebPods Permissions
        Private Streams
          should only allow creator to read private stream:
 
@@ -355,10 +329,10 @@
       -404
       +200
       
-      at Context.<anonymous> (src/tests/permissions.test.ts:64:35)
+      at Context.<anonymous> (src/tests/permissions.test.ts:66:35)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  21) WebPods Permissions
+  19) WebPods Permissions
        Private Streams
          should only allow creator to write to private stream:
 
@@ -368,10 +342,10 @@
       -400
       +403
       
-      at Context.<anonymous> (src/tests/permissions.test.ts:87:34)
+      at Context.<anonymous> (src/tests/permissions.test.ts:89:34)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  22) WebPods Permissions
+  20) WebPods Permissions
        Public Streams
          should allow anyone to read public stream:
 
@@ -381,10 +355,10 @@
       -404
       +200
       
-      at Context.<anonymous> (src/tests/permissions.test.ts:107:35)
+      at Context.<anonymous> (src/tests/permissions.test.ts:109:35)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  23) WebPods Permissions
+  21) WebPods Permissions
        Public Streams
          should allow any authenticated user to write to public stream:
 
@@ -394,57 +368,62 @@
       -400
       +201
       
-      at Context.<anonymous> (src/tests/permissions.test.ts:123:34)
+      at Context.<anonymous> (src/tests/permissions.test.ts:125:34)
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+
+  22) WebPods Permissions
+       Permission Streams (Allow/Deny Lists)
+         should support allow lists for reading:
+
+      AssertionError: expected 404 to equal 200
+      + expected - actual
+
+      -404
+      +200
+      
+      at Context.<anonymous> (src/tests/permissions.test.ts:155:35)
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+
+  23) WebPods Permissions
+       Permission Streams (Allow/Deny Lists)
+         should support deny lists for writing:
+
+      AssertionError: expected 400 to equal 403
+      + expected - actual
+
+      -400
+      +403
+      
+      at Context.<anonymous> (src/tests/permissions.test.ts:184:34)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
   24) WebPods Permissions
        Permission Streams (Allow/Deny Lists)
-         should support allow lists for reading:
-     ReferenceError: user2 is not defined
-      at Context.<anonymous> (src/tests/permissions.test.ts:142:13)
-      at process.processImmediate (node:internal/timers:505:21)
+         should support multiple permission streams:
+
+      AssertionError: expected 404 to equal 200
+      + expected - actual
+
+      -404
+      +200
+      
+      at Context.<anonymous> (src/tests/permissions.test.ts:223:34)
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
   25) WebPods Permissions
-       Permission Streams (Allow/Deny Lists)
-         should support deny lists for writing:
-     ReferenceError: user2 is not defined
-      at Context.<anonymous> (src/tests/permissions.test.ts:171:13)
-      at process.processImmediate (node:internal/timers:505:21)
-
-  26) WebPods Permissions
-       Permission Streams (Allow/Deny Lists)
-         should support multiple permission streams:
-     ReferenceError: user2 is not defined
-      at Context.<anonymous> (src/tests/permissions.test.ts:203:13)
-      at process.processImmediate (node:internal/timers:505:21)
-
-  27) WebPods Permissions
        Pod Ownership
          should transfer pod ownership via .meta/owner:
 
-      AssertionError: expected 401 to equal 201
+      AssertionError: expected 403 to equal 201
       + expected - actual
 
-      -401
+      -403
       +201
       
-      at Context.<anonymous> (src/tests/permissions.test.ts:233:34)
+      at Context.<anonymous> (src/tests/permissions.test.ts:235:34)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  28) WebPods Permissions
-       Pod Ownership
-         should only allow current owner to transfer ownership:
-
-      AssertionError: expected 401 to equal 403
-      + expected - actual
-
-      -401
-      +403
-      
-      at Context.<anonymous> (src/tests/permissions.test.ts:254:34)
-      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
-
-  29) WebPods Permissions
+  26) WebPods Permissions
        Stream Permission Updates
          should allow creator to update stream permissions:
 
@@ -454,10 +433,10 @@
       -400
       +201
       
-      at Context.<anonymous> (src/tests/permissions.test.ts:267:34)
+      at Context.<anonymous> (src/tests/permissions.test.ts:269:34)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  30) WebPods Permissions
+  27) WebPods Permissions
        Complex Permission Scenarios
          should handle nested stream paths with permissions:
 
@@ -467,10 +446,10 @@
       -404
       +403
       
-      at Context.<anonymous> (src/tests/permissions.test.ts:295:35)
+      at Context.<anonymous> (src/tests/permissions.test.ts:297:35)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  31) WebPods Permissions
+  28) WebPods Permissions
        Complex Permission Scenarios
          should respect permissions on aliased content:
 
@@ -480,66 +459,72 @@
       -404
       +403
       
-      at Context.<anonymous> (src/tests/permissions.test.ts:311:34)
+      at Context.<anonymous> (src/tests/permissions.test.ts:313:34)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  32) WebPods Permissions
+  29) WebPods Permissions
        Complex Permission Scenarios
          should handle permission stream updates correctly:
-     ReferenceError: user2 is not defined
-      at Context.<anonymous> (src/tests/permissions.test.ts:325:13)
-      at process.processImmediate (node:internal/timers:505:21)
 
-  33) WebPods Rate Limiting
+      AssertionError: expected 404 to equal 200
+      + expected - actual
+
+      -404
+      +200
+      
+      at Context.<anonymous> (src/tests/permissions.test.ts:338:34)
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+
+  30) WebPods Rate Limiting
        Write Rate Limits
          should track write rate limits per user:
      AssertionError: expected undefined to exist
-      at Context.<anonymous> (src/tests/rate-limit.test.ts:50:27)
+      at Context.<anonymous> (src/tests/rate-limit.test.ts:52:27)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  34) WebPods Rate Limiting
+  31) WebPods Rate Limiting
        Write Rate Limits
          should track pod creation rate limits separately:
      AssertionError: expected undefined to exist
-      at Context.<anonymous> (src/tests/rate-limit.test.ts:70:26)
+      at Context.<anonymous> (src/tests/rate-limit.test.ts:72:26)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  35) WebPods Rate Limiting
+  32) WebPods Rate Limiting
        Write Rate Limits
          should track stream creation rate limits:
      AssertionError: expected undefined to exist
-      at Context.<anonymous> (src/tests/rate-limit.test.ts:87:29)
+      at Context.<anonymous> (src/tests/rate-limit.test.ts:89:29)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  36) WebPods Rate Limiting
+  33) WebPods Rate Limiting
        Write Rate Limits
          should not count writes to existing streams as stream creation:
      TypeError: Cannot read properties of undefined (reading 'count')
-      at Context.<anonymous> (src/tests/rate-limit.test.ts:106:26)
+      at Context.<anonymous> (src/tests/rate-limit.test.ts:108:26)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  37) WebPods Rate Limiting
+  34) WebPods Rate Limiting
        Read Rate Limits
          should track read rate limits separately from writes:
      TypeError: Cannot read properties of undefined (reading 'count')
-      at Context.<anonymous> (src/tests/rate-limit.test.ts:142:25)
+      at Context.<anonymous> (src/tests/rate-limit.test.ts:144:25)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  38) WebPods Rate Limiting
+  35) WebPods Rate Limiting
        Read Rate Limits
          should track anonymous read rate limits by IP:
      AssertionError: expected undefined to exist
-      at Context.<anonymous> (src/tests/rate-limit.test.ts:161:25)
+      at Context.<anonymous> (src/tests/rate-limit.test.ts:163:25)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  39) WebPods Rate Limiting
+  36) WebPods Rate Limiting
        Rate Limit Windows
          should use hourly windows for rate limiting:
      TypeError: Cannot read properties of undefined (reading 'window_start')
-      at Context.<anonymous> (src/tests/rate-limit.test.ts:179:46)
+      at Context.<anonymous> (src/tests/rate-limit.test.ts:181:46)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  40) WebPods Rate Limiting
+  37) WebPods Rate Limiting
        Rate Limit Windows
          should reset count when window expires:
 
@@ -549,10 +534,10 @@
       -400
       +201
       
-      at Context.<anonymous> (src/tests/rate-limit.test.ts:203:34)
+      at Context.<anonymous> (src/tests/rate-limit.test.ts:205:34)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  41) WebPods Rate Limiting
+  38) WebPods Rate Limiting
        Rate Limit Windows
          should clean up old rate limit windows:
 
@@ -562,17 +547,17 @@
       -2
       +0
       
-      at Context.<anonymous> (src/tests/rate-limit.test.ts:247:58)
+      at Context.<anonymous> (src/tests/rate-limit.test.ts:249:58)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  42) WebPods Rate Limiting
+  39) WebPods Rate Limiting
        Rate Limit Headers
          should return rate limit headers in responses:
      AssertionError: expected AxiosHeaders{ …(20) } to have property 'x-ratelimit-limit'
-      at Context.<anonymous> (src/tests/rate-limit.test.ts:255:40)
+      at Context.<anonymous> (src/tests/rate-limit.test.ts:257:40)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  43) WebPods Rate Limiting
+  40) WebPods Rate Limiting
        Rate Limit Headers
          should decrease remaining count with each request:
 
@@ -580,10 +565,10 @@
       + expected - actual
 
 
-      at Context.<anonymous> (src/tests/rate-limit.test.ts:273:29)
+      at Context.<anonymous> (src/tests/rate-limit.test.ts:275:29)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  44) WebPods Rate Limiting
+  41) WebPods Rate Limiting
        Rate Limit Enforcement
          should return 429 when rate limit is exceeded:
 
@@ -593,10 +578,10 @@
       -400
       +429
       
-      at Context.<anonymous> (src/tests/rate-limit.test.ts:294:34)
+      at Context.<anonymous> (src/tests/rate-limit.test.ts:296:34)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  45) WebPods Rate Limiting
+  42) WebPods Rate Limiting
        Rate Limit Enforcement
          should allow requests from different users independently:
 
@@ -606,10 +591,10 @@
       -400
       +429
       
-      at Context.<anonymous> (src/tests/rate-limit.test.ts:331:35)
+      at Context.<anonymous> (src/tests/rate-limit.test.ts:333:35)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  46) WebPods Rate Limiting
+  43) WebPods Rate Limiting
        Different Rate Limits by Action
          should apply different limits for different actions:
 
@@ -619,75 +604,30 @@
       -400
       +201
       
-      at Context.<anonymous> (src/tests/rate-limit.test.ts:368:39)
+      at Context.<anonymous> (src/tests/rate-limit.test.ts:370:39)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  47) WebPods Stream Operations
+  44) WebPods Stream Operations
        Pod and Stream Creation
          should create pod and stream on first write:
-
-      AssertionError: expected 401 to equal 201
-      + expected - actual
-
-      -401
-      +201
-      
-      at Context.<anonymous> (src/tests/streams.test.ts:46:34)
+     AssertionError: expected { sequence_num: +0, …(7) } to have property 'content' of 'Hello WebPods!', but got { content: 'Hello WebPods!' }
+      at Context.<anonymous> (src/tests/streams.test.ts:48:37)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  48) WebPods Stream Operations
-       Pod and Stream Creation
-         should support nested stream paths:
-
-      AssertionError: expected 401 to equal 201
-      + expected - actual
-
-      -401
-      +201
-      
-      at Context.<anonymous> (src/tests/streams.test.ts:73:34)
-      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
-
-  49) WebPods Stream Operations
+  45) WebPods Stream Operations
        Pod and Stream Creation
          should set custom permissions on stream creation:
 
-      AssertionError: expected 401 to equal 201
+      AssertionError: expected 403 to equal 201
       + expected - actual
 
-      -401
+      -403
       +201
       
       at Context.<anonymous> (src/tests/streams.test.ts:91:34)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  50) WebPods Stream Operations
-       Writing Records
-         should write string content:
-
-      AssertionError: expected 400 to equal 201
-      + expected - actual
-
-      -400
-      +201
-      
-      at Context.<anonymous> (src/tests/streams.test.ts:115:34)
-      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
-
-  51) WebPods Stream Operations
-       Writing Records
-         should write JSON content:
-
-      AssertionError: expected 401 to equal 201
-      + expected - actual
-
-      -401
-      +201
-      
-      at Context.<anonymous> (src/tests/streams.test.ts:125:34)
-      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
-
-  52) WebPods Stream Operations
+  46) WebPods Stream Operations
        Writing Records
          should respect X-Content-Type header:
 
@@ -697,17 +637,17 @@
       -400
       +201
       
-      at Context.<anonymous> (src/tests/streams.test.ts:135:34)
+      at Context.<anonymous> (src/tests/streams.test.ts:134:34)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  53) WebPods Stream Operations
+  47) WebPods Stream Operations
        Writing Records
          should maintain hash chain:
      AssertionError: expected undefined to be null
-      at Context.<anonymous> (src/tests/streams.test.ts:144:49)
+      at Context.<anonymous> (src/tests/streams.test.ts:143:49)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  54) WebPods Stream Operations
+  48) WebPods Stream Operations
        Writing Records
          should support aliases (including numeric):
 
@@ -717,10 +657,10 @@
       -400
       +201
       
-      at Context.<anonymous> (src/tests/streams.test.ts:155:35)
+      at Context.<anonymous> (src/tests/streams.test.ts:154:35)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  55) WebPods Stream Operations
+  49) WebPods Stream Operations
        Writing Records
          should reject duplicate aliases:
 
@@ -730,49 +670,37 @@
       -400
       +409
       
-      at Context.<anonymous> (src/tests/streams.test.ts:173:34)
+      at Context.<anonymous> (src/tests/streams.test.ts:172:34)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  56) WebPods Stream Operations
+  50) WebPods Stream Operations
        Reading Records
          should get record by positive index:
-
-      AssertionError: expected 404 to equal 200
-      + expected - actual
-
-      -404
-      +200
-      
-      at Context.<anonymous> (src/tests/streams.test.ts:190:34)
+     AssertionError: expected { data: 'Second' } to equal 'First'
+      at Context.<anonymous> (src/tests/streams.test.ts:190:32)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  57) WebPods Stream Operations
+  51) WebPods Stream Operations
        Reading Records
          should get record by negative index:
-
-      AssertionError: expected 404 to equal 200
-      + expected - actual
-
-      -404
-      +200
-      
-      at Context.<anonymous> (src/tests/streams.test.ts:200:34)
+     AssertionError: expected { data: 'Second' } to equal 'Year 2024'
+      at Context.<anonymous> (src/tests/streams.test.ts:200:32)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  58) WebPods Stream Operations
+  52) WebPods Stream Operations
        Reading Records
          should get range of records:
 
-      AssertionError: expected 404 to equal 200
+      AssertionError: expected [ { sequence_num: +0, …(7) } ] to have a length of 3 but got 1
       + expected - actual
 
-      -404
-      +200
+      -1
+      +3
       
-      at Context.<anonymous> (src/tests/streams.test.ts:210:34)
+      at Context.<anonymous> (src/tests/streams.test.ts:210:45)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  59) WebPods Stream Operations
+  53) WebPods Stream Operations
        Reading Records
          should get record by string alias:
 
@@ -782,10 +710,10 @@
       -404
       +200
       
-      at Context.<anonymous> (src/tests/streams.test.ts:218:34)
+      at Context.<anonymous> (src/tests/streams.test.ts:217:34)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  60) WebPods Stream Operations
+  54) WebPods Stream Operations
        Reading Records
          should get record by numeric alias:
 
@@ -795,23 +723,23 @@
       -404
       +200
       
-      at Context.<anonymous> (src/tests/streams.test.ts:224:34)
+      at Context.<anonymous> (src/tests/streams.test.ts:223:34)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  61) WebPods Stream Operations
+  55) WebPods Stream Operations
        Reading Records
          should list all records with pagination:
 
-      AssertionError: expected 404 to equal 200
+      AssertionError: expected [ { sequence_num: +0, …(7) } ] to have a length of 2 but got 1
       + expected - actual
 
-      -404
-      +200
+      -1
+      +2
       
-      at Context.<anonymous> (src/tests/streams.test.ts:230:34)
+      at Context.<anonymous> (src/tests/streams.test.ts:230:45)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  62) WebPods Stream Operations
+  56) WebPods Stream Operations
        Reading Records
          should return raw content with metadata in headers:
 
@@ -821,17 +749,17 @@
       -application/json; charset=utf-8
       +text/plain
       
-      at Context.<anonymous> (src/tests/streams.test.ts:242:51)
+      at Context.<anonymous> (src/tests/streams.test.ts:241:51)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  63) WebPods Stream Operations
+  57) WebPods Stream Operations
        System Streams (.meta/)
          should create .meta/owner stream on pod creation:
      TypeError: Cannot read properties of undefined (reading 'id')
-      at Context.<anonymous> (src/tests/streams.test.ts:256:30)
+      at Context.<anonymous> (src/tests/streams.test.ts:255:30)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  64) WebPods Stream Operations
+  58) WebPods Stream Operations
        System Streams (.meta/)
          should list streams via .meta/streams:
 
@@ -841,36 +769,23 @@
       -404
       +200
       
-      at Context.<anonymous> (src/tests/streams.test.ts:279:34)
+      at Context.<anonymous> (src/tests/streams.test.ts:278:34)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  65) WebPods Stream Operations
+  59) WebPods Stream Operations
        System Streams (.meta/)
          should update .meta/links for URL routing:
 
-      AssertionError: expected 401 to equal 201
+      AssertionError: expected 403 to equal 201
       + expected - actual
 
-      -401
+      -403
       +201
       
-      at Context.<anonymous> (src/tests/streams.test.ts:302:34)
+      at Context.<anonymous> (src/tests/streams.test.ts:301:34)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  66) WebPods Stream Operations
-       System Streams (.meta/)
-         should only allow owner to write to .meta/ streams:
-
-      AssertionError: expected 401 to equal 403
-      + expected - actual
-
-      -401
-      +403
-      
-      at Context.<anonymous> (src/tests/streams.test.ts:340:34)
-      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
-
-  67) WebPods Stream Operations
+  60) WebPods Stream Operations
        Permissions
          should enforce private read permissions:
 
@@ -880,93 +795,138 @@
       -404
       +200
       
-      at Context.<anonymous> (src/tests/streams.test.ts:351:35)
+      at Context.<anonymous> (src/tests/streams.test.ts:350:35)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  68) WebPods Stream Operations
+  61) WebPods Stream Operations
        Permissions
          should support permission streams (allow lists):
-     TypeError: Cannot read properties of undefined (reading 'id')
-      at Context.<anonymous> (src/tests/streams.test.ts:374:30)
+     TypeError: Cannot read properties of undefined (reading 'read_permission')
+      at Context.<anonymous> (src/tests/streams.test.ts:376:21)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 
-  69) WebPods Stream Operations
+  62) WebPods Stream Operations
        Stream Deletion
          should delete stream and all records:
-
-      AssertionError: expected 401 to equal 204
-      + expected - actual
-
-      -401
-      +204
-      
-      at Context.<anonymous> (src/tests/streams.test.ts:388:34)
+     Error: socket hang up
+      at AxiosError.from (file:///home/jester/repos/webpods-org/webpods/node/packages/webpods-test-utils/node_modules/axios/lib/core/AxiosError.js:92:14)
+      at RedirectableRequest.handleRequestError (file:///home/jester/repos/webpods-org/webpods/node/packages/webpods-test-utils/node_modules/axios/lib/adapters/http.js:620:25)
+      at RedirectableRequest.emit (node:events:507:28)
+      at eventHandlers.<computed> (/home/jester/repos/webpods-org/webpods/node/packages/webpods-test-utils/node_modules/follow-redirects/index.js:49:24)
+      at ClientRequest.emit (node:events:507:28)
+      at emitErrorEvent (node:_http_client:106:11)
+      at Socket.socketOnEnd (node:_http_client:598:5)
+      at Socket.emit (node:events:519:35)
+      at endReadableNT (node:internal/streams/readable:1701:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+      at Axios.request (file:///home/jester/repos/webpods-org/webpods/node/packages/webpods-test-utils/node_modules/axios/lib/core/Axios.js:45:41)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+      at async Context.<anonymous> (src/tests/streams.test.ts:386:24)
+     Caused by: Error: socket hang up
+      at Socket.socketOnEnd (node:_http_client:598:25)
+      at Socket.emit (node:events:519:35)
+      at endReadableNT (node:internal/streams/readable:1701:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
 
-  70) WebPods Stream Operations
+  63) WebPods Stream Operations
        Stream Deletion
          should prevent deletion of system streams:
-
-      AssertionError: expected 401 to equal 403
-      + expected - actual
-
-      -401
-      +403
-      
-      at Context.<anonymous> (src/tests/streams.test.ts:399:34)
+     
+  AggregateError
+      at AxiosError.from (file:///home/jester/repos/webpods-org/webpods/node/packages/webpods-test-utils/node_modules/axios/lib/core/AxiosError.js:92:14)
+      at RedirectableRequest.handleRequestError (file:///home/jester/repos/webpods-org/webpods/node/packages/webpods-test-utils/node_modules/axios/lib/adapters/http.js:620:25)
+      at RedirectableRequest.emit (node:events:507:28)
+      at eventHandlers.<computed> (/home/jester/repos/webpods-org/webpods/node/packages/webpods-test-utils/node_modules/follow-redirects/index.js:49:24)
+      at ClientRequest.emit (node:events:507:28)
+      at emitErrorEvent (node:_http_client:106:11)
+      at Socket.socketErrorListener (node:_http_client:574:5)
+      at Socket.emit (node:events:507:28)
+      at emitErrorNT (node:internal/streams/destroy:170:8)
+      at emitErrorCloseNT (node:internal/streams/destroy:129:3)
+      at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+      at Axios.request (file:///home/jester/repos/webpods-org/webpods/node/packages/webpods-test-utils/node_modules/axios/lib/core/Axios.js:45:41)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+      at async Context.<anonymous> (src/tests/streams.test.ts:395:7)
 
-  71) WebPods Stream Operations
+  64) WebPods Stream Operations
        Stream Deletion
          should only allow creator to delete stream:
-
-      AssertionError: expected 401 to equal 403
-      + expected - actual
-
-      -401
-      +403
-      
-      at Context.<anonymous> (src/tests/streams.test.ts:424:34)
+     
+  AggregateError
+      at AxiosError.from (file:///home/jester/repos/webpods-org/webpods/node/packages/webpods-test-utils/node_modules/axios/lib/core/AxiosError.js:92:14)
+      at RedirectableRequest.handleRequestError (file:///home/jester/repos/webpods-org/webpods/node/packages/webpods-test-utils/node_modules/axios/lib/adapters/http.js:620:25)
+      at RedirectableRequest.emit (node:events:507:28)
+      at eventHandlers.<computed> (/home/jester/repos/webpods-org/webpods/node/packages/webpods-test-utils/node_modules/follow-redirects/index.js:49:24)
+      at ClientRequest.emit (node:events:507:28)
+      at emitErrorEvent (node:_http_client:106:11)
+      at Socket.socketErrorListener (node:_http_client:574:5)
+      at Socket.emit (node:events:507:28)
+      at emitErrorNT (node:internal/streams/destroy:170:8)
+      at emitErrorCloseNT (node:internal/streams/destroy:129:3)
+      at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+      at Axios.request (file:///home/jester/repos/webpods-org/webpods/node/packages/webpods-test-utils/node_modules/axios/lib/core/Axios.js:45:41)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+      at async Context.<anonymous> (src/tests/streams.test.ts:403:7)
 
-  72) WebPods Stream Operations
+  65) WebPods Stream Operations
        Content Types and Serving
          should serve HTML directly with correct content type:
-
-      AssertionError: expected 404 to equal 200
-      + expected - actual
-
-      -404
-      +200
-      
-      at Context.<anonymous> (src/tests/streams.test.ts:436:34)
+     
+  AggregateError
+      at AxiosError.from (file:///home/jester/repos/webpods-org/webpods/node/packages/webpods-test-utils/node_modules/axios/lib/core/AxiosError.js:92:14)
+      at RedirectableRequest.handleRequestError (file:///home/jester/repos/webpods-org/webpods/node/packages/webpods-test-utils/node_modules/axios/lib/adapters/http.js:620:25)
+      at RedirectableRequest.emit (node:events:507:28)
+      at eventHandlers.<computed> (/home/jester/repos/webpods-org/webpods/node/packages/webpods-test-utils/node_modules/follow-redirects/index.js:49:24)
+      at ClientRequest.emit (node:events:507:28)
+      at emitErrorEvent (node:_http_client:106:11)
+      at Socket.socketErrorListener (node:_http_client:574:5)
+      at Socket.emit (node:events:507:28)
+      at emitErrorNT (node:internal/streams/destroy:170:8)
+      at emitErrorCloseNT (node:internal/streams/destroy:129:3)
+      at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+      at Axios.request (file:///home/jester/repos/webpods-org/webpods/node/packages/webpods-test-utils/node_modules/axios/lib/core/Axios.js:45:41)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+      at async Context.<anonymous> (src/tests/streams.test.ts:430:7)
 
-  73) WebPods Stream Operations
+  66) WebPods Stream Operations
        Content Types and Serving
          should serve CSS with correct content type:
-
-      AssertionError: expected 'application/json; charset=utf-8' to equal 'text/css'
-      + expected - actual
-
-      -application/json; charset=utf-8
-      +text/css
-      
-      at Context.<anonymous> (src/tests/streams.test.ts:448:51)
+     
+  AggregateError
+      at AxiosError.from (file:///home/jester/repos/webpods-org/webpods/node/packages/webpods-test-utils/node_modules/axios/lib/core/AxiosError.js:92:14)
+      at RedirectableRequest.handleRequestError (file:///home/jester/repos/webpods-org/webpods/node/packages/webpods-test-utils/node_modules/axios/lib/adapters/http.js:620:25)
+      at RedirectableRequest.emit (node:events:507:28)
+      at eventHandlers.<computed> (/home/jester/repos/webpods-org/webpods/node/packages/webpods-test-utils/node_modules/follow-redirects/index.js:49:24)
+      at ClientRequest.emit (node:events:507:28)
+      at emitErrorEvent (node:_http_client:106:11)
+      at Socket.socketErrorListener (node:_http_client:574:5)
+      at Socket.emit (node:events:507:28)
+      at emitErrorNT (node:internal/streams/destroy:170:8)
+      at emitErrorCloseNT (node:internal/streams/destroy:129:3)
+      at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+      at Axios.request (file:///home/jester/repos/webpods-org/webpods/node/packages/webpods-test-utils/node_modules/axios/lib/core/Axios.js:45:41)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+      at async Context.<anonymous> (src/tests/streams.test.ts:442:7)
 
-  74) WebPods Stream Operations
+  67) WebPods Stream Operations
        Content Types and Serving
          should serve JSON with correct content type:
-
-      AssertionError: expected 'application/json; charset=utf-8' to equal 'application/json'
-      + expected - actual
-
-      -application/json; charset=utf-8
-      +application/json
-      
-      at Context.<anonymous> (src/tests/streams.test.ts:457:51)
+     
+  AggregateError
+      at AxiosError.from (file:///home/jester/repos/webpods-org/webpods/node/packages/webpods-test-utils/node_modules/axios/lib/core/AxiosError.js:92:14)
+      at RedirectableRequest.handleRequestError (file:///home/jester/repos/webpods-org/webpods/node/packages/webpods-test-utils/node_modules/axios/lib/adapters/http.js:620:25)
+      at RedirectableRequest.emit (node:events:507:28)
+      at eventHandlers.<computed> (/home/jester/repos/webpods-org/webpods/node/packages/webpods-test-utils/node_modules/follow-redirects/index.js:49:24)
+      at ClientRequest.emit (node:events:507:28)
+      at emitErrorEvent (node:_http_client:106:11)
+      at Socket.socketErrorListener (node:_http_client:574:5)
+      at Socket.emit (node:events:507:28)
+      at emitErrorNT (node:internal/streams/destroy:170:8)
+      at emitErrorCloseNT (node:internal/streams/destroy:129:3)
+      at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+      at Axios.request (file:///home/jester/repos/webpods-org/webpods/node/packages/webpods-test-utils/node_modules/axios/lib/core/Axios.js:45:41)
       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+      at async Context.<anonymous> (src/tests/streams.test.ts:453:7)
 
 
 
