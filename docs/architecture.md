@@ -115,21 +115,29 @@ WebPods is designed as a simple, scalable append-only log service with OAuth aut
 │ provider     │       │
 └──────────────┘       │
                        │ creator_id
-┌──────────────┐       │
-│    queue     │───────┘
+┌──────────────┐
+│     pod      │
 │──────────────│
 │ id (UUID)    │◄──────┐
-│ q_id         │       │
-│ creator_id   │       │
-│ read_perm    │       │
-│ write_perm   │       │
+│ pod_id       │       │
 └──────────────┘       │
-                       │ queue_id
+                       │ pod_id
+┌──────────────┐       │
+│    stream    │───────┤
+│──────────────│       │
+│ id (UUID)    │◄──────┤
+│ pod_id       │       │
+│ stream_id    │       │
+│ creator_id   │───────┘
+│ read_perm    │
+│ write_perm   │
+└──────────────┘       │
+                       │ stream_id
 ┌──────────────┐       │
 │    record    │───────┘
 │──────────────│
 │ id           │
-│ queue_id     │
+│ stream_id    │
 │ sequence_num │
 │ content      │
 │ content_type │

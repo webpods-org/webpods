@@ -12,12 +12,12 @@ This document outlines the coding standards and patterns used throughout the Web
 // ✅ Good - Pure function with explicit dependencies
 export async function writeRecord(
   db: Knex,
-  queueId: string,
+  streamId: string,
   content: any,
   contentType: string,
   authorId: string,
   alias?: string | null
-): Promise<Result<QueueItem>> {
+): Promise<Result<StreamRecord>> {
   // Implementation
 }
 
@@ -44,10 +44,10 @@ export class WebSocketConnection {
 }
 
 // ❌ Bad - Class used unnecessarily for stateless operations
-export class QueueService {
+export class StreamService {
   constructor(private db: Knex) {}
   
-  async writeRecord(queueId: string, content: any): Promise<QueueItem> {
+  async writeRecord(streamId: string, content: any): Promise<StreamRecord> {
     // This doesn't need to be a class
   }
 }
@@ -69,23 +69,23 @@ export type Result<T, E = DomainError> =
   | { success: false; error: E };
 
 // ✅ Good - Using Result type
-export async function findQueue(
+export async function findStream(
   db: Knex,
-  queueId: string
-): Promise<Result<Queue>> {
+  streamId: string
+): Promise<Result<Stream>> {
   try {
-    const queue = await db('queue')
-      .where('q_id', queueId)
+    const stream = await db('stream')
+      .where('stream_id', streamId)
       .first();
     
-    if (!queue) {
+    if (!stream) {
       return failure({
         code: 'NOT_FOUND',
-        message: 'Queue not found'
+        message: 'Stream not found'
       });
     }
     
-    return success(queue);
+    return success(stream);
   } catch (error) {
     return failure({
       code: 'DATABASE_ERROR',
@@ -293,10 +293,10 @@ export function createStreamWithRecord(
 
 ```typescript
 // ✅ Good - Proper error handling and validation
-router.post('/q/:q_id', authenticate, async (req, res) => {
+router.post('/:stream_path(*)', authenticate, async (req, res) => {
   try {
     // Validate input
-    const qId = queueIdSchema.parse(req.params.q_id);
+    const streamPath = streamPathSchema.parse(req.params.stream_path);
     const content = writeSchema.parse(req.body);
     
     // Check rate limit
@@ -339,7 +339,7 @@ router.post('/q/:q_id', authenticate, async (req, res) => {
       return;
     }
     
-    logger.error('Failed to write to queue', { error });
+    logger.error('Failed to write to stream', { error });
     res.status(500).json({ 
       error: {
         code: 'INTERNAL_ERROR',
@@ -356,11 +356,11 @@ Add JSDoc comments for exported functions:
 
 ```typescript
 /**
- * Writes a record to a queue, creating the queue if it doesn't exist.
+ * Writes a record to a stream, creating the stream if it doesn't exist.
  * 
  * @param db - Database connection
  * @param userId - ID of the user writing the record
- * @param queueId - User-defined queue identifier
+ * @param streamId - User-defined stream identifier
  * @param content - Content to write (string or JSON)
  * @param contentType - MIME type of the content
  * @param metadata - Optional metadata for the record
@@ -394,16 +394,16 @@ describe('Stream Operations', () => {
   afterEach(async () => {
     // Cleanup
     await db('record').delete();
-    await db('queue').delete();
+    await db('stream').delete();
     await db('`user`').delete();
   });
   
-  it('should create queue on first write', async () => {
+  it('should create stream on first write', async () => {
     // Act
     const result = await writeRecord(
       db,
       userId,
-      'test-queue',
+      'test-stream',
       { message: 'Hello' }
     );
     
@@ -412,12 +412,12 @@ describe('Stream Operations', () => {
     if (result.success) {
       expect(result.data.content).toEqual({ message: 'Hello' });
       
-      // Verify queue was created
-      const queue = await db('queue')
-        .where('q_id', 'test-queue')
+      // Verify stream was created
+      const stream = await db('stream')
+        .where('stream_id', 'test-stream')
         .first();
-      expect(queue).toBeDefined();
-      expect(queue.creator_id).toBe(userId);
+      expect(stream).toBeDefined();
+      expect(stream.creator_id).toBe(userId);
     }
   });
 });
@@ -431,10 +431,10 @@ Always validate input with Zod:
 ```typescript
 import { z } from 'zod';
 
-const queueIdSchema = z.string()
+const streamPathSchema = z.string()
   .min(1)
   .max(256)
-  .regex(/^[a-zA-Z0-9_-]+$/);
+  .regex(/^[a-zA-Z0-9_\-/.]+$/);
 
 const writeSchema = z.union([
   z.string(),
@@ -443,7 +443,7 @@ const writeSchema = z.union([
 ]);
 
 // Use in routes
-const qId = queueIdSchema.parse(req.params.q_id);
+const streamPath = streamPathSchema.parse(req.params.stream_path);
 const content = writeSchema.parse(req.body);
 ```
 
@@ -510,12 +510,12 @@ Benefits of named parameters:
 ```typescript
 // ✅ Good - Single query for count
 const [{ count }] = await db('record')
-  .where('queue_id', queueId)
+  .where('stream_id', streamId)
   .count('* as count');
 
 // ❌ Bad - Loading all records to count
 const records = await db('record')
-  .where('queue_id', queueId);
+  .where('stream_id', streamId);
 const count = records.length;
 ```
 
@@ -523,7 +523,7 @@ const count = records.length;
 ```typescript
 // ✅ Good - Limit-based pagination
 const records = await db('record')
-  .where('queue_id', queueId)
+  .where('stream_id', streamId)
   .where('sequence_num', '>', after || 0)
   .orderBy('sequence_num', 'asc')
   .limit(limit + 1);  // +1 to check if there are more
