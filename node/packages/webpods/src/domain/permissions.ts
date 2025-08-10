@@ -28,6 +28,39 @@ export function parsePermission(permission: string): { type: 'allow' | 'deny' | 
 }
 
 /**
+ * Check if a user has a record in the permission stream
+ */
+async function hasPermissionRecord(
+  db: Knex,
+  podId: string,
+  streamId: string,
+  authId: string
+): Promise<boolean> {
+  try {
+    const stream = await db('stream')
+      .join('pod', 'pod.id', 'stream.pod_id')
+      .where('pod.pod_id', podId)
+      .where('stream.stream_id', streamId)
+      .select('stream.*')
+      .first();
+    
+    if (!stream) return false;
+    
+    const record = await db('record')
+      .where('stream_id', stream.id)
+      .whereRaw(`content::jsonb->>'id' = ?`, [authId])
+      .orderBy('created_at', 'desc')
+      .select('*')
+      .first();
+    
+    return !!record;
+  } catch (error) {
+    logger.error('Failed to check permission record existence', { error, podId, streamId, authId });
+    return false;
+  }
+}
+
+/**
  * Check if user exists in permission stream
  */
 async function checkPermissionStream(
@@ -38,17 +71,42 @@ async function checkPermissionStream(
   action: 'read' | 'write'
 ): Promise<boolean> {
   try {
-    // Get the latest permission record for this user
-    const record = await db('record')
-      .join('stream', 'stream.id', 'record.stream_id')
+    logger.debug('Checking permission stream', { podId, streamId, authId, action });
+    
+    // First check if the stream exists
+    const stream = await db('stream')
       .join('pod', 'pod.id', 'stream.pod_id')
       .where('pod.pod_id', podId)
       .where('stream.stream_id', streamId)
-      // Don't require stream_type - any stream can hold permissions
-      .whereRaw(`content->>'id' = ?`, [authId])
-      .orderBy('record.created_at', 'desc')
-      .select('record.*')
+      .select('stream.*')
       .first();
+    
+    if (!stream) {
+      logger.warn('Permission stream not found', { podId, streamId });
+      return false;
+    }
+    
+    logger.info('Permission stream found', { 
+      streamId: stream.stream_id, 
+      streamType: stream.stream_type,
+      id: stream.id 
+    });
+    
+    // Get the latest permission record for this user
+    // Note: content is stored as text, need to cast to jsonb for querying
+    const record = await db('record')
+      .where('stream_id', stream.id)
+      .whereRaw(`content::jsonb->>'id' = ?`, [authId])
+      .orderBy('created_at', 'desc')
+      .select('*')
+      .first();
+    
+    logger.info('Permission record query result', { 
+      found: !!record, 
+      authId, 
+      streamId,
+      recordContent: record?.content 
+    });
     
     if (!record) {
       return false;
@@ -59,7 +117,10 @@ async function checkPermissionStream(
       ? JSON.parse(record.content)
       : record.content;
     
-    return permissions[action] === true;
+    const allowed = permissions[action] === true;
+    logger.debug('Permission check result', { authId, action, allowed, permissions });
+    
+    return allowed;
   } catch (error) {
     logger.error('Failed to check permission stream', { error, podId, streamId, authId });
     return false;
@@ -75,6 +136,14 @@ export async function canRead(
   authId: string | null,
   userId?: string | null
 ): Promise<boolean> {
+  logger.info('canRead check', { 
+    streamId: stream.stream_id, 
+    readPermission: stream.read_permission,
+    authId,
+    userId,
+    creatorId: stream.creator_id
+  });
+  
   // Public read access
   if (stream.read_permission === 'public') {
     return true;
@@ -97,6 +166,7 @@ export async function canRead(
   
   // Parse permission
   const perm = parsePermission(stream.read_permission);
+  logger.debug('Parsed permission', { perm, readPermission: stream.read_permission });
   
   if (perm.type === 'allow' && perm.stream) {
     // Get pod for this stream
@@ -117,8 +187,16 @@ export async function canRead(
     
     if (!pod) return false;
     
-    const denied = await checkPermissionStream(db, pod.pod_id, perm.stream, authId, 'read');
-    return !denied;
+    // For deny lists: 
+    // - If user not in list → allow
+    // - If user in list with read:true → allow
+    // - If user in list with read:false → deny
+    const inDenyList = await hasPermissionRecord(db, pod.pod_id, perm.stream, authId);
+    if (!inDenyList) return true; // Not in deny list, allow
+    
+    // User is in deny list, check their permission
+    const hasPermission = await checkPermissionStream(db, pod.pod_id, perm.stream, authId, 'read');
+    return hasPermission; // If they have read:true, allow; if read:false, deny
   }
   
   return false;
@@ -170,8 +248,16 @@ export async function canWrite(
     
     if (!pod) return false;
     
-    const denied = await checkPermissionStream(db, pod.pod_id, perm.stream, authId, 'write');
-    return !denied;
+    // For deny lists: 
+    // - If user not in list → allow
+    // - If user in list with write:true → allow
+    // - If user in list with write:false → deny
+    const inDenyList = await hasPermissionRecord(db, pod.pod_id, perm.stream, authId);
+    if (!inDenyList) return true; // Not in deny list, allow
+    
+    // User is in deny list, check their permission
+    const hasPermission = await checkPermissionStream(db, pod.pod_id, perm.stream, authId, 'write');
+    return hasPermission; // If they have write:true, allow; if write:false, deny
   }
   
   return false;

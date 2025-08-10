@@ -116,6 +116,36 @@ export async function getStream(
 }
 
 /**
+ * Mark a stream as a permission stream
+ */
+export async function markAsPermissionStream(
+  db: Knex,
+  podId: string,
+  streamId: string
+): Promise<Result<void>> {
+  try {
+    await db('stream')
+      .where('pod_id', podId)
+      .where('stream_id', streamId)
+      .update({
+        stream_type: 'permission'
+      });
+    
+    logger.info('Stream marked as permission stream', { podId, streamId });
+    return { success: true, data: undefined };
+  } catch (error: any) {
+    logger.error('Failed to mark stream as permission stream', { error, podId, streamId });
+    return {
+      success: false,
+      error: {
+        code: 'DATABASE_ERROR',
+        message: 'Failed to update stream type'
+      }
+    };
+  }
+}
+
+/**
  * Delete a stream
  */
 export async function deleteStream(
