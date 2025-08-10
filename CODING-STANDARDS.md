@@ -95,10 +95,10 @@ export async function findQueue(
 }
 
 // ❌ Bad - Throwing exceptions
-export async function findQueue(db: Knex, queueId: string): Promise<Queue> {
-  const queue = await db('queue').where('q_id', queueId).first();
-  if (!queue) throw new Error('Queue not found');
-  return queue;
+export async function findStream(db: Knex, streamId: string): Promise<Stream> {
+  const stream = await db('stream').where('stream_id', streamId).first();
+  if (!stream) throw new Error('Stream not found');
+  return stream;
 }
 ```
 
@@ -109,13 +109,13 @@ Use Knex query builder directly. No ORMs or abstraction layers.
 
 ```typescript
 // ✅ Good - Direct Knex with type safety
-const queue = await db<Queue>('queue')
-  .where('q_id', queueId)
+const stream = await db<Stream>('stream')
+  .where('stream_id', streamId)
   .first();
 
 const [record] = await db('record')
   .insert({
-    queue_id: queue.id,
+    stream_id: stream.id,
     sequence_num: nextSeq,
     content: JSON.stringify(content),
     content_type: contentType,
@@ -124,7 +124,7 @@ const [record] = await db('record')
   .returning('*');
 
 // ❌ Bad - Unnecessary abstraction
-const queue = await this.repository.findOne({ q_id: queueId });
+const stream = await this.repository.findOne({ stream_id: streamId });
 ```
 
 #### Reserved Words
@@ -149,12 +149,12 @@ All imports MUST include the `.js` extension:
 
 ```typescript
 // ✅ Good
-import { createQueue } from './domain/queue/create-queue.js';
+import { createStream } from './domain/stream/create-stream.js';
 import { authenticate } from './middleware/auth.js';
 import { Result } from './types.js';
 
 // ❌ Bad
-import { createQueue } from './domain/queue/create-queue';
+import { createStream } from './domain/stream/create-stream';
 import { authenticate } from './middleware/auth';
 ```
 
@@ -165,25 +165,25 @@ Use named exports, avoid default exports:
 // ✅ Good
 export function writeRecord() { ... }
 export function readRecords() { ... }
-export type QueueRecord = { ... };
+export type StreamRecord = { ... };
 
 // ❌ Bad
-export default class QueueService { ... }
+export default class StreamService { ... }
 ```
 
 ### 5. Naming Conventions
 
 #### General Rules
-- **Functions**: camelCase (`writeRecord`, `checkPermission`, `createQueue`)
-- **Types/Interfaces**: PascalCase (`Queue`, `QueueRecord`, `User`)
+- **Functions**: camelCase (`writeRecord`, `checkPermission`, `createStream`)
+- **Types/Interfaces**: PascalCase (`Stream`, `StreamRecord`, `User`)
 - **Constants**: UPPER_SNAKE_CASE (`MAX_RETRIES`, `DEFAULT_LIMIT`)
-- **Files**: kebab-case (`create-queue.ts`, `check-permission.ts`)
-- **Database**: snake_case tables and columns (`queue`, `created_at`, `sequence_num`)
+- **Files**: kebab-case (`create-stream.ts`, `check-permission.ts`)
+- **Database**: snake_case tables and columns (`stream`, `created_at`, `sequence_num`)
 
 #### Database Naming
-- **Tables**: singular, lowercase (`user`, `queue`, `record`, `rate_limit`)
-- **Columns**: snake_case (`queue_id`, `created_at`, `content_type`)
-- **Foreign Keys**: `{table}_id` (`creator_id`, `queue_id`)
+- **Tables**: singular, lowercase (`user`, `stream`, `record`, `rate_limit`)
+- **Columns**: snake_case (`stream_id`, `created_at`, `content_type`)
+- **Foreign Keys**: `{table}_id` (`creator_id`, `stream_id`)
 
 ### 6. TypeScript Guidelines
 
@@ -207,7 +207,7 @@ Prefer `type` over `interface`:
 
 ```typescript
 // ✅ Good - Using type
-type Queue = {
+type Stream = {
   id: string;
   q_id: string;
   creator_id: string;
@@ -252,21 +252,21 @@ Always use async/await instead of promises:
 
 ```typescript
 // ✅ Good
-export async function createQueueWithRecord(
+export async function createStreamWithRecord(
   db: Knex,
   userId: string,
-  queueId: string,
+  streamId: string,
   content: any
-): Promise<Result<QueueRecord>> {
-  const queueResult = await createQueue(db, userId, queueId);
-  if (!queueResult.success) {
-    return queueResult;
+): Promise<Result<StreamRecord>> {
+  const streamResult = await createStream(db, userId, streamId);
+  if (!streamResult.success) {
+    return streamResult;
   }
   
   const recordResult = await writeRecord(
     db,
     userId,
-    queueResult.data.id,
+    streamResult.data.id,
     content
   );
   
@@ -274,17 +274,17 @@ export async function createQueueWithRecord(
 }
 
 // ❌ Bad - Promise chains
-export function createQueueWithRecord(
+export function createStreamWithRecord(
   db: Knex,
   userId: string,
-  queueId: string,
+  streamId: string,
   content: any
-): Promise<Result<QueueRecord>> {
-  return createQueue(db, userId, queueId).then(queueResult => {
-    if (!queueResult.success) {
-      return queueResult;
+): Promise<Result<StreamRecord>> {
+  return createStream(db, userId, streamId).then(streamResult => {
+    if (!streamResult.success) {
+      return streamResult;
     }
-    return writeRecord(db, userId, queueResult.data.id, content);
+    return writeRecord(db, userId, streamResult.data.id, content);
   });
 }
 ```
@@ -369,11 +369,11 @@ Add JSDoc comments for exported functions:
 export async function writeRecord(
   db: Knex,
   userId: string,
-  queueId: string,
+  streamId: string,
   content: any,
   contentType: string = 'application/json',
   metadata?: Record<string, any>
-): Promise<Result<QueueRecord>> {
+): Promise<Result<StreamRecord>> {
   // Implementation
 }
 ```
@@ -381,7 +381,7 @@ export async function writeRecord(
 ### 10. Testing
 
 ```typescript
-describe('Queue Operations', () => {
+describe('Stream Operations', () => {
   let db: Knex;
   let userId: string;
   
@@ -448,20 +448,61 @@ const content = writeSchema.parse(req.body);
 ```
 
 #### SQL Injection Prevention
-Always use parameterized queries:
+Always use parameterized queries with named parameters:
 
 ```typescript
-// ✅ Good - Parameterized
-const queue = await db('queue')
-  .where('q_id', queueId)
+// ✅ Good - Named parameters with Knex query builder
+const stream = await db('stream')
+  .where('stream_id', streamId)
   .andWhere('creator_id', userId)
   .first();
 
-// ❌ Bad - String concatenation
-const queue = await db.raw(
-  `SELECT * FROM queue WHERE q_id = '${queueId}'`
+// ✅ Good - Named parameters with raw queries
+const result = await db.raw(
+  `SELECT * FROM stream 
+   WHERE pod_id = :podId 
+   AND stream_id = :streamId`,
+  { podId, streamId }
+);
+
+// ❌ Bad - Positional parameters (avoid!)
+const result = await db.raw(
+  `SELECT * FROM stream WHERE pod_id = $1 AND stream_id = $2`,
+  [podId, streamId]
+);
+
+// ❌ Bad - String concatenation (NEVER do this!)
+const stream = await db.raw(
+  `SELECT * FROM stream WHERE stream_id = '${streamId}'`
 );
 ```
+
+#### Database Parameter Convention
+**IMPORTANT**: Always use named parameters instead of positional parameters:
+
+```typescript
+// ✅ Good - Named parameters are self-documenting
+await db.raw(
+  `INSERT INTO record (stream_id, sequence_num, content, author_id)
+   SELECT :streamId, COALESCE(MAX(sequence_num), -1) + 1, :content, :authorId
+   FROM record WHERE stream_id = :streamId`,
+  { streamId, content, authorId }
+);
+
+// ❌ Bad - Positional parameters are error-prone
+await db.raw(
+  `INSERT INTO record (stream_id, sequence_num, content, author_id)
+   SELECT $1, COALESCE(MAX(sequence_num), -1) + 1, $2, $3
+   FROM record WHERE stream_id = $1`,
+  [streamId, content, authorId]
+);
+```
+
+Benefits of named parameters:
+- Self-documenting queries
+- Reusable parameters (use `:streamId` multiple times)
+- Less error-prone (no counting positions)
+- Easier refactoring
 
 ### 12. Performance Patterns
 

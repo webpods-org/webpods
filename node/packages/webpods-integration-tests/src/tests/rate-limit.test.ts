@@ -1,15 +1,18 @@
-// Rate limiting tests
+// Rate limiting tests for WebPods
 import { expect } from 'chai';
 import jwt from 'jsonwebtoken';
 import { client, testDb } from '../test-setup.js';
 
-describe('Rate Limiting', () => {
+describe('WebPods Rate Limiting', () => {
   let userId: string;
   let authToken: string;
+  const testPodId = 'rate-test';
+  const baseUrl = `http://${testPodId}.localhost:3099`;
 
   beforeEach(async () => {
     const db = testDb.getDb();
-    const [user] = await db('`user`').insert({
+    const [user] = await db('user').insert({
+      id: crypto.randomUUID(),
       auth_id: 'auth:google:ratelimit',
       email: 'ratelimit@example.com',
       name: 'Rate Limit User',
@@ -23,78 +26,356 @@ describe('Rate Limiting', () => {
       email: user.email,
       name: user.name,
       provider: 'google'
-    }, 'test-secret-key', { expiresIn: '1h' });
+    }, process.env.JWT_SECRET || 'test-secret', { expiresIn: '1h' });
     
+    client.setBaseUrl(baseUrl);
     client.setAuthToken(authToken);
   });
 
-  it('should track write rate limits in database', async () => {
-    // Make a few write requests
-    await client.post('/rate-test-1', 'Message 1');
-    await client.post('/rate-test-2', 'Message 2');
-    await client.post('/rate-test-3', 'Message 3');
-    
-    // Check rate limit record was created
-    const db = testDb.getDb();
-    const rateLimit = await db('rate_limit')
-      .where('user_id', userId)
-      .where('action', 'write')
-      .first();
-    
-    expect(rateLimit).to.exist;
-    expect(rateLimit.count).to.equal(3);
-    expect(rateLimit.window_end).to.be.instanceOf(Date);
-  });
-
-  it('should track read rate limits separately', async () => {
-    // Create a public stream
-    await client.post('/public-read-test', 'Content');
-    
-    // Make read requests
-    await client.get('/public-read-test');
-    await client.get('/public-read-test');
-    
-    // Check rate limit records
-    const db = testDb.getDb();
-    const writeLimit = await db('rate_limit')
-      .where('user_id', userId)
-      .where('action', 'write')
-      .first();
-    
-    const readLimit = await db('rate_limit')
-      .where('user_id', userId)
-      .where('action', 'read')
-      .first();
-    
-    expect(writeLimit.count).to.equal(1); // One write
-    expect(readLimit.count).to.equal(2); // Two reads
-  });
-
-  it('should clean up old rate limit windows', async () => {
-    const db = testDb.getDb();
-    
-    // Insert an old rate limit window
-    const oldWindow = new Date(Date.now() - 2 * 60 * 60 * 1000); // 2 hours ago
-    await db('rate_limit').insert({
-      user_id: userId,
-      action: 'write',
-      count: 100,
-      window_start: new Date(oldWindow.getTime() - 60 * 60 * 1000),
-      window_end: oldWindow
+  describe('Write Rate Limits', () => {
+    it('should track write rate limits per user', async () => {
+      // Make multiple write requests
+      await client.post('/stream1', 'Message 1');
+      await client.post('/stream2', 'Message 2');
+      await client.post('/stream3', 'Message 3');
+      await client.post('/nested/stream4', 'Message 4');
+      
+      // Check rate limit record was created
+      const db = testDb.getDb();
+      const rateLimit = await db('rate_limit')
+        .where('identifier', userId)
+        .where('action', 'write')
+        .first();
+      
+      expect(rateLimit).to.exist;
+      expect(rateLimit.count).to.equal(4);
+      expect(rateLimit.window_end).to.be.instanceOf(Date);
     });
-    
-    // Make a new request (should clean up old window)
-    await client.post('/q/cleanup-test', 'New message');
-    
-    // Check that old window is gone
-    const oldLimits = await db('rate_limit')
-      .where('window_end', '<', new Date(Date.now() - 60 * 60 * 1000))
-      .count('* as count');
-    
-    expect(parseInt(oldLimits[0]?.count as string)).to.equal(0);
+
+    it('should track pod creation rate limits separately', async () => {
+      // Create multiple pods
+      client.setBaseUrl(`http://pod-limit-1.localhost:3099`);
+      await client.post('/init', 'Pod 1');
+      
+      client.setBaseUrl(`http://pod-limit-2.localhost:3099`);
+      await client.post('/init', 'Pod 2');
+      
+      // Check rate limit records
+      const db = testDb.getDb();
+      const podLimit = await db('rate_limit')
+        .where('identifier', userId)
+        .where('action', 'pod_create')
+        .first();
+      
+      expect(podLimit).to.exist;
+      expect(podLimit.count).to.equal(2);
+    });
+
+    it('should track stream creation rate limits', async () => {
+      // Create multiple streams in the same pod
+      await client.post('/rate-stream-1', 'First stream');
+      await client.post('/rate-stream-2', 'Second stream');
+      await client.post('/rate-stream-3', 'Third stream');
+      await client.post('/blog/posts/2024', 'Nested stream');
+      
+      const db = testDb.getDb();
+      const streamLimit = await db('rate_limit')
+        .where('identifier', userId)
+        .where('action', 'stream_create')
+        .first();
+      
+      expect(streamLimit).to.exist;
+      expect(streamLimit.count).to.equal(4);
+    });
+
+    it('should not count writes to existing streams as stream creation', async () => {
+      // Create one stream
+      await client.post('/existing', 'First message');
+      
+      // Write more to the same stream
+      await client.post('/existing', 'Second message');
+      await client.post('/existing', 'Third message');
+      
+      const db = testDb.getDb();
+      const streamLimit = await db('rate_limit')
+        .where('identifier', userId)
+        .where('action', 'stream_create')
+        .first();
+      
+      // Only one stream was created
+      expect(streamLimit.count).to.equal(1);
+      
+      // But 3 writes were made
+      const writeLimit = await db('rate_limit')
+        .where('identifier', userId)
+        .where('action', 'write')
+        .first();
+      expect(writeLimit.count).to.equal(3);
+    });
   });
 
-  // Note: Actually hitting rate limits would require many requests,
-  // which we skip in tests for performance reasons.
-  // The limit is set to 2000 per hour in production.
+  describe('Read Rate Limits', () => {
+    beforeEach(async () => {
+      // Create some test data
+      await client.post('/public-data', 'Public content');
+      await client.post('/public-data', 'More content');
+    });
+
+    it('should track read rate limits separately from writes', async () => {
+      // Make read requests
+      await client.get('/public-data?i=0');
+      await client.get('/public-data?i=1');
+      await client.get('/public-data'); // List all
+      
+      // Check rate limit records
+      const db = testDb.getDb();
+      const writeLimit = await db('rate_limit')
+        .where('identifier', userId)
+        .where('action', 'write')
+        .first();
+      
+      const readLimit = await db('rate_limit')
+        .where('identifier', userId)
+        .where('action', 'read')
+        .first();
+      
+      expect(writeLimit.count).to.equal(2); // Two writes in beforeEach
+      expect(readLimit.count).to.equal(3); // Three reads
+    });
+
+    it('should track anonymous read rate limits by IP', async () => {
+      // Clear auth for anonymous requests
+      client.clearAuthToken();
+      
+      // Make anonymous read requests
+      await client.get('/public-data?i=0');
+      await client.get('/public-data?i=1');
+      
+      // Check rate limit by IP
+      const db = testDb.getDb();
+      const ipLimit = await db('rate_limit')
+        .where('identifier', 'ip:127.0.0.1') // Test IP
+        .where('action', 'read')
+        .first();
+      
+      expect(ipLimit).to.exist;
+      expect(ipLimit.count).to.equal(2);
+    });
+  });
+
+  describe('Rate Limit Windows', () => {
+    it('should use hourly windows for rate limiting', async () => {
+      const db = testDb.getDb();
+      
+      // Make a request
+      await client.post('/window-test', 'Message');
+      
+      // Check the window
+      const rateLimit = await db('rate_limit')
+        .where('identifier', userId)
+        .where('action', 'write')
+        .first();
+      
+      const windowStart = new Date(rateLimit.window_start);
+      const windowEnd = new Date(rateLimit.window_end);
+      const windowDuration = windowEnd.getTime() - windowStart.getTime();
+      
+      // Should be approximately 1 hour (3600000 ms)
+      expect(windowDuration).to.be.closeTo(3600000, 1000);
+    });
+
+    it('should reset count when window expires', async () => {
+      const db = testDb.getDb();
+      const now = new Date();
+      
+      // Insert an expired window with high count
+      await db('rate_limit').insert({
+        id: crypto.randomUUID(),
+        identifier: userId,
+        action: 'write',
+        count: 1999, // Just under limit
+        window_start: new Date(now.getTime() - 2 * 60 * 60 * 1000), // 2 hours ago
+        window_end: new Date(now.getTime() - 60 * 60 * 1000) // 1 hour ago
+      });
+      
+      // Make a new request (should start new window)
+      const response = await client.post('/new-window', 'Message');
+      expect(response.status).to.equal(201);
+      
+      // Check new window was created
+      const newLimit = await db('rate_limit')
+        .where('identifier', userId)
+        .where('action', 'write')
+        .where('window_end', '>', now)
+        .first();
+      
+      expect(newLimit.count).to.equal(1); // Reset to 1
+    });
+
+    it('should clean up old rate limit windows', async () => {
+      const db = testDb.getDb();
+      
+      // Insert multiple old windows
+      const oldDate = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours ago
+      await db('rate_limit').insert([
+        {
+          id: crypto.randomUUID(),
+          identifier: 'old-user-1',
+          action: 'write',
+          count: 100,
+          window_start: new Date(oldDate.getTime() - 60 * 60 * 1000),
+          window_end: oldDate
+        },
+        {
+          id: crypto.randomUUID(),
+          identifier: 'old-user-2',
+          action: 'read',
+          count: 200,
+          window_start: new Date(oldDate.getTime() - 60 * 60 * 1000),
+          window_end: oldDate
+        }
+      ]);
+      
+      // Make a new request (triggers cleanup)
+      await client.post('/cleanup-trigger', 'New message');
+      
+      // Check that old windows are gone
+      const oldLimits = await db('rate_limit')
+        .where('window_end', '<', new Date(Date.now() - 2 * 60 * 60 * 1000))
+        .count('* as count');
+      
+      expect(parseInt(oldLimits[0]?.count as string)).to.equal(0);
+    });
+  });
+
+  describe('Rate Limit Headers', () => {
+    it('should return rate limit headers in responses', async () => {
+      const response = await client.post('/header-test', 'Message');
+      
+      expect(response.headers).to.have.property('x-ratelimit-limit');
+      expect(response.headers).to.have.property('x-ratelimit-remaining');
+      expect(response.headers).to.have.property('x-ratelimit-reset');
+      
+      const limit = parseInt(response.headers['x-ratelimit-limit']);
+      const remaining = parseInt(response.headers['x-ratelimit-remaining']);
+      
+      expect(limit).to.be.greaterThan(0);
+      expect(remaining).to.be.lessThan(limit);
+    });
+
+    it('should decrease remaining count with each request', async () => {
+      const response1 = await client.post('/decrease-1', 'Message 1');
+      const remaining1 = parseInt(response1.headers['x-ratelimit-remaining']);
+      
+      const response2 = await client.post('/decrease-2', 'Message 2');
+      const remaining2 = parseInt(response2.headers['x-ratelimit-remaining']);
+      
+      expect(remaining2).to.equal(remaining1 - 1);
+    });
+  });
+
+  describe('Rate Limit Enforcement', () => {
+    it('should return 429 when rate limit is exceeded', async () => {
+      const db = testDb.getDb();
+      
+      // Set a rate limit that's already exceeded
+      await db('rate_limit').insert({
+        id: crypto.randomUUID(),
+        identifier: userId,
+        action: 'write',
+        count: 2001, // Over the default limit of 2000
+        window_start: new Date(),
+        window_end: new Date(Date.now() + 60 * 60 * 1000)
+      });
+      
+      // Try to make another request
+      const response = await client.post('/over-limit', 'Should fail');
+      
+      expect(response.status).to.equal(429);
+      expect(response.data.error.code).to.equal('RATE_LIMIT_EXCEEDED');
+      expect(response.data.error.message).to.include('Too many requests');
+    });
+
+    it('should allow requests from different users independently', async () => {
+      const db = testDb.getDb();
+      
+      // Create a second user
+      const [user2] = await db('user').insert({
+        id: crypto.randomUUID(),
+        auth_id: 'auth:github:ratelimit2',
+        email: 'ratelimit2@example.com',
+        name: 'Rate Limit User 2',
+        provider: 'github'
+      }).returning('*');
+      
+      const token2 = jwt.sign({
+        userId: user2.id,
+        authId: user2.auth_id,
+        email: user2.email,
+        name: user2.name,
+        provider: 'github'
+      }, process.env.JWT_SECRET || 'test-secret', { expiresIn: '1h' });
+      
+      // Set user1 at limit
+      await db('rate_limit').insert({
+        id: crypto.randomUUID(),
+        identifier: userId,
+        action: 'write',
+        count: 2000,
+        window_start: new Date(),
+        window_end: new Date(Date.now() + 60 * 60 * 1000)
+      });
+      
+      // User1 should be blocked
+      const response1 = await client.post('/user1-blocked', 'Should fail');
+      expect(response1.status).to.equal(429);
+      
+      // User2 should still be able to post
+      client.setAuthToken(token2);
+      const response2 = await client.post('/user2-allowed', 'Should succeed');
+      expect(response2.status).to.equal(201);
+    });
+  });
+
+  describe('Different Rate Limits by Action', () => {
+    it('should apply different limits for different actions', async () => {
+      // Assuming: write=2000/hour, read=10000/hour, pod_create=10/hour, stream_create=100/hour
+      
+      const db = testDb.getDb();
+      
+      // Set different counts for different actions
+      await db('rate_limit').insert([
+        {
+          id: crypto.randomUUID(),
+          identifier: userId,
+          action: 'pod_create',
+          count: 9, // Just under the limit of 10
+          window_start: new Date(),
+          window_end: new Date(Date.now() + 60 * 60 * 1000)
+        },
+        {
+          id: crypto.randomUUID(),
+          identifier: userId,
+          action: 'write',
+          count: 100, // Well under the limit of 2000
+          window_start: new Date(),
+          window_end: new Date(Date.now() + 60 * 60 * 1000)
+        }
+      ]);
+      
+      // Can still write
+      const writeResponse = await client.post('/can-write', 'Message');
+      expect(writeResponse.status).to.equal(201);
+      
+      // Can create one more pod
+      client.setBaseUrl(`http://pod-limit-final.localhost:3099`);
+      const podResponse = await client.post('/init', 'Final pod');
+      expect(podResponse.status).to.equal(201);
+      
+      // But creating another pod would exceed limit
+      client.setBaseUrl(`http://pod-limit-exceed.localhost:3099`);
+      const exceededResponse = await client.post('/init', 'Too many pods');
+      expect(exceededResponse.status).to.equal(429);
+    });
+  });
 });

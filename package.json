@@ -47,10 +47,15 @@
   "keywords": [
     "append-only",
     "log",
-    "queue",
+    "stream",
+    "pod",
+    "subdomain",
     "oauth",
     "api",
-    "typescript"
+    "typescript",
+    "hash-chain",
+    "immutable",
+    "webpods"
   ],
   "author": "WebPods",
   "license": "MIT",
