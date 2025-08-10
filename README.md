@@ -116,11 +116,19 @@ curl -X POST https://alice.webpods.org/blog \
 
 ```
 GET {pod_id}.webpods.org/{queue_id}
+GET {pod_id}.webpods.org/{queue_id}/{start}-{end}
 ```
 
+**Range Examples:**
+- `/blog` - All records (up to default limit)
+- `/blog/0-99` - Records 0 through 99
+- `/blog/10-20` - Records 10 through 20
+- `/blog/-10--1` - Last 10 records
+- `/blog/0--1` - All records
+
 **Query Parameters:**
-- `limit`: Number of records (default 100)
-- `after`: ID for pagination
+- `limit`: Number of records (default 100, only for non-range requests)
+- `after`: ID for pagination (only for non-range requests)
 
 **Response:**
 ```json
@@ -158,21 +166,18 @@ GET {pod_id}.webpods.org/{queue_id}/{index}
 **Index:**
 - Positive: 0-based from start (0, 1, 2...)
 - Negative: From end (-1 = last, -2 = second to last)
+- Range (e.g., `10-20`): Returns JSON with metadata like queue listing
 
-**Response:** Returns raw content based on the record's content type.
-
-**Examples:**
-- HTML record → returns HTML directly
-- CSS record → returns CSS directly  
-- JSON record → returns JSON directly
-- Text record → returns text directly
+**Response:** 
+- **Single index**: Returns raw content directly (HTML, CSS, JSON, text)
+- **Range**: Returns JSON with records array and metadata
 
 This enables direct content serving for websites and APIs.
 
 ### List Queues in Pod
 
 ```
-GET {pod_id}.webpods.org/
+GET {pod_id}.webpods.org/_queues
 ```
 
 **Response:**
@@ -181,6 +186,22 @@ GET {pod_id}.webpods.org/
   "pod": "alice",
   "queues": ["blog", "config", "public-key"]
 }
+```
+
+### Root Domain Access
+
+```
+GET {pod_id}.webpods.org/
+```
+
+**Response:**
+- If `_root` queue is configured: Serves content from configured queue/index
+- If no `_root` configuration: Returns 404
+
+**Configure root:**
+```bash
+POST alice.webpods.org/_root
+{"queue": "homepage", "index": -1}
 ```
 
 ### Delete Queue
@@ -216,6 +237,17 @@ POST {pod_id}.webpods.org/_owner
 ```
 
 Transfers pod ownership by appending to the `_owner` queue. The last entry determines current owner. Only the current owner (last entry in `_owner` queue) can write new ownership records.
+
+## Reserved System Queues
+
+All queue names starting with `_` are reserved for system use:
+
+- `_owner` - Pod ownership records (last record determines current owner)
+- `_root` - Root domain serving configuration
+- `_domains` - Custom domain mappings
+- `_queues` - Lists all queues (GET only, not a real queue)
+
+These queues cannot be created by users directly and have special system behaviors.
 
 ## Permissions
 
@@ -343,13 +375,27 @@ X-Content-Type: text/html
 
 <!DOCTYPE html>
 <html>
+  <head>
+    <link rel="stylesheet" href="/style/-1">
+  </head>
   <body>
     <h1>Welcome!</h1>
   </body>
 </html>
 
-# Always serve latest version
-GET mysite.webpods.org/homepage/-1
+# Write CSS
+POST mysite.webpods.org/style
+X-Content-Type: text/css
+
+body { font-family: serif; }
+
+# Configure root
+POST mysite.webpods.org/_root
+{"queue": "homepage", "index": -1}
+
+# Access patterns
+GET mysite.webpods.org/          # Serves homepage/-1
+GET mysite.webpods.org/style/-1  # Serves CSS
 ```
 
 ### Versioned Content
@@ -418,20 +464,36 @@ POST acme.webpods.org/internal?read=/members&write=/members
 
 ## Custom Domains
 
-Point your domain to your pod using a CNAME record:
+### Setup Custom Domain
 
+1. **Configure DNS** (at your domain registrar):
 ```
-# DNS Settings (GoDaddy, Namecheap, etc.)
 Type: CNAME
 Name: @ (or subdomain)
-Value: mycompany.webpods.org
+Value: alice.webpods.org
+```
+
+2. **Register domain with WebPods**:
+```bash
+POST alice.webpods.org/_domains
+{"domain": "alice-blog.com"}
+```
+
+3. **Configure root content** (optional):
+```bash
+POST alice.webpods.org/_root
+{"queue": "homepage", "index": -1}
 ```
 
 WebPods automatically provisions SSL certificates via Let's Encrypt.
 
-Your content is then accessible at:
-- `https://example.com/blog`
-- `https://mycompany.webpods.org/blog` (still works)
+### Access Patterns
+
+With custom domain configured:
+- `https://alice-blog.com/` → Serves from homepage/-1 (if _root configured)
+- `https://alice-blog.com/blog` → Access blog queue
+- `https://alice-blog.com/_queues` → List all queues
+- `https://alice.webpods.org/` → Original subdomain still works
 
 ## User Identification
 
@@ -576,9 +638,18 @@ POST alice.webpods.org/style
 X-Content-Type: text/css
 body { font-family: serif; }
 
+# Configure homepage
+POST alice.webpods.org/_root
+{"queue": "posts", "index": -1}
+
+# Add custom domain
+POST alice.webpods.org/_domains
+{"domain": "alice-blog.com"}
+
 # Access
-https://alice.webpods.org/posts/-1  # Latest post
-https://alice.webpods.org/about/-1   # About page
+https://alice.webpods.org/          # Latest post (via _root)
+https://alice-blog.com/             # Same content via custom domain
+https://alice.webpods.org/posts/0-9 # First 10 posts with metadata
 ```
 
 ### API Monitoring
