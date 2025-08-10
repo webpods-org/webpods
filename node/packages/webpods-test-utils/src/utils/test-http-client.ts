@@ -31,6 +31,10 @@ export class TestHttpClient {
     this.authToken = null;
   }
 
+  public setBaseUrl(baseURL: string): void {
+    this.client.defaults.baseURL = baseURL;
+  }
+
   public async get(url: string, params?: any): Promise<AxiosResponse> {
     return this.client.get(url, { params });
   }

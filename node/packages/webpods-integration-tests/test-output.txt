@@ -1,0 +1,108 @@
+
+> webpods-integration-tests@0.0.1 test
+> mocha --exit
+
+
+
+🚀 Starting WebPods integration test setup...
+✅ WebPods integration test setup complete
+  WebPods Authentication
+    OAuth Endpoints
+      1) should redirect to Google OAuth
+      2) should redirect to GitHub OAuth
+      ✔ should reject invalid OAuth provider
+      3) should handle OAuth callback
+    JWT Authentication
+      4) should reject requests without auth token to write operations
+      5) should accept requests with valid auth token
+      6) should reject expired JWT token
+      7) should reject invalid JWT signature
+      8) should reject malformed JWT token
+    Public vs Authenticated Access
+      9) should allow anonymous read on public streams
+      10) should require auth for write on public streams
+      11) should track author correctly
+    Bearer Token Format
+      12) should accept Bearer token in Authorization header
+      13) should accept token without Bearer prefix
+      14) should reject other auth schemes
+    Cross-Pod Authentication
+      15) should use same auth token across different pods
+    User Metadata
+      ✔ should store user metadata from OAuth
+      ✔ should handle users from different OAuth providers
+
+  WebPods Health Checks
+    Main Domain Health
+      16) should return healthy status
+      ✔ should include service statuses
+      17) should include uptime information
+      ✔ should return proper content type
+    Database Health
+      ✔ should detect database connection
+      ✔ should report database version
+    Pod Subdomain Health
+      ✔ should handle health checks on pod subdomains
+      18) should verify wildcard subdomain routing works
+    Readiness Check
+      ✔ should have a readiness endpoint
+    Liveness Check
+      ✔ should have a liveness endpoint
+    Metrics Endpoint
+      ✔ should expose metrics if configured
+    Error Handling
+      ✔ should handle invalid health check paths
+      ✔ should return JSON error for health check failures
+    Performance
+      ✔ should respond quickly to health checks
+      ✔ should handle concurrent health checks
+    Environment Information
+      ✔ should include environment details
+      ✔ should include node version
+
+  WebPods Permissions
+    Private Streams
+      19) should only allow creator to read private stream
+      20) should only allow creator to write to private stream
+    Public Streams
+      21) should allow anyone to read public stream
+      22) should allow any authenticated user to write to public stream
+    Permission Streams (Allow/Deny Lists)
+      23) should support allow lists for reading
+      24) should support deny lists for writing
+      25) should support multiple permission streams
+    Pod Ownership
+      26) should transfer pod ownership via .meta/owner
+      27) should only allow current owner to transfer ownership
+    Stream Permission Updates
+      28) should allow creator to update stream permissions
+    Complex Permission Scenarios
+      29) should handle nested stream paths with permissions
+      30) should respect permissions on aliased content
+      31) should handle permission stream updates correctly
+
+  WebPods Rate Limiting
+    Write Rate Limits
+      32) should track write rate limits per user
+      33) should track pod creation rate limits separately
+      34) should track stream creation rate limits
+      35) should not count writes to existing streams as stream creation
+    Read Rate Limits
+      36) should track read rate limits separately from writes
+      37) should track anonymous read rate limits by IP
+    Rate Limit Windows
+      38) should use hourly windows for rate limiting
+      39) should reset count when window expires
+      40) should clean up old rate limit windows
+    Rate Limit Headers
+      41) should return rate limit headers in responses
+      42) should decrease remaining count with each request
+    Rate Limit Enforcement
+      43) should return 429 when rate limit is exceeded
+      44) should allow requests from different users independently
+    Different Rate Limits by Action
+      45) should apply different limits for different actions
+
+  WebPods Stream Operations
+    Pod and Stream Creation
+      46) should create pod and stream on first write

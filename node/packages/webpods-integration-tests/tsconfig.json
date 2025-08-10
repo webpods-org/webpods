@@ -1,8 +1,12 @@
 {
-  "extends": "../../../tsconfig.base.json",
   "compilerOptions": {
-    "rootDir": "./src",
+    "target": "ES2020",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "outDir": "./dist",
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
     "types": ["mocha", "chai", "node"]
   },
   "include": ["src/**/*"],

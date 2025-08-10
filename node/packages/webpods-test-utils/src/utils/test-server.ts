@@ -29,7 +29,7 @@ export class TestServer {
   public async start(): Promise<void> {
     this.logger.info(`🚀 Starting WebPods test server on port ${this.config.port}...`);
 
-    const serverPath = path.join(__dirname, '../../../../webpods/dist/index.js');
+    const serverPath = path.join(__dirname, '../../../webpods/dist/index.js');
     
     // Set environment variables
     const env = {
@@ -42,10 +42,13 @@ export class TestServer {
       WEBPODS_DB_USER: process.env.WEBPODS_DB_USER || 'postgres',
       WEBPODS_DB_PASSWORD: process.env.WEBPODS_DB_PASSWORD || 'postgres',
       JWT_SECRET: 'test-secret-key',
-      LOG_LEVEL: 'error',
-      GOOGLE_CLIENT_ID: 'test-client-id',
-      GOOGLE_CLIENT_SECRET: 'test-client-secret',
-      GOOGLE_CALLBACK_URL: `http://localhost:${this.config.port}/auth/google/callback`
+      LOG_LEVEL: 'info',
+      GOOGLE_CLIENT_ID: 'test-google-client-id',
+      GOOGLE_CLIENT_SECRET: 'test-google-client-secret',
+      GOOGLE_CALLBACK_URL: `http://localhost:${this.config.port}/auth/google/callback`,
+      GITHUB_CLIENT_ID: 'test-github-client-id',
+      GITHUB_CLIENT_SECRET: 'test-github-client-secret',
+      GITHUB_CALLBACK_URL: `http://localhost:${this.config.port}/auth/github/callback`
     };
 
     return new Promise((resolve, reject) => {
@@ -56,14 +59,21 @@ export class TestServer {
 
       this.process.stdout?.on('data', (data) => {
         const message = data.toString();
-        if (message.includes('server started')) {
+        this.logger.info('Server stdout:', message);
+        if (message.includes('WebPods server started') || message.includes('Server listening')) {
           this.logger.info('✅ Test server started successfully');
           resolve();
         }
       });
 
       this.process.stderr?.on('data', (data) => {
-        this.logger.error('Server error:', data.toString());
+        const message = data.toString();
+        this.logger.error('Server stderr:', message);
+        // Sometimes the server logs to stderr
+        if (message.includes('WebPods server started') || message.includes('Server listening')) {
+          this.logger.info('✅ Test server started successfully');
+          resolve();
+        }
       });
 
       this.process.on('error', (err) => {

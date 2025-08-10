@@ -19,8 +19,8 @@ export async function up(knex) {
     table.string('name', 255);
     table.string('provider', 50).notNullable(); // 'github' or 'google'
     table.jsonb('metadata').defaultTo('{}');
-    table.timestamptz('created_at').defaultTo(knex.fn.now());
-    table.timestamptz('updated_at').defaultTo(knex.fn.now());
+    table.timestamp('created_at').defaultTo(knex.fn.now());
+    table.timestamp('updated_at').defaultTo(knex.fn.now());
     
     table.index('auth_id');
     table.index('email');
@@ -31,8 +31,8 @@ export async function up(knex) {
     table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
     table.string('pod_id', 63).unique().notNullable(); // DNS subdomain limit
     table.jsonb('metadata').defaultTo('{}');
-    table.timestamptz('created_at').defaultTo(knex.fn.now());
-    table.timestamptz('updated_at').defaultTo(knex.fn.now());
+    table.timestamp('created_at').defaultTo(knex.fn.now());
+    table.timestamp('updated_at').defaultTo(knex.fn.now());
     
     table.index('pod_id');
   });
@@ -47,8 +47,8 @@ export async function up(knex) {
     table.string('write_permission', 500).defaultTo('public');
     table.string('stream_type', 50).defaultTo('normal'); // 'normal', 'system', 'permission'
     table.jsonb('metadata').defaultTo('{}');
-    table.timestamptz('created_at').defaultTo(knex.fn.now());
-    table.timestamptz('updated_at').defaultTo(knex.fn.now());
+    table.timestamp('created_at').defaultTo(knex.fn.now());
+    table.timestamp('updated_at').defaultTo(knex.fn.now());
     
     table.unique(['pod_id', 'stream_id']);
     table.index(['pod_id', 'stream_id']);
@@ -67,7 +67,7 @@ export async function up(knex) {
     table.string('hash', 100).notNullable(); // SHA-256 hash with prefix
     table.string('previous_hash', 100); // NULL for first record
     table.string('author_id', 255).notNullable(); // auth:provider:id format
-    table.timestamptz('created_at').defaultTo(knex.fn.now());
+    table.timestamp('created_at').defaultTo(knex.fn.now());
     
     table.unique(['stream_id', 'sequence_num']);
     table.unique(['stream_id', 'alias']);
@@ -84,8 +84,8 @@ export async function up(knex) {
     table.string('domain', 255).unique().notNullable();
     table.boolean('verified').defaultTo(false); // CNAME verification status
     table.boolean('ssl_provisioned').defaultTo(false);
-    table.timestamptz('created_at').defaultTo(knex.fn.now());
-    table.timestamptz('updated_at').defaultTo(knex.fn.now());
+    table.timestamp('created_at').defaultTo(knex.fn.now());
+    table.timestamp('updated_at').defaultTo(knex.fn.now());
     
     table.index('domain');
     table.index('pod_id');
@@ -97,8 +97,8 @@ export async function up(knex) {
     table.string('identifier', 255).notNullable(); // user_id or ip_address
     table.string('action', 50).notNullable(); // 'write', 'read', 'pod_create', 'stream_create'
     table.integer('count').defaultTo(0);
-    table.timestamptz('window_start').notNullable();
-    table.timestamptz('window_end').notNullable();
+    table.timestamp('window_start').notNullable();
+    table.timestamp('window_end').notNullable();
     
     table.unique(['identifier', 'action', 'window_start']);
     table.index(['identifier', 'action', 'window_end']);

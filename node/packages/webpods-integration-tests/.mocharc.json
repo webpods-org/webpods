@@ -1,8 +1,12 @@
 {
   "loader": "ts-node/esm",
-  "extensions": ["ts"],
-  "spec": "src/**/*.test.ts",
-  "timeout": 10000,
+  "spec": ["src/**/*.test.ts"],
   "recursive": true,
-  "require": ["src/test-setup.ts"]
+  "extension": ["ts"],
+  "node-option": [
+    "loader=ts-node/esm",
+    "no-warnings"
+  ],
+  "timeout": 10000,
+  "reporter": "spec"
 }
