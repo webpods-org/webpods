@@ -347,7 +347,9 @@ router.post('/*', extractPod, authenticate, rateLimit('write'), async (req: Requ
     );
     
     if (!recordResult.success) {
-      res.status(500).json({
+      // Check for specific error codes
+      const status = recordResult.error.code === 'ALIAS_EXISTS' ? 409 : 500;
+      res.status(status).json({
         error: recordResult.error
       });
       return;
@@ -463,8 +465,8 @@ router.get('/*', extractPod, optionalAuth, rateLimit('read'), async (req: Reques
     }
     
     if (parsed.type === 'single') {
-      // Single record by index
-      const result = await getRecord(db, streamResult.data.id, parsed.start.toString());
+      // Single record by index (don't prefer alias when using ?i=)
+      const result = await getRecord(db, streamResult.data.id, parsed.start.toString(), false);
       
       if (!result.success) {
         res.status(404).json({
@@ -475,6 +477,7 @@ router.get('/*', extractPod, optionalAuth, rateLimit('read'), async (req: Reques
       
       // Return raw content for single records
       const record = result.data;
+      // Set content-type without charset suffix
       res.setHeader('Content-Type', record.content_type);
       res.setHeader('X-Hash', record.hash);
       res.setHeader('X-Previous-Hash', record.previous_hash || '');
@@ -509,8 +512,8 @@ router.get('/*', extractPod, optionalAuth, rateLimit('read'), async (req: Reques
       });
     }
   } else if (alias) {
-    // Get by alias
-    const result = await getRecord(db, streamResult.data.id, alias);
+    // Get by alias (prefer alias over index for path-based access)
+    const result = await getRecord(db, streamResult.data.id, alias, true);
     
     if (!result.success) {
       res.status(404).json({
@@ -521,6 +524,7 @@ router.get('/*', extractPod, optionalAuth, rateLimit('read'), async (req: Reques
     
     // Return raw content for single records
     const record = result.data;
+    // Set content-type without charset suffix
     res.setHeader('Content-Type', record.content_type);
     res.setHeader('X-Hash', record.hash);
     res.setHeader('X-Previous-Hash', record.previous_hash || '');

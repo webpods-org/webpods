@@ -97,46 +97,87 @@ export async function writeRecord(
 export async function getRecord(
   db: Knex,
   streamId: string,
-  target: string
+  target: string,
+  preferAlias: boolean = false
 ): Promise<Result<StreamRecord>> {
   try {
     let record: StreamRecord | undefined;
 
-    // Check if target is numeric (index)
-    if (isNumericIndex(target)) {
-      let index = parseInt(target);
-      
-      // Handle negative indexing
-      if (index < 0) {
-        const countResult = await db('record')
-          .where('stream_id', streamId)
-          .count('* as count')
-          .first();
-        
-        const count = countResult?.count as string | number;
-        index = (typeof count === 'string' ? parseInt(count) : count) + index;
-        
-        if (index < 0) {
-          return {
-            success: false,
-            error: {
-              code: 'INVALID_INDEX',
-              message: 'Index out of range'
-            }
-          };
-        }
-      }
-
-      record = await db('record')
-        .where('stream_id', streamId)
-        .where('sequence_num', index)
-        .first();
-    } else {
-      // Get by alias
+    // If preferAlias is true, try alias first even if target is numeric
+    if (preferAlias) {
+      // Try to get by alias first
       record = await db('record')
         .where('stream_id', streamId)
         .where('alias', target)
         .first();
+      
+      // If not found as alias and target is numeric, try as index
+      if (!record && isNumericIndex(target)) {
+        let index = parseInt(target);
+        
+        // Handle negative indexing
+        if (index < 0) {
+          const countResult = await db('record')
+            .where('stream_id', streamId)
+            .count('* as count')
+            .first();
+          
+          const count = countResult?.count as string | number;
+          index = (typeof count === 'string' ? parseInt(count) : count) + index;
+          
+          if (index < 0) {
+            return {
+              success: false,
+              error: {
+                code: 'INVALID_INDEX',
+                message: 'Index out of range'
+              }
+            };
+          }
+        }
+
+        record = await db('record')
+          .where('stream_id', streamId)
+          .where('sequence_num', index)
+          .first();
+      }
+    } else {
+      // Default behavior: check if target is numeric (index)
+      if (isNumericIndex(target)) {
+        let index = parseInt(target);
+        
+        // Handle negative indexing
+        if (index < 0) {
+          const countResult = await db('record')
+            .where('stream_id', streamId)
+            .count('* as count')
+            .first();
+          
+          const count = countResult?.count as string | number;
+          index = (typeof count === 'string' ? parseInt(count) : count) + index;
+          
+          if (index < 0) {
+            return {
+              success: false,
+              error: {
+                code: 'INVALID_INDEX',
+                message: 'Index out of range'
+              }
+            };
+          }
+        }
+
+        record = await db('record')
+          .where('stream_id', streamId)
+          .where('sequence_num', index)
+          .first();
+      } else {
+        // Get by alias
+        record = await db('record')
+          .where('stream_id', streamId)
+          .where('alias', target)
+          .first();
+      }
     }
 
     if (!record) {
@@ -198,7 +239,8 @@ export async function getRecordRange(
 
     const records = await db('record')
       .where('stream_id', streamId)
-      .whereBetween('sequence_num', [start, end])
+      .where('sequence_num', '>=', start)
+      .where('sequence_num', '<', end)  // Exclusive end (Python-style)
       .orderBy('sequence_num', 'asc');
 
     return { success: true, data: records };

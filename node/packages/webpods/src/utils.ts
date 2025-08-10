@@ -31,11 +31,11 @@ export function isSystemStream(streamId: string): boolean {
 }
 
 /**
- * Validate alias (any string is valid now, including numbers)
+ * Validate alias - any string is valid, including pure numeric strings
  */
 export function isValidAlias(alias: string): boolean {
   if (!alias || alias.length > 256) return false;
-  // Any non-empty string is valid as an alias
+  // Any non-empty string is valid as an alias, including numbers
   return true;
 }
 
