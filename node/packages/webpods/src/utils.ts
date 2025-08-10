@@ -24,10 +24,10 @@ export function isValidStreamId(streamId: string): boolean {
 }
 
 /**
- * Check if stream ID is a system stream (starts with .system/)
+ * Check if stream ID is a system stream (starts with .meta/)
  */
 export function isSystemStream(streamId: string): boolean {
-  return streamId.startsWith('.system/');
+  return streamId.startsWith('.meta/');
 }
 
 /**

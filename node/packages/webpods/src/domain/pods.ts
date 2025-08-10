@@ -54,12 +54,12 @@ export async function createPod(
         })
         .returning('*');
 
-      // Create .system/owner stream with initial owner record
+      // Create .meta/owner stream with initial owner record
       const [ownerStream] = await trx('stream')
         .insert({
           id: crypto.randomUUID(),
           pod_id: pod.id,
-          stream_id: '.system/owner',
+          stream_id: '.meta/owner',
           creator_id: userId,
           read_permission: 'public',
           write_permission: 'private',
@@ -136,7 +136,7 @@ export async function getPod(
 }
 
 /**
- * Get pod owner from .system/owner stream
+ * Get pod owner from .meta/owner stream
  */
 export async function getPodOwner(
   db: Knex,
@@ -147,7 +147,7 @@ export async function getPodOwner(
       .join('stream', 'stream.id', 'record.stream_id')
       .join('pod', 'pod.id', 'stream.pod_id')
       .where('pod.pod_id', podId)
-      .where('stream.stream_id', '.system/owner')
+      .where('stream.stream_id', '.meta/owner')
       .orderBy('record.created_at', 'desc')
       .select('record.*')
       .first();
@@ -202,11 +202,11 @@ export async function transferPodOwnership(
         };
       }
 
-      // Get .system/owner stream
+      // Get .meta/owner stream
       const ownerStream = await trx('stream')
         .join('pod', 'pod.id', 'stream.pod_id')
         .where('pod.pod_id', podId)
-        .where('stream.stream_id', '.system/owner')
+        .where('stream.stream_id', '.meta/owner')
         .select('stream.*')
         .first();
 
@@ -215,7 +215,7 @@ export async function transferPodOwnership(
           success: false,
           error: {
             code: 'STREAM_NOT_FOUND',
-            message: '.system/owner stream not found'
+            message: '.meta/owner stream not found'
           }
         };
       }

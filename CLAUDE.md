@@ -24,40 +24,40 @@ Only after reading these documents should you proceed with any implementation or
 
 ## Overview
 
-WebPods is an append-only log service organized into pods and queues. Users authenticate via OAuth (GitHub/Google), create pods (subdomains), write to queues within pods, and can serve content directly (HTML, CSS, JSON). The system supports sophisticated permission models using allow/deny lists stored as permission queues.
+WebPods is an append-only log service organized into pods and streams. Users authenticate via OAuth (GitHub/Google), create pods (subdomains), write to streams within pods, and can serve content directly (HTML, CSS, JSON). The system supports sophisticated permission models using allow/deny lists stored as permission streams.
 
 ## Core Architecture Principles
 
-### 1. Pods and Queues
+### 1. Pods and Streams
 - **Pods**: Subdomains that act as namespaces (e.g., `alice.webpods.org`)
-- **Queues**: Append-only logs within pods (e.g., `alice.webpods.org/blog`)
-- **Records**: Immutable entries in queues (strings or JSON)
-- **Aliases**: Named references to records (e.g., `/blog/my-post`, `/assets/logo.png`)
+- **Streams**: Append-only logs within pods (e.g., `alice.webpods.org/blog`, `alice.webpods.org/blog/posts/2024`)
+- **Records**: Immutable entries in streams (strings or JSON)
+- **Aliases**: Named references to records (any string including numbers)
 - **Hash Chain**: Each record contains hash of previous record for tamper-proof history
-- **System Queues**: Reserved queues starting with `_` (`_owner`, `_links`, `_domains`, `_queues`)
-- **Auto-creation**: Pods and queues created on first write
+- **System Streams**: Reserved streams under `.meta/` (`.meta/owner`, `.meta/links`, `.meta/domains`, `.meta/streams`)
+- **Auto-creation**: Pods and streams created on first write
 
 ### 2. URL Structure and Routing
-- **Pattern**: `{pod_id}.webpods.org/{queue_id}`
+- **Pattern**: `{pod_id}.webpods.org/{stream_path}`
 - **Subdomain routing**: Each pod is a subdomain
 - **Record access**:
-  - Index: `/queue/0`, `/queue/-1` (returns raw content)
-  - Range: `/queue/10-20`, `/queue/-10--1` (returns JSON with metadata)
-  - Alias: `/queue/my-post` (returns raw content, must contain non-numeric char)
-- **URL mapping**: `_links` queue maps custom paths to queue/record combinations
-- **Queue listing**: `GET {pod_id}.webpods.org/_queues` lists all queues
+  - Index: `/stream?i=0`, `/stream?i=-1` (returns raw content)
+  - Range: `/stream?i=10:20`, `/stream?i=-10:-1` (returns JSON with metadata)
+  - Alias: `/stream/my-post`, `/stream/2024` (returns raw content, any string allowed)
+- **URL mapping**: `.meta/links` stream maps custom paths to stream/record combinations
+- **Stream listing**: `GET {pod_id}.webpods.org/.meta/streams` lists all streams
 
 ### 3. Permission System
 - **Public** (default): Anyone can read, authenticated users can write
 - **Private**: Only the creator can read/write
-- **Allow lists** (`/{queue}`): Users listed in that queue can access
-- **Deny lists** (`~/{queue}`): Everyone except users in that queue
-- **Permission queues**: JSON objects with user permissions (last-write-wins)
+- **Allow lists** (`/{stream}`): Users listed in that stream can access
+- **Deny lists** (`~/{stream}`): Everyone except users in that stream
+- **Permission streams**: JSON objects with user permissions (last-write-wins)
 
 ### 4. Content Serving
 - **Direct serving**: Single records and aliases return raw content
-- **URL mappings**: Configure via `_links` for clean URLs (e.g., `/` → `homepage/-1`)
-- **Custom domains**: Register via `_domains` queue with CNAME pointing to pod
+- **URL mappings**: Configure via `.meta/links` for clean URLs (e.g., `/` → `homepage?i=-1`)
+- **Custom domains**: Register via `.meta/domains` stream with CNAME pointing to pod
 - **Versioning**: Each write creates a new version, aliases always serve latest
 - **Content-Type**: Determined by X-Content-Type or Content-Type headers only
 
@@ -70,8 +70,8 @@ WebPods is an append-only log service organized into pods and queues. Users auth
 
 ### 6. Database Conventions
 - **PostgreSQL** with **Knex.js** for migrations and queries
-- **Tables**: `pod`, `queue`, `record`, `user`, `rate_limit`
-- **Singular table names**: lowercase (e.g., `pod`, `queue`, `record`)
+- **Tables**: `pod`, `stream`, `record`, `user`, `rate_limit`
+- **Singular table names**: lowercase (e.g., `pod`, `stream`, `record`)
 - **Column names**: snake_case for all columns
 - **Reserved words**: Use backticks for PostgreSQL reserved words
 
@@ -122,21 +122,21 @@ npm run migrate:rollback
 - `id`: UUID primary key
 - `pod_id`: Subdomain identifier (e.g., 'alice', 'myproject')
 - `created_at`: Creation timestamp
-- Note: Ownership tracked in `_owner` queue, not in pod table
+- Note: Ownership tracked in `.meta/owner` stream, not in pod table
 
-#### queue
+#### stream
 - `id`: UUID primary key
 - `pod_id`: Foreign key to pod
-- `queue_id`: Queue identifier within pod
-- `creator_id`: User who created the queue
+- `stream_id`: Stream identifier within pod (can include slashes)
+- `creator_id`: User who created the stream
 - `read_permission`: Permission string (e.g., 'public', 'private', '/members')
 - `write_permission`: Permission string
-- `is_permission_queue`: Boolean flag for permission queues
+- `stream_type`: Type of stream ('normal', 'system', 'permission')
 
 #### record
 - `id`: BIGSERIAL primary key
-- `queue_id`: Foreign key to queue
-- `sequence_num`: Sequential number within queue
+- `stream_id`: Foreign key to stream
+- `sequence_num`: Sequential number within stream
 - `content`: JSONB or text content
 - `content_type`: MIME type
 - `hash`: SHA-256 hash of this record
@@ -159,7 +159,7 @@ import { createHash } from 'crypto';
 
 export async function writeRecord(
   db: Knex,
-  queueId: string,
+  streamId: string,
   content: any,
   contentType: string,
   userId: string,
@@ -168,7 +168,7 @@ export async function writeRecord(
   return await db.transaction(async (trx) => {
     // Get the previous record's hash
     const previousRecord = await trx('record')
-      .where('queue_id', queueId)
+      .where('stream_id', streamId)
       .orderBy('sequence_num', 'desc')
       .first();
     
@@ -189,7 +189,7 @@ export async function writeRecord(
     // Insert new record with hash and optional alias
     const [record] = await trx('record')
       .insert({
-        queue_id: queueId,
+        stream_id: streamId,
         sequence_num: (previousRecord?.sequence_num || -1) + 1,
         content: content,
         content_type: contentType,
@@ -207,10 +207,10 @@ export async function writeRecord(
 
 export async function verifyChain(
   db: Knex,
-  queueId: string
+  streamId: string
 ): Promise<boolean> {
   const records = await db('record')
-    .where('queue_id', queueId)
+    .where('stream_id', streamId)
     .orderBy('sequence_num', 'asc');
   
   for (let i = 0; i < records.length; i++) {
@@ -306,10 +306,10 @@ export async function createPod(
 export async function checkPermission(
   db: Knex,
   userId: string | null,
-  queue: Queue,
+  stream: Stream,
   action: 'read' | 'write'
 ): Promise<boolean> {
-  const permission = action === 'read' ? queue.read_permission : queue.write_permission;
+  const permission = action === 'read' ? stream.read_permission : stream.write_permission;
   
   // Public access
   if (permission === 'public') {
@@ -318,7 +318,7 @@ export async function checkPermission(
   
   // Private access
   if (permission === 'private') {
-    return userId === queue.creator_id;
+    return userId === stream.creator_id;
   }
   
   // Parse permission lists
@@ -326,21 +326,21 @@ export async function checkPermission(
   
   for (const perm of permissions) {
     if (perm.type === 'allow') {
-      // Check allow list queue
-      const allowed = await checkPermissionQueue(
+      // Check allow list stream
+      const allowed = await checkPermissionStream(
         db,
-        queue.pod_id,
-        perm.queue,
+        stream.pod_id,
+        perm.stream,
         userId,
         action
       );
       if (!allowed) return false;
     } else if (perm.type === 'deny') {
-      // Check deny list queue
-      const denied = await checkPermissionQueue(
+      // Check deny list stream
+      const denied = await checkPermissionStream(
         db,
-        queue.pod_id,
-        perm.queue,
+        stream.pod_id,
+        perm.stream,
         userId,
         action
       );
@@ -351,10 +351,10 @@ export async function checkPermission(
   return true;
 }
 
-async function checkPermissionQueue(
+async function checkPermissionStream(
   db: Knex,
   podId: string,
-  queueId: string,
+  streamId: string,
   userId: string | null,
   action: 'read' | 'write'
 ): Promise<boolean> {
@@ -362,11 +362,11 @@ async function checkPermissionQueue(
   
   // Get the latest permission record for this user
   const record = await db('record')
-    .join('queue', 'queue.id', 'record.queue_id')
-    .join('pod', 'pod.id', 'queue.pod_id')
+    .join('stream', 'stream.id', 'record.stream_id')
+    .join('pod', 'pod.id', 'stream.pod_id')
     .where('pod.pod_id', podId)
-    .where('queue.queue_id', queueId)
-    .where('queue.is_permission_queue', true)
+    .where('stream.stream_id', streamId)
+    .where('stream.stream_type', 'permission')
     .whereRaw("content->>'id' = ?", [userId])
     .orderBy('record.created_at', 'desc')
     .first();
@@ -377,20 +377,20 @@ async function checkPermissionQueue(
 }
 ```
 
-### URL Routing with _links
+### URL Routing with .meta/links
 ```typescript
-// Check if path is mapped in _links
+// Check if path is mapped in .meta/links
 export async function resolveLink(
   db: Knex,
   podId: string,
   path: string
 ): Promise<string | null> {
-  // Get latest _links configuration
+  // Get latest .meta/links configuration
   const linksRecord = await db('record')
-    .join('queue', 'queue.id', 'record.queue_id')
-    .join('pod', 'pod.id', 'queue.pod_id')
+    .join('stream', 'stream.id', 'record.stream_id')
+    .join('pod', 'pod.id', 'stream.pod_id')
     .where('pod.pod_id', podId)
-    .where('queue.queue_id', '_links')
+    .where('stream.stream_id', '.meta/links')
     .orderBy('record.created_at', 'desc')
     .first();
   
@@ -401,26 +401,26 @@ export async function resolveLink(
   return linksRecord.content[path];
 }
 
-// Route handler with _links support
+// Route handler with .meta/links support
 router.get('/*', async (req, res) => {
   const podId = extractPodId(req.hostname);
   const path = req.path;
   
-  // Check _links mapping first
+  // Check .meta/links mapping first
   const mapping = await resolveLink(db, podId, path);
   if (mapping) {
-    // Parse mapping: "queue/alias" or "queue/-1"
-    const [queueId, target] = mapping.split('/');
-    return serveContent(req, res, podId, queueId, target);
+    // Parse mapping: "stream/alias" or "stream/-1"
+    const [streamId, target] = mapping.split('/');
+    return serveContent(req, res, podId, streamId, target);
   }
   
-  // Fall back to direct queue access
+  // Fall back to direct stream access
   // ...
     });
     return;
   }
   
-  const queueId = req.params.queue_id;
+  const streamId = req.params.stream_id;
   // ... rest of handler
 });
 ```
@@ -429,7 +429,7 @@ router.get('/*', async (req, res) => {
 ```typescript
 export async function getRecordByIndex(
   db: Knex,
-  queueId: string,
+  streamId: string,
   index: number | string
 ): Promise<Result<Record>> {
   let recordIndex = typeof index === 'string' ? parseInt(index) : index;
@@ -437,7 +437,7 @@ export async function getRecordByIndex(
   // Handle negative indexing
   if (recordIndex < 0) {
     const [{ count }] = await db('record')
-      .where('queue_id', queueId)
+      .where('stream_id', streamId)
       .count('* as count');
     
     recordIndex = parseInt(count as string) + recordIndex;
@@ -451,7 +451,7 @@ export async function getRecordByIndex(
   }
   
   const record = await db('record')
-    .where('queue_id', queueId)
+    .where('stream_id', streamId)
     .where('sequence_num', recordIndex)
     .first();
   
@@ -501,7 +501,7 @@ npm test -- --grep "permission"
 ### Security Model
 - OAuth-only authentication (GitHub + Google)
 - JWT tokens for stateless authentication
-- Permission queues for fine-grained access control
+- Permission streams for fine-grained access control
 - Rate limiting per user and per IP
 - Pod ownership cannot be transferred
 
@@ -540,7 +540,7 @@ See `.env.example` for complete list.
 ## Debugging Tips
 
 1. **Pod resolution issues**: Check wildcard DNS configuration
-2. **Permission denied**: Trace through permission queue lookups
+2. **Permission denied**: Trace through permission stream lookups
 3. **Negative indexing**: Verify record count calculations
 4. **Content serving**: Check Content-Type headers
 5. **OAuth issues**: Verify callback URLs match provider configuration
@@ -551,9 +551,9 @@ See `.env.example` for complete list.
 - Ensure `*.domain.org` DNS record points to server
 - Check nginx/reverse proxy configuration for subdomain routing
 
-### Permission queues not updating
+### Permission streams not updating
 - Remember last-write-wins pattern
-- Check if queue is marked as `is_permission_queue`
+- Check if stream is marked as permission type
 - Verify JSON structure in permission records
 
 ### Content not serving correctly

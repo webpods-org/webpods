@@ -33,7 +33,7 @@ curl https://alice.webpods.org/blog/2024  # Returns the aliased content
 - **Stream**: An append-only log within a pod (e.g., `blog`, `blog/posts/2024`)
 - **Record**: An immutable entry in a stream (string or JSON)
 - **Hash Chain**: Each record contains a hash of the previous record, creating a cryptographically verifiable chain
-- **System Streams**: Special streams under `.system/` (e.g., `.system/owner` for pod ownership)
+- **System Streams**: Special streams under `.meta/` (e.g., `.meta/owner` for pod ownership)
 
 ## URL Structure
 
@@ -45,7 +45,7 @@ Examples:
 - `alice.webpods.org/blog`
 - `alice.webpods.org/blog/posts/2024` (nested stream paths)
 - `myproject.webpods.org/config`
-- `acme.webpods.org/.system/owner` (system stream)
+- `acme.webpods.org/.meta/owner` (system stream)
 
 ## Authentication
 
@@ -173,7 +173,7 @@ Only the stream creator can delete it. System streams cannot be deleted.
 ### List Streams
 
 ```
-GET {pod_id}.webpods.org/.system/streams
+GET {pod_id}.webpods.org/.meta/streams
 ```
 
 Returns all streams in the pod.
@@ -186,8 +186,8 @@ Returns all streams in the pod.
     "blog",
     "blog/posts/2024",
     "config",
-    ".system/owner",
-    ".system/links"
+    ".meta/owner",
+    ".meta/links"
   ]
 }
 ```
@@ -223,23 +223,23 @@ curl -X POST alice.webpods.org/members \
 
 System streams provide pod configuration and metadata:
 
-### .system/owner
+### .meta/owner
 Tracks pod ownership. Last record determines current owner.
 
 ```bash
 # Transfer ownership
-curl -X POST alice.webpods.org/.system/owner \
+curl -X POST alice.webpods.org/.meta/owner \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"owner": "auth:github:987654"}'
 ```
 
-### .system/links
+### .meta/links
 Maps URL paths to stream/record combinations for clean URLs.
 
 ```bash
 # Configure homepage
-curl -X POST alice.webpods.org/.system/links \
+curl -X POST alice.webpods.org/.meta/links \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -249,11 +249,11 @@ curl -X POST alice.webpods.org/.system/links \
   }'
 ```
 
-### .system/domains
+### .meta/domains
 Configure custom domains (requires DNS CNAME).
 
 ```bash
-curl -X POST alice.webpods.org/.system/domains \
+curl -X POST alice.webpods.org/.meta/domains \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"domains": ["alice.com", "blog.alice.com"]}'

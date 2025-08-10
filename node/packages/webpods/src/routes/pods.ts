@@ -44,9 +44,9 @@ const domainsSchema = z.object({
 
 /**
  * List streams in pod
- * GET {pod}.webpods.org/.system/streams
+ * GET {pod}.webpods.org/.meta/streams
  */
-router.get('/.system/streams', extractPod, async (req: Request, res: Response) => {
+router.get('/.meta/streams', extractPod, async (req: Request, res: Response) => {
   if (!req.pod || !req.pod_id) {
     res.status(404).json({
       error: {
@@ -104,11 +104,11 @@ router.delete('/', extractPod, authenticate, rateLimit('pod_create'), async (req
 
 /**
  * Write to system streams
- * POST {pod}.webpods.org/.system/owner
- * POST {pod}.webpods.org/.system/links
- * POST {pod}.webpods.org/.system/domains
+ * POST {pod}.webpods.org/.meta/owner
+ * POST {pod}.webpods.org/.meta/links
+ * POST {pod}.webpods.org/.meta/domains
  */
-router.post('/.system/owner', extractPod, authenticate, async (req: Request, res: Response) => {
+router.post('/.meta/owner', extractPod, authenticate, async (req: Request, res: Response) => {
   if (!req.pod || !req.pod_id || !req.auth) {
     res.status(404).json({
       error: {
@@ -154,7 +154,7 @@ router.post('/.system/owner', extractPod, authenticate, async (req: Request, res
   }
 });
 
-router.post('/.system/links', extractPod, authenticate, async (req: Request, res: Response) => {
+router.post('/.meta/links', extractPod, authenticate, async (req: Request, res: Response) => {
   if (!req.pod || !req.pod_id || !req.auth) {
     res.status(404).json({
       error: {
@@ -211,7 +211,7 @@ router.post('/.system/links', extractPod, authenticate, async (req: Request, res
   }
 });
 
-router.post('/.system/domains', extractPod, authenticate, async (req: Request, res: Response) => {
+router.post('/.meta/domains', extractPod, authenticate, async (req: Request, res: Response) => {
   if (!req.pod || !req.pod_id || !req.auth) {
     res.status(404).json({
       error: {
@@ -604,7 +604,7 @@ router.delete('/*', extractPod, authenticate, async (req: Request, res: Response
 });
 
 /**
- * Root path handler with .system/links support
+ * Root path handler with .meta/links support
  * GET {pod}.webpods.org/
  */
 router.get('/', extractPod, optionalAuth, async (req: Request, res: Response) => {
@@ -620,7 +620,7 @@ router.get('/', extractPod, optionalAuth, async (req: Request, res: Response) =>
 
   const db = getDb();
   
-  // Check if path "/" is mapped in .system/links
+  // Check if path "/" is mapped in .meta/links
   const linkResult = await resolveLink(db, req.pod_id, '/');
   
   if (linkResult.success && linkResult.data) {
@@ -640,7 +640,7 @@ router.get('/', extractPod, optionalAuth, async (req: Request, res: Response) =>
   res.status(404).json({
     error: {
       code: 'NOT_FOUND',
-      message: 'No content configured for root path. Use .system/links to configure.'
+      message: 'No content configured for root path. Use .meta/links to configure.'
     }
   });
 });

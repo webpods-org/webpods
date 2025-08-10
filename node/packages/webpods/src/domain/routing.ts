@@ -15,7 +15,7 @@ interface LinkMapping {
 }
 
 /**
- * Resolve a path using .system/links configuration
+ * Resolve a path using .meta/links configuration
  */
 export async function resolveLink(
   db: Knex,
@@ -23,12 +23,12 @@ export async function resolveLink(
   path: string
 ): Promise<Result<LinkMapping | null>> {
   try {
-    // Get the latest .system/links record
+    // Get the latest .meta/links record
     const record = await db('record')
       .join('stream', 'stream.id', 'record.stream_id')
       .join('pod', 'pod.id', 'stream.pod_id')
       .where('pod.pod_id', podId)
-      .where('stream.stream_id', '.system/links')
+      .where('stream.stream_id', '.meta/links')
       .orderBy('record.created_at', 'desc')
       .select('record.*')
       .first();
@@ -74,7 +74,7 @@ export async function resolveLink(
 }
 
 /**
- * Update .system/links configuration
+ * Update .meta/links configuration
  */
 export async function updateLinks(
   db: Knex,
@@ -99,10 +99,10 @@ export async function updateLinks(
         };
       }
 
-      // Get or create .system/links stream
+      // Get or create .meta/links stream
       let linksStream = await trx('stream')
         .where('pod_id', pod.id)
-        .where('stream_id', '.system/links')
+        .where('stream_id', '.meta/links')
         .first();
 
       if (!linksStream) {
@@ -110,7 +110,7 @@ export async function updateLinks(
           .insert({
             id: crypto.randomUUID(),
             pod_id: pod.id,
-            stream_id: '.system/links',
+            stream_id: '.meta/links',
             creator_id: authorId.split(':').pop()!, // Extract user ID from auth ID
             read_permission: 'public',
             write_permission: 'private',
@@ -225,10 +225,10 @@ export async function updateCustomDomains(
         };
       }
 
-      // Get or create .system/domains stream
+      // Get or create .meta/domains stream
       let domainsStream = await trx('stream')
         .where('pod_id', pod.id)
-        .where('stream_id', '.system/domains')
+        .where('stream_id', '.meta/domains')
         .first();
 
       if (!domainsStream) {
@@ -236,7 +236,7 @@ export async function updateCustomDomains(
           .insert({
             id: crypto.randomUUID(),
             pod_id: pod.id,
-            stream_id: '.system/domains',
+            stream_id: '.meta/domains',
             creator_id: authorId.split(':').pop()!, // Extract user ID from auth ID
             read_permission: 'public',
             write_permission: 'private',
