@@ -210,7 +210,7 @@ Requires authentication as pod owner.
 ### Delete Pod
 
 ```
-DELETE {pod_id}.webpods.org/_pod
+DELETE {pod_id}.webpods.org/
 ```
 
 Deletes entire pod and all queues. Requires authentication as pod owner.
