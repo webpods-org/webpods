@@ -18,7 +18,7 @@ export async function getOrCreateStream(
   streamId: string,
   userId: string,
   accessPermission?: string
-): Promise<Result<Stream>> {
+): Promise<Result<{ stream: Stream, created: boolean }>> {
   // Validate stream ID
   if (!isValidStreamId(streamId)) {
     return {
@@ -46,7 +46,7 @@ export async function getOrCreateStream(
       .first();
 
     if (stream) {
-      return { success: true, data: stream };
+      return { success: true, data: { stream, created: false } };
     }
 
     // Create new stream
@@ -63,7 +63,7 @@ export async function getOrCreateStream(
       .returning('*');
 
     logger.info('Stream created', { podId, streamId: actualStreamId, userId });
-    return { success: true, data: stream };
+    return { success: true, data: { stream, created: true } };
   } catch (error: any) {
     logger.error('Failed to get/create stream', { error, podId, streamId });
     return {

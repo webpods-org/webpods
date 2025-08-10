@@ -5,6 +5,7 @@ import { client, testDb } from '../test-setup.js';
 
 describe('WebPods Stream Operations', () => {
   let userId: string;
+  let authId: string;
   let authToken: string;
   const testPodId = 'test-pod';
   const baseUrl = `http://${testPodId}.localhost:3099`;
@@ -21,6 +22,7 @@ describe('WebPods Stream Operations', () => {
     }).returning('*');
     
     userId = user.id;
+    authId = user.auth_id;
     authToken = jwt.sign(
       {
         user_id: user.id,
@@ -46,7 +48,7 @@ describe('WebPods Stream Operations', () => {
       expect(response.data).to.have.property('content', 'Hello WebPods!');
       expect(response.data).to.have.property('hash');
       expect(response.data).to.have.property('previous_hash', null);
-      expect(response.data).to.have.property('author', user.auth_id);
+      expect(response.data).to.have.property('author', authId);
       
       // Verify pod was created
       const db = testDb.getDb();
@@ -82,9 +84,7 @@ describe('WebPods Stream Operations', () => {
     });
 
     it('should set custom permissions on stream creation', async () => {
-      const response = await client.post('/private-stream?access=private', {
-        content: 'Secret data'
-      });
+      const response = await client.post('/private-stream?access=private', 'Secret data');
       
       expect(response.status).to.equal(201);
       
@@ -94,8 +94,7 @@ describe('WebPods Stream Operations', () => {
         .where('pod_id', pod.id)
         .where('stream_id', 'private-stream')
         .first();
-      expect(stream.read_permission).to.equal('private');
-      expect(stream.write_permission).to.equal('private');
+      expect(stream.access_permission).to.equal('private');
     });
   });
 
@@ -239,7 +238,7 @@ describe('WebPods Stream Operations', () => {
       // Express adds charset, so check if content-type starts with expected value
       expect(response.headers['content-type']).to.include('text/plain');
       expect(response.headers['x-hash']).to.exist;
-      expect(response.headers['x-author']).to.equal(user.auth_id);
+      expect(response.headers['x-author']).to.equal(authId);
       expect(response.headers['x-timestamp']).to.exist;
       expect(response.data).to.equal('First');
     });

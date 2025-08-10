@@ -26,6 +26,49 @@ const DEFAULT_LIMITS: RateLimitConfig = {
 };
 
 /**
+ * Increment rate limit counter for tracking purposes
+ */
+export async function incrementRateLimit(
+  db: Knex,
+  identifier: string,
+  type: RateLimitType
+): Promise<void> {
+  const windowMs = 60 * 60 * 1000; // 1 hour
+  const now = new Date();
+  const windowEnd = new Date(Math.ceil(now.getTime() / windowMs) * windowMs);
+  const actualWindowStart = new Date(windowEnd.getTime() - windowMs);
+  
+  try {
+    let rateLimitRecord = await db('rate_limit')
+      .where('identifier', identifier)
+      .where('action', type)
+      .where('window_start', actualWindowStart)
+      .first();
+
+    if (!rateLimitRecord) {
+      // Create new window with count 1
+      await db('rate_limit')
+        .insert({
+          id: crypto.randomUUID(),
+          identifier,
+          action: type,
+          count: 1,
+          window_start: actualWindowStart,
+          window_end: windowEnd
+        });
+    } else {
+      // Increment existing counter
+      await db('rate_limit')
+        .where('id', rateLimitRecord.id)
+        .increment('count', 1);
+    }
+  } catch (error) {
+    // Log but don't fail the operation
+    logger.error('Failed to increment rate limit', { error, identifier, type });
+  }
+}
+
+/**
  * Check if request is rate limited
  */
 export async function checkRateLimit(

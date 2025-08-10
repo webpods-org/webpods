@@ -304,6 +304,10 @@ router.post('/*', extractPod, authenticate, rateLimit('write'), async (req: Requ
         return;
       }
       req.pod = podResult.data;
+      
+      // Track pod creation for rate limiting
+      const { incrementRateLimit } = await import('../domain/ratelimit.js');
+      await incrementRateLimit(db, req.auth.auth_id, 'pod_create');
     }
     
     // Get or create stream
@@ -322,8 +326,14 @@ router.post('/*', extractPod, authenticate, rateLimit('write'), async (req: Requ
       return;
     }
     
+    // Track stream creation for rate limiting
+    if (streamResult.data.created) {
+      const { incrementRateLimit } = await import('../domain/ratelimit.js');
+      await incrementRateLimit(db, req.auth.auth_id, 'stream_create');
+    }
+    
     // Check write permission
-    const canWriteResult = await canWrite(db, streamResult.data, req.auth.auth_id, req.auth.user_id);
+    const canWriteResult = await canWrite(db, streamResult.data.stream, req.auth.auth_id, req.auth.user_id);
     if (!canWriteResult) {
       res.status(403).json({
         error: {
@@ -341,7 +351,7 @@ router.post('/*', extractPod, authenticate, rateLimit('write'), async (req: Requ
       ('read' in content || 'write' in content);
     
     // If writing a permission record, mark the stream as a permission stream
-    if (isPermissionRecord && streamResult.data.stream_type !== 'permission') {
+    if (isPermissionRecord && streamResult.data.stream.stream_type !== 'permission') {
       const { markAsPermissionStream } = await import('../domain/streams.js');
       const markResult = await markAsPermissionStream(db, req.pod!.id, streamId);
       if (!markResult.success) {
@@ -352,7 +362,7 @@ router.post('/*', extractPod, authenticate, rateLimit('write'), async (req: Requ
     // Write record
     const recordResult = await writeRecord(
       db,
-      streamResult.data.id,
+      streamResult.data.stream.id,
       content,
       contentType,
       req.auth.auth_id,

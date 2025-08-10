@@ -18,8 +18,8 @@ export function rateLimit(action: 'read' | 'write' | 'pod_create' | 'stream_crea
     try {
       const db = getDb();
       
-      // Use auth ID if authenticated, otherwise IP address
-      const key = (req as any).auth ? (req as any).auth.auth_id : getIpAddress(req);
+      // Use auth ID if authenticated, otherwise IP address with prefix
+      const key = (req as any).auth ? (req as any).auth.auth_id : `ip:${getIpAddress(req)}`;
       
       const result = await checkRateLimit(db, key, action);
       
