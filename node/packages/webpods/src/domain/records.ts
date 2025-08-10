@@ -10,7 +10,7 @@ import { createLogger } from '../logger.js';
 const logger = createLogger('webpods:domain:records');
 
 /**
- * Write a record to a queue
+ * Write a record to a stream
  */
 export async function writeRecord(
   db: Knex,
@@ -75,7 +75,7 @@ export async function writeRecord(
           success: false,
           error: {
             code: 'ALIAS_EXISTS',
-            message: 'Alias already exists in this queue'
+            message: 'Alias already exists in this stream'
           }
         };
       }
@@ -215,7 +215,7 @@ export async function getRecordRange(
 }
 
 /**
- * List records in a queue
+ * List records in a stream
  */
 export async function listRecords(
   db: Knex,

@@ -38,7 +38,7 @@ describe('Authentication', () => {
 
   describe('Protected endpoints', () => {
     it('should reject requests without auth token', async () => {
-      const response = await client.post('/q/test-queue', {
+      const response = await client.post('/test-stream', {
         content: 'test'
       });
       
@@ -60,7 +60,7 @@ describe('Authentication', () => {
       const token = createTestToken(user.id, user.auth_id);
       client.setAuthToken(token);
       
-      const response = await client.post('/q/test-queue', {
+      const response = await client.post('/test-stream', {
         content: 'test'
       });
       
@@ -71,7 +71,7 @@ describe('Authentication', () => {
     it('should reject invalid JWT token', async () => {
       client.setAuthToken('invalid-token');
       
-      const response = await client.post('/q/test-queue', {
+      const response = await client.post('/test-stream', {
         content: 'test'
       });
       

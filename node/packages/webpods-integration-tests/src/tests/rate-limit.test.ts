@@ -30,9 +30,9 @@ describe('Rate Limiting', () => {
 
   it('should track write rate limits in database', async () => {
     // Make a few write requests
-    await client.post('/q/rate-test-1', 'Message 1');
-    await client.post('/q/rate-test-2', 'Message 2');
-    await client.post('/q/rate-test-3', 'Message 3');
+    await client.post('/rate-test-1', 'Message 1');
+    await client.post('/rate-test-2', 'Message 2');
+    await client.post('/rate-test-3', 'Message 3');
     
     // Check rate limit record was created
     const db = testDb.getDb();
@@ -47,12 +47,12 @@ describe('Rate Limiting', () => {
   });
 
   it('should track read rate limits separately', async () => {
-    // Create a public queue
-    await client.post('/q/public-read-test', 'Content');
+    // Create a public stream
+    await client.post('/public-read-test', 'Content');
     
     // Make read requests
-    await client.get('/q/public-read-test');
-    await client.get('/q/public-read-test');
+    await client.get('/public-read-test');
+    await client.get('/public-read-test');
     
     // Check rate limit records
     const db = testDb.getDb();

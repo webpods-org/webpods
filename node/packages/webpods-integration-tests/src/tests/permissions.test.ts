@@ -47,76 +47,76 @@ describe('Permissions', () => {
     }, 'test-secret-key', { expiresIn: '1h' });
   });
 
-  describe('Private queues', () => {
-    it('should only allow creator to read private queue', async () => {
-      // User1 creates private queue
+  describe('Private streams', () => {
+    it('should only allow creator to read private stream', async () => {
+      // User1 creates private stream
       client.setAuthToken(user1Token);
-      await client.post('/q/private-read?read=private', 'Secret message');
+      await client.post('/private-read?read=private', 'Secret message');
       
       // User1 can read
-      const response1 = await client.get('/q/private-read');
+      const response1 = await client.get('/private-read');
       expect(response1.status).to.equal(200);
       expect(response1.data.records[0]).to.equal('Secret message');
       
       // User2 cannot read
       client.setAuthToken(user2Token);
-      const response2 = await client.get('/q/private-read');
+      const response2 = await client.get('/private-read');
       expect(response2.status).to.equal(403);
       expect(response2.data.error.code).to.equal('FORBIDDEN');
       
       // Anonymous cannot read
       client.clearAuthToken();
-      const response3 = await client.get('/q/private-read');
+      const response3 = await client.get('/private-read');
       expect(response3.status).to.equal(403);
     });
 
-    it('should only allow creator to write to private queue', async () => {
-      // User1 creates private write queue
+    it('should only allow creator to write to private stream', async () => {
+      // User1 creates private write stream
       client.setAuthToken(user1Token);
-      await client.post('/q/private-write?write=private', 'First message');
+      await client.post('/private-write?write=private', 'First message');
       
       // User2 cannot write
       client.setAuthToken(user2Token);
-      const response = await client.post('/q/private-write', 'Attempt to write');
+      const response = await client.post('/private-write', 'Attempt to write');
       expect(response.status).to.equal(403);
       expect(response.data.error.code).to.equal('FORBIDDEN');
       
       // User1 can write
       client.setAuthToken(user1Token);
-      const response2 = await client.post('/q/private-write', 'Second message');
+      const response2 = await client.post('/private-write', 'Second message');
       expect(response2.status).to.equal(201);
     });
   });
 
-  describe('Public queues', () => {
-    it('should allow anyone to read public queue', async () => {
-      // User1 creates public queue
+  describe('Public streams', () => {
+    it('should allow anyone to read public stream', async () => {
+      // User1 creates public stream
       client.setAuthToken(user1Token);
-      await client.post('/q/public-queue', 'Public message');
+      await client.post('/public-stream', 'Public message');
       
       // User2 can read
       client.setAuthToken(user2Token);
-      const response1 = await client.get('/q/public-queue');
+      const response1 = await client.get('/public-stream');
       expect(response1.status).to.equal(200);
       
       // Anonymous can read
       client.clearAuthToken();
-      const response2 = await client.get('/q/public-queue');
+      const response2 = await client.get('/public-stream');
       expect(response2.status).to.equal(200);
     });
 
-    it('should allow any authenticated user to write to public queue', async () => {
-      // User1 creates public queue
+    it('should allow any authenticated user to write to public stream', async () => {
+      // User1 creates public stream
       client.setAuthToken(user1Token);
-      await client.post('/q/public-write', 'Message 1');
+      await client.post('/public-write', 'Message 1');
       
       // User2 can write
       client.setAuthToken(user2Token);
-      const response = await client.post('/q/public-write', 'Message 2');
+      const response = await client.post('/public-write', 'Message 2');
       expect(response.status).to.equal(201);
       
       // Verify both messages exist
-      const list = await client.get('/q/public-write');
+      const list = await client.get('/public-write');
       expect(list.data.records).to.have.lengthOf(2);
     });
   });
@@ -125,48 +125,48 @@ describe('Permissions', () => {
     it('should support allow lists for reading', async () => {
       client.setAuthToken(user1Token);
       
-      // Create allow list queue
-      await client.post('/q/allowed-users', {
+      // Create allow list stream
+      await client.post('/allowed-users', {
         id: 'auth:google:user2',
         read: true,
         write: false
       });
       
-      // Create queue with allow list
-      await client.post('/q/restricted?read=/allowed-users', 'Restricted content');
+      // Create stream with allow list
+      await client.post('/restricted?read=/allowed-users', 'Restricted content');
       
       // User2 can read (in allow list)
       client.setAuthToken(user2Token);
-      const response1 = await client.get('/q/restricted');
+      const response1 = await client.get('/restricted');
       expect(response1.status).to.equal(200);
       
       // User1 can read (creator)
       client.setAuthToken(user1Token);
-      const response2 = await client.get('/q/restricted');
+      const response2 = await client.get('/restricted');
       expect(response2.status).to.equal(200);
     });
 
     it('should support deny lists for writing', async () => {
       client.setAuthToken(user1Token);
       
-      // Create deny list queue
-      await client.post('/q/blocked-users', {
+      // Create deny list stream
+      await client.post('/blocked-users', {
         id: 'auth:google:user2',
         read: false,
         write: false
       });
       
-      // Create queue with deny list
-      await client.post('/q/moderated?write=~/blocked-users', 'Initial message');
+      // Create stream with deny list
+      await client.post('/moderated?write=~/blocked-users', 'Initial message');
       
       // User2 cannot write (in deny list)
       client.setAuthToken(user2Token);
-      const response = await client.post('/q/moderated', 'Blocked attempt');
+      const response = await client.post('/moderated', 'Blocked attempt');
       expect(response.status).to.equal(403);
       
       // Update deny list to unblock user2
       client.setAuthToken(user1Token);
-      await client.post('/q/blocked-users', {
+      await client.post('/blocked-users', {
         id: 'auth:google:user2',
         read: true,
         write: true
@@ -174,32 +174,32 @@ describe('Permissions', () => {
       
       // Now user2 can write
       client.setAuthToken(user2Token);
-      const response2 = await client.post('/q/moderated', 'Now allowed');
+      const response2 = await client.post('/moderated', 'Now allowed');
       expect(response2.status).to.equal(201);
     });
   });
 
   describe('Permission updates', () => {
     it('should only allow creator to update permissions', async () => {
-      // User1 creates queue
+      // User1 creates stream
       client.setAuthToken(user1Token);
-      await client.post('/q/perm-update', 'Initial');
+      await client.post('/perm-update', 'Initial');
       
       // User2 cannot update permissions
       client.setAuthToken(user2Token);
-      const response = await client.post('/q/perm-update?read=private');
+      const response = await client.post('/perm-update?read=private');
       expect(response.status).to.equal(403);
       
       // User1 can update permissions
       client.setAuthToken(user1Token);
-      const response2 = await client.post('/q/perm-update?read=private&write=private');
+      const response2 = await client.post('/perm-update?read=private&write=private');
       expect(response2.status).to.equal(201);
       
       // Verify permissions were updated
       const db = testDb.getDb();
-      const queue = await db('queue').where('q_id', 'perm-update').first();
-      expect(queue.read_permission).to.equal('private');
-      expect(queue.write_permission).to.equal('private');
+      const stream = await db('stream').where('stream_id', 'perm-update').first();
+      expect(stream.read_permission).to.equal('private');
+      expect(stream.write_permission).to.equal('private');
     });
   });
 });
