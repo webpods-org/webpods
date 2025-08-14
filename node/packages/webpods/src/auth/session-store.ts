@@ -17,10 +17,17 @@ let sessionStore: session.Store | null = null;
  */
 export function getSessionStore(): session.Store {
   if (!sessionStore) {
-    const db = getDb();
+    // Build connection string from environment
+    const host = process.env.WEBPODS_DB_HOST || 'localhost';
+    const port = process.env.WEBPODS_DB_PORT || '5432';
+    const database = process.env.WEBPODS_DB_NAME || 'webpods';
+    const user = process.env.WEBPODS_DB_USER || 'postgres';
+    const password = process.env.WEBPODS_DB_PASSWORD || 'postgres';
+    
+    const conString = `postgresql://${user}:${password}@${host}:${port}/${database}`;
     
     sessionStore = new PgSession({
-      pool: db.client.pool, // Use Knex's underlying pg pool
+      conString,
       tableName: 'session',
       createTableIfMissing: false, // We create it via migrations
       pruneSessionInterval: 60 * 60, // Prune expired sessions every hour (seconds)

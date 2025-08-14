@@ -197,11 +197,16 @@ router.post('/logout', (req: Request, res: Response) => {
   
   session.destroy((err: any) => {
     if (err) {
-      logger.error('Failed to destroy session', { error: err });
+      logger.error('Failed to destroy session', { 
+        error: err?.message || err,
+        sessionId: session?.id 
+      });
+      // Even if destroy fails, clear the cookie
+      res.clearCookie('webpods.sid');
       res.status(500).json({
         error: {
           code: 'LOGOUT_ERROR',
-          message: 'Failed to logout'
+          message: 'Failed to logout completely'
         }
       });
     } else {
@@ -229,7 +234,10 @@ router.get('/logout', (req: Request, res: Response) => {
   
   session.destroy((err: any) => {
     if (err) {
-      logger.error('Failed to destroy session', { error: err });
+      logger.error('Failed to destroy session', { 
+        error: err?.message || err,
+        sessionId: session?.id 
+      });
     }
     res.clearCookie('webpods.sid');
     res.redirect(redirect);

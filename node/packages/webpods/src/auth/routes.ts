@@ -218,22 +218,6 @@ router.get('/success', (req: Request, res: Response) => {
 });
 
 /**
- * Logout
- * POST /auth/logout
- * GET /auth/logout (for convenience)
- */
-router.post('/logout', (_req: Request, res: Response) => {
-  res.clearCookie('token', { path: '/' });
-  res.json({ success: true, message: 'Logged out successfully' });
-});
-
-router.get('/logout', (_req: Request, res: Response) => {
-  res.clearCookie('token', { path: '/' });
-  // Redirect to home page after logout
-  res.redirect('/');
-});
-
-/**
  * Get current user
  * GET /auth/whoami
  */
