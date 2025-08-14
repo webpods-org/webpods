@@ -1,10 +1,10 @@
 // Test setup for WebPods integration tests
-import { TestDatabase, TestServer, TestHttpClient, testLogger } from 'webpods-test-utils';
+import { TestDatabase, TestServer, testLogger } from 'webpods-test-utils';
 
 // Test configuration
 export const testDb = new TestDatabase({ dbName: 'webpods_test', logger: testLogger });
 export const testServer = new TestServer({ port: 3099, dbName: 'webpods_test', logger: testLogger });
-export const client = new TestHttpClient(`http://localhost:3099`);
+// Note: Each test file should create its own TestHttpClient instance to avoid interference
 
 // Setup before all tests
 before(async function() {
@@ -24,7 +24,7 @@ before(async function() {
 // Cleanup after each test
 afterEach(async function() {
   await testDb.truncateAllTables();
-  client.clearAuthToken();
+  // Note: Each test file manages its own client, so no global client cleanup needed
 });
 
 // Teardown after all tests

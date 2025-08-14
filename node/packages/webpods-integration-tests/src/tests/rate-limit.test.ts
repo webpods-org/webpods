@@ -1,8 +1,10 @@
 // Rate limiting tests for WebPods
 import { expect } from 'chai';
-import { client, testDb } from '../test-setup.js';
+import { TestHttpClient } from 'webpods-test-utils';
+import { testDb } from '../test-setup.js';
 
 describe('WebPods Rate Limiting', () => {
+  let client: TestHttpClient;
   let authId: string;
   let authToken: string;
   let testUser: any; // Store user for token generation
@@ -10,6 +12,8 @@ describe('WebPods Rate Limiting', () => {
   const baseUrl = `http://${testPodId}.localhost:3099`;
 
   beforeEach(async () => {
+    // Create a new client instance for each test
+    client = new TestHttpClient('http://localhost:3099');
     const db = testDb.getDb();
     const [user] = await db('user').insert({
       id: crypto.randomUUID(),

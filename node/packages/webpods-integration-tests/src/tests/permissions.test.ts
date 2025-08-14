@@ -1,8 +1,10 @@
 // Permission tests for WebPods
 import { expect } from 'chai';
-import { client, testDb } from '../test-setup.js';
+import { TestHttpClient } from 'webpods-test-utils';
+import { testDb } from '../test-setup.js';
 
 describe('WebPods Permissions', () => {
+  let client: TestHttpClient;
   let user1: any;
   let user1Token: string;
   let user2: any;
@@ -12,6 +14,7 @@ describe('WebPods Permissions', () => {
   const baseUrl = `http://${testPodId}.localhost:3099`;
 
   beforeEach(async () => {
+    client = new TestHttpClient('http://localhost:3099');
     const db = testDb.getDb();
     
     // Create two test users

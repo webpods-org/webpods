@@ -1,9 +1,11 @@
 // Authentication tests for WebPods
 import { expect } from 'chai';
 import jwt from 'jsonwebtoken';
-import { client, testDb } from '../test-setup.js';
+import { TestHttpClient } from 'webpods-test-utils';
+import { testDb } from '../test-setup.js';
 
 describe('WebPods Authentication', () => {
+  let client: TestHttpClient;
   const testPodId = 'auth-test';
   const baseUrl = `http://${testPodId}.localhost:3099`;
   
@@ -30,6 +32,7 @@ describe('WebPods Authentication', () => {
   }
 
   beforeEach(() => {
+    client = new TestHttpClient('http://localhost:3099');
     client.setBaseUrl(baseUrl);
   });
 

@@ -1,9 +1,10 @@
 // Stream operations tests for WebPods
 import { expect } from 'chai';
-import jwt from 'jsonwebtoken';
-import { client, testDb } from '../test-setup.js';
+import { TestHttpClient } from 'webpods-test-utils';
+import { testDb } from '../test-setup.js';
 
 describe('WebPods Stream Operations', () => {
+  let client: TestHttpClient;
   let userId: string;
   let authId: string;
   let authToken: string;
@@ -11,6 +12,7 @@ describe('WebPods Stream Operations', () => {
   const baseUrl = `http://${testPodId}.localhost:3099`;
 
   beforeEach(async () => {
+    client = new TestHttpClient('http://localhost:3099');
     // Create a test user and auth token
     const db = testDb.getDb();
     const [user] = await db('user').insert({
@@ -32,7 +34,7 @@ describe('WebPods Stream Operations', () => {
       email: user.email,
       name: user.name,
       provider: 'github'
-    });
+    }, testPodId);
     
     client.setAuthToken(authToken);
   });

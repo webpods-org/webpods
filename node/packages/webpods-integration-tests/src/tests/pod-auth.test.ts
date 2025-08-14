@@ -1,9 +1,11 @@
 // Pod-specific authentication tests
 import { expect } from 'chai';
 import jwt from 'jsonwebtoken';
-import { client, testDb } from '../test-setup.js';
+import { TestHttpClient } from 'webpods-test-utils';
+import { testDb } from '../test-setup.js';
 
 describe('Pod-Specific Authentication with SSO', () => {
+  let client: TestHttpClient;
   const pod1 = 'alice';
   const pod2 = 'bob';
   const jwtSecret = process.env.JWT_SECRET || 'test-secret-key';
@@ -40,6 +42,10 @@ describe('Pod-Specific Authentication with SSO', () => {
   }
 
   describe('Pod Login Flow', () => {
+    beforeEach(() => {
+      client = new TestHttpClient('http://localhost:3099');
+    });
+    
     it('should redirect from pod login to main domain authorize', async () => {
       client.setBaseUrl(`http://${pod1}.localhost:3099`);
       
@@ -70,6 +76,7 @@ describe('Pod-Specific Authentication with SSO', () => {
     let globalToken: string;
     
     beforeEach(async () => {
+      client = new TestHttpClient('http://localhost:3099');
       const db = testDb.getDb();
       
       // Create test user
@@ -163,6 +170,7 @@ describe('Pod-Specific Authentication with SSO', () => {
     let aliceToken: string;
     
     beforeEach(async () => {
+      client = new TestHttpClient('http://localhost:3099');
       const db = testDb.getDb();
       
       // Create test user

@@ -1,9 +1,13 @@
 // Health check tests for WebPods
 import { expect } from 'chai';
-import { client, testDb } from '../test-setup.js';
+import { TestHttpClient } from 'webpods-test-utils';
+import { testDb } from '../test-setup.js';
 
 describe('WebPods Health Checks', () => {
+  let client: TestHttpClient;
+  
   beforeEach(() => {
+    client = new TestHttpClient('http://localhost:3099');
     client.setBaseUrl('http://localhost:3099');
   });
 
