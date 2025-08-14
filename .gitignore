@@ -140,3 +140,4 @@ vite.config.ts.timestamp-*
 
 # Development environment
 devenv/pgdata/
+test-output.txt
