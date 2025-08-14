@@ -151,9 +151,9 @@ describe('Pod-Specific Authentication with SSO', () => {
         followRedirect: false
       });
       
-      // Without session, should redirect to OAuth
+      // Without session, should redirect to OAuth (mock provider in test)
       expect(response.status).to.equal(302);
-      expect(response.headers.location).to.include('accounts.google.com');
+      expect(response.headers.location).to.include('localhost:4567/oauth/authorize');
     });
   });
 

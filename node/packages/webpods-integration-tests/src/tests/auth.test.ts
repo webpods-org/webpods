@@ -27,7 +27,7 @@ describe('WebPods Authentication', () => {
   });
 
   describe('OAuth Endpoints', () => {
-    it('should redirect to Google OAuth', async () => {
+    it('should redirect to Google OAuth (mock)', async () => {
       // Auth endpoints are on the main domain, not pod subdomains
       client.setBaseUrl('http://localhost:3099');
       const response = await client.get('/auth/google', { 
@@ -35,17 +35,19 @@ describe('WebPods Authentication', () => {
       });
       
       expect(response.status).to.be.oneOf([302, 303]);
-      expect(response.headers.location).to.include('accounts.google.com');
+      // In test environment, we use mock OAuth provider
+      expect(response.headers.location).to.include('localhost:4567/oauth/authorize');
     });
 
-    it('should redirect to GitHub OAuth', async () => {
+    it('should redirect to GitHub OAuth (mock)', async () => {
       client.setBaseUrl('http://localhost:3099');
       const response = await client.get('/auth/github', { 
         followRedirect: false 
       });
       
       expect(response.status).to.be.oneOf([302, 303]);
-      expect(response.headers.location).to.include('github.com/login/oauth');
+      // In test environment, we use mock OAuth provider
+      expect(response.headers.location).to.include('localhost:4567/oauth/authorize');
     });
 
     it('should reject invalid OAuth provider', async () => {
