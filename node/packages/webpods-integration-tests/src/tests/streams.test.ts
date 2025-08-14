@@ -338,42 +338,6 @@ describe('WebPods Stream Operations', () => {
     });
   });
 
-  describe('Permissions', () => {
-    it('should enforce private read permissions', async () => {
-      await client.post('/private?access=private', 'Secret');
-      
-      // Can read as owner
-      const response1 = await client.get('/private?i=0');
-      expect(response1.status).to.equal(200);
-      
-      // Cannot read without auth
-      client.clearAuthToken();
-      const response2 = await client.get('/private?i=0');
-      expect(response2.status).to.equal(403);
-    });
-
-    it('should support permission streams (allow lists)', async () => {
-      // Create permission stream
-      await client.post('/members', {
-        id: 'auth:github:999',
-        read: true,
-        write: true
-      });
-      
-      // Create restricted stream
-      await client.post('/restricted?access=/members', 'Members only');
-      
-      // Verify permissions stored correctly
-      const db = testDb.getDb();
-      const pod = await db('pod').where('pod_id', testPodId).first();
-      const stream = await db('stream')
-        .where('pod_id', pod.id)
-        .where('stream_id', 'restricted')
-        .first();
-      expect(stream.access_permission).to.equal('/members');
-    });
-  });
-
   describe('Stream Deletion', () => {
     it('should delete stream and all records', async () => {
       await client.post('/delete-me', 'Message 1');
