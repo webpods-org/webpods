@@ -2,6 +2,14 @@
 
 An append-only log service with OAuth authentication, organized into pods and streams. Write strings or JSON to streams, read them back, serve HTML directly via custom domains.
 
+## Documentation
+
+- [Single Sign-On (SSO)](docs/sso.md) - Authentication and session management
+- [Architecture](docs/architecture.md) - System design and components
+- [Database](docs/database.md) - Schema and migrations
+- [Deployment](docs/deployment.md) - Production deployment guide
+- [API Examples](docs/api-examples.md) - Common usage patterns
+
 ## Quick Start
 
 ```bash
