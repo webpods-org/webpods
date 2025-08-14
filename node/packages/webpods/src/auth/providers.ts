@@ -47,11 +47,12 @@ async function initializeGitHubClient(): Promise<Client> {
   const config = getProviderConfig('github');
   
   // GitHub doesn't support OpenID Connect discovery, so we configure manually
+  // Allow overriding URLs for testing
   const githubIssuer = new Issuer({
-    issuer: 'https://github.com',
-    authorization_endpoint: 'https://github.com/login/oauth/authorize',
-    token_endpoint: 'https://github.com/login/oauth/access_token',
-    userinfo_endpoint: 'https://api.github.com/user',
+    issuer: process.env.GITHUB_ISSUER || 'https://github.com',
+    authorization_endpoint: process.env.GITHUB_AUTH_URL || 'https://github.com/login/oauth/authorize',
+    token_endpoint: process.env.GITHUB_TOKEN_URL || 'https://github.com/login/oauth/access_token',
+    userinfo_endpoint: process.env.GITHUB_USER_URL || 'https://api.github.com/user',
   });
 
   const client = new githubIssuer.Client({
@@ -71,7 +72,22 @@ async function initializeGoogleClient(): Promise<Client> {
   const config = getProviderConfig('google');
   
   // Google supports OpenID Connect discovery
-  const googleIssuer = await Issuer.discover('https://accounts.google.com');
+  // Allow overriding for testing
+  const issuerUrl = process.env.GOOGLE_ISSUER || 'https://accounts.google.com';
+  
+  let googleIssuer: Issuer;
+  if (process.env.NODE_ENV === 'test' && process.env.GOOGLE_AUTH_URL) {
+    // In test mode with mock OAuth, manually configure endpoints
+    googleIssuer = new Issuer({
+      issuer: issuerUrl,
+      authorization_endpoint: process.env.GOOGLE_AUTH_URL,
+      token_endpoint: process.env.GOOGLE_TOKEN_URL || `${issuerUrl}/oauth/token`,
+      userinfo_endpoint: process.env.GOOGLE_USERINFO_URL || `${issuerUrl}/oauth/userinfo`,
+    });
+  } else {
+    // Production: use OpenID Connect discovery
+    googleIssuer = await Issuer.discover(issuerUrl);
+  }
   
   const client = new googleIssuer.Client({
     client_id: config.clientId,
