@@ -21,6 +21,7 @@ import { getOrCreateStream, getStream, deleteStream } from '../domain/streams.js
 import { writeRecord, getRecord, getRecordRange, listRecords, recordToResponse } from '../domain/records.js';
 import { canRead, canWrite } from '../domain/permissions.js';
 import { resolveLink, updateLinks, updateCustomDomains } from '../domain/routing.js';
+import { checkRateLimit } from '../domain/ratelimit.js';
 
 const logger = createLogger('webpods:routes:pods');
 const router = Router();
@@ -360,7 +361,6 @@ router.post('/*', extractPod, authenticate, rateLimit('write'), async (req: Requ
     // Create pod if it doesn't exist
     if (!req.pod && req.pod_id) {
       // Check pod creation rate limit first
-      const { checkRateLimit } = await import('../domain/ratelimit.js');
       const podLimitResult = await checkRateLimit(db, req.auth.auth_id, 'pod_create');
       
       if (!podLimitResult.success || !podLimitResult.data.allowed) {
@@ -384,12 +384,10 @@ router.post('/*', extractPod, authenticate, rateLimit('write'), async (req: Requ
     }
     
     // Check if stream exists first
-    const { getStream } = await import('../domain/streams.js');
     const existingStream = await getStream(db, req.pod!.id, streamId);
     
     // If stream doesn't exist, check rate limit before creating
     if (!existingStream.success) {
-      const { checkRateLimit } = await import('../domain/ratelimit.js');
       const streamLimitResult = await checkRateLimit(db, req.auth.auth_id, 'stream_create');
       
       if (!streamLimitResult.success || !streamLimitResult.data.allowed) {
