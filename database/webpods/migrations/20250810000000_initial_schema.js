@@ -101,6 +101,27 @@ export async function up(knex) {
     table.index(['identifier', 'action', 'window_end']);
   });
 
+  // Session storage for SSO
+  await knex.schema.createTable('session', (table) => {
+    table.string('sid').primary(); // Session ID
+    table.jsonb('sess').notNullable(); // Session data
+    table.timestamp('expire').notNullable(); // Expiry timestamp
+    
+    table.index('expire'); // For cleanup of expired sessions
+  });
+
+  // PKCE state storage for OAuth flows
+  await knex.schema.createTable('oauth_state', (table) => {
+    table.string('state').primary(); // State parameter
+    table.string('code_verifier', 128).notNullable(); // PKCE code verifier
+    table.string('pod', 63); // Optional pod for pod-specific auth
+    table.text('redirect_url'); // Where to redirect after auth
+    table.timestamp('created_at').defaultTo(knex.fn.now());
+    table.timestamp('expires_at').notNullable(); // TTL for state
+    
+    table.index('expires_at'); // For cleanup of expired states
+  });
+
   // Update triggers for updated_at columns
   await knex.raw(`
     CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -142,6 +163,8 @@ export async function down(knex) {
   await knex.raw('DROP FUNCTION IF EXISTS update_updated_at_column');
   
   // Drop tables in reverse order
+  await knex.schema.dropTableIfExists('oauth_state');
+  await knex.schema.dropTableIfExists('session');
   await knex.schema.dropTableIfExists('rate_limit');
   await knex.schema.dropTableIfExists('custom_domain');
   await knex.schema.dropTableIfExists('record');

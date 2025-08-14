@@ -9,35 +9,22 @@ import { createLogger } from '../logger.js';
 import { findOrCreateUser, generateToken, generatePodToken } from '../domain/auth.js';
 import {
   OAuthProvider,
-  generatePKCE,
-  generateState,
   getAuthorizationUrl,
   exchangeCodeForTokens,
   getUserInfo
 } from './providers.js';
+import { 
+  storePKCEState, 
+  retrievePKCEState, 
+  generatePKCEChallenge 
+} from './pkce-store.js';
+import sessionRouter from './session-routes.js';
 
 const logger = createLogger('webpods:auth:routes');
 const router = Router();
 
-// Store PKCE verifiers and redirect paths (in production, use Redis)
-const stateStore = new Map<string, { 
-  codeVerifier: string; 
-  redirect: string; 
-  provider: OAuthProvider;
-  pod?: string;  // Optional pod for pod-specific auth
-  timestamp: number;
-}>();
-
-// Clean up old state entries periodically
-setInterval(() => {
-  const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
-  for (const [state, data] of stateStore.entries()) {
-    // Store timestamp in the data for cleanup
-    if ((data as any).timestamp && (data as any).timestamp < fiveMinutesAgo) {
-      stateStore.delete(state);
-    }
-  }
-}, 60 * 1000); // Clean every minute
+// Mount session management routes
+router.use('/', sessionRouter);
 
 // ===== SPECIFIC ROUTES FIRST =====
 
@@ -328,20 +315,13 @@ router.get('/authorize', async (req: Request, res: Response) => {
   } else {
     // No session, redirect to OAuth with pod info
     const provider = 'google'; // Default provider, could be configurable
-    const { codeVerifier, codeChallenge } = generatePKCE();
-    const state = generateState();
+    const { verifier, challenge, state } = generatePKCEChallenge();
     
-    // Store state with pod info
-    stateStore.set(state, {
-      codeVerifier,
-      redirect,
-      provider,
-      pod,
-      timestamp: Date.now()
-    });
+    // Store state with pod info in database
+    await storePKCEState(state, verifier, pod, redirect);
     
     // Get authorization URL
-    const authUrl = await getAuthorizationUrl(provider, state, codeChallenge);
+    const authUrl = await getAuthorizationUrl(provider, state, challenge);
     
     logger.info('Redirecting to OAuth for pod authorization', { pod, provider });
     res.redirect(authUrl);
@@ -372,19 +352,13 @@ router.get('/:provider', async (req: Request, res: Response) => {
     const redirect = req.query.redirect ? String(req.query.redirect) : '/';
     
     // Generate PKCE and state
-    const { codeVerifier, codeChallenge } = generatePKCE();
-    const state = generateState();
+    const { verifier, challenge, state } = generatePKCEChallenge();
     
-    // Store state with verifier and redirect
-    stateStore.set(state, {
-      codeVerifier,
-      redirect,
-      provider,
-      timestamp: Date.now()
-    } as any);
+    // Store state with verifier and redirect in database
+    await storePKCEState(state, verifier, undefined, redirect);
     
     // Get authorization URL
-    const authUrl = await getAuthorizationUrl(provider, state, codeChallenge);
+    const authUrl = await getAuthorizationUrl(provider, state, challenge);
     
     logger.info('OAuth flow initiated', { provider, state });
     res.redirect(authUrl);
@@ -418,10 +392,10 @@ router.get('/:provider/callback', async (req: Request, res: Response) => {
   }
 
   try {
-    // Retrieve and validate state
-    const stateData = stateStore.get(state as string);
+    // Retrieve and validate state from database
+    const stateData = await retrievePKCEState(state as string);
     
-    if (!stateData || stateData.provider !== provider) {
+    if (!stateData) {
       res.status(400).json({
         error: {
           code: 'INVALID_STATE',
@@ -430,9 +404,6 @@ router.get('/:provider/callback', async (req: Request, res: Response) => {
       });
       return;
     }
-    
-    // Clean up state
-    stateStore.delete(state as string);
     
     // Exchange code for tokens
     const tokenSet = await exchangeCodeForTokens(
@@ -460,6 +431,19 @@ router.get('/:provider/callback', async (req: Request, res: Response) => {
     (req as any).session = (req as any).session || {};
     (req as any).session.user = userResult.data;
     
+    // Save session to ensure it's persisted
+    await new Promise<void>((resolve, reject) => {
+      (req as any).session.save((err: any) => {
+        if (err) {
+          logger.error('Failed to save session', { error: err });
+          reject(err);
+        } else {
+          logger.info('Session saved', { userId: userResult.data.id });
+          resolve();
+        }
+      });
+    });
+    
     // Check if this is pod-specific auth
     if (stateData.pod) {
       // Generate pod-specific token
@@ -469,7 +453,7 @@ router.get('/:provider/callback', async (req: Request, res: Response) => {
       const protocol = process.env.NODE_ENV === 'test' ? 'http' : 'https';
       const podDomain = `${stateData.pod}.${process.env.DOMAIN || 'webpods.org'}`;
       const port = process.env.NODE_ENV === 'test' && process.env.WEBPODS_PORT ? `:${process.env.WEBPODS_PORT}` : '';
-      const callbackUrl = `${protocol}://${podDomain}${port}/auth/callback?token=${encodeURIComponent(podToken)}&redirect=${encodeURIComponent(stateData.redirect)}`;
+      const callbackUrl = `${protocol}://${podDomain}${port}/auth/callback?token=${encodeURIComponent(podToken)}&redirect=${encodeURIComponent(stateData.redirect || '/')}`;
       
       logger.info('Pod authentication successful', { 
         userId: userResult.data.id, 

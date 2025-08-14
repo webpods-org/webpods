@@ -11,6 +11,8 @@ import cookieParser from 'cookie-parser';
 import { config } from 'dotenv';
 import { createLogger } from './logger.js';
 import { closeDb, checkDbConnection } from './db.js';
+import { getSessionConfig } from './auth/session-store.js';
+import { startStateCleanup } from './auth/pkce-store.js';
 import authRouter from './auth/routes.js';
 import podsRouter from './routes/pods.js';
 
@@ -36,27 +38,9 @@ app.use(express.urlencoded({ extended: true }));
 app.use(compression());
 app.use(cookieParser());
 
-// Session management for SSO (only on main domain)
-const domain = process.env.DOMAIN || 'webpods.org';
-app.use((req, res, next) => {
-  // Only use sessions on main domain for SSO
-  if (req.hostname === domain) {
-    session({
-      secret: process.env.SESSION_SECRET || process.env.JWT_SECRET || 'dev-session-secret',
-      resave: false,
-      saveUninitialized: false,
-      cookie: {
-        secure: process.env.NODE_ENV === 'production',
-        httpOnly: true,
-        maxAge: 24 * 60 * 60 * 1000, // 24 hours
-        sameSite: 'lax',
-        domain: `.${domain}` // Allow all subdomains
-      }
-    })(req, res, next);
-  } else {
-    next();
-  }
-});
+// Session management for SSO (works on all domains but only used for auth)
+const sessionMiddleware = session(getSessionConfig());
+app.use(sessionMiddleware);
 
 // Request logging
 app.use((req, res, next) => {
@@ -206,6 +190,9 @@ async function start() {
       logger.error('Failed to connect to database');
       process.exit(1);
     }
+    
+    // Start PKCE state cleanup
+    startStateCleanup();
     
     const server = app.listen(port, () => {
       logger.info(`WebPods server started`, {
