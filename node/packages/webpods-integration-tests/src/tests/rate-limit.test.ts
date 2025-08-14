@@ -4,7 +4,6 @@ import jwt from 'jsonwebtoken';
 import { client, testDb } from '../test-setup.js';
 
 describe('WebPods Rate Limiting', () => {
-  let userId: string;
   let authId: string;
   let authToken: string;
   const testPodId = 'rate-test';
@@ -20,7 +19,6 @@ describe('WebPods Rate Limiting', () => {
       provider: 'google'
     }).returning('*');
     
-    userId = user.id;
     authId = user.auth_id;
     authToken = jwt.sign({
       user_id: user.id,

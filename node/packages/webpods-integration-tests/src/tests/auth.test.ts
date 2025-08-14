@@ -359,7 +359,7 @@ describe('WebPods Authentication', () => {
       // we should get the 302 redirect response
       const response = await client.get('/auth/logout', {
         maxRedirects: 0,
-        validateStatus: (status) => status < 500
+        validateStatus: (status: number) => status < 500
       });
       
       // The actual redirect should happen, but then "/" returns 404 on main domain

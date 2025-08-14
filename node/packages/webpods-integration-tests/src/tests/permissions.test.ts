@@ -5,7 +5,6 @@ import { client, testDb } from '../test-setup.js';
 
 describe('WebPods Permissions', () => {
   let user1: any;
-  let user1Id: string;
   let user1Token: string;
   let user2: any;
   let user2Id: string;
@@ -33,7 +32,6 @@ describe('WebPods Permissions', () => {
       provider: 'google'
     }).returning('*');
     
-    user1Id = user1.id;
     user2Id = user2.id;
     
     user1Token = jwt.sign({
