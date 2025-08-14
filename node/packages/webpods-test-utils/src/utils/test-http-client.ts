@@ -10,6 +10,7 @@ export interface FetchResponse {
 export class TestHttpClient {
   private baseURL: string;
   private authToken: string | null = null;
+  private cookieJar: Map<string, string> = new Map();
 
   constructor(baseURL: string) {
     this.baseURL = baseURL;
@@ -25,6 +26,50 @@ export class TestHttpClient {
 
   public setBaseUrl(baseURL: string): void {
     this.baseURL = baseURL;
+  }
+
+  public setCookie(name: string, value: string): void {
+    this.cookieJar.set(name, value);
+  }
+
+  public getCookie(name: string): string | undefined {
+    return this.cookieJar.get(name);
+  }
+
+  public clearCookies(): void {
+    this.cookieJar.clear();
+  }
+
+  private getCookieHeader(): string | undefined {
+    if (this.cookieJar.size === 0) return undefined;
+    
+    const cookies: string[] = [];
+    this.cookieJar.forEach((value, name) => {
+      cookies.push(`${name}=${value}`);
+    });
+    return cookies.join('; ');
+  }
+
+  private storeCookiesFromResponse(headers: Record<string, string>): void {
+    const setCookieHeader = headers['set-cookie'];
+    if (!setCookieHeader) return;
+
+    // Parse set-cookie header (simplified - doesn't handle all edge cases)
+    const cookies = setCookieHeader.split(',').map(c => c.trim());
+    cookies.forEach(cookie => {
+      const parts = cookie.split(';');
+      if (parts.length > 0 && parts[0]) {
+        const nameValue = parts[0];
+        const equalIndex = nameValue.indexOf('=');
+        if (equalIndex > 0) {
+          const name = nameValue.substring(0, equalIndex).trim();
+          const value = nameValue.substring(equalIndex + 1).trim();
+          if (name && value) {
+            this.cookieJar.set(name, value);
+          }
+        }
+      }
+    });
   }
 
   private buildUrl(path: string, params?: any): string {
@@ -51,6 +96,12 @@ export class TestHttpClient {
         : `Bearer ${this.authToken}`;
     }
     
+    // Add cookies to headers
+    const cookieHeader = this.getCookieHeader();
+    if (cookieHeader) {
+      headers['Cookie'] = cookieHeader;
+    }
+    
     return headers;
   }
 
@@ -59,6 +110,9 @@ export class TestHttpClient {
     response.headers.forEach((value, key) => {
       headers[key] = value;
     });
+
+    // Store cookies from response
+    this.storeCookiesFromResponse(headers);
 
     const text = await response.text();
     let data: any = text;

@@ -1,303 +1,114 @@
-# WebPods Architecture
+# Architecture
 
-## Table of Contents
-- [Overview](#overview)
-- [Core Principles](#core-principles)
-- [System Components](#system-components)
-- [Data Model](#data-model)
-- [Request Flow](#request-flow)
-- [Security Architecture](#security-architecture)
-- [Scalability Considerations](#scalability-considerations)
-- [Technology Stack](#technology-stack)
+## System Design
 
-## Overview
+WebPods is an append-only log service with pod-based multi-tenancy.
 
-WebPods is designed as a simple, scalable append-only log service with OAuth authentication. The architecture prioritizes simplicity, reliability, and ease of deployment while maintaining the flexibility to scale horizontally.
-
-## Core Principles
-
-### 1. Append-Only Design
-- **Immutability**: Once written, records cannot be modified or individually deleted
-- **Sequential Ordering**: Each record has a monotonically increasing sequence number
-- **Audit Trail**: Complete history preservation for compliance and debugging
-- **Simplicity**: No complex conflict resolution or merge strategies needed
-
-### 2. Pod and Stream Organization
-- **Pods**: Subdomain namespaces for multi-tenancy
-- **Named Streams**: User-defined identifiers for logical data separation
-- **Auto-Creation**: Pods and streams created on first write, reducing API complexity
-- **Independent Scaling**: Streams can be partitioned and scaled independently
-- **Multi-Tenancy**: Natural isolation between different users' data
-
-### 3. RESTful API Design
-- **Standard HTTP Verbs**: POST for writes, GET for reads, DELETE for stream removal
-- **Stateless**: Each request contains all necessary information
-- **Resource-Oriented**: URLs represent resources (pods, streams, records)
-- **Content Negotiation**: Support for both JSON and plain text
-
-### 4. OAuth-First Authentication
-- **Industry Standard**: OAuth 2.0 with JWT tokens
-- **Provider Flexibility**: Starting with Google, extensible to other providers
-- **Stateless Authentication**: JWT tokens eliminate session storage needs
-- **Fine-Grained Permissions**: Per-stream read/write permissions
-
-## System Components
+### Components
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                      Client Applications                 │
-└─────────────────────┬───────────────────────────────────┘
-                      │ HTTPS
-┌─────────────────────▼───────────────────────────────────┐
-│                    Load Balancer                         │
-│                   (nginx/HAProxy)                        │
-└─────────────────────┬───────────────────────────────────┘
-                      │
-┌─────────────────────▼───────────────────────────────────┐
-│                  WebPods API Servers                     │
-│  ┌──────────────────────────────────────────────────┐   │
-│  │              Express.js Application               │   │
-│  │  ┌──────────────────────────────────────────┐    │   │
-│  │  │          Authentication Layer            │    │   │
-│  │  │         (Passport.js + JWT)             │    │   │
-│  │  └──────────────────────────────────────────┘    │   │
-│  │  ┌──────────────────────────────────────────┐    │   │
-│  │  │           Rate Limiting                  │    │   │
-│  │  │        (PostgreSQL-backed)              │    │   │
-│  │  └──────────────────────────────────────────┘    │   │
-│  │  ┌──────────────────────────────────────────┐    │   │
-│  │  │         Business Logic Layer             │    │   │
-│  │  │    (Pod, Stream, Permission, Record Mgmt) │    │   │
-│  │  └──────────────────────────────────────────┘    │   │
-│  └──────────────────────────────────────────────────┘   │
-└─────────────────────┬───────────────────────────────────┘
-                      │
-┌─────────────────────▼───────────────────────────────────┐
-│                    PostgreSQL Database                   │
-│  ┌──────────────────────────────────────────────────┐   │
-│  │ Tables: user, pod, stream, record, rate_limit    │   │
-│  │ Indexes: Optimized for append and range queries  │   │
-│  │ Constraints: Foreign keys, unique constraints    │   │
-│  └──────────────────────────────────────────────────┘   │
-└──────────────────────────────────────────────────────────┘
+[Client] → [Load Balancer] → [WebPods Server] → [PostgreSQL]
+                                    ↓
+                              [Session Store]
 ```
 
-### API Server
-- **Framework**: Express.js for HTTP handling
-- **Validation**: Zod for request/response validation
-- **Authentication**: Passport.js with Google OAuth strategy
-- **Database**: Knex.js query builder for PostgreSQL
-- **Logging**: Structured logging with context
-
-### Database Layer
-- **PostgreSQL**: Primary data store for all application data
-- **No Caching Layer**: Simplicity over premature optimization
-- **Connection Pooling**: Managed by Knex.js
-- **Transactional Consistency**: ACID compliance for data integrity
-
-### Authentication Service
-- **OAuth Provider**: Google OAuth 2.0 (extensible to others)
-- **JWT Tokens**: Stateless authentication tokens
-- **Token Validation**: Middleware-based validation
-- **User Management**: Automatic user creation on first login
-
-## Data Model
-
-### Entity Relationships
+### Data Model
 
 ```
-┌──────────────┐
-│     user     │
-│──────────────│
-│ id (UUID)    │◄──────┐
-│ auth_id      │       │
-│ email        │       │
-│ name         │       │
-│ provider     │       │
-└──────────────┘       │
-                       │ creator_id
-┌──────────────┐
-│     pod      │
-│──────────────│
-│ id (UUID)    │◄──────┐
-│ pod_id       │       │
-└──────────────┘       │
-                       │ pod_id
-┌──────────────┐       │
-│    stream    │───────┤
-│──────────────│       │
-│ id (UUID)    │◄──────┤
-│ pod_id       │       │
-│ stream_id    │       │
-│ creator_id   │───────┘
-│ read_perm    │
-│ write_perm   │
-└──────────────┘       │
-                       │ stream_id
-┌──────────────┐       │
-│    record    │───────┘
-│──────────────│
-│ id           │
-│ stream_id    │
-│ index │
-│ content      │
-│ content_type │
-│ metadata     │
-│ created_by   │
-└──────────────┘
-
-┌──────────────┐
-│  rate_limit  │
-│──────────────│
-│ id           │
-│ user_id      │───────► user.id
-│ action       │
-│ count        │
-│ window_start │
-└──────────────┘
+Pod (subdomain)
+ └── Stream (path)
+      └── Record (append-only entry)
+           ├── content
+           ├── hash (SHA-256)
+           └── previous_hash → Record
 ```
 
-### Key Design Decisions
+### Request Flow
 
-1. **UUIDs for User/Pod/Stream IDs**: Globally unique, no central coordination needed
-2. **Sequential IDs for Records**: Efficient append operations, natural ordering
-3. **JSONB for Content/Metadata**: Flexible schema, queryable in PostgreSQL
-4. **Denormalized Permissions**: Stored directly on stream for fast access
-5. **Sliding Window Rate Limiting**: Accurate rate limiting without fixed windows
+1. **DNS**: `*.webpods.org` → Load balancer
+2. **Auth**: JWT validation or session check
+3. **Pod Resolution**: Extract from subdomain
+4. **Stream Access**: Check permissions
+5. **Operation**: Read/Write/Delete
+6. **Response**: Content + metadata headers
 
-## Request Flow
+## Database Schema
 
-### Write Operation
+### Core Tables
 
-```
-1. Client Request
-   └─> Authentication Middleware
-       └─> JWT Validation
-           └─> Rate Limit Check
-               └─> Permission Check
-                   └─> Pod/Stream Creation (if needed)
-                       └─> Record Insertion
-                           └─> Response
-```
+**user**
+- `id`: UUID primary key
+- `auth_id`: Provider ID (`auth:github:123`)
+- `email`, `name`, `provider`
 
-### Read Operation
+**pod**
+- `id`: UUID primary key
+- `pod_id`: Subdomain identifier
+- `owner_id`: User UUID
 
-```
-1. Client Request
-   └─> Optional Authentication
-       └─> Rate Limit Check (if authenticated)
-           └─> Stream Lookup
-               └─> Permission Check
-                   └─> Record Retrieval
-                       └─> Response Formatting
-                           └─> Response
-```
+**stream**
+- `id`: UUID primary key
+- `pod_id`: Pod UUID
+- `stream_id`: Path (`blog/2024`)
+- `access_permission`: Access mode
+- `creator_id`: User UUID
 
-## Security Architecture
+**record**
+- `id`: UUID primary key
+- `stream_id`: Stream UUID
+- `index`: Sequential position
+- `content`: Text/JSON
+- `hash`, `previous_hash`: Chain links
+- `alias`: Optional named reference
 
-### Authentication & Authorization
-- **OAuth 2.0**: Industry-standard authentication
-- **JWT Tokens**: Cryptographically signed, time-limited tokens
-- **Permission Model**: Three-tier (public, auth, owner)
-- **CORS**: Configurable cross-origin resource sharing
+### Session Tables (SSO)
 
-### Data Protection
-- **HTTPS Only**: TLS encryption for all API traffic
-- **SQL Injection Prevention**: Parameterized queries via Knex.js
-- **Input Validation**: Zod schemas for all inputs
-- **XSS Prevention**: Content-type aware responses
+**session**
+- `sid`: Session ID
+- `sess`: Session data (user, cookie)
+- `expire`: Expiration timestamp
 
-### Rate Limiting
-- **Per-User Limits**: Prevent individual user abuse
-- **Action-Based**: Different limits for read/write
-- **Database-Backed**: Survives server restarts
-- **Sliding Window**: Accurate rate calculation
+**oauth_state**
+- `state`: PKCE state
+- `code_verifier`: PKCE verifier
+- `pod`: Target pod
+- `expires_at`: 10-minute TTL
 
-### Operational Security
-- **Environment Variables**: Sensitive configuration outside code
-- **No Secrets in Logs**: Careful logging practices
-- **Health Checks**: Separate endpoint without sensitive data
-- **Audit Trail**: All writes tracked with user ID
+## Security
 
-## Scalability Considerations
+### Authentication
+- OAuth 2.0 with PKCE
+- JWT tokens (pod-specific or global)
+- PostgreSQL session store for SSO
 
-### Horizontal Scaling
-```
-┌──────────┐ ┌──────────┐ ┌──────────┐
-│  API-1   │ │  API-2   │ │  API-3   │
-└────┬─────┘ └────┬─────┘ └────┬─────┘
-     └────────────┼────────────┘
-                  │
-           ┌──────▼──────┐
-           │ PostgreSQL  │
-           │  (Primary)  │
-           └──────┬──────┘
-                  │
-     ┌────────────┼────────────┐
-┌────▼────┐ ┌────▼────┐ ┌────▼────┐
-│ Read-1  │ │ Read-2  │ │ Read-3  │
-└─────────┘ └─────────┘ └─────────┘
-```
+### Authorization
+- Stream-level permissions
+- In-memory permission evaluation
+- Pod ownership via `.meta/owner`
 
-### Performance Optimizations
-1. **Connection Pooling**: Reuse database connections
-2. **Index Strategy**: Optimized for append and range queries
-3. **Pagination**: Limit-based pagination for large streams
-4. **Stateless Design**: Any server can handle any request
+### Data Integrity
+- SHA-256 hash chain
+- Immutable records
+- Append-only streams
 
-### Future Scaling Options
-1. **Read Replicas**: Offload read traffic from primary
-2. **Stream Partitioning**: Distribute streams across databases
-3. **Caching Layer**: Add Redis for hot data (if needed)
-4. **CDN**: Cache public stream responses at edge
+## Performance
+
+### Optimizations
+- Connection pooling (PostgreSQL)
+- Indexed queries (pod_id, stream_id, alias)
+- In-memory permission checks
+- Session-based SSO (no repeated OAuth)
+
+### Scaling
+- Horizontal: Multiple server instances
+- Database: Read replicas for queries
+- Sessions: Shared PostgreSQL store
 
 ## Technology Stack
 
-### Backend
-- **Runtime**: Node.js 22+ (LTS)
-- **Framework**: Express.js 4.x
-- **Language**: TypeScript 5.x
-- **Database**: PostgreSQL 16+
-- **ORM/Query Builder**: Knex.js
-
-### Libraries
-- **Authentication**: Passport.js, jsonwebtoken
-- **Validation**: Zod
-- **HTTP Security**: Helmet, CORS
-- **Logging**: Debug
+- **Runtime**: Node.js with TypeScript
+- **Framework**: Express.js
+- **Database**: PostgreSQL with Knex.js
+- **Auth**: Passport.js, express-session
 - **Testing**: Mocha, Chai
-- **HTTP Client**: Axios (for tests)
-
-### Infrastructure
-- **Container**: Docker with multi-stage builds
-- **Process Manager**: Node.js cluster (production)
-- **Database Migrations**: Knex migrations
-- **Development**: Docker Compose with hot reload
-
-### Deployment
-- **Platforms**: Docker, Kubernetes, Traditional VPS
-- **Load Balancer**: nginx, HAProxy, or cloud LB
-- **Monitoring**: Prometheus metrics endpoint (planned)
-- **Logging**: Structured JSON logs
-
-## Design Trade-offs
-
-### Simplicity vs Features
-- **Choice**: Single PostgreSQL database
-- **Trade-off**: Simpler operations vs potential scaling limits
-- **Rationale**: Most applications won't hit PostgreSQL limits
-
-### Flexibility vs Performance
-- **Choice**: JSONB for content storage
-- **Trade-off**: Flexible schema vs slightly slower than native types
-- **Rationale**: Developer experience and adaptability prioritized
-
-### Security vs Convenience
-- **Choice**: OAuth-only authentication
-- **Trade-off**: No username/password vs OAuth provider dependency
-- **Rationale**: Industry-standard security without password management
-
-### Consistency vs Availability
-- **Choice**: Single primary database
-- **Trade-off**: Strong consistency vs high availability
-- **Rationale**: Data correctness prioritized for audit trail use cases
+- **Build**: ESM modules, tsc

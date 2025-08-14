@@ -1,378 +1,184 @@
 # WebPods
 
-An append-only log service with OAuth authentication, organized into pods and streams. Write strings or JSON to streams, read them back, serve HTML directly via custom domains.
-
-## Documentation
-
-- [Single Sign-On (SSO)](docs/sso.md) - Authentication and session management
-- [Architecture](docs/architecture.md) - System design and components
-- [Database](docs/database.md) - Schema and migrations
-- [Deployment](docs/deployment.md) - Production deployment guide
-- [API Examples](docs/api-examples.md) - Common usage patterns
+HTTP-based append-only logs organized as pods (subdomains) and streams.
 
 ## Quick Start
 
 ```bash
-# Login
+# Get auth token
 curl https://webpods.org/auth/github
 
-# Write to a stream (creates pod + stream automatically)
+# Write to stream (creates pod and stream automatically)
 curl -X POST https://alice.webpods.org/blog \
   -H "Authorization: Bearer $TOKEN" \
-  -d "My first post"
+  -d "First post"
 
-# Read from stream
-curl https://alice.webpods.org/blog
-
-# Get latest record
+# Read latest
 curl https://alice.webpods.org/blog?i=-1
-
-# Use aliases (can be numbers too!)
-curl -X POST https://alice.webpods.org/blog?alias=2024 \
-  -H "Authorization: Bearer $TOKEN" \
-  -d "Posts from 2024"
-  
-curl https://alice.webpods.org/blog/2024  # Returns the aliased content
 ```
 
 ## Core Concepts
 
-- **Pod**: A namespace for streams (e.g., `alice`, `myproject`)
-- **Stream**: An append-only log within a pod (e.g., `blog`, `blog/posts/2024`)
-- **Record**: An immutable entry in a stream (string or JSON)
-- **Hash Chain**: Each record contains a hash of the previous record, creating a cryptographically verifiable chain
-- **System Streams**: Special streams under `.meta/` (e.g., `.meta/owner` for pod ownership)
+**Pod**: Subdomain namespace (`alice.webpods.org`)  
+**Stream**: Append-only log (`/blog`, `/blog/2024/posts`)  
+**Record**: Immutable entry with SHA-256 hash chain  
 
-## URL Structure
+## API
 
-```
-{pod_id}.webpods.org/{stream_path}
-```
+### Authentication
 
-Examples:
-- `alice.webpods.org/blog`
-- `alice.webpods.org/blog/posts/2024` (nested stream paths)
-- `myproject.webpods.org/config`
-- `acme.webpods.org/.meta/owner` (system stream)
-
-## Authentication
-
-WebPods uses OAuth for authentication. Login through supported providers to get a JWT token.
-
-### OAuth Login
-```
-GET https://webpods.org/auth/{provider}?redirect={redirect_path}
-```
-Providers: `github`, `google`
-
-After OAuth authentication, you'll be redirected to `/auth/success` which:
-- **Displays the JWT token** for copying (CLI/desktop apps)
-- **Posts token to parent window** (popup flows)
-- **Auto-redirects after 5 seconds** (web apps)
-
-### Token Usage
-
-**For Web Apps:**
-```javascript
-// Open in popup
-const authWindow = window.open('https://webpods.org/auth/github');
-
-// Listen for token
-window.addEventListener('message', (e) => {
-  if (e.data.type === 'auth_success') {
-    localStorage.setItem('token', e.data.token);
-  }
-});
-```
-
-**For CLI/Desktop Apps:**
 ```bash
-# Open browser (add ?no_redirect=1 to prevent auto-redirect)
-https://webpods.org/auth/github?no_redirect=1
+# Login
+GET https://webpods.org/auth/{provider}  # github or google
 
-# Copy token from success page
-# Use in API calls:
-curl -H "Authorization: Bearer $TOKEN" ...
-```
-
-**For API Requests:**
-```
+# Get user info
+GET https://webpods.org/auth/whoami
 Authorization: Bearer {token}
 ```
 
-### Logout
-```
-GET https://webpods.org/auth/logout  # Browser redirect
-POST https://webpods.org/auth/logout # API response
-```
+### Write
 
-### Who Am I
-```
-GET https://webpods.org/auth/whoami
-```
+```bash
+POST {pod}.webpods.org/{stream}
+Authorization: Bearer {token}
 
-**Headers:**
-- `Authorization: Bearer {token}` (required)
-
-Returns:
-```json
-{
-  "user_id": "auth:github:1234567",
-  "email": "user@example.com",
-  "name": "John Doe",
-  "provider": "github"
-}
+# Optional parameters
+?alias={string}     # Named reference (any string)
+?access={mode}      # Set on first write only
 ```
 
-## API Reference
+Content type priority:
+1. `X-Content-Type` header
+2. `Content-Type` header  
+3. Auto-detect
 
-### Write to Stream
+### Read
 
-```
-POST {pod_id}.webpods.org/{stream_path}?alias={alias}
-```
+```bash
+# By index
+GET {pod}.webpods.org/{stream}?i=0      # First
+GET {pod}.webpods.org/{stream}?i=-1     # Latest
+GET {pod}.webpods.org/{stream}?i=0:10   # Range
 
-Creates pod and stream if they don't exist. Supports nested stream paths with slashes.
+# By alias
+GET {pod}.webpods.org/{stream}/{alias}
 
-**Query Parameters:**
-- `alias` (optional): Named reference for this record (any string including numbers)
-- `access` (optional): Access permission for stream (first write only)
-
-**Headers:**
-- `Authorization: Bearer {token}` (required)
-- `X-Content-Type` (optional): Explicit content type (highest priority)
-- `Content-Type` (optional): Standard content type header
-
-**Body:** String or JSON
-
-**Response:**
-```json
-{
-  "index": 0,
-  "content": "...",
-  "content_type": "text/plain",
-  "alias": "my-alias",
-  "hash": "sha256:...",
-  "previous_hash": null,
-  "author": "auth:github:1234567",
-  "timestamp": "2024-01-01T00:00:00Z"
-}
+# List all
+GET {pod}.webpods.org/{stream}?limit=100&after=50
 ```
 
-### Read from Stream
-
-```
-# Get by index (query parameter)
-GET {pod_id}.webpods.org/{stream_path}?i=0      # First record
-GET {pod_id}.webpods.org/{stream_path}?i=-1     # Latest record
-GET {pod_id}.webpods.org/{stream_path}?i=10:20   # Range [10, 20)
-
-# Get by alias
-GET {pod_id}.webpods.org/{stream_path}/{alias}   # Any string including numbers
-
-# List all records
-GET {pod_id}.webpods.org/{stream_path}?limit=100&after=50
-```
-
-**Single Record Response:** Returns raw content with headers:
-- `Content-Type`: The content type
+Single records return raw content with metadata in headers:
 - `X-Hash`: Record hash
-- `X-Previous-Hash`: Previous record hash
-- `X-Author`: Author ID
-- `X-Timestamp`: Creation timestamp
+- `X-Author`: Creator ID
+- `X-Timestamp`: Creation time
 
-**Range/List Response:**
-```json
-{
-  "records": [...],
-  "total": 150,
-  "has_more": true,
-  "next_index": 100
-}
+### Delete
+
+```bash
+DELETE {pod}.webpods.org/{stream}
+Authorization: Bearer {token}
 ```
 
-### Delete Stream
-
-```
-DELETE {pod_id}.webpods.org/{stream_path}
-```
-
-Only the stream creator can delete it. System streams cannot be deleted.
-
-**Headers:**
-- `Authorization: Bearer {token}` (required)
-
-### List Streams
-
-```
-GET {pod_id}.webpods.org/.meta/streams
-```
-
-Returns all streams in the pod.
-
-**Response:**
-```json
-{
-  "pod": "alice",
-  "streams": [
-    "blog",
-    "blog/posts/2024",
-    "config",
-    ".meta/owner",
-    ".meta/links"
-  ]
-}
-```
+Only stream creator can delete. System streams cannot be deleted.
 
 ## Permissions
 
-Streams support flexible permission models:
+**Access modes:**
+- `public`: Anyone reads, authenticated write (default)
+- `private`: Creator only
+- `/{stream}`: Users listed in that stream
 
-### Access Modes
-- `public` (default): Anyone can read, authenticated users can write
-- `private`: Only the creator can read/write
-- `/streamname`: Permission stream - users listed in that stream control access
-
-### Permission Streams
-Permission streams contain JSON records that specify user access:
+**Permission stream format:**
 ```json
 {
-  "id": "auth:github:123",  // User's auth ID
-  "read": true,              // Can read
-  "write": false             // Cannot write
+  "id": "auth:github:123",
+  "read": true,
+  "write": false
 }
-```
-
-Example:
-```bash
-# Create a members-only blog
-curl -X POST "alice.webpods.org/private-blog?access=/members" \
-  -H "Authorization: Bearer $TOKEN" \
-  -d "Members only content"
-
-# Add member with read/write access
-curl -X POST alice.webpods.org/members \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"id": "auth:github:789", "read": true, "write": true}'
 ```
 
 ## System Streams
 
-System streams provide pod configuration and metadata:
-
 ### .meta/owner
-Tracks pod ownership. Last record determines current owner.
+Pod ownership. Last record wins.
 
-```bash
-# Transfer ownership
-curl -X POST alice.webpods.org/.meta/owner \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"owner": "auth:github:987654"}'
+### .meta/links  
+URL routing:
+```json
+{
+  "/": "homepage?i=-1",
+  "/about": "pages/about?i=-1"
+}
 ```
 
-### .meta/links
-Maps URL paths to stream/record combinations for clean URLs.
-
-```bash
-# Configure homepage
-curl -X POST alice.webpods.org/.meta/links \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "/": "homepage?i=-1",
-    "/about": "pages/about",
-    "/blog": "blog/posts?i=-10:-1"
-  }'
-```
-
-### .meta/domains
-Configure custom domains (requires DNS CNAME).
-
-```bash
-curl -X POST alice.webpods.org/.meta/domains \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"domains": ["alice.com", "blog.alice.com"]}'
-```
+### .meta/streams
+Lists all pod streams.
 
 ## Content Serving
 
-WebPods can serve content directly with proper Content-Type headers:
-
+Write HTML/CSS/JS with proper content type:
 ```bash
-# Write HTML
-curl -X POST alice.webpods.org/homepage \
-  -H "Authorization: Bearer $TOKEN" \
+curl -X POST alice.webpods.org/page?alias=home \
   -H "X-Content-Type: text/html" \
-  -d '<h1>Welcome to my site!</h1>'
+  -d "<h1>Welcome</h1>"
 
-# Access directly
-curl alice.webpods.org/homepage?i=-1
-# Returns HTML with Content-Type: text/html
-
-# Write CSS
-curl -X POST alice.webpods.org/assets/styles?alias=main.css \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "X-Content-Type: text/css" \
-  -d 'body { font-family: sans-serif; }'
-
-# Access via alias
-curl alice.webpods.org/assets/styles/main.css
-# Returns CSS with Content-Type: text/css
+# Access: alice.webpods.org/page/home
 ```
 
-## Hash Chain Verification
+## Hash Chain
 
-Every record includes:
-- `hash`: SHA-256 hash of the record (includes previous_hash, timestamp, content)
-- `previous_hash`: Hash of the previous record (null for first record)
+Each record contains:
+- `hash`: SHA-256 of content + metadata
+- `previous_hash`: Link to previous (null for first)
 
-This creates an immutable, verifiable chain of records.
+## SSO (Single Sign-On)
+
+Sessions persist across pods. One login for all your pods.
+
+```bash
+# Authorize pod access (if already logged in, skips OAuth)
+GET https://webpods.org/auth/authorize?pod=alice
+
+# Returns pod-specific token
+```
 
 ## Development
 
 ```bash
-# Clone repository
-git clone https://github.com/webpods-org/webpods.git
+# Setup
+git clone https://github.com/webpods-org/webpods
 cd webpods
-
-# Install dependencies
-npm install
-
-# Setup database
 cp .env.example .env
-# Edit .env with your database credentials
-npm run migrate:webpods:latest
+# Edit .env
 
-# Build
+# Database
+npm run migrate:latest
+
+# Build & run
 ./build.sh
-
-# Start server
 ./start.sh
 
-# Run tests
+# Test
 npm test
-
-# Lint
-./lint-all.sh
 ```
 
-## Environment Variables
+## Configuration
 
-Key configuration options:
-
-- `DATABASE_URL`: PostgreSQL connection string
-- `JWT_SECRET`: Secret for JWT signing (required)
-- `GITHUB_CLIENT_ID`: GitHub OAuth app client ID
-- `GITHUB_CLIENT_SECRET`: GitHub OAuth app client secret
-- `GOOGLE_CLIENT_ID`: Google OAuth client ID
-- `GOOGLE_CLIENT_SECRET`: Google OAuth client secret
+Key environment variables:
+- `JWT_SECRET`: Required for auth
+- `SESSION_SECRET`: For SSO sessions
+- `GITHUB_CLIENT_ID/SECRET`: GitHub OAuth
+- `GOOGLE_CLIENT_ID/SECRET`: Google OAuth
+- `DATABASE_URL`: PostgreSQL connection
 - `DOMAIN`: Base domain (default: webpods.org)
-- `PORT`: Server port (default: 3000)
 
-See `.env.example` for complete list.
+See `.env.example` for all options.
+
+## Documentation
+
+- [API Reference](docs/api.md) - Complete API details
+- [Architecture](docs/architecture.md) - System design
+- [Deployment](docs/deployment.md) - Production setup
 
 ## License
 

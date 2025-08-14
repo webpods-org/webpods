@@ -1,76 +1,90 @@
-# Deployment Guide
+# Deployment
 
 ## Local Development
 
-### Prerequisites
-- Node.js 22+
-- PostgreSQL 16+
-- Google OAuth credentials
-
-### Setup
-
-1. Start PostgreSQL:
 ```bash
-cd devenv
-./run.sh up
-```
+# Prerequisites
+- Node.js 20+
+- PostgreSQL 14+
 
-2. Configure environment:
-```bash
+# Setup
+git clone https://github.com/webpods-org/webpods
+cd webpods
 cp .env.example .env
-# Edit .env with your Google OAuth credentials
-```
+# Edit .env with your settings
 
-3. Build and migrate:
-```bash
-./build.sh --migrate
-```
+# Database
+createdb webpods_dev
+npm run migrate:latest
 
-4. Start server:
-```bash
+# Run
+./build.sh
 ./start.sh
 ```
 
-## Docker Deployment
+## Docker
 
-### Build and Run
 ```bash
-# Build image
+# Build
 docker build -t webpods .
 
-# Run with docker-compose
-docker compose up -d
+# Run with compose
+docker-compose up
+
+# Or standalone
+docker run -p 3000:3000 \
+  -e DATABASE_URL=postgresql://... \
+  -e JWT_SECRET=... \
+  webpods
 ```
+
+## Production
+
+### Requirements
+
+- Domain with wildcard DNS (`*.webpods.org → server`)
+- PostgreSQL database
+- OAuth app credentials (GitHub/Google)
+- SSL certificate (wildcard)
 
 ### Environment Variables
-Create `.env.production`:
+
 ```bash
+# Required
 NODE_ENV=production
-JWT_SECRET=your-secret-key
-GOOGLE_CLIENT_ID=your-client-id
-GOOGLE_CLIENT_SECRET=your-client-secret
-WEBPODS_DB_PASSWORD=secure-password
+JWT_SECRET=<random-256-bit-key>
+SESSION_SECRET=<random-256-bit-key>
+DATABASE_URL=postgresql://user:pass@host/db
+
+# OAuth (at least one provider)
+GITHUB_CLIENT_ID=...
+GITHUB_CLIENT_SECRET=...
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+
+# Domain
+DOMAIN=webpods.org
+WEBPODS_PORT=3000
+
+# Optional
+LOG_LEVEL=info
+CORS_ORIGIN=*
 ```
 
-## Production Deployment
+### OAuth Setup
 
-### Using Docker
-```bash
-# Build production image
-docker build -t webpods:latest .
+#### GitHub
+1. Create OAuth App: https://github.com/settings/developers
+2. Authorization callback: `https://webpods.org/auth/github/callback`
+3. Copy Client ID and Secret to `.env`
 
-# Push to registry
-docker push your-registry/webpods:latest
+#### Google
+1. Create OAuth 2.0 Client: https://console.cloud.google.com/apis/credentials
+2. Authorized redirect URI: `https://webpods.org/auth/google/callback`
+3. Copy Client ID and Secret to `.env`
 
-# Deploy
-docker run -d \
-  --name webpods \
-  --env-file .env.production \
-  -p 3000:3000 \
-  webpods:latest
-```
+### Database Migration
 
-### Database Migrations
 ```bash
 # Run migrations
 npm run migrate:latest
@@ -79,72 +93,65 @@ npm run migrate:latest
 npm run migrate:rollback
 ```
 
-### Health Check
-```bash
-curl http://localhost:3000/health
+### SSL/TLS
+
+For wildcard domains, use:
+- Let's Encrypt with DNS challenge
+- Or commercial wildcard certificate
+
+Example with Nginx:
+```nginx
+server {
+  listen 443 ssl;
+  server_name *.webpods.org;
+  
+  ssl_certificate /path/to/wildcard.crt;
+  ssl_certificate_key /path/to/wildcard.key;
+  
+  location / {
+    proxy_pass http://localhost:3000;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+  }
+}
 ```
 
-## Configuration
+### Monitoring
 
-### Required Environment Variables
-- `JWT_SECRET` - Secret for JWT signing
-- `GOOGLE_CLIENT_ID` - Google OAuth client ID
-- `GOOGLE_CLIENT_SECRET` - Google OAuth client secret
-- `WEBPODS_DB_PASSWORD` - Database password (production)
-
-### Optional Configuration
-- `PORT` - Server port (default: 3000)
-- `WEBPODS_DB_HOST` - Database host (default: localhost)
-- `WEBPODS_DB_PORT` - Database port (default: 5432)
-- `WEBPODS_DB_NAME` - Database name (default: webpods)
-- `RATE_LIMIT_WRITES_PER_HOUR` - Write rate limit (default: 2000)
-
-## Google OAuth Setup
-
-1. Go to [Google Cloud Console](https://console.cloud.google.com)
-2. Create a new project or select existing
-3. Enable Google+ API
-4. Create OAuth 2.0 credentials (Web application)
-5. Add redirect URIs:
-   - Development: `http://localhost:3000/auth/google/callback`
-   - Production: `https://your-domain.com/auth/google/callback`
-
-## Monitoring
-
-### Logs
-```bash
-# Docker logs
-docker logs webpods
-
-# PM2 logs (if using PM2)
-pm2 logs webpods
+Health check endpoint:
+```
+GET /health
 ```
 
-### Database
+Logs use structured JSON format with levels:
+- `error`: System errors
+- `warn`: Warnings (invalid auth, etc.)
+- `info`: Request logs
+- `debug`: Detailed debugging
+
+### Scaling
+
+1. **Multiple instances**: Use load balancer
+2. **Database**: Connection pooling, read replicas
+3. **Sessions**: Shared PostgreSQL store enables horizontal scaling
+
+### Backup
+
+Regular PostgreSQL backups recommended:
 ```bash
-# Check database connections
-psql -U postgres -d webpods -c "SELECT count(*) FROM pg_stat_activity;"
+pg_dump webpods > backup_$(date +%Y%m%d).sql
 ```
 
-## Troubleshooting
+Key tables to backup:
+- `user`, `pod`, `stream`, `record`
+- `session` (for active SSO sessions)
 
-### Database Connection Issues
-Check connection settings:
-```bash
-WEBPODS_DB_HOST=localhost
-WEBPODS_DB_PORT=5432
-WEBPODS_DB_NAME=webpods
-WEBPODS_DB_USER=postgres
-```
+### Troubleshooting
 
-### OAuth Errors
-Ensure callback URL matches Google Console configuration:
-```bash
-GOOGLE_CALLBACK_URL=http://localhost:3000/auth/google/callback
-```
-
-### Port Already in Use
-Change port in `.env`:
-```bash
-PORT=3001
-```
+| Issue | Solution |
+|-------|----------|
+| Wildcard DNS not working | Verify `*.domain` A/CNAME record |
+| OAuth redirect mismatch | Check callback URLs match exactly |
+| Session not persisting | Verify SESSION_SECRET is set |
+| Database connection failed | Check DATABASE_URL format |
+| Pod not resolving | Ensure wildcard DNS configured |
