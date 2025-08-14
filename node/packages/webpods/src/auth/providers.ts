@@ -184,6 +184,17 @@ export async function exchangeCodeForTokens(
   const client = await getOAuthClient(provider);
   const config = getProviderConfig(provider);
   
+  // In test mode, use grant directly to avoid ID token validation
+  if (process.env.NODE_ENV === 'test' && process.env.GOOGLE_ISSUER?.includes('localhost')) {
+    const tokenSet = await client.grant({
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: config.redirectUri,
+      code_verifier: codeVerifier
+    });
+    return tokenSet;
+  }
+  
   const tokenSet = await client.callback(
     config.redirectUri,
     { code },

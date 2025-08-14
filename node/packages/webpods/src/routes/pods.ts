@@ -61,7 +61,10 @@ router.get('/login', extractPod, (req: Request, res: Response) => {
   const redirect = req.query.redirect as string || req.get('referer') || '/';
   
   // Redirect to main domain authorization with pod info
-  const authUrl = `https://${process.env.DOMAIN || 'webpods.org'}/auth/authorize?pod=${req.pod_id}&redirect=${encodeURIComponent(redirect)}`;
+  const protocol = process.env.NODE_ENV === 'test' ? 'http' : 'https';
+  const domain = process.env.DOMAIN || 'webpods.org';
+  const port = process.env.NODE_ENV === 'test' && process.env.WEBPODS_PORT ? `:${process.env.WEBPODS_PORT}` : '';
+  const authUrl = `${protocol}://${domain}${port}/auth/authorize?pod=${req.pod_id}&redirect=${encodeURIComponent(redirect)}`;
   
   logger.info('Pod login initiated', { pod: req.pod_id, redirect });
   res.redirect(authUrl);

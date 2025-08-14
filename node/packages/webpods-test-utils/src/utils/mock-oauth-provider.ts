@@ -4,6 +4,7 @@
 
 import express, { Express } from 'express';
 import { Server } from 'http';
+import jwt from 'jsonwebtoken';
 
 export interface MockUser {
   id: string;
@@ -78,7 +79,7 @@ export function createMockOAuthProvider(port: number = 4000): MockOAuthProvider 
     res.redirect(redirectUrl.toString());
   });
   
-  // Mock token endpoint - exchanges code for tokens
+  // Mock token endpoint - exchanges code for tokens  
   app.post('/oauth/token', (req, res) => {
     const { code, grant_type } = req.body;
     // In real OAuth, we'd validate client_id, client_secret, redirect_uri, code_verifier
@@ -107,6 +108,22 @@ export function createMockOAuthProvider(port: number = 4000): MockOAuthProvider 
     const accessToken = `mock-access-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     accessTokens.set(accessToken, authCode.user);
     
+    // Generate a proper JWT ID token
+    const idToken = jwt.sign(
+      {
+        iss: `http://localhost:${port}`,
+        sub: authCode.user.id,
+        aud: 'mock-google-client-id', // Must match GOOGLE_CLIENT_ID
+        exp: Math.floor(Date.now() / 1000) + 3600,
+        iat: Math.floor(Date.now() / 1000),
+        email: authCode.user.email,
+        email_verified: true,
+        name: authCode.user.name
+      },
+      'mock-jwt-secret',
+      { algorithm: 'HS256' }
+    );
+    
     // Return tokens
     res.json({
       access_token: accessToken,
@@ -114,7 +131,7 @@ export function createMockOAuthProvider(port: number = 4000): MockOAuthProvider 
       expires_in: 3600,
       refresh_token: `mock-refresh-${Date.now()}`,
       scope: 'openid email profile',
-      id_token: `mock-id-token-${Date.now()}`
+      id_token: idToken
     });
   });
   

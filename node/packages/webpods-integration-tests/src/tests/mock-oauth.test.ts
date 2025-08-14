@@ -14,10 +14,7 @@ import {
   MockOAuthProvider
 } from 'webpods-test-utils';
 
-// Only run these tests if explicitly enabled
-const RUN_MOCK_OAUTH_TESTS = process.env.RUN_MOCK_OAUTH_TESTS === 'true';
-
-(RUN_MOCK_OAUTH_TESTS ? describe : describe.skip)('OAuth Flow with Mock Provider', () => {
+describe('OAuth Flow with Mock Provider', () => {
   let mockOAuth: MockOAuthProvider;
   let testDb: TestDatabase;
   let testServer: TestServer;
@@ -157,6 +154,3 @@ const RUN_MOCK_OAUTH_TESTS = process.env.RUN_MOCK_OAUTH_TESTS === 'true';
     });
   });
 });
-
-// Instructions for running this test:
-// RUN_MOCK_OAUTH_TESTS=true npm test -- --grep "OAuth Flow with Mock Provider"

@@ -309,8 +309,10 @@ router.get('/authorize', async (req: Request, res: Response) => {
       const podToken = generatePodToken((req as any).session.user, pod);
       
       // Redirect back to pod with token
+      const protocol = process.env.NODE_ENV === 'test' ? 'http' : 'https';
       const podDomain = `${pod}.${process.env.DOMAIN || 'webpods.org'}`;
-      const callbackUrl = `https://${podDomain}/auth/callback?token=${encodeURIComponent(podToken)}&redirect=${encodeURIComponent(redirect)}`;
+      const port = process.env.NODE_ENV === 'test' && process.env.WEBPODS_PORT ? `:${process.env.WEBPODS_PORT}` : '';
+      const callbackUrl = `${protocol}://${podDomain}${port}/auth/callback?token=${encodeURIComponent(podToken)}&redirect=${encodeURIComponent(redirect)}`;
       
       logger.info('SSO authorization successful', { pod, userId: (req as any).session.user.id });
       res.redirect(callbackUrl);
@@ -464,8 +466,10 @@ router.get('/:provider/callback', async (req: Request, res: Response) => {
       const podToken = generatePodToken(userResult.data, stateData.pod);
       
       // Redirect back to pod with token
+      const protocol = process.env.NODE_ENV === 'test' ? 'http' : 'https';
       const podDomain = `${stateData.pod}.${process.env.DOMAIN || 'webpods.org'}`;
-      const callbackUrl = `https://${podDomain}/auth/callback?token=${encodeURIComponent(podToken)}&redirect=${encodeURIComponent(stateData.redirect)}`;
+      const port = process.env.NODE_ENV === 'test' && process.env.WEBPODS_PORT ? `:${process.env.WEBPODS_PORT}` : '';
+      const callbackUrl = `${protocol}://${podDomain}${port}/auth/callback?token=${encodeURIComponent(podToken)}&redirect=${encodeURIComponent(stateData.redirect)}`;
       
       logger.info('Pod authentication successful', { 
         userId: userResult.data.id, 
