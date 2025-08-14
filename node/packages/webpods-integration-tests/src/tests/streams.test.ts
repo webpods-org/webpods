@@ -23,19 +23,17 @@ describe('WebPods Stream Operations', () => {
     
     userId = user.id;
     authId = user.auth_id;
-    authToken = jwt.sign(
-      {
-        user_id: user.id,
-        auth_id: user.auth_id,
-        email: user.email,
-        name: user.name,
-        provider: 'github'
-      },
-      process.env.JWT_SECRET || 'test-secret-key',
-      { expiresIn: '1h' }
-    );
     
+    // Generate pod-specific token for test-pod
     client.setBaseUrl(baseUrl);
+    authToken = client.generatePodToken({
+      user_id: user.id,
+      auth_id: user.auth_id,
+      email: user.email,
+      name: user.name,
+      provider: 'github'
+    });
+    
     client.setAuthToken(authToken);
   });
 
@@ -314,17 +312,13 @@ describe('WebPods Stream Operations', () => {
         provider: 'github'
       }).returning('*');
       
-      const token2 = jwt.sign(
-        {
-          user_id: user2.id,
-          auth_id: user2.auth_id,
-          email: user2.email,
-          name: user2.name,
-          provider: 'github'
-        },
-        process.env.JWT_SECRET || 'test-secret-key',
-        { expiresIn: '1h' }
-      );
+      const token2 = client.generatePodToken({
+        user_id: user2.id,
+        auth_id: user2.auth_id,
+        email: user2.email,
+        name: user2.name,
+        provider: 'github'
+      });
       
       // Create pod as first user
       await client.post('/test', 'Create pod');
@@ -372,11 +366,13 @@ describe('WebPods Stream Operations', () => {
         provider: 'github'
       }).returning('*');
       
-      const token2 = jwt.sign(
-        { user_id: user2.id, auth_id: user2.auth_id },
-        process.env.JWT_SECRET || 'test-secret-key',
-        { expiresIn: '1h' }
-      );
+      const token2 = client.generatePodToken({
+        user_id: user2.id,
+        auth_id: user2.auth_id,
+        email: user2.email,
+        name: user2.name,
+        provider: 'github'
+      });
       
       client.setAuthToken(token2);
       const response = await client.delete('/my-stream');

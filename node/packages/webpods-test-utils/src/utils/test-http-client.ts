@@ -1,4 +1,5 @@
 // Test HTTP client utilities using native fetch
+import jwt from 'jsonwebtoken';
 
 export interface FetchResponse {
   status: number;
@@ -7,10 +8,55 @@ export interface FetchResponse {
   text?: string;
 }
 
+export interface TokenPayload {
+  user_id: string;
+  auth_id: string;
+  email: string;
+  name: string;
+  provider: string;
+  pod?: string;
+}
+
 export class TestHttpClient {
   private baseURL: string;
   private authToken: string | null = null;
   private cookieJar: Map<string, string> = new Map();
+  
+  /**
+   * Generate a JWT token for testing
+   * @param payload Token payload
+   * @param options JWT sign options
+   * @returns Signed JWT token
+   */
+  public static generateToken(payload: TokenPayload, options?: jwt.SignOptions): string {
+    const secret = process.env.JWT_SECRET || 'test-secret-key';
+    return jwt.sign(payload, secret, options || { expiresIn: '1h' });
+  }
+  
+  /**
+   * Generate a pod-specific JWT token for testing
+   * @param payload Token payload (pod will be extracted from baseURL if not provided)
+   * @param pod Optional pod name to override
+   * @param options JWT sign options
+   * @returns Signed JWT token with pod claim
+   */
+  public generatePodToken(payload: TokenPayload, pod?: string, options?: jwt.SignOptions): string {
+    // Extract pod from baseURL if not provided
+    if (!pod) {
+      const url = new URL(this.baseURL);
+      const hostParts = url.hostname.split('.');
+      if (hostParts.length > 1 && hostParts[0] !== 'localhost') {
+        pod = hostParts[0];
+      }
+    }
+    
+    const tokenPayload = { ...payload };
+    if (pod) {
+      tokenPayload.pod = pod;
+    }
+    
+    return TestHttpClient.generateToken(tokenPayload, options);
+  }
 
   constructor(baseURL: string) {
     this.baseURL = baseURL;

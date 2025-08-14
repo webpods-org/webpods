@@ -97,7 +97,6 @@ describe('Session Expiry and Cleanup', () => {
     it('should handle session with 7-day expiry', async () => {
       const now = new Date();
       const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-      const eightDaysFromNow = new Date(now.getTime() + 8 * 24 * 60 * 60 * 1000);
       
       await db('session').insert({
         sid: 'week-session',

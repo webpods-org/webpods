@@ -8,15 +8,22 @@ describe('WebPods Authentication', () => {
   const baseUrl = `http://${testPodId}.localhost:3099`;
   
   // Helper to create a test JWT token
-  function createTestToken(userId: string, authId: string, email: string = 'test@example.com') {
+  function createTestToken(userId: string, authId: string, email: string = 'test@example.com', pod?: string) {
+    const payload: any = {
+      user_id: userId,
+      auth_id: authId,
+      email,
+      name: 'Test User',
+      provider: 'google'
+    };
+    
+    // Add pod claim if provided
+    if (pod) {
+      payload.pod = pod;
+    }
+    
     return jwt.sign(
-      {
-        user_id: userId,
-        auth_id: authId,
-        email,
-        name: 'Test User',
-        provider: 'google'
-      },
+      payload,
       process.env.JWT_SECRET || 'test-secret-key',
       { expiresIn: '1h' }
     );
@@ -82,14 +89,12 @@ describe('WebPods Authentication', () => {
       }).returning('*');
       
       userId = user.id;
-      authToken = createTestToken(user.id, user.auth_id, user.email);
+      authToken = createTestToken(user.id, user.auth_id, user.email, testPodId);
       client.setBaseUrl(baseUrl);
     });
 
     it('should reject requests without auth token to write operations', async () => {
-      const response = await client.post('/protected-stream', {
-        content: 'test content'
-      });
+      const response = await client.post('/protected-stream', 'test content');
       
       expect(response.status).to.equal(401);
       expect(response.data.error.code).to.equal('UNAUTHORIZED');
@@ -99,9 +104,7 @@ describe('WebPods Authentication', () => {
     it('should accept requests with valid auth token', async () => {
       client.setAuthToken(authToken);
       
-      const response = await client.post('/protected-stream', {
-        content: 'authenticated content'
-      });
+      const response = await client.post('/protected-stream', 'authenticated content');
       
       if (response.status === 500) {
         console.error('Server error:', response.data);
@@ -175,7 +178,7 @@ describe('WebPods Authentication', () => {
         provider: 'github'
       }).returning('*');
       
-      authToken = createTestToken(user.id, user.auth_id, user.email);
+      authToken = createTestToken(user.id, user.auth_id, user.email, testPodId);
     });
 
     it('should allow anonymous read on public streams', async () => {
@@ -237,7 +240,7 @@ describe('WebPods Authentication', () => {
         provider: 'google'
       }).returning('*');
       
-      authToken = createTestToken(user.id, user.auth_id, user.email);
+      authToken = createTestToken(user.id, user.auth_id, user.email, testPodId);
     });
 
     it('should accept Bearer token in Authorization header', async () => {
@@ -344,7 +347,7 @@ describe('WebPods Authentication', () => {
         provider: 'google'
       }).returning('*');
       
-      authToken = createTestToken(user.id, user.auth_id, user.email);
+      authToken = createTestToken(user.id, user.auth_id, user.email, testPodId);
       client.setAuthToken(authToken);
     });
 
@@ -393,7 +396,6 @@ describe('WebPods Authentication', () => {
   });
 
   describe('Cross-Pod Authentication', () => {
-    let authToken: string;
     let userId: string;
 
     beforeEach(async () => {
@@ -407,19 +409,21 @@ describe('WebPods Authentication', () => {
       }).returning('*');
       
       userId = user.id;
-      authToken = createTestToken(user.id, user.auth_id, user.email);
     });
 
-    it('should use same auth token across different pods', async () => {
-      // Write to first pod
+    it('should use same user with different pod tokens for different pods', async () => {
+      // Create token for first pod
+      const token1 = createTestToken(userId, 'auth:github:cross-pod', 'cross@example.com', 'pod-one');
       client.setBaseUrl(`http://pod-one.localhost:3099`);
-      client.setAuthToken(authToken);
+      client.setAuthToken(token1);
       
       const response1 = await client.post('/stream1', 'Pod one content');
       expect(response1.status).to.equal(201);
       
-      // Write to second pod with same token
+      // Create token for second pod
+      const token2 = createTestToken(userId, 'auth:github:cross-pod', 'cross@example.com', 'pod-two');
       client.setBaseUrl(`http://pod-two.localhost:3099`);
+      client.setAuthToken(token2);
       
       const response2 = await client.post('/stream2', 'Pod two content');
       expect(response2.status).to.equal(201);

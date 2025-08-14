@@ -1,6 +1,5 @@
 // Permission tests for WebPods
 import { expect } from 'chai';
-import jwt from 'jsonwebtoken';
 import { client, testDb } from '../test-setup.js';
 
 describe('WebPods Permissions', () => {
@@ -34,23 +33,24 @@ describe('WebPods Permissions', () => {
     
     user2Id = user2.id;
     
-    user1Token = jwt.sign({
+    client.setBaseUrl(baseUrl);
+    
+    // Generate pod-specific tokens for perm-test pod
+    user1Token = client.generatePodToken({
       user_id: user1.id,
       auth_id: user1.auth_id,
       email: user1.email,
       name: user1.name,
       provider: 'google'
-    }, process.env.JWT_SECRET || 'test-secret-key', { expiresIn: '1h' });
+    });
     
-    user2Token = jwt.sign({
+    user2Token = client.generatePodToken({
       user_id: user2.id,
       auth_id: user2.auth_id,
       email: user2.email,
       name: user2.name,
       provider: 'google'
-    }, process.env.JWT_SECRET || 'test-secret-key', { expiresIn: '1h' });
-    
-    client.setBaseUrl(baseUrl);
+    });
   });
 
   describe('Private Streams', () => {

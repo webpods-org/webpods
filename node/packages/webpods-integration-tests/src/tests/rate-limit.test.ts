@@ -1,11 +1,11 @@
 // Rate limiting tests for WebPods
 import { expect } from 'chai';
-import jwt from 'jsonwebtoken';
 import { client, testDb } from '../test-setup.js';
 
 describe('WebPods Rate Limiting', () => {
   let authId: string;
   let authToken: string;
+  let testUser: any; // Store user for token generation
   const testPodId = 'rate-test';
   const baseUrl = `http://${testPodId}.localhost:3099`;
 
@@ -19,16 +19,20 @@ describe('WebPods Rate Limiting', () => {
       provider: 'google'
     }).returning('*');
     
+    testUser = user; // Save for later use
     authId = user.auth_id;
-    authToken = jwt.sign({
+    
+    client.setBaseUrl(baseUrl);
+    
+    // Generate pod-specific token for rate-test pod
+    authToken = client.generatePodToken({
       user_id: user.id,
       auth_id: user.auth_id,
       email: user.email,
       name: user.name,
       provider: 'google'
-    }, process.env.JWT_SECRET || 'test-secret-key', { expiresIn: '1h' });
+    }, testPodId);
     
-    client.setBaseUrl(baseUrl);
     client.setAuthToken(authToken);
   });
 
@@ -53,11 +57,27 @@ describe('WebPods Rate Limiting', () => {
     });
 
     it('should track pod creation rate limits separately', async () => {
-      // Create multiple pods
+      // Create multiple pods with proper tokens for each
       client.setBaseUrl(`http://pod-limit-1.localhost:3099`);
+      const token1 = client.generatePodToken({
+        user_id: testUser.id,
+        auth_id: testUser.auth_id,
+        email: testUser.email,
+        name: testUser.name,
+        provider: testUser.provider
+      }, 'pod-limit-1');
+      client.setAuthToken(token1);
       await client.post('/init', 'Pod 1');
       
       client.setBaseUrl(`http://pod-limit-2.localhost:3099`);
+      const token2 = client.generatePodToken({
+        user_id: testUser.id,
+        auth_id: testUser.auth_id,
+        email: testUser.email,
+        name: testUser.name,
+        provider: testUser.provider
+      }, 'pod-limit-2');
+      client.setAuthToken(token2);
       await client.post('/init', 'Pod 2');
       
       // Check rate limit records
@@ -320,13 +340,13 @@ describe('WebPods Rate Limiting', () => {
         provider: 'github'
       }).returning('*');
       
-      const token2 = jwt.sign({
+      const token2 = client.generatePodToken({
         user_id: user2.id,
         auth_id: user2.auth_id,
         email: user2.email,
         name: user2.name,
         provider: 'github'
-      }, process.env.JWT_SECRET || 'test-secret-key', { expiresIn: '1h' });
+      });
       
       // Calculate proper window boundaries
       const windowMs = 60 * 60 * 1000;
@@ -370,13 +390,13 @@ describe('WebPods Rate Limiting', () => {
         provider: 'github'
       }).returning('*');
       
-      const uniqueToken = jwt.sign({
+      const uniqueToken = client.generatePodToken({
         user_id: uniqueUser.id,
         auth_id: uniqueUser.auth_id,
         email: uniqueUser.email,
         name: uniqueUser.name,
         provider: 'github'
-      }, process.env.JWT_SECRET || 'test-secret-key', { expiresIn: '1h' });
+      });
       
       // Use the unique user for this test
       client.setAuthToken(uniqueToken);
@@ -417,6 +437,14 @@ describe('WebPods Rate Limiting', () => {
       
       // Can create one more pod
       client.setBaseUrl(`http://pod-limit-final.localhost:3099`);
+      const finalToken = client.generatePodToken({
+        user_id: uniqueUser.id,
+        auth_id: uniqueUser.auth_id,
+        email: uniqueUser.email,
+        name: uniqueUser.name,
+        provider: uniqueUser.provider
+      }, 'pod-limit-final');
+      client.setAuthToken(finalToken);
       const podResponse = await client.post('/init', 'Final pod');
       if (podResponse.status !== 201) {
         console.log('Pod creation failed:', podResponse.data);
@@ -430,6 +458,14 @@ describe('WebPods Rate Limiting', () => {
       
       // But creating another pod would exceed limit
       client.setBaseUrl(`http://pod-limit-exceed.localhost:3099`);
+      const exceedToken = client.generatePodToken({
+        user_id: uniqueUser.id,
+        auth_id: uniqueUser.auth_id,
+        email: uniqueUser.email,
+        name: uniqueUser.name,
+        provider: uniqueUser.provider
+      }, 'pod-limit-exceed');
+      client.setAuthToken(exceedToken);
       const exceededResponse = await client.post('/init', 'Too many pods');
       expect(exceededResponse.status).to.equal(429);
     });

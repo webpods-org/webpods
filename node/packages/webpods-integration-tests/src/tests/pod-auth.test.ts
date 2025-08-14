@@ -67,7 +67,6 @@ describe('Pod-Specific Authentication with SSO', () => {
   describe('Pod Token Validation', () => {
     let user: any;
     let aliceToken: string;
-    let bobToken: string;
     let globalToken: string;
     
     beforeEach(async () => {
@@ -84,7 +83,6 @@ describe('Pod-Specific Authentication with SSO', () => {
       
       // Create tokens
       aliceToken = createPodToken(user.id, user.auth_id, pod1);
-      bobToken = createPodToken(user.id, user.auth_id, pod2);
       globalToken = createGlobalToken(user.id, user.auth_id);
     });
     
@@ -117,7 +115,8 @@ describe('Pod-Specific Authentication with SSO', () => {
       expect(response.data.error.code).to.equal('POD_MISMATCH');
     });
     
-    it('should accept global token on any pod', async () => {
+    it('should reject global token on pod subdomains', async () => {
+      // Global tokens (without pod claim) should not work on pod subdomains
       // Test on pod1
       client.setBaseUrl(`http://${pod1}.localhost:3099`);
       let response = await client.post('/stream1', 'Content 1', {
@@ -126,7 +125,8 @@ describe('Pod-Specific Authentication with SSO', () => {
           'Content-Type': 'text/plain'
         }
       });
-      expect(response.status).to.equal(201);
+      expect(response.status).to.equal(401);
+      expect(response.data.error.code).to.equal('POD_MISMATCH');
       
       // Test on pod2
       client.setBaseUrl(`http://${pod2}.localhost:3099`);
@@ -136,7 +136,8 @@ describe('Pod-Specific Authentication with SSO', () => {
           'Content-Type': 'text/plain'
         }
       });
-      expect(response.status).to.equal(201);
+      expect(response.status).to.equal(401);
+      expect(response.data.error.code).to.equal('POD_MISMATCH');
     });
   });
 
@@ -160,7 +161,6 @@ describe('Pod-Specific Authentication with SSO', () => {
   describe('Pod Isolation', () => {
     let user: any;
     let aliceToken: string;
-    let bobToken: string;
     
     beforeEach(async () => {
       const db = testDb.getDb();
@@ -176,7 +176,6 @@ describe('Pod-Specific Authentication with SSO', () => {
       
       // Create pod-specific tokens
       aliceToken = createPodToken(user.id, user.auth_id, pod1);
-      bobToken = createPodToken(user.id, user.auth_id, pod2);
     });
     
     it('should isolate data between pods', async () => {

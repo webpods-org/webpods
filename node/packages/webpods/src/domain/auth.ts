@@ -110,15 +110,18 @@ export function verifyToken(token: string, expectedPod?: string): Result<JWTPayl
     const secret = process.env.JWT_SECRET || 'dev-secret';
     const payload = jwt.verify(token, secret) as JWTPayload & { pod?: string };
     
-    // If pod is specified in token, validate it matches expected pod
-    if (expectedPod && payload.pod && payload.pod !== expectedPod) {
-      return {
-        success: false,
-        error: {
-          code: 'POD_MISMATCH',
-          message: `Token is not valid for pod '${expectedPod}'`
-        }
-      };
+    // If we're on a pod subdomain (expectedPod is provided)
+    if (expectedPod) {
+      // Token MUST have a pod claim that matches
+      if (!payload.pod || payload.pod !== expectedPod) {
+        return {
+          success: false,
+          error: {
+            code: 'POD_MISMATCH',
+            message: `Token is not valid for pod '${expectedPod}'`
+          }
+        };
+      }
     }
     
     return { success: true, data: payload };

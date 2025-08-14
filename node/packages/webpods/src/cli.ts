@@ -22,16 +22,16 @@ const args = process.argv.slice(2);
 if (args.includes('-v') || args.includes('--version')) {
   try {
     const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
-    console.log(`webpods v${packageJson.version}`);
-  } catch (error) {
-    console.log('webpods v0.0.3');
+    console.info(`webpods v${packageJson.version}`);
+  } catch {
+    console.info('webpods v0.0.3');
   }
   process.exit(0);
 }
 
 // Check for help flag
 if (args.includes('-h') || args.includes('--help')) {
-  console.log(`
+  console.info(`
 WebPods - HTTP-based append-only logs
 
 Usage: webpods [options]

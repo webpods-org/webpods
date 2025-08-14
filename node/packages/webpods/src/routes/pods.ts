@@ -24,7 +24,7 @@ import { resolveLink, updateLinks, updateCustomDomains } from '../domain/routing
 import { checkRateLimit } from '../domain/ratelimit.js';
 
 const logger = createLogger('webpods:routes:pods');
-const router = Router();
+const router = Router({ mergeParams: true });
 
 // Validation schemas
 const writeSchema = z.union([
@@ -78,6 +78,8 @@ router.get('/login', extractPod, (req: Request, res: Response) => {
 router.get('/auth/callback', extractPod, (req: Request, res: Response) => {
   const token = req.query.token as string;
   const redirect = req.query.redirect as string || '/';
+  
+  logger.info('Auth callback on pod', { pod: req.pod_id, hasToken: !!token, redirect });
   
   if (!token) {
     res.status(400).json({

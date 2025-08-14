@@ -45,6 +45,8 @@ export function createApp(): Express {
       logger.info('Request completed', {
         method: req.method,
         url: req.url,
+        originalUrl: req.originalUrl,
+        path: req.path,
         hostname: req.hostname,
         status: res.statusCode,
         duration,
@@ -54,38 +56,81 @@ export function createApp(): Express {
     next();
   });
 
-  // Health check endpoint
-  app.get('/health', (_req, res) => {
+  // Health check endpoint (main domain only)
+  app.get('/health', async (req, res) => {
+    // Only allow health checks on main domain
+    const subdomain = req.hostname.split('.')[0];
+    const isMainDomain = subdomain === 'localhost' || 
+                        subdomain === 'webpods' || 
+                        subdomain === process.env.DOMAIN?.split('.')[0];
+    
+    if (!isMainDomain) {
+      res.status(404).json({
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Health endpoint is only available on the main domain'
+        }
+      });
+      return;
+    }
+    
     const uptime = Math.floor((Date.now() - startTime) / 1000);
+    
+    // Check database connection
+    let dbStatus = 'disconnected';
+    try {
+      const { getDb } = await import('./db.js');
+      const db = getDb();
+      await db.raw('SELECT 1');
+      dbStatus = 'connected';
+    } catch {
+      dbStatus = 'disconnected';
+    }
+    
     res.json({
       status: 'healthy',
       uptime_seconds: uptime,
-      timestamp: new Date().toISOString()
+      uptime,
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development',
+      version: '0.0.3',
+      services: {
+        database: dbStatus,
+        cache: 'not_configured'
+      }
     });
   });
 
-  // Auth routes (main domain only)
+  // Auth routes (main domain only, except /auth/callback which pods handle)
   app.use('/auth', (req, res, next) => {
-    // Only allow auth routes on main domain (not subdomains)
+    // Check if this is the main domain
     const subdomain = req.hostname.split('.')[0];
     const isMainDomain = subdomain === 'localhost' || 
                         subdomain === 'webpods' || 
                         subdomain === process.env.DOMAIN?.split('.')[0];
     
     if (isMainDomain) {
-      next();
+      // On main domain, use auth router
+      authRouter(req, res, next);
     } else {
-      res.status(404).json({
-        error: {
-          code: 'NOT_FOUND',
-          message: 'Authentication endpoints are only available on the main domain'
-        }
-      });
+      // On subdomains, /auth/callback is handled by pod router
+      // Skip this middleware and let it fall through
+      if (req.path === '/callback') {
+        next('route'); // Skip to next route handler
+      } else {
+        // Other /auth routes return 404 on subdomains
+        res.status(404).json({
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Authentication endpoints are only available on the main domain'
+          }
+        });
+      }
     }
-  }, authRouter);
+  });
 
   // Pod routes (subdomain-based)
-  app.use('*', podsRouter);
+  app.use(podsRouter);
 
   // 404 handler
   app.use((req, res) => {

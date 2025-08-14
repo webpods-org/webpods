@@ -150,6 +150,11 @@ cd node/packages/webpods-integration-tests
 npm test -- --grep "permission"
 ```
 
+**IMPORTANT**: When running tests with mocha:
+- NEVER use `2>&1` redirection with mocha commands - it will cause errors
+- Use plain `npm test` or `npx mocha` without stderr redirection
+- If you need to capture output, use `| tee` or similar tools instead
+
 ## Git Workflow
 
 **IMPORTANT**: NEVER commit and push changes without explicit user permission. When the user asks you to commit and push, follow the git commit guidelines in the main Claude system prompt.

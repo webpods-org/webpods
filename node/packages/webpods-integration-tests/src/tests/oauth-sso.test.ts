@@ -6,7 +6,7 @@
 import { expect } from 'chai';
 import jwt from 'jsonwebtoken';
 import { TestHttpClient } from 'webpods-test-utils';
-import { testDb, testServer } from '../test-setup.js';
+import { testDb } from '../test-setup.js';
 
 describe('Full SSO OAuth Flow', () => {
   let client: TestHttpClient;
@@ -109,7 +109,6 @@ describe('Full SSO OAuth Flow', () => {
     // Verify session exists
     const sessions = await testDb.getDb()('session').select('*');
     expect(sessions).to.have.lengthOf(1);
-    const sessionId = sessions[0].sid;
     
     // 2. Test SSO - accessing /auth/authorize with active session should not require OAuth
     // However, since we're not using a real browser with cookies, we need to simulate this
@@ -154,12 +153,12 @@ describe('Full SSO OAuth Flow', () => {
     
     // Get session
     const sessions = await testDb.getDb()('session').select('*');
-    const sessionId = sessions[0].sid;
     
     // 2. Verify session exists
     expect(sessions).to.have.lengthOf(1);
     
     // 3. Simulate logout by deleting the session directly (since we can't send cookies)
+    const sessionId = sessions[0].sid;
     await testDb.getDb()('session').where('sid', sessionId).delete();
     
     // Session should be deleted
