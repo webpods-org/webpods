@@ -84,12 +84,43 @@ export function generateToken(user: User): string {
 }
 
 /**
- * Verify JWT token
+ * Generate pod-specific JWT token
  */
-export function verifyToken(token: string): Result<JWTPayload> {
+export function generatePodToken(user: User, pod: string): string {
+  const payload: JWTPayload & { pod: string } = {
+    user_id: user.id,
+    auth_id: user.auth_id,
+    email: user.email,
+    name: user.name,
+    provider: user.provider,
+    pod // Critical: lock token to specific pod
+  };
+
+  const secret = process.env.JWT_SECRET || 'dev-secret';
+  const expiresIn = process.env.JWT_EXPIRY || '7d';
+  
+  return jwt.sign(payload, secret, { expiresIn: expiresIn as any });
+}
+
+/**
+ * Verify JWT token (optionally validate pod claim)
+ */
+export function verifyToken(token: string, expectedPod?: string): Result<JWTPayload & { pod?: string }> {
   try {
     const secret = process.env.JWT_SECRET || 'dev-secret';
-    const payload = jwt.verify(token, secret) as JWTPayload;
+    const payload = jwt.verify(token, secret) as JWTPayload & { pod?: string };
+    
+    // If pod is specified in token, validate it matches expected pod
+    if (expectedPod && payload.pod && payload.pod !== expectedPod) {
+      return {
+        success: false,
+        error: {
+          code: 'POD_MISMATCH',
+          message: `Token is not valid for pod '${expectedPod}'`
+        }
+      };
+    }
+    
     return { success: true, data: payload };
   } catch (error: any) {
     // Determine specific error type

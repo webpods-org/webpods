@@ -60,6 +60,8 @@
   "author": "WebPods",
   "license": "MIT",
   "dependencies": {
+    "@types/express-session": "^1.18.2",
+    "express-session": "^1.18.2",
     "pg": "^8.16.3"
   }
 }

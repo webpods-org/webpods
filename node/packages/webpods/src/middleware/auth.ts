@@ -6,7 +6,7 @@ import { Request, Response, NextFunction } from 'express';
 import { verifyToken } from '../domain/auth.js';
 import { JWTPayload } from '../types.js';
 import { createLogger } from '../logger.js';
-import { getIpAddress } from '../utils.js';
+import { getIpAddress, extractPodId } from '../utils.js';
 
 const logger = createLogger('webpods:auth');
 
@@ -27,8 +27,17 @@ export async function authenticate(
   next: NextFunction
 ): Promise<void> {
   try {
+    // Determine current pod from hostname
+    const hostname = req.hostname || req.headers.host?.split(':')[0] || '';
+    const currentPod = extractPodId(hostname) || undefined;
+    
     // Get token from cookie or Authorization header
-    let token = (req as any).cookies?.token;
+    // For pod requests, prefer pod_token cookie
+    let token = currentPod ? (req as any).cookies?.pod_token : (req as any).cookies?.token;
+    
+    if (!token) {
+      token = (req as any).cookies?.token; // Fallback to regular token
+    }
     
     if (!token) {
       const authHeader = req.headers.authorization;
@@ -53,11 +62,11 @@ export async function authenticate(
       return;
     }
     
-    // Verify JWT token
-    const result = verifyToken(token);
+    // Verify JWT token (with pod validation if on a pod subdomain)
+    const result = verifyToken(token, currentPod);
     
     if (!result.success) {
-      logger.warn('Invalid JWT token', { error: result.error });
+      logger.warn('Invalid JWT token', { error: result.error, pod: currentPod });
       res.status(401).json({ 
         error: result.error  // Pass through the specific error from verifyToken
       });

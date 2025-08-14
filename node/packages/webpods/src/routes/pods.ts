@@ -43,6 +43,66 @@ const domainsSchema = z.object({
 });
 
 /**
+ * Pod-specific login endpoint
+ * GET {pod}.webpods.org/login
+ */
+router.get('/login', extractPod, (req: Request, res: Response) => {
+  if (!req.pod_id) {
+    res.status(400).json({
+      error: {
+        code: 'INVALID_POD',
+        message: 'Could not determine pod from request'
+      }
+    });
+    return;
+  }
+  
+  // Get redirect path from query or referer
+  const redirect = req.query.redirect as string || req.get('referer') || '/';
+  
+  // Redirect to main domain authorization with pod info
+  const authUrl = `https://${process.env.DOMAIN || 'webpods.org'}/auth/authorize?pod=${req.pod_id}&redirect=${encodeURIComponent(redirect)}`;
+  
+  logger.info('Pod login initiated', { pod: req.pod_id, redirect });
+  res.redirect(authUrl);
+});
+
+/**
+ * Pod-specific auth callback
+ * GET {pod}.webpods.org/auth/callback
+ */
+router.get('/auth/callback', extractPod, (req: Request, res: Response) => {
+  const token = req.query.token as string;
+  const redirect = req.query.redirect as string || '/';
+  
+  if (!token) {
+    res.status(400).json({
+      error: {
+        code: 'MISSING_TOKEN',
+        message: 'Authorization token is required'
+      }
+    });
+    return;
+  }
+  
+  // Set cookie for this pod subdomain
+  const isProduction = process.env.NODE_ENV === 'production';
+  res.cookie('pod_token', token, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'strict' : 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    path: '/',
+    domain: `.${req.pod_id}.${process.env.DOMAIN || 'webpods.org'}` // Scoped to pod subdomain
+  });
+  
+  logger.info('Pod auth callback successful', { pod: req.pod_id });
+  
+  // Redirect to final destination
+  res.redirect(redirect);
+});
+
+/**
  * List streams in pod
  * GET {pod}.webpods.org/.meta/streams
  */

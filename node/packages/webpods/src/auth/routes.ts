@@ -6,7 +6,7 @@ import { Router, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { getDb } from '../db.js';
 import { createLogger } from '../logger.js';
-import { findOrCreateUser, generateToken } from '../domain/auth.js';
+import { findOrCreateUser, generateToken, generatePodToken } from '../domain/auth.js';
 import {
   OAuthProvider,
   generatePKCE,
@@ -20,7 +20,13 @@ const logger = createLogger('webpods:auth:routes');
 const router = Router();
 
 // Store PKCE verifiers and redirect paths (in production, use Redis)
-const stateStore = new Map<string, { codeVerifier: string; redirect: string; provider: OAuthProvider }>();
+const stateStore = new Map<string, { 
+  codeVerifier: string; 
+  redirect: string; 
+  provider: OAuthProvider;
+  pod?: string;  // Optional pod for pod-specific auth
+  timestamp: number;
+}>();
 
 // Clean up old state entries periodically
 setInterval(() => {
@@ -278,6 +284,68 @@ router.get('/whoami', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * Pod-specific authorization endpoint with SSO support
+ * GET /auth/authorize?pod=alice&redirect=/path
+ */
+router.get('/authorize', async (req: Request, res: Response) => {
+  const pod = req.query.pod as string;
+  const redirect = req.query.redirect as string || '/';
+  
+  if (!pod) {
+    res.status(400).json({
+      error: {
+        code: 'MISSING_POD',
+        message: 'Pod parameter is required'
+      }
+    });
+    return;
+  }
+  
+  // Check if user has a valid session (SSO)
+  if ((req as any).session?.user) {
+    try {
+      // User is already authenticated, generate pod-specific token
+      const podToken = generatePodToken((req as any).session.user, pod);
+      
+      // Redirect back to pod with token
+      const podDomain = `${pod}.${process.env.DOMAIN || 'webpods.org'}`;
+      const callbackUrl = `https://${podDomain}/auth/callback?token=${encodeURIComponent(podToken)}&redirect=${encodeURIComponent(redirect)}`;
+      
+      logger.info('SSO authorization successful', { pod, userId: (req as any).session.user.id });
+      res.redirect(callbackUrl);
+    } catch (error: any) {
+      logger.error('Failed to generate pod token', { error, pod });
+      res.status(500).json({
+        error: {
+          code: 'TOKEN_ERROR',
+          message: 'Failed to generate authorization token'
+        }
+      });
+    }
+  } else {
+    // No session, redirect to OAuth with pod info
+    const provider = 'google'; // Default provider, could be configurable
+    const { codeVerifier, codeChallenge } = generatePKCE();
+    const state = generateState();
+    
+    // Store state with pod info
+    stateStore.set(state, {
+      codeVerifier,
+      redirect,
+      provider,
+      pod,
+      timestamp: Date.now()
+    });
+    
+    // Get authorization URL
+    const authUrl = await getAuthorizationUrl(provider, state, codeChallenge);
+    
+    logger.info('Redirecting to OAuth for pod authorization', { pod, provider });
+    res.redirect(authUrl);
+  }
+});
+
 // ===== DYNAMIC ROUTES LAST =====
 
 /**
@@ -386,30 +454,52 @@ router.get('/:provider/callback', async (req: Request, res: Response) => {
       return;
     }
     
-    // Generate JWT
-    const token = generateToken(userResult.data);
+    // Store user in session for SSO
+    (req as any).session = (req as any).session || {};
+    (req as any).session.user = userResult.data;
     
-    // Set cookie for web apps
-    const isProduction = process.env.NODE_ENV === 'production';
-    res.cookie('token', token, {
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: isProduction ? 'strict' : 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      path: '/'
-    });
-    
-    logger.info('User authenticated', { 
-      userId: userResult.data.id, 
-      provider,
-      redirect: stateData.redirect 
-    });
-    
-    // Redirect to success page with token
-    // The success page will handle final redirect after showing token
-    const redirectUrl = stateData.redirect || '/';
-    const successUrl = `/auth/success?token=${encodeURIComponent(token)}&redirect=${encodeURIComponent(redirectUrl)}`;
-    res.redirect(successUrl);
+    // Check if this is pod-specific auth
+    if (stateData.pod) {
+      // Generate pod-specific token
+      const podToken = generatePodToken(userResult.data, stateData.pod);
+      
+      // Redirect back to pod with token
+      const podDomain = `${stateData.pod}.${process.env.DOMAIN || 'webpods.org'}`;
+      const callbackUrl = `https://${podDomain}/auth/callback?token=${encodeURIComponent(podToken)}&redirect=${encodeURIComponent(stateData.redirect)}`;
+      
+      logger.info('Pod authentication successful', { 
+        userId: userResult.data.id, 
+        provider,
+        pod: stateData.pod,
+        redirect: stateData.redirect 
+      });
+      
+      res.redirect(callbackUrl);
+    } else {
+      // Regular auth flow (backwards compatibility)
+      const token = generateToken(userResult.data);
+      
+      // Set cookie for web apps
+      const isProduction = process.env.NODE_ENV === 'production';
+      res.cookie('token', token, {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? 'strict' : 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        path: '/'
+      });
+      
+      logger.info('User authenticated', { 
+        userId: userResult.data.id, 
+        provider,
+        redirect: stateData.redirect 
+      });
+      
+      // Redirect to success page with token
+      const redirectUrl = stateData.redirect || '/';
+      const successUrl = `/auth/success?token=${encodeURIComponent(token)}&redirect=${encodeURIComponent(redirectUrl)}`;
+      res.redirect(successUrl);
+    }
   } catch (error: any) {
     logger.error('OAuth callback error', { error, provider });
     res.status(500).json({

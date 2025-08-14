@@ -3,6 +3,7 @@
  */
 
 import express from 'express';
+import session from 'express-session';
 import helmet from 'helmet';
 import cors from 'cors';
 import compression from 'compression';
@@ -34,6 +35,28 @@ app.use(express.text({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(compression());
 app.use(cookieParser());
+
+// Session management for SSO (only on main domain)
+const domain = process.env.DOMAIN || 'webpods.org';
+app.use((req, res, next) => {
+  // Only use sessions on main domain for SSO
+  if (req.hostname === domain) {
+    session({
+      secret: process.env.SESSION_SECRET || process.env.JWT_SECRET || 'dev-session-secret',
+      resave: false,
+      saveUninitialized: false,
+      cookie: {
+        secure: process.env.NODE_ENV === 'production',
+        httpOnly: true,
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        sameSite: 'lax',
+        domain: `.${domain}` // Allow all subdomains
+      }
+    })(req, res, next);
+  } else {
+    next();
+  }
+});
 
 // Request logging
 app.use((req, res, next) => {

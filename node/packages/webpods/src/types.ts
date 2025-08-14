@@ -154,6 +154,7 @@ export interface JWTPayload {
   email: string | null;
   name: string | null;
   provider: string;
+  pod?: string; // Optional pod claim for pod-specific tokens
   iat?: number;
   exp?: number;
 }
