@@ -220,7 +220,6 @@ export function createMockOAuthProvider(port: number = 4000): MockOAuthProvider 
       return new Promise((resolve) => {
         server = app.listen(port, () => {
           this.server = server!;
-          console.log(`Mock OAuth provider running on port ${port}`);
           resolve();
         });
       });
@@ -230,7 +229,6 @@ export function createMockOAuthProvider(port: number = 4000): MockOAuthProvider 
       return new Promise((resolve) => {
         if (server) {
           server.close(() => {
-            console.log('Mock OAuth provider stopped');
             resolve();
           });
         } else {

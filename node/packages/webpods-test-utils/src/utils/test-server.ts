@@ -33,14 +33,10 @@ export class TestServer {
   }
 
   public async start(): Promise<void> {
-    this.logger.info(`🚀 Starting WebPods test server on port ${this.config.port}...`);
-
     // Start mock OAuth provider first if enabled
     if (this.config.useMockOAuth) {
-      this.logger.info(`🔐 Starting mock OAuth provider on port ${this.config.mockOAuthPort}...`);
       this.mockOAuth = createMockOAuthProvider(this.config.mockOAuthPort!);
       await this.mockOAuth.start();
-      this.logger.info('✅ Mock OAuth provider started');
     }
 
     const serverPath = path.join(__dirname, '../../../webpods/dist/index.js');
@@ -56,7 +52,7 @@ export class TestServer {
       WEBPODS_DB_USER: process.env.WEBPODS_DB_USER || 'postgres',
       WEBPODS_DB_PASSWORD: process.env.WEBPODS_DB_PASSWORD || 'postgres',
       JWT_SECRET: 'test-secret-key',
-      LOG_LEVEL: 'info',
+      LOG_LEVEL: process.env.LOG_LEVEL || 'info', // Set to info so server starts properly
       DOMAIN: 'localhost', // Use localhost for testing
       GOOGLE_CLIENT_ID: 'test-google-client-id',
       GOOGLE_CLIENT_SECRET: 'test-google-client-secret',
@@ -87,21 +83,23 @@ export class TestServer {
 
       this.process.stdout?.on('data', (data) => {
         const message = data.toString();
-        // Always log server output for debugging
-        console.log('[Server]', message.trim());
+        // Only log server output when LOG_LEVEL is debug
+        if (process.env.LOG_LEVEL === 'debug') {
+          console.log('[Server]', message.trim());
+        }
         if (message.includes('WebPods server started') || message.includes('Server listening')) {
-          this.logger.info('✅ Test server started successfully');
           resolve();
         }
       });
 
       this.process.stderr?.on('data', (data) => {
         const message = data.toString();
-        // Always log server errors for debugging
-        console.error('[Server Error]', message.trim());
+        // Only log server errors when LOG_LEVEL is debug
+        if (process.env.LOG_LEVEL === 'debug') {
+          console.error('[Server Error]', message.trim());
+        }
         // Sometimes the server logs to stderr
         if (message.includes('WebPods server started') || message.includes('Server listening')) {
-          this.logger.info('✅ Test server started successfully');
           resolve();
         }
       });
@@ -128,7 +126,6 @@ export class TestServer {
 
   public async stop(): Promise<void> {
     if (this.process && !this.process.killed) {
-      this.logger.info('🛑 Stopping test server...');
       this.process.kill('SIGTERM');
       
       // Wait for process to exit
@@ -142,15 +139,12 @@ export class TestServer {
       });
       
       this.process = null;
-      this.logger.info('✅ Test server stopped');
     }
 
     // Stop mock OAuth provider if it was started
     if (this.mockOAuth) {
-      this.logger.info('🛑 Stopping mock OAuth provider...');
       await this.mockOAuth.stop();
       this.mockOAuth = null;
-      this.logger.info('✅ Mock OAuth provider stopped');
     }
   }
 
