@@ -6,7 +6,8 @@ import { Knex } from 'knex';
 import jwt from 'jsonwebtoken';
 import { User, Result, JWTPayload } from '../types.js';
 import { createLogger } from '../logger.js';
-import type { OAuthProvider } from '../auth/providers.js';
+
+type OAuthProvider = string;
 
 const logger = createLogger('webpods:domain:auth');
 

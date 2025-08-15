@@ -1,0 +1,55 @@
+{
+  "oauth": {
+    "providers": [
+      {
+        "id": "testprovider1",
+        "clientId": "test-client-id-1",
+        "clientSecret": "test-client-secret-1",
+        "authUrl": "http://localhost:4567/oauth/authorize",
+        "tokenUrl": "http://localhost:4567/oauth/token",
+        "userinfoUrl": "http://localhost:4567/oauth/userinfo",
+        "scope": "read:user user:email",
+        "userIdField": "id",
+        "emailField": "email",
+        "nameField": "name"
+      },
+      {
+        "id": "testprovider2",
+        "clientId": "test-client-id-2",
+        "clientSecret": "test-client-secret-2",
+        "issuer": "http://localhost:4567",
+        "authUrl": "http://localhost:4567/oauth/authorize",
+        "tokenUrl": "http://localhost:4567/oauth/token",
+        "userinfoUrl": "http://localhost:4567/oauth/userinfo",
+        "scope": "openid email profile",
+        "userIdField": "sub",
+        "emailField": "email",
+        "nameField": "name"
+      }
+    ],
+    "defaultProvider": "testprovider2"
+  },
+  "server": {
+    "port": 3099,
+    "domain": "localhost",
+    "corsOrigin": "*"
+  },
+  "database": {
+    "host": "localhost",
+    "port": 5432,
+    "database": "webpods_test",
+    "user": "postgres",
+    "password": "postgres"
+  },
+  "auth": {
+    "jwtSecret": "test-secret-key",
+    "jwtExpiry": "7d",
+    "sessionSecret": "test-session-secret"
+  },
+  "rateLimits": {
+    "writes": 1000,
+    "reads": 10000,
+    "podCreate": 10,
+    "streamCreate": 100
+  }
+}

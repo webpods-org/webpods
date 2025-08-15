@@ -18,7 +18,7 @@ describe('Pod-Specific Authentication with SSO', () => {
         auth_id: authId,
         email,
         name: 'Test User',
-        provider: 'google',
+        provider: 'testprovider2',
         pod // Pod-specific claim
       },
       jwtSecret,
@@ -34,7 +34,7 @@ describe('Pod-Specific Authentication with SSO', () => {
         auth_id: authId,
         email,
         name: 'Test User',
-        provider: 'google'
+        provider: 'testprovider2'
       },
       jwtSecret,
       { expiresIn: '1h' }
@@ -82,10 +82,10 @@ describe('Pod-Specific Authentication with SSO', () => {
       // Create test user
       [user] = await db('user').insert({
         id: crypto.randomUUID(),
-        auth_id: 'auth:google:12345',
+        auth_id: 'auth:provider:12345',
         email: 'pod-test@example.com',
         name: 'Pod Test User',
-        provider: 'google'
+        provider: 'testprovider2'
       }).returning('*');
       
       // Create tokens
@@ -149,6 +149,12 @@ describe('Pod-Specific Authentication with SSO', () => {
   });
 
   describe('SSO Behavior', () => {
+    let client: TestHttpClient;
+    
+    beforeEach(() => {
+      client = new TestHttpClient('http://localhost:3099');
+    });
+    
     it('should share session across OAuth flow', async () => {
       // This would require mocking OAuth flow or using a test OAuth provider
       // For now, we verify the authorize endpoint exists and behaves correctly
@@ -176,10 +182,10 @@ describe('Pod-Specific Authentication with SSO', () => {
       // Create test user
       [user] = await db('user').insert({
         id: crypto.randomUUID(),
-        auth_id: 'auth:google:67890',
+        auth_id: 'auth:provider:67890',
         email: 'isolation-test@example.com',
         name: 'Isolation Test User',
-        provider: 'google'
+        provider: 'testprovider2'
       }).returning('*');
       
       // Create pod-specific tokens
@@ -223,7 +229,7 @@ describe('Pod-Specific Authentication with SSO', () => {
 
   describe('Auth Callback on Pods', () => {
     it('should handle auth callback with token', async () => {
-      const token = createPodToken('user123', 'auth:google:123', pod1);
+      const token = createPodToken('user123', 'auth:provider:123', pod1);
       client.setBaseUrl(`http://${pod1}.localhost:3099`);
       
       const response = await client.get(`/auth/callback?token=${token}&redirect=/dashboard`, {

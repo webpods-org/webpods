@@ -20,18 +20,18 @@ describe('WebPods Permissions', () => {
     // Create two test users
     [user1] = await db('user').insert({
       id: crypto.randomUUID(),
-      auth_id: 'auth:google:user1',
+      auth_id: 'auth:provider:user1',
       email: 'user1@example.com',
       name: 'User One',
-      provider: 'google'
+      provider: 'testprovider2'
     }).returning('*');
     
     [user2] = await db('user').insert({
       id: crypto.randomUUID(),
-      auth_id: 'auth:google:user2',
+      auth_id: 'auth:provider:user2',
       email: 'user2@example.com', 
       name: 'User Two',
-      provider: 'google'
+      provider: 'testprovider2'
     }).returning('*');
     
     user2Id = user2.id;
@@ -44,7 +44,7 @@ describe('WebPods Permissions', () => {
       auth_id: user1.auth_id,
       email: user1.email,
       name: user1.name,
-      provider: 'google'
+      provider: 'testprovider2'
     });
     
     user2Token = client.generatePodToken({
@@ -52,7 +52,7 @@ describe('WebPods Permissions', () => {
       auth_id: user2.auth_id,
       email: user2.email,
       name: user2.name,
-      provider: 'google'
+      provider: 'testprovider2'
     });
   });
 

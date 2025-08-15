@@ -16,7 +16,7 @@ describe('WebPods Authentication', () => {
       auth_id: authId,
       email,
       name: 'Test User',
-      provider: 'google'
+      provider: 'testprovider2'
     };
     
     // Add pod claim if provided
@@ -37,10 +37,10 @@ describe('WebPods Authentication', () => {
   });
 
   describe('OAuth Endpoints', () => {
-    it('should redirect to Google OAuth (mock)', async () => {
+    it('should redirect to provider 2 OAuth (mock)', async () => {
       // Auth endpoints are on the main domain, not pod subdomains
       client.setBaseUrl('http://localhost:3099');
-      const response = await client.get('/auth/google', { 
+      const response = await client.get('/auth/testprovider2', { 
         followRedirect: false 
       });
       
@@ -49,9 +49,9 @@ describe('WebPods Authentication', () => {
       expect(response.headers.location).to.include('localhost:4567/oauth/authorize');
     });
 
-    it('should redirect to GitHub OAuth (mock)', async () => {
+    it('should redirect to provider 1 OAuth (mock)', async () => {
       client.setBaseUrl('http://localhost:3099');
-      const response = await client.get('/auth/github', { 
+      const response = await client.get('/auth/testprovider1', { 
         followRedirect: false 
       });
       
@@ -69,7 +69,7 @@ describe('WebPods Authentication', () => {
 
     it('should handle OAuth callback', async () => {
       client.setBaseUrl('http://localhost:3099');
-      const response = await client.get('/auth/google/callback?code=test-code&state=test-state');
+      const response = await client.get('/auth/testprovider2/callback?code=test-code&state=test-state');
       
       // Will fail due to invalid code, but endpoint should exist
       expect(response.status).to.be.oneOf([400, 401]);
@@ -85,10 +85,10 @@ describe('WebPods Authentication', () => {
       const db = testDb.getDb();
       const [user] = await db('user').insert({
         id: crypto.randomUUID(),
-        auth_id: 'auth:google:test123',
+        auth_id: 'auth:provider:test123',
         email: 'test@example.com',
         name: 'Test User',
-        provider: 'google'
+        provider: 'testprovider2'
       }).returning('*');
       
       userId = user.id;
@@ -115,17 +115,17 @@ describe('WebPods Authentication', () => {
       
       expect(response.status).to.equal(201);
       expect(response.data).to.have.property('index', 0);
-      expect(response.data).to.have.property('author', 'auth:google:test123');
+      expect(response.data).to.have.property('author', 'auth:provider:test123');
     });
 
     it('should reject expired JWT token', async () => {
       const expiredToken = jwt.sign(
         {
           userId,
-          auth_id: 'auth:google:test123',
+          auth_id: 'auth:provider:test123',
           email: 'test@example.com',
           name: 'Test User',
-          provider: 'google'
+          provider: 'testprovider2'
         },
         process.env.JWT_SECRET || 'test-secret-key',
         { expiresIn: '-1h' } // Already expired
@@ -143,7 +143,7 @@ describe('WebPods Authentication', () => {
       const invalidToken = jwt.sign(
         {
           userId,
-          auth_id: 'auth:google:test123',
+          auth_id: 'auth:provider:test123',
           email: 'test@example.com'
         },
         'wrong-secret', // Wrong secret
@@ -175,10 +175,10 @@ describe('WebPods Authentication', () => {
       const db = testDb.getDb();
       const [user] = await db('user').insert({
         id: crypto.randomUUID(),
-        auth_id: 'auth:github:public-test',
+        auth_id: 'auth:provider:public-test',
         email: 'public@example.com',
         name: 'Public Test User',
-        provider: 'github'
+        provider: 'testprovider1'
       }).returning('*');
       
       authToken = createTestToken(user.id, user.auth_id, user.email, testPodId);
@@ -213,7 +213,7 @@ describe('WebPods Authentication', () => {
       });
       
       expect(response.status).to.equal(201);
-      expect(response.data.author).to.equal('auth:github:public-test');
+      expect(response.data.author).to.equal('auth:provider:public-test');
       
       // Verify in database
       const db = testDb.getDb();
@@ -226,7 +226,7 @@ describe('WebPods Authentication', () => {
         .where('stream_id', stream.id)
         .first();
       
-      expect(record.author_id).to.equal('auth:github:public-test');
+      expect(record.author_id).to.equal('auth:provider:public-test');
     });
   });
 
@@ -237,10 +237,10 @@ describe('WebPods Authentication', () => {
       const db = testDb.getDb();
       const [user] = await db('user').insert({
         id: crypto.randomUUID(),
-        auth_id: 'auth:google:bearer-test',
+        auth_id: 'auth:provider:bearer-test',
         email: 'bearer@example.com',
         name: 'Bearer Test',
-        provider: 'google'
+        provider: 'testprovider2'
       }).returning('*');
       
       authToken = createTestToken(user.id, user.auth_id, user.email, testPodId);
@@ -344,10 +344,10 @@ describe('WebPods Authentication', () => {
       const db = testDb.getDb();
       const [user] = await db('user').insert({
         id: crypto.randomUUID(),
-        auth_id: 'auth:google:logout-test',
+        auth_id: 'auth:provider:logout-test',
         email: 'logout@example.com',
         name: 'Logout Test',
-        provider: 'google'
+        provider: 'testprovider2'
       }).returning('*');
       
       authToken = createTestToken(user.id, user.auth_id, user.email, testPodId);
@@ -405,10 +405,10 @@ describe('WebPods Authentication', () => {
       const db = testDb.getDb();
       const [user] = await db('user').insert({
         id: crypto.randomUUID(),
-        auth_id: 'auth:github:cross-pod',
+        auth_id: 'auth:provider:cross-pod',
         email: 'cross@example.com',
         name: 'Cross Pod User',
-        provider: 'github'
+        provider: 'testprovider1'
       }).returning('*');
       
       userId = user.id;
@@ -416,7 +416,7 @@ describe('WebPods Authentication', () => {
 
     it('should use same user with different pod tokens for different pods', async () => {
       // Create token for first pod
-      const token1 = createTestToken(userId, 'auth:github:cross-pod', 'cross@example.com', 'pod-one');
+      const token1 = createTestToken(userId, 'auth:provider:cross-pod', 'cross@example.com', 'pod-one');
       client.setBaseUrl(`http://pod-one.localhost:3099`);
       client.setAuthToken(token1);
       
@@ -424,7 +424,7 @@ describe('WebPods Authentication', () => {
       expect(response1.status).to.equal(201);
       
       // Create token for second pod
-      const token2 = createTestToken(userId, 'auth:github:cross-pod', 'cross@example.com', 'pod-two');
+      const token2 = createTestToken(userId, 'auth:provider:cross-pod', 'cross@example.com', 'pod-two');
       client.setBaseUrl(`http://pod-two.localhost:3099`);
       client.setAuthToken(token2);
       
@@ -467,19 +467,19 @@ describe('WebPods Authentication', () => {
       // Simulate OAuth user creation
       const [user] = await db('user').insert({
         id: crypto.randomUUID(),
-        auth_id: 'auth:github:12345',
+        auth_id: 'auth:provider:12345',
         email: 'oauth@example.com',
         name: 'OAuth User',
-        provider: 'github',
+        provider: 'testprovider1',
         metadata: {
-          avatar_url: 'https://github.com/avatar.jpg',
+          avatar_url: 'https://example.com/avatar.jpg',
           bio: 'Developer',
           location: 'San Francisco'
         }
       }).returning('*');
       
       expect(user.metadata).to.deep.equal({
-        avatar_url: 'https://github.com/avatar.jpg',
+        avatar_url: 'https://example.com/avatar.jpg',
         bio: 'Developer',
         location: 'San Francisco'
       });
@@ -488,29 +488,29 @@ describe('WebPods Authentication', () => {
     it('should handle users from different OAuth providers', async () => {
       const db = testDb.getDb();
       
-      // GitHub user
-      const [githubUser] = await db('user').insert({
+      // Provider 1 user
+      const [provider1User] = await db('user').insert({
         id: crypto.randomUUID(),
-        auth_id: 'auth:github:gh123',
-        email: 'github@example.com',
-        name: 'GitHub User',
-        provider: 'github'
+        auth_id: 'auth:provider:p1-123',
+        email: 'user1@example.com',
+        name: 'Provider1 User',
+        provider: 'testprovider1'
       }).returning('*');
       
-      // Google user
-      const [googleUser] = await db('user').insert({
+      // Provider 2 user
+      const [provider2User] = await db('user').insert({
         id: crypto.randomUUID(),
-        auth_id: 'auth:google:g456',
-        email: 'google@example.com',
-        name: 'Google User',
-        provider: 'google'
+        auth_id: 'auth:provider:p2-456',
+        email: 'user2@example.com',
+        name: 'Provider2 User',
+        provider: 'testprovider2'
       }).returning('*');
       
-      expect(githubUser.provider).to.equal('github');
-      expect(githubUser.auth_id).to.match(/^auth:github:/);
+      expect(provider1User.provider).to.equal('testprovider1');
+      expect(provider1User.auth_id).to.match(/^auth:provider:/);
       
-      expect(googleUser.provider).to.equal('google');
-      expect(googleUser.auth_id).to.match(/^auth:google:/);
+      expect(provider2User.provider).to.equal('testprovider2');
+      expect(provider2User.auth_id).to.match(/^auth:provider:/);
     });
   });
 });

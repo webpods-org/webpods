@@ -142,8 +142,8 @@ docker run -d --rm \
     -e WEBPODS_DB_PASSWORD=postgres \
     -e WEBPODS_AUTO_MIGRATE=true \
     -e JWT_SECRET=test-secret-key \
-    -e GOOGLE_CLIENT_ID=test-client-id \
-    -e GOOGLE_CLIENT_SECRET=test-client-secret \
+    -e SESSION_SECRET=test-session-secret \
+    -e WEBPODS_CONFIG_PATH=/app/config.example.json \
     -e LOG_LEVEL=error \
     $IMAGE_TO_TEST >/dev/null 2>&1
 
@@ -183,14 +183,14 @@ else
     TESTS_FAILED=$((TESTS_FAILED + 1))
 fi
 
-# Test 2: OAuth endpoint
-print_info "Testing: OAuth endpoint"
-RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:$TEST_PORT/auth/google)
-if [ "$RESPONSE" = "302" ] || [ "$RESPONSE" = "303" ]; then
-    print_success "OAuth endpoint redirects"
+# Test 2: Auth providers endpoint
+print_info "Testing: Auth providers endpoint"
+RESPONSE=$(curl -s http://localhost:$TEST_PORT/auth/providers)
+if echo "$RESPONSE" | grep -q "\"providers\""; then
+    print_success "Auth providers endpoint works"
     TESTS_PASSED=$((TESTS_PASSED + 1))
 else
-    print_error "OAuth endpoint failed: HTTP $RESPONSE"
+    print_error "Auth providers endpoint failed: $RESPONSE"
     TESTS_FAILED=$((TESTS_FAILED + 1))
 fi
 

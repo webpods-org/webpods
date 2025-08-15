@@ -17,7 +17,7 @@ export async function up(knex) {
     table.string('auth_id', 255).unique().notNullable(); // Format: auth:provider:id
     table.string('email', 255);
     table.string('name', 255);
-    table.string('provider', 50).notNullable(); // 'github' or 'google'
+    table.string('provider', 50).notNullable(); // OAuth provider ID from config.json
     table.jsonb('metadata').defaultTo('{}');
     table.timestamp('created_at').defaultTo(knex.fn.now());
     table.timestamp('updated_at').defaultTo(knex.fn.now());

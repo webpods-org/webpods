@@ -17,10 +17,10 @@ describe('WebPods Stream Operations', () => {
     const db = testDb.getDb();
     const [user] = await db('user').insert({
       id: crypto.randomUUID(),
-      auth_id: 'auth:github:123456',
+      auth_id: 'auth:provider:123456',
       email: 'test@example.com',
       name: 'Test User',
-      provider: 'github'
+      provider: 'testprovider1'
     }).returning('*');
     
     userId = user.id;
@@ -33,7 +33,7 @@ describe('WebPods Stream Operations', () => {
       auth_id: user.auth_id,
       email: user.email,
       name: user.name,
-      provider: 'github'
+      provider: 'testprovider1'
     }, testPodId);
     
     client.setAuthToken(authToken);
@@ -308,10 +308,10 @@ describe('WebPods Stream Operations', () => {
       const db = testDb.getDb();
       const [user2] = await db('user').insert({
         id: crypto.randomUUID(),
-        auth_id: 'auth:github:789',
+        auth_id: 'auth:provider:789',
         email: 'other@example.com',
         name: 'Other User',
-        provider: 'github'
+        provider: 'testprovider1'
       }).returning('*');
       
       const token2 = client.generatePodToken({
@@ -319,7 +319,7 @@ describe('WebPods Stream Operations', () => {
         auth_id: user2.auth_id,
         email: user2.email,
         name: user2.name,
-        provider: 'github'
+        provider: 'testprovider1'
       });
       
       // Create pod as first user
@@ -362,10 +362,10 @@ describe('WebPods Stream Operations', () => {
       const db = testDb.getDb();
       const [user2] = await db('user').insert({
         id: crypto.randomUUID(),
-        auth_id: 'auth:github:999',
+        auth_id: 'auth:provider:999',
         email: 'other@example.com',
         name: 'Other User',
-        provider: 'github'
+        provider: 'testprovider1'
       }).returning('*');
       
       const token2 = client.generatePodToken({
@@ -373,7 +373,7 @@ describe('WebPods Stream Operations', () => {
         auth_id: user2.auth_id,
         email: user2.email,
         name: user2.name,
-        provider: 'github'
+        provider: 'testprovider1'
       });
       
       client.setAuthToken(token2);

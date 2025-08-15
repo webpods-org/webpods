@@ -2,11 +2,26 @@
 
 ## Authentication
 
+### List OAuth Providers
+```
+GET https://webpods.org/auth/providers
+```
+
+Returns configured OAuth providers with their login URLs.
+
 ### OAuth Login
 ```
 GET https://webpods.org/auth/{provider}
 ```
-- Providers: `github`, `google`
+
+Examples:
+```bash
+GET https://webpods.org/auth/github
+GET https://webpods.org/auth/google
+GET https://webpods.org/auth/gitlab
+```
+
+- Providers: Any configured OAuth provider from config.json
 - Optional: `?redirect={path}` for post-auth redirect
 - Optional: `?no_redirect=1` to prevent auto-redirect (CLI usage)
 
@@ -25,10 +40,10 @@ Authorization: Bearer {token}
 Returns:
 ```json
 {
-  "user_id": "auth:github:123",
+  "user_id": "auth:{provider}:{id}",
   "email": "user@example.com",
   "name": "User Name",
-  "provider": "github"
+  "provider": "{provider}"
 }
 ```
 
@@ -63,7 +78,7 @@ Response:
   "alias": "my-alias",
   "hash": "sha256:...",
   "previous_hash": null,
-  "author": "auth:github:123",
+  "author": "auth:{provider}:{id}",
   "timestamp": "2024-01-01T00:00:00Z"
 }
 ```

@@ -27,10 +27,10 @@ describe('WebPods Health Checks', () => {
     const db = testDb.getDb();
     const [user] = await db('user').insert({
       id: crypto.randomUUID(),
-      auth_id: 'auth:github:health-test',
+      auth_id: 'auth:provider:health-test',
       email: 'health@example.com',
       name: 'Health Test User',
-      provider: 'github'
+      provider: 'testprovider1'
     }).returning('*');
     
     // Generate pod-specific token for the unique pod
@@ -39,7 +39,7 @@ describe('WebPods Health Checks', () => {
       auth_id: user.auth_id,
       email: user.email,
       name: user.name,
-      provider: 'github'
+      provider: 'testprovider1'
     }, uniquePodId);
     
     client.setAuthToken(token);

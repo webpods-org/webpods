@@ -5,8 +5,10 @@ HTTP-based append-only logs organized as pods (subdomains) and streams.
 ## Quick Start
 
 ```bash
-# Get auth token
+# Get auth token (e.g., using GitHub or Google)
 curl https://webpods.org/auth/github
+# or
+curl https://webpods.org/auth/google
 
 # Write to stream (creates pod and stream automatically)
 curl -X POST https://alice.webpods.org/blog \
@@ -28,8 +30,13 @@ curl https://alice.webpods.org/blog?i=-1
 ### Authentication
 
 ```bash
-# Login
-GET https://webpods.org/auth/{provider}  # github or google
+# List available providers
+GET https://webpods.org/auth/providers
+
+# Login with OAuth (GitHub, Google, or any configured provider)
+GET https://webpods.org/auth/github
+GET https://webpods.org/auth/google
+GET https://webpods.org/auth/{provider}  # Any provider from config.json
 
 # Get user info
 GET https://webpods.org/auth/whoami
@@ -91,7 +98,7 @@ Only stream creator can delete. System streams cannot be deleted.
 **Permission stream format:**
 ```json
 {
-  "id": "auth:github:123",
+  "id": "auth:{provider}:{id}",
   "read": true,
   "write": false
 }
@@ -142,14 +149,57 @@ GET https://webpods.org/auth/authorize?pod=alice
 # Returns pod-specific token
 ```
 
+## Configuration
+
+WebPods supports any OAuth 2.0 provider. Here are examples for popular providers:
+
+### GitHub
+```json
+{
+  "oauth": {
+    "providers": [{
+      "id": "github",
+      "clientId": "your-github-client-id",
+      "clientSecret": "$GITHUB_SECRET",
+      "authUrl": "https://github.com/login/oauth/authorize",
+      "tokenUrl": "https://github.com/login/oauth/access_token",
+      "userinfoUrl": "https://api.github.com/user",
+      "scope": "read:user user:email",
+      "userIdField": "id",
+      "emailField": "email",
+      "nameField": "name"
+    }]
+  }
+}
+```
+
+### Google
+```json
+{
+  "oauth": {
+    "providers": [{
+      "id": "google",
+      "clientId": "your-google-client-id",
+      "clientSecret": "$GOOGLE_SECRET",
+      "issuer": "https://accounts.google.com",
+      "scope": "openid email profile",
+      "userIdField": "sub",
+      "emailField": "email",
+      "nameField": "name"
+    }]
+  }
+}
+```
+
 ## Development
 
 ```bash
 # Setup
 git clone https://github.com/webpods-org/webpods
 cd webpods
+cp config.example.json config.json
 cp .env.example .env
-# Edit .env
+# Edit config.json with your OAuth providers
 
 # Database
 npm run migrate:latest
@@ -164,20 +214,27 @@ npm test
 
 ## Configuration
 
-Key environment variables:
-- `JWT_SECRET`: Required for auth
-- `SESSION_SECRET`: For SSO sessions
-- `GITHUB_CLIENT_ID/SECRET`: GitHub OAuth
-- `GOOGLE_CLIENT_ID/SECRET`: Google OAuth
-- `DATABASE_URL`: PostgreSQL connection
-- `DOMAIN`: Base domain (default: webpods.org)
+WebPods uses `config.json` for configuration with environment variables for secrets:
 
-See `.env.example` for all options.
+1. Copy `config.example.json` to `config.json`
+2. Configure OAuth providers in the JSON file
+3. Set secrets in `.env` file
+
+Key settings:
+- OAuth providers and endpoints
+- Server configuration (port, domain)
+- Database connection
+- Authentication secrets (JWT, session)
+- Rate limits
+
+See [Configuration Guide](docs/configuration.md) for details.
 
 ## Documentation
 
 - [API Reference](docs/api.md) - Complete API details
 - [Architecture](docs/architecture.md) - System design
+- [Configuration](docs/configuration.md) - OAuth and server setup
+- [Database](docs/database.md) - Schema and migrations
 - [Deployment](docs/deployment.md) - Production setup
 
 ## License

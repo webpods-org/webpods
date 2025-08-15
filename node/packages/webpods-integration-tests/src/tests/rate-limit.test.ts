@@ -17,10 +17,10 @@ describe('WebPods Rate Limiting', () => {
     const db = testDb.getDb();
     const [user] = await db('user').insert({
       id: crypto.randomUUID(),
-      auth_id: 'auth:google:ratelimit',
+      auth_id: 'auth:provider:ratelimit',
       email: 'ratelimit@example.com',
       name: 'Rate Limit User',
-      provider: 'google'
+      provider: 'testprovider2'
     }).returning('*');
     
     testUser = user; // Save for later use
@@ -34,7 +34,7 @@ describe('WebPods Rate Limiting', () => {
       auth_id: user.auth_id,
       email: user.email,
       name: user.name,
-      provider: 'google'
+      provider: 'testprovider2'
     }, testPodId);
     
     client.setAuthToken(authToken);
@@ -338,10 +338,10 @@ describe('WebPods Rate Limiting', () => {
       // Create a second user
       const [user2] = await db('user').insert({
         id: crypto.randomUUID(),
-        auth_id: 'auth:github:ratelimit2',
+        auth_id: 'auth:provider:ratelimit2',
         email: 'ratelimit2@example.com',
         name: 'Rate Limit User 2',
-        provider: 'github'
+        provider: 'testprovider1'
       }).returning('*');
       
       const token2 = client.generatePodToken({
@@ -349,7 +349,7 @@ describe('WebPods Rate Limiting', () => {
         auth_id: user2.auth_id,
         email: user2.email,
         name: user2.name,
-        provider: 'github'
+        provider: 'testprovider1'
       });
       
       // Calculate proper window boundaries
@@ -388,10 +388,10 @@ describe('WebPods Rate Limiting', () => {
       // Create a unique user for this test to avoid rate limit conflicts
       const [uniqueUser] = await db('user').insert({
         id: crypto.randomUUID(),
-        auth_id: 'auth:github:ratelimit-unique',
+        auth_id: 'auth:provider:ratelimit-unique',
         email: 'ratelimit-unique@example.com',
         name: 'Rate Limit Unique User',
-        provider: 'github'
+        provider: 'testprovider1'
       }).returning('*');
       
       const uniqueToken = client.generatePodToken({
@@ -399,7 +399,7 @@ describe('WebPods Rate Limiting', () => {
         auth_id: uniqueUser.auth_id,
         email: uniqueUser.email,
         name: uniqueUser.name,
-        provider: 'github'
+        provider: 'testprovider1'
       });
       
       // Use the unique user for this test

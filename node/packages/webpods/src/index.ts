@@ -7,37 +7,33 @@ import { createLogger } from './logger.js';
 import { closeDb, checkDbConnection } from './db.js';
 import { startStateCleanup } from './auth/pkce-store.js';
 import { createApp } from './server.js';
+import { getConfig } from './config-loader.js';
 
-// Load environment variables
+// Load environment variables (for secrets referenced in config.json)
 config();
 
 const logger = createLogger('webpods');
 
 export async function start() {
   try {
-    // Check required environment variables
-    const required = ['JWT_SECRET'];
-    const missing = required.filter(key => !process.env[key]);
-    
-    if (missing.length > 0 && process.env.NODE_ENV === 'production') {
-      logger.error(`Missing required environment variables: ${missing.join(', ')}`);
-      process.exit(1);
-    }
+    // Load configuration (will validate required fields)
+    const appConfig = getConfig();
     
     // Check OAuth configuration
-    if (!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET) {
-      logger.warn('GitHub OAuth not configured');
-    }
+    const { getConfiguredProviders } = await import('./auth/oauth-config.js');
+    const configuredProviders = getConfiguredProviders();
     
-    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-      logger.warn('Google OAuth not configured');
-    }
-    
-    if ((!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET) &&
-        (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET)) {
-      logger.error('At least one OAuth provider must be configured');
+    if (configuredProviders.length === 0) {
+      logger.error('At least one OAuth provider must be configured in config.json');
       process.exit(1);
     }
+    
+    logger.info('Configuration loaded', {
+      providers: configuredProviders,
+      defaultProvider: appConfig.oauth.defaultProvider,
+      domain: appConfig.server.domain,
+      port: appConfig.server.port
+    });
     
     // Test database connection
     const dbConnected = await checkDbConnection();
@@ -51,14 +47,14 @@ export async function start() {
     
     // Create app
     const app = createApp();
-    const port = process.env.WEBPODS_PORT || process.env.PORT || 3000;
+    const port = appConfig.server.port;
     
     const server = app.listen(port, () => {
       logger.info(`WebPods server started`, {
         port,
         environment: process.env.NODE_ENV || 'development',
-        cors: process.env.CORS_ORIGIN || '*',
-        domain: process.env.DOMAIN || 'webpods.org'
+        cors: appConfig.server.corsOrigin,
+        domain: appConfig.server.domain
       });
     });
     

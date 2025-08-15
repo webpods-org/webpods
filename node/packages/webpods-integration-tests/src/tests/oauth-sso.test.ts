@@ -23,7 +23,7 @@ describe('Full SSO OAuth Flow', () => {
   
   it('should complete full OAuth flow with mock provider', async () => {
     // 1. Initiate OAuth flow
-    const authResponse = await client.get('/auth/google', {
+    const authResponse = await client.get('/auth/testprovider2', {
       followRedirect: false
     });
     
@@ -44,7 +44,7 @@ describe('Full SSO OAuth Flow', () => {
     
     expect(mockOAuthResponse.status).to.equal(302);
     const callbackUrl = mockOAuthResponse.headers.get('location');
-    expect(callbackUrl).to.include('/auth/google/callback');
+    expect(callbackUrl).to.include('/auth/testprovider2/callback');
     
     // Extract the generated code
     const callbackParams = new URLSearchParams(callbackUrl!.split('?')[1]);
@@ -53,7 +53,7 @@ describe('Full SSO OAuth Flow', () => {
     expect(callbackParams.get('state')).to.equal(state);
     
     // 3. Complete the OAuth callback
-    const callbackResponse = await client.get(`/auth/google/callback?code=${code}&state=${state}`, {
+    const callbackResponse = await client.get(`/auth/testprovider2/callback?code=${code}&state=${state}`, {
       followRedirect: false
     });
     
@@ -74,18 +74,18 @@ describe('Full SSO OAuth Flow', () => {
     
     expect(sessionData.user).to.exist;
     expect(sessionData.user.email).to.equal('test@example.com');
-    expect(sessionData.user.provider).to.equal('google');
+    expect(sessionData.user.provider).to.equal('testprovider2');
     
     // 5. Verify user was created
     const users = await testDb.getDb()('user').select('*');
     expect(users).to.have.lengthOf(1);
     expect(users[0].email).to.equal('test@example.com');
-    expect(users[0].provider).to.equal('google');
+    expect(users[0].provider).to.equal('testprovider2');
   });
   
   it('should handle SSO for multiple pods without re-authentication', async () => {
     // 1. Complete initial OAuth flow
-    const authResponse = await client.get('/auth/google', {
+    const authResponse = await client.get('/auth/testprovider2', {
       followRedirect: false
     });
     
@@ -102,7 +102,7 @@ describe('Full SSO OAuth Flow', () => {
     const code = callbackParams.get('code');
     
     // Complete OAuth callback
-    await client.get(`/auth/google/callback?code=${code}&state=${state}`, {
+    await client.get(`/auth/testprovider2/callback?code=${code}&state=${state}`, {
       followRedirect: false
     });
     
@@ -131,7 +131,7 @@ describe('Full SSO OAuth Flow', () => {
   
   it('should handle session logout and require re-authentication', async () => {
     // 1. Complete OAuth flow
-    const authResponse = await client.get('/auth/google', {
+    const authResponse = await client.get('/auth/testprovider2', {
       followRedirect: false
     });
     
@@ -147,7 +147,7 @@ describe('Full SSO OAuth Flow', () => {
     const callbackParams = new URLSearchParams(callbackUrl!.split('?')[1]);
     const code = callbackParams.get('code');
     
-    await client.get(`/auth/google/callback?code=${code}&state=${state}`, {
+    await client.get(`/auth/testprovider2/callback?code=${code}&state=${state}`, {
       followRedirect: false
     });
     
@@ -203,7 +203,7 @@ describe('Full SSO OAuth Flow', () => {
     const oauthParams = new URLSearchParams(oauthCallbackUrl!.split('?')[1]);
     const code = oauthParams.get('code');
     
-    const callbackResponse = await client.get(`/auth/google/callback?code=${code}&state=${state}`, {
+    const callbackResponse = await client.get(`/auth/testprovider2/callback?code=${code}&state=${state}`, {
       followRedirect: false
     });
     

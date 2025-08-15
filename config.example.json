@@ -1,0 +1,88 @@
+{
+  "oauth": {
+    "providers": [
+      {
+        "id": "github",
+        "clientId": "your-github-client-id",
+        "clientSecret": "$GITHUB_OAUTH_SECRET",
+        "authUrl": "https://github.com/login/oauth/authorize",
+        "tokenUrl": "https://github.com/login/oauth/access_token",
+        "userinfoUrl": "https://api.github.com/user",
+        "emailUrl": "https://api.github.com/user/emails",
+        "scope": "read:user user:email",
+        "userIdField": "id",
+        "emailField": "email",
+        "nameField": "name"
+      },
+      {
+        "id": "google",
+        "clientId": "your-google-client-id",
+        "clientSecret": "$GOOGLE_OAUTH_SECRET",
+        "issuer": "https://accounts.google.com",
+        "scope": "openid email profile",
+        "userIdField": "sub",
+        "emailField": "email",
+        "nameField": "name"
+      },
+      {
+        "id": "gitlab",
+        "clientId": "your-gitlab-client-id",
+        "clientSecret": "$GITLAB_OAUTH_SECRET",
+        "authUrl": "https://gitlab.com/oauth/authorize",
+        "tokenUrl": "https://gitlab.com/oauth/token",
+        "userinfoUrl": "https://gitlab.com/api/v4/user",
+        "scope": "read_user",
+        "userIdField": "id",
+        "emailField": "email",
+        "nameField": "name"
+      },
+      {
+        "id": "microsoft",
+        "clientId": "your-microsoft-client-id",
+        "clientSecret": "$MICROSOFT_OAUTH_SECRET",
+        "issuer": "https://login.microsoftonline.com/common/v2.0",
+        "scope": "openid email profile",
+        "userIdField": "sub",
+        "emailField": "email",
+        "nameField": "name"
+      },
+      {
+        "id": "customauth",
+        "clientId": "your-custom-client-id",
+        "clientSecret": "$CUSTOM_OAUTH_SECRET",
+        "authUrl": "https://auth.yourcompany.com/oauth/authorize",
+        "tokenUrl": "https://auth.yourcompany.com/oauth/token",
+        "userinfoUrl": "https://auth.yourcompany.com/api/user",
+        "scope": "openid email profile",
+        "userIdField": "id",
+        "emailField": "email",
+        "nameField": "name",
+        "callbackUrl": "https://custom-domain.com/auth/customauth/callback"
+      }
+    ],
+    "defaultProvider": "github"
+  },
+  "server": {
+    "port": "$PORT || 3000",
+    "domain": "$DOMAIN || webpods.org",
+    "corsOrigin": "$CORS_ORIGIN || *"
+  },
+  "database": {
+    "host": "$WEBPODS_DB_HOST || localhost",
+    "port": "$WEBPODS_DB_PORT || 5432",
+    "database": "$WEBPODS_DB_NAME || webpods",
+    "user": "$WEBPODS_DB_USER || postgres",
+    "password": "$WEBPODS_DB_PASSWORD"
+  },
+  "auth": {
+    "jwtSecret": "$JWT_SECRET",
+    "jwtExpiry": "$JWT_EXPIRY || 7d",
+    "sessionSecret": "$SESSION_SECRET"
+  },
+  "rateLimits": {
+    "writes": "$RATE_LIMIT_WRITES || 1000",
+    "reads": "$RATE_LIMIT_READS || 10000",
+    "podCreate": "$RATE_LIMIT_POD_CREATE || 10",
+    "streamCreate": "$RATE_LIMIT_STREAM_CREATE || 100"
+  }
+}

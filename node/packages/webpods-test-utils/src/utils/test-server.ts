@@ -3,7 +3,7 @@ import { spawn, ChildProcess } from 'child_process';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import { Logger, consoleLogger } from './test-logger.js';
-import { createMockOAuthProvider, getMockOAuthEnv, MockOAuthProvider } from './mock-oauth-provider.js';
+import { createMockOAuthProvider, MockOAuthProvider } from './mock-oauth-provider.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -45,10 +45,14 @@ export class TestServer {
 
     const serverPath = path.join(__dirname, '../../../webpods/dist/index.js');
     
-    // Set environment variables
-    let env: any = {
+    // Path to test config file
+    const testConfigPath = path.join(__dirname, '../../../webpods-integration-tests/test-config.json');
+    
+    // Set environment variables (minimal now, config is in JSON)
+    const env: any = {
       ...process.env,
       NODE_ENV: 'test',
+      WEBPODS_CONFIG_PATH: testConfigPath,
       WEBPODS_PORT: String(this.config.port),
       WEBPODS_DB_NAME: this.config.dbName,
       WEBPODS_DB_HOST: process.env.WEBPODS_DB_HOST || 'localhost',
@@ -56,28 +60,11 @@ export class TestServer {
       WEBPODS_DB_USER: process.env.WEBPODS_DB_USER || 'postgres',
       WEBPODS_DB_PASSWORD: process.env.WEBPODS_DB_PASSWORD || 'postgres',
       JWT_SECRET: 'test-secret-key',
+      SESSION_SECRET: 'test-session-secret',
       LOG_LEVEL: 'info',
+      PORT: String(this.config.port),
       DOMAIN: 'localhost', // Use localhost for testing
-      GOOGLE_CLIENT_ID: 'test-google-client-id',
-      GOOGLE_CLIENT_SECRET: 'test-google-client-secret',
-      GOOGLE_CALLBACK_URL: `http://localhost:${this.config.port}/auth/google/callback`,
-      GITHUB_CLIENT_ID: 'test-github-client-id',
-      GITHUB_CLIENT_SECRET: 'test-github-client-secret',
-      GITHUB_CALLBACK_URL: `http://localhost:${this.config.port}/auth/github/callback`
     };
-
-    // Add mock OAuth URLs if enabled
-    if (this.config.useMockOAuth) {
-      const mockGoogleEnv = getMockOAuthEnv('google', this.config.mockOAuthPort!);
-      const mockGithubEnv = getMockOAuthEnv('github', this.config.mockOAuthPort!);
-      env = {
-        ...env,
-        ...mockGoogleEnv,
-        ...mockGithubEnv,
-        GOOGLE_ISSUER: `http://localhost:${this.config.mockOAuthPort}`,
-        GITHUB_ISSUER: `http://localhost:${this.config.mockOAuthPort}`
-      };
-    }
 
     return new Promise((resolve, reject) => {
       this.process = spawn('node', [serverPath], {

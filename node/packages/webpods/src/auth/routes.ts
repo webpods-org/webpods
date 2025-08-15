@@ -8,11 +8,14 @@ import { getDb } from '../db.js';
 import { createLogger } from '../logger.js';
 import { findOrCreateUser, generateToken, generatePodToken } from '../domain/auth.js';
 import {
-  OAuthProvider,
   getAuthorizationUrl,
   exchangeCodeForTokens,
-  getUserInfo
-} from './providers.js';
+  getUserInfo,
+  validateProvider
+} from './providers-agnostic.js';
+import { getConfiguredProviders, getDefaultProvider } from './oauth-config.js';
+
+type OAuthProvider = string;
 import { 
   storePKCEState, 
   retrievePKCEState, 
@@ -27,6 +30,21 @@ const router = Router();
 router.use('/', sessionRouter);
 
 // ===== SPECIFIC ROUTES FIRST =====
+
+/**
+ * List available OAuth providers
+ * GET /auth/providers
+ */
+router.get('/providers', (_req: Request, res: Response) => {
+  const providers = getConfiguredProviders();
+  res.json({
+    providers: providers.map(id => ({
+      id,
+      name: id.charAt(0).toUpperCase() + id.slice(1),
+      login_url: `/auth/${id}`
+    }))
+  });
+});
 
 /**
  * Success page - displays token after OAuth
@@ -298,16 +316,27 @@ router.get('/authorize', async (req: Request, res: Response) => {
     }
   } else {
     // No session, redirect to OAuth with pod info
-    const provider = 'google'; // Default provider, could be configurable
+    const defaultProvider = getDefaultProvider();
+    
+    if (!defaultProvider) {
+      res.status(500).json({
+        error: {
+          code: 'NO_PROVIDERS',
+          message: 'No OAuth providers configured'
+        }
+      });
+      return;
+    }
+    
     const { verifier, challenge, state } = generatePKCEChallenge();
     
     // Store state with pod info in database
     await storePKCEState(state, verifier, pod, redirect);
     
     // Get authorization URL
-    const authUrl = await getAuthorizationUrl(provider, state, challenge);
+    const authUrl = await getAuthorizationUrl(defaultProvider, state, challenge);
     
-    logger.info('Redirecting to OAuth for pod authorization', { pod, provider });
+    logger.info('Redirecting to OAuth for pod authorization', { pod, provider: defaultProvider });
     res.redirect(authUrl);
   }
 });
@@ -321,11 +350,13 @@ router.get('/authorize', async (req: Request, res: Response) => {
 router.get('/:provider', async (req: Request, res: Response) => {
   const provider = req.params.provider as OAuthProvider;
   
-  if (provider !== 'github' && provider !== 'google') {
+  // Check if provider is configured
+  if (!validateProvider(provider)) {
+    const available = getConfiguredProviders();
     res.status(400).json({
       error: {
         code: 'INVALID_PROVIDER',
-        message: 'Invalid OAuth provider'
+        message: `Invalid OAuth provider. Available providers: ${available.join(', ') || 'none configured'}`
       }
     });
     return;

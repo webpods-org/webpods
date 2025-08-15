@@ -38,7 +38,7 @@ Pod (subdomain)
 
 **user**
 - `id`: UUID primary key
-- `auth_id`: Provider ID (`auth:github:123`)
+- `auth_id`: Provider ID (`auth:{provider}:{id}`)
 - `email`, `name`, `provider`
 
 **pod**

@@ -10,7 +10,7 @@ export interface MockUser {
   id: string;
   email: string;
   name: string;
-  provider: 'google' | 'github';
+  provider: string;
 }
 
 export interface MockOAuthProvider {
@@ -43,7 +43,7 @@ export function createMockOAuthProvider(port: number = 4000): MockOAuthProvider 
     id: 'mock-user-123',
     email: 'test@example.com',
     name: 'Test User',
-    provider: 'google'
+    provider: 'testprovider'
   };
   users.set(defaultUser.email, defaultUser);
   
@@ -113,7 +113,7 @@ export function createMockOAuthProvider(port: number = 4000): MockOAuthProvider 
       {
         iss: `http://localhost:${port}`,
         sub: authCode.user.id,
-        aud: 'mock-google-client-id', // Must match GOOGLE_CLIENT_ID
+        aud: 'mock-client-id',
         exp: Math.floor(Date.now() / 1000) + 3600,
         iat: Math.floor(Date.now() / 1000),
         email: authCode.user.email,
@@ -151,31 +151,19 @@ export function createMockOAuthProvider(port: number = 4000): MockOAuthProvider 
       return;
     }
     
-    // Return user info based on provider format
-    if (user.provider === 'google') {
-      res.json({
-        sub: user.id,
-        email: user.email,
-        email_verified: true,
-        name: user.name,
-        given_name: user.name.split(' ')[0],
-        family_name: user.name.split(' ')[1] || '',
-        picture: `https://example.com/photo/${user.id}.jpg`,
-        locale: 'en'
-      });
-    } else if (user.provider === 'github') {
-      res.json({
-        id: parseInt(user.id.replace(/\D/g, '')),
-        login: user.email.split('@')[0],
-        email: user.email,
-        name: user.name,
-        avatar_url: `https://github.com/${user.id}.png`,
-        type: 'User'
-      });
-    }
+    // Return generic user info (works with any provider config)
+    res.json({
+      id: user.id,
+      sub: user.id,  // For OIDC compatibility
+      email: user.email,
+      email_verified: true,
+      name: user.name,
+      username: user.email.split('@')[0],
+      picture: `https://example.com/photo/${user.id}.jpg`
+    });
   });
   
-  // GitHub-specific user endpoint
+  // Alternative user endpoint (some providers use /user instead of /oauth/userinfo)
   app.get('/user', (req, res) => {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -186,18 +174,17 @@ export function createMockOAuthProvider(port: number = 4000): MockOAuthProvider 
     const token = authHeader.substring(7);
     const user = accessTokens.get(token);
     
-    if (!user || user.provider !== 'github') {
+    if (!user) {
       res.status(401).json({ error: 'Invalid access token' });
       return;
     }
     
+    // Return generic user info
     res.json({
-      id: parseInt(user.id.replace(/\D/g, '')),
-      login: user.email.split('@')[0],
+      id: user.id,
       email: user.email,
       name: user.name,
-      avatar_url: `https://github.com/${user.id}.png`,
-      type: 'User'
+      username: user.email.split('@')[0]
     });
   });
   
@@ -256,24 +243,3 @@ export function createMockOAuthProvider(port: number = 4000): MockOAuthProvider 
 /**
  * Environment variable overrides for using mock OAuth
  */
-export function getMockOAuthEnv(provider: 'google' | 'github', port: number = 4000): Record<string, string> {
-  const baseUrl = `http://localhost:${port}`;
-  
-  if (provider === 'google') {
-    return {
-      GOOGLE_AUTH_URL: `${baseUrl}/oauth/authorize`,
-      GOOGLE_TOKEN_URL: `${baseUrl}/oauth/token`,
-      GOOGLE_USERINFO_URL: `${baseUrl}/oauth/userinfo`,
-      GOOGLE_CLIENT_ID: 'mock-google-client-id',
-      GOOGLE_CLIENT_SECRET: 'mock-google-client-secret'
-    };
-  } else {
-    return {
-      GITHUB_AUTH_URL: `${baseUrl}/oauth/authorize`,
-      GITHUB_TOKEN_URL: `${baseUrl}/oauth/token`,
-      GITHUB_USER_URL: `${baseUrl}/user`,
-      GITHUB_CLIENT_ID: 'mock-github-client-id',
-      GITHUB_CLIENT_SECRET: 'mock-github-client-secret'
-    };
-  }
-}

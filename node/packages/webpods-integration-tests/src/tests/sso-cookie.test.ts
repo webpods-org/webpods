@@ -56,13 +56,13 @@ describe('SSO Cookie Management', () => {
     it('should simulate session cookie behavior', async () => {
       // Create a test user
       const userId = 'cookie-test-user';
-      const authId = `auth:google:${userId}`;
+      const authId = `auth:provider:${userId}`;
       
       await testDb.getDb()('user').insert({
         auth_id: authId,
         email: 'cookie@example.com',
         name: 'Cookie User',
-        provider: 'google'
+        provider: 'testprovider2'
       });
       
       const user = await testDb.getDb()('user')
@@ -83,7 +83,7 @@ describe('SSO Cookie Management', () => {
           auth_id: authId,
           email: 'cookie@example.com',
           name: 'Cookie User',
-          provider: 'google'
+          provider: 'testprovider2'
         }
       };
       
@@ -129,13 +129,13 @@ describe('SSO Cookie Management', () => {
     it('should simulate SSO flow with cookies', async () => {
       // 1. Create a user and session (simulating successful OAuth)
       const userId = 'sso-test-user';
-      const authId = `auth:google:${userId}`;
+      const authId = `auth:provider:${userId}`;
       
       await testDb.getDb()('user').insert({
         auth_id: authId,
         email: 'sso@example.com',
         name: 'SSO User',
-        provider: 'google'
+        provider: 'testprovider2'
       });
       
       const user = await testDb.getDb()('user')
@@ -159,7 +159,7 @@ describe('SSO Cookie Management', () => {
             auth_id: authId,
             email: 'sso@example.com',
             name: 'SSO User',
-            provider: 'google'
+            provider: 'testprovider2'
           }
         },
         expire: new Date(Date.now() + 604800000)
@@ -188,7 +188,7 @@ describe('SSO Cookie Management', () => {
           auth_id: authId,
           email: 'sso@example.com',
           name: 'SSO User',
-          provider: 'google',
+          provider: 'testprovider2',
           pod: 'test-pod'
         },
         jwtSecret,

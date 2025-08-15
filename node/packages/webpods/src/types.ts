@@ -27,7 +27,7 @@ export interface User {
   auth_id: string; // Format: auth:provider:id
   email: string | null;
   name: string | null;
-  provider: 'github' | 'google';
+  provider: string; // OAuth provider ID from config.json
   metadata?: any;
   created_at: Date;
   updated_at: Date;

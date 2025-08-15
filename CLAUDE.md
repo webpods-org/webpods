@@ -24,6 +24,15 @@ Only after reading these documents should you proceed with any implementation or
 - Present features and constraints as inherent design decisions
 - Documentation should be timeless - readable as a complete spec at any point
 
+## Code Principles
+
+**NO BACKWARDS COMPATIBILITY**: 
+- Do not write backwards compatibility code
+- Do not maintain legacy interfaces or environment variables
+- When refactoring, completely replace old implementations
+- Remove all deprecated code paths
+- The codebase should represent the current best design, not historical decisions
+
 ## Project Structure
 
 The codebase follows a functional programming approach with these key directories:
@@ -164,8 +173,9 @@ npm test -- --grep "permission"
 See `.env.example` for complete list of configuration options. Key variables:
 - `DOMAIN` - Base domain for pods
 - `JWT_SECRET` - Required in production
+- `SESSION_SECRET` - Required for sessions
 - `DATABASE_URL` - PostgreSQL connection string
-- OAuth provider credentials (GitHub, Google)
+- OAuth provider secrets (as referenced in config.json)
 
 ## Debugging Tips
 

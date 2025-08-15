@@ -34,9 +34,8 @@ services:
       WEBPODS_DB_PASSWORD: postgres
       WEBPODS_AUTO_MIGRATE: "true"
       JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-this}
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
-      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:-http://localhost:3000/auth/google/callback}
+      SESSION_SECRET: ${SESSION_SECRET:-your-session-secret-change-this}
+      WEBPODS_CONFIG_PATH: ${WEBPODS_CONFIG_PATH:-./config.json}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       RATE_LIMIT_WRITES: ${RATE_LIMIT_WRITES:-2000}
