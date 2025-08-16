@@ -39,6 +39,7 @@ Usage: webpods [options]
 Options:
   -v, --version    Show version number
   -h, --help       Show help
+  -c, --config     Path to config.json file (default: ./config.json)
   -p, --port       Port to listen on (default: 3000 or WEBPODS_PORT)
   -e, --env        Path to .env file (default: .env)
 
@@ -50,13 +51,26 @@ Environment Variables:
   DOMAIN           Base domain (default: webpods.org)
 
 Examples:
-  webpods                    Start server with defaults
-  webpods -p 8080           Start on port 8080
-  webpods -e prod.env       Use prod.env file
+  webpods                            Start with default config.json
+  webpods -c config.json             Start with specified config
+  webpods -c config.json -p 8080     Start on port 8080
+  webpods -c prod.json -e prod.env   Use production config and env
 
 Documentation: https://github.com/webpods-org/webpods
 `);
   process.exit(0);
+}
+
+// Parse config file path (optional - will use defaults if not provided)
+let configPath: string | undefined;
+const configIndex = args.findIndex(arg => arg === '-c' || arg === '--config');
+if (configIndex !== -1) {
+  const configArg = args[configIndex + 1];
+  if (!configArg) {
+    console.error('Error: Config file path not provided after -c/--config flag');
+    process.exit(1);
+  }
+  configPath = configArg;
 }
 
 // Parse port from command line
@@ -85,6 +99,11 @@ if (envIndex !== -1 && args[envIndex + 1]) {
 
 // Load environment variables
 config({ path: envPath });
+
+// Set config path for the application if provided
+if (configPath) {
+  process.env.WEBPODS_CONFIG_PATH = configPath;
+}
 
 // Override port if specified on command line
 if (port) {

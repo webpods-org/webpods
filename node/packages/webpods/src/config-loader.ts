@@ -161,7 +161,6 @@ export function loadConfig(configPath?: string): AppConfig {
     configPath,
     process.env.WEBPODS_CONFIG_PATH,
     join(process.cwd(), 'config.json'),
-    join(process.cwd(), 'config.example.json'),
   ].filter(Boolean) as string[];
   
   let configFile: string | undefined;
@@ -173,7 +172,7 @@ export function loadConfig(configPath?: string): AppConfig {
   }
   
   if (!configFile) {
-    throw new Error('No configuration file found. Create config.json or set WEBPODS_CONFIG_PATH');
+    throw new Error('No configuration file found. Create config.json or use -c to specify config path');
   }
   
   logger.info('Loading configuration', { path: configFile });

@@ -168,6 +168,8 @@ npm test -- --grep "permission"
 
 **IMPORTANT**: NEVER commit and push changes without explicit user permission. When the user asks you to commit and push, follow the git commit guidelines in the main Claude system prompt.
 
+**VERSION UPDATES**: Whenever committing changes, you MUST increment the patch version in `/node/packages/webpods/package.json`. For example, from 0.0.5 to 0.0.6. This ensures proper version tracking for all changes.
+
 ## Environment Variables
 
 See `.env.example` for complete list of configuration options. Key variables:
