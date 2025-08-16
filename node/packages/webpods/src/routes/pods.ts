@@ -9,6 +9,7 @@ import { extractPod } from '../middleware/pod.js';
 import { rateLimit } from '../middleware/ratelimit.js';
 import { getDb } from '../db.js';
 import { createLogger } from '../logger.js';
+import { getConfig } from '../config-loader.js';
 import { 
   parseIndexQuery, 
   detectContentType,
@@ -62,9 +63,10 @@ router.get('/login', extractPod, (req: Request, res: Response) => {
   const redirect = req.query.redirect as string || req.get('referer') || '/';
   
   // Redirect to main domain authorization with pod info
+  const config = getConfig();
   const protocol = process.env.NODE_ENV === 'test' ? 'http' : 'https';
-  const domain = process.env.DOMAIN || 'webpods.org';
-  const port = process.env.NODE_ENV === 'test' && process.env.WEBPODS_PORT ? `:${process.env.WEBPODS_PORT}` : '';
+  const domain = config.server.domain;
+  const port = process.env.NODE_ENV === 'test' ? `:${config.server.port}` : '';
   const authUrl = `${protocol}://${domain}${port}/auth/authorize?pod=${req.pod_id}&redirect=${encodeURIComponent(redirect)}`;
   
   logger.info('Pod login initiated', { pod: req.pod_id, redirect });
@@ -92,6 +94,7 @@ router.get('/auth/callback', extractPod, (req: Request, res: Response) => {
   }
   
   // Set cookie for this pod subdomain
+  const config = getConfig();
   const isProduction = process.env.NODE_ENV === 'production';
   res.cookie('pod_token', token, {
     httpOnly: true,
@@ -99,7 +102,7 @@ router.get('/auth/callback', extractPod, (req: Request, res: Response) => {
     sameSite: isProduction ? 'strict' : 'lax',
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     path: '/',
-    domain: `.${req.pod_id}.${process.env.DOMAIN || 'webpods.org'}` // Scoped to pod subdomain
+    domain: `.${req.pod_id}.${config.server.domain}` // Scoped to pod subdomain
   });
   
   logger.info('Pod auth callback successful', { pod: req.pod_id });

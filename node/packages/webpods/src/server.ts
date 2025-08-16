@@ -10,6 +10,7 @@ import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import { createLogger } from './logger.js';
 import { getSessionConfig } from './auth/session-store.js';
+import { getConfig } from './config-loader.js';
 import authRouter from './auth/routes.js';
 import podsRouter from './routes/pods.js';
 
@@ -17,12 +18,13 @@ const logger = createLogger('webpods');
 
 export function createApp(): Express {
   const app = express();
+  const config = getConfig();
   const startTime = Date.now();
 
   // Security middleware
   app.use(helmet());
   app.use(cors({
-    origin: process.env.CORS_ORIGIN?.split(',') || '*',
+    origin: config.server.corsOrigin?.split(',') || '*',
     credentials: true
   }));
 
@@ -62,7 +64,7 @@ export function createApp(): Express {
     const subdomain = req.hostname.split('.')[0];
     const isMainDomain = subdomain === 'localhost' || 
                         subdomain === 'webpods' || 
-                        subdomain === process.env.DOMAIN?.split('.')[0];
+                        subdomain === config.server.domain?.split('.')[0];
     
     if (!isMainDomain) {
       res.status(404).json({
@@ -107,7 +109,7 @@ export function createApp(): Express {
     const subdomain = req.hostname.split('.')[0];
     const isMainDomain = subdomain === 'localhost' || 
                         subdomain === 'webpods' || 
-                        subdomain === process.env.DOMAIN?.split('.')[0];
+                        subdomain === config.server.domain?.split('.')[0];
     
     if (isMainDomain) {
       // On main domain, use auth router

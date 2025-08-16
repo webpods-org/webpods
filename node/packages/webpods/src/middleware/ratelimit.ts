@@ -3,7 +3,7 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { checkRateLimit } from '../domain/ratelimit.js';
+import { checkRateLimit, getRateLimitStatus } from '../domain/ratelimit.js';
 import { getDb } from '../db.js';
 import { createLogger } from '../logger.js';
 import { getIpAddress } from '../utils.js';
@@ -34,8 +34,12 @@ export function rateLimit(action: 'read' | 'write' | 'pod_create' | 'stream_crea
         return;
       }
       
+      // Get the limit for headers
+      const statusResult = await getRateLimitStatus(db, key, action);
+      const limit = statusResult.success ? statusResult.data.limit : 1000;
+      
       // Set rate limit headers
-      res.setHeader('X-RateLimit-Limit', LIMITS[action].toString());
+      res.setHeader('X-RateLimit-Limit', limit.toString());
       res.setHeader('X-RateLimit-Remaining', result.data.remaining.toString());
       res.setHeader('X-RateLimit-Reset', result.data.resetAt.toISOString());
       
@@ -58,11 +62,3 @@ export function rateLimit(action: 'read' | 'write' | 'pod_create' | 'stream_crea
     }
   };
 }
-
-// Rate limit values (same as in domain/ratelimit.ts)
-const LIMITS = {
-  write: parseInt(process.env.RATE_LIMIT_WRITES || '1000'),
-  read: parseInt(process.env.RATE_LIMIT_READS || '10000'),
-  pod_create: parseInt(process.env.RATE_LIMIT_POD_CREATE || '10'),
-  stream_create: parseInt(process.env.RATE_LIMIT_STREAM_CREATE || '100')
-};

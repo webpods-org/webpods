@@ -6,6 +6,7 @@ import { Router, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { getDb } from '../db.js';
 import { createLogger } from '../logger.js';
+import { getConfig } from '../config-loader.js';
 import { findOrCreateUser, generateToken, generatePodToken } from '../domain/auth.js';
 import {
   getAuthorizationUrl,
@@ -253,7 +254,8 @@ router.get('/whoami', async (req: Request, res: Response) => {
   }
 
   try {
-    const secret = process.env.JWT_SECRET || 'dev-secret';
+    const config = getConfig();
+    const secret = config.auth.jwtSecret;
     const payload = jwt.verify(token, secret) as any;
     
     res.json({
@@ -298,9 +300,10 @@ router.get('/authorize', async (req: Request, res: Response) => {
       const podToken = generatePodToken((req as any).session.user, pod);
       
       // Redirect back to pod with token
+      const config = getConfig();
       const protocol = process.env.NODE_ENV === 'test' ? 'http' : 'https';
-      const podDomain = `${pod}.${process.env.DOMAIN || 'webpods.org'}`;
-      const port = process.env.NODE_ENV === 'test' && process.env.WEBPODS_PORT ? `:${process.env.WEBPODS_PORT}` : '';
+      const podDomain = `${pod}.${config.server.domain}`;
+      const port = process.env.NODE_ENV === 'test' ? `:${config.server.port}` : '';
       const callbackUrl = `${protocol}://${podDomain}${port}/auth/callback?token=${encodeURIComponent(podToken)}&redirect=${encodeURIComponent(redirect)}`;
       
       logger.info('SSO authorization successful', { pod, userId: (req as any).session.user.id });
@@ -465,9 +468,10 @@ router.get('/:provider/callback', async (req: Request, res: Response) => {
       const podToken = generatePodToken(userResult.data, stateData.pod);
       
       // Redirect back to pod with token
+      const config = getConfig();
       const protocol = process.env.NODE_ENV === 'test' ? 'http' : 'https';
-      const podDomain = `${stateData.pod}.${process.env.DOMAIN || 'webpods.org'}`;
-      const port = process.env.NODE_ENV === 'test' && process.env.WEBPODS_PORT ? `:${process.env.WEBPODS_PORT}` : '';
+      const podDomain = `${stateData.pod}.${config.server.domain}`;
+      const port = process.env.NODE_ENV === 'test' ? `:${config.server.port}` : '';
       const callbackUrl = `${protocol}://${podDomain}${port}/auth/callback?token=${encodeURIComponent(podToken)}&redirect=${encodeURIComponent(stateData.redirect || '/')}`;
       
       logger.info('Pod authentication successful', { 

@@ -6,6 +6,7 @@ import session from 'express-session';
 import connectPgSimple from 'connect-pg-simple';
 import { getDb } from '../db.js';
 import { createLogger } from '../logger.js';
+import { getConfig } from '../config-loader.js';
 
 const logger = createLogger('webpods:auth:session');
 const PgSession = connectPgSimple(session);
@@ -17,12 +18,9 @@ let sessionStore: session.Store | null = null;
  */
 export function getSessionStore(): session.Store {
   if (!sessionStore) {
-    // Build connection string from environment
-    const host = process.env.WEBPODS_DB_HOST || 'localhost';
-    const port = process.env.WEBPODS_DB_PORT || '5432';
-    const database = process.env.WEBPODS_DB_NAME || 'webpods';
-    const user = process.env.WEBPODS_DB_USER || 'postgres';
-    const password = process.env.WEBPODS_DB_PASSWORD || 'postgres';
+    // Build connection string from config
+    const config = getConfig();
+    const { host, port, database, user, password } = config.database;
     
     const conString = `postgresql://${user}:${password}@${host}:${port}/${database}`;
     
@@ -46,12 +44,12 @@ export function getSessionStore(): session.Store {
  * Get session middleware configuration
  */
 export function getSessionConfig(): session.SessionOptions {
+  const config = getConfig();
   const isDevelopment = process.env.NODE_ENV !== 'production';
-  const domain = process.env.DOMAIN || 'webpods.org';
   
   return {
     store: getSessionStore(),
-    secret: process.env.SESSION_SECRET || process.env.JWT_SECRET || 'dev-session-secret',
+    secret: config.auth.sessionSecret,
     resave: false,
     saveUninitialized: false,
     rolling: true, // Reset expiry on activity
@@ -61,7 +59,7 @@ export function getSessionConfig(): session.SessionOptions {
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       // Set domain to .localhost or .webpods.org to share across subdomains
-      domain: isDevelopment ? '.localhost' : `.${domain}`
+      domain: isDevelopment ? '.localhost' : `.${config.server.domain}`
     },
     name: 'webpods.sid' // Custom session cookie name
   };

@@ -5,6 +5,7 @@
 import { Knex } from 'knex';
 import { Result } from '../types.js';
 import { createLogger } from '../logger.js';
+import { getConfig } from '../config-loader.js';
 
 const logger = createLogger('webpods:domain:ratelimit');
 
@@ -17,13 +18,16 @@ interface RateLimitConfig {
   stream_create: number;
 }
 
-// Default rate limits (per hour)
-const DEFAULT_LIMITS: RateLimitConfig = {
-  read: parseInt(process.env.RATE_LIMIT_READS || '10000'),
-  write: parseInt(process.env.RATE_LIMIT_WRITES || '1000'),
-  pod_create: parseInt(process.env.RATE_LIMIT_POD_CREATE || '10'),
-  stream_create: parseInt(process.env.RATE_LIMIT_STREAM_CREATE || '100')
-};
+// Get rate limits from config
+function getRateLimits(): RateLimitConfig {
+  const config = getConfig();
+  return {
+    read: config.rateLimits.reads,
+    write: config.rateLimits.writes,
+    pod_create: config.rateLimits.podCreate,
+    stream_create: config.rateLimits.streamCreate
+  };
+}
 
 /**
  * Increment rate limit counter for tracking purposes
@@ -76,7 +80,8 @@ export async function checkRateLimit(
   identifier: string,
   type: RateLimitType
 ): Promise<Result<{ allowed: boolean, remaining: number, resetAt: Date }>> {
-  const limit = DEFAULT_LIMITS[type];
+  const limits = getRateLimits();
+  const limit = limits[type];
   const windowMs = 60 * 60 * 1000; // 1 hour
   const now = new Date();
   const windowStart = new Date(now.getTime() - windowMs);
@@ -160,7 +165,8 @@ export async function getRateLimitStatus(
   identifier: string,
   type: RateLimitType
 ): Promise<Result<{ limit: number, used: number, remaining: number, resetAt: Date }>> {
-  const limit = DEFAULT_LIMITS[type];
+  const limits = getRateLimits();
+  const limit = limits[type];
   const windowMs = 60 * 60 * 1000; // 1 hour
   const now = new Date();
 

@@ -40,11 +40,10 @@ Options:
   -v, --version    Show version number
   -h, --help       Show help
   -c, --config     Path to config.json file (default: ./config.json)
-  -p, --port       Port to listen on (default: 3000 or WEBPODS_PORT)
+  -p, --port       Port to listen on (overrides config.json)
   -e, --env        Path to .env file (default: .env)
 
 Environment Variables:
-  WEBPODS_PORT     Server port (default: 3000)
   DATABASE_URL     PostgreSQL connection string
   JWT_SECRET       Secret for JWT signing (required)
   SESSION_SECRET   Secret for session encryption
@@ -107,7 +106,7 @@ if (configPath) {
 
 // Override port if specified on command line
 if (port) {
-  process.env.WEBPODS_PORT = port.toString();
+  process.env.PORT = port.toString();
 }
 
 // Start the server

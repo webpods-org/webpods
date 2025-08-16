@@ -74,8 +74,8 @@ export async function start() {
         process.exit(0);
       });
     });
-  } catch (error) {
-    logger.error('Failed to start server', { error });
+  } catch (error: any) {
+    console.error(`\nError: ${error.message}`);
     process.exit(1);
   }
 }

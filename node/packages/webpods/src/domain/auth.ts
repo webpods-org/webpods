@@ -6,6 +6,7 @@ import { Knex } from 'knex';
 import jwt from 'jsonwebtoken';
 import { User, Result, JWTPayload } from '../types.js';
 import { createLogger } from '../logger.js';
+import { getConfig } from '../config-loader.js';
 
 type OAuthProvider = string;
 
@@ -70,6 +71,7 @@ export async function findOrCreateUser(
  * Generate JWT token for user
  */
 export function generateToken(user: User): string {
+  const config = getConfig();
   const payload: JWTPayload = {
     user_id: user.id,
     auth_id: user.auth_id,
@@ -78,8 +80,8 @@ export function generateToken(user: User): string {
     provider: user.provider
   };
 
-  const secret = process.env.JWT_SECRET || 'dev-secret';
-  const expiresIn = process.env.JWT_EXPIRY || '7d';
+  const secret = config.auth.jwtSecret;
+  const expiresIn = config.auth.jwtExpiry;
   
   return jwt.sign(payload, secret, { expiresIn: expiresIn as any });
 }
@@ -88,6 +90,7 @@ export function generateToken(user: User): string {
  * Generate pod-specific JWT token
  */
 export function generatePodToken(user: User, pod: string): string {
+  const config = getConfig();
   const payload: JWTPayload & { pod: string } = {
     user_id: user.id,
     auth_id: user.auth_id,
@@ -97,8 +100,8 @@ export function generatePodToken(user: User, pod: string): string {
     pod // Critical: lock token to specific pod
   };
 
-  const secret = process.env.JWT_SECRET || 'dev-secret';
-  const expiresIn = process.env.JWT_EXPIRY || '7d';
+  const secret = config.auth.jwtSecret;
+  const expiresIn = config.auth.jwtExpiry;
   
   return jwt.sign(payload, secret, { expiresIn: expiresIn as any });
 }
@@ -108,7 +111,8 @@ export function generatePodToken(user: User, pod: string): string {
  */
 export function verifyToken(token: string, expectedPod?: string): Result<JWTPayload & { pod?: string }> {
   try {
-    const secret = process.env.JWT_SECRET || 'dev-secret';
+    const config = getConfig();
+    const secret = config.auth.jwtSecret;
     const payload = jwt.verify(token, secret) as JWTPayload & { pod?: string };
     
     // If we're on a pod subdomain (expectedPod is provided)

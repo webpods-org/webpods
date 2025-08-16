@@ -1,6 +1,7 @@
 // Database connection for WebPods
 import knex, { Knex } from 'knex';
 import { createLogger } from './logger.js';
+import { getConfig } from './config-loader.js';
 
 const logger = createLogger('webpods:db');
 
@@ -8,15 +9,16 @@ let db: Knex | null = null;
 
 export function getDb(): Knex {
   if (!db) {
+    const appConfig = getConfig();
     const connectionConfig = {
-      host: process.env.WEBPODS_DB_HOST || 'localhost',
-      port: parseInt(process.env.WEBPODS_DB_PORT || '5432'),
-      database: process.env.WEBPODS_DB_NAME || 'webpods',
-      user: process.env.WEBPODS_DB_USER || 'postgres',
-      password: process.env.WEBPODS_DB_PASSWORD || 'postgres',
+      host: appConfig.database.host,
+      port: appConfig.database.port,
+      database: appConfig.database.database,
+      user: appConfig.database.user,
+      password: appConfig.database.password,
     };
     
-    const config: Knex.Config = {
+    const knexConfig: Knex.Config = {
       client: 'pg',
       connection: connectionConfig,
       pool: {
@@ -25,7 +27,7 @@ export function getDb(): Knex {
       },
     };
 
-    db = knex(config);
+    db = knex(knexConfig);
     logger.info('Database connection established', {
       host: connectionConfig.host,
       database: connectionConfig.database,
