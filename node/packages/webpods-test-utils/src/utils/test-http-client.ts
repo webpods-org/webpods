@@ -1,6 +1,9 @@
 // Test HTTP client utilities using native fetch
 import jwt from 'jsonwebtoken';
 
+// Define RequestInit type for fetch options
+type RequestInit = Parameters<typeof fetch>[1];
+
 export interface FetchResponse {
   status: number;
   headers: Record<string, string>;
@@ -29,7 +32,7 @@ export class TestHttpClient {
    * @returns Signed JWT token
    */
   public static generateToken(payload: TokenPayload, options?: jwt.SignOptions): string {
-    const secret = process.env.JWT_SECRET || 'test-secret-key';
+    const secret = 'test-secret-key'; // Must match test-config.json
     return jwt.sign(payload, secret, options || { expiresIn: '1h' });
   }
   

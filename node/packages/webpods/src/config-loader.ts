@@ -76,11 +76,9 @@ export interface AppConfig {
 
 /**
  * Resolve environment variable references in a value
- * Supports formats:
- * - $VAR_NAME
- * - $VAR_NAME || default_value
+ * Supports format: $VAR_NAME
  */
-function resolveEnvValue(value: any): any {
+function resolveEnvValue(value: any, defaultValue?: any): any {
   if (typeof value !== 'string') {
     return value;
   }
@@ -91,65 +89,134 @@ function resolveEnvValue(value: any): any {
   }
   
   // Remove the $ prefix
-  const expr = value.substring(1);
+  const varName = value.substring(1);
   
-  // Check for default value syntax
-  if (expr.includes('||')) {
-    const parts = expr.split('||').map(s => s.trim());
-    if (parts.length !== 2) {
-      throw new Error(`Invalid environment variable expression: ${value}`);
-    }
-    const [varName, defaultValue] = parts;
-    
-    if (!varName) {
-      throw new Error(`Invalid environment variable name in expression: ${value}`);
-    }
-    
-    const envValue = process.env[varName];
-    
-    if (envValue !== undefined) {
-      // Try to parse numbers
-      const num = Number(envValue);
-      return !isNaN(num) && (varName.includes('PORT') || varName.includes('LIMIT')) ? num : envValue;
-    }
-    
-    // Use default value, try to parse if it's a number
-    const num = Number(defaultValue);
-    return !isNaN(num) && (varName.includes('PORT') || varName.includes('LIMIT')) ? num : defaultValue;
-  }
+  // Get environment variable value
+  const envValue = process.env[varName];
   
-  // Simple environment variable reference
-  const envValue = process.env[expr];
   if (envValue === undefined) {
-    throw new Error(`Required environment variable ${expr} is not set`);
+    // Use default if provided
+    if (defaultValue !== undefined) {
+      return defaultValue;
+    }
+    // Otherwise error
+    throw new Error(`Required environment variable ${varName} is not set`);
   }
   
   // Try to parse numbers for specific fields
   const num = Number(envValue);
-  return !isNaN(num) && (expr.includes('PORT') || expr.includes('LIMIT')) ? num : envValue;
+  return !isNaN(num) && (varName.includes('PORT') || varName.includes('LIMIT')) ? num : envValue;
 }
 
 /**
- * Recursively resolve environment variables in an object
+ * Recursively resolve environment variables in an object with context-aware defaults
  */
-function resolveEnvVars(obj: any): any {
+function resolveEnvVars(obj: any, path: string[] = []): any {
   if (obj === null || obj === undefined) {
     return obj;
   }
   
   if (Array.isArray(obj)) {
-    return obj.map(item => resolveEnvVars(item));
+    return obj.map((item, index) => resolveEnvVars(item, [...path, String(index)]));
   }
   
   if (typeof obj === 'object') {
     const resolved: any = {};
     for (const [key, value] of Object.entries(obj)) {
-      resolved[key] = resolveEnvVars(value);
+      const currentPath = [...path, key];
+      const fullPath = currentPath.join('.');
+      
+      // Determine default value based on path
+      let defaultValue: any;
+      switch (fullPath) {
+        case 'server.port':
+          defaultValue = 3000;
+          break;
+        case 'server.domain':
+          defaultValue = 'localhost';
+          break;
+        case 'server.corsOrigin':
+          defaultValue = '*';
+          break;
+        case 'database.host':
+          defaultValue = 'localhost';
+          break;
+        case 'database.port':
+          defaultValue = 5432;
+          break;
+        case 'database.database':
+          defaultValue = 'webpodsdb';
+          break;
+        case 'database.user':
+          defaultValue = 'postgres';
+          break;
+        case 'auth.jwtExpiry':
+          defaultValue = '7d';
+          break;
+        case 'rateLimits.writes':
+          defaultValue = 1000;
+          break;
+        case 'rateLimits.reads':
+          defaultValue = 10000;
+          break;
+        case 'rateLimits.podCreate':
+          defaultValue = 10;
+          break;
+        case 'rateLimits.streamCreate':
+          defaultValue = 100;
+          break;
+      }
+      
+      if (typeof value === 'object' && !Array.isArray(value)) {
+        resolved[key] = resolveEnvVars(value, currentPath);
+      } else if (typeof value === 'string' && value.startsWith('$')) {
+        // Only apply defaults to environment variable references
+        resolved[key] = resolveEnvValue(value, defaultValue);
+      } else {
+        // Keep non-env-var values as-is
+        resolved[key] = value;
+      }
     }
     return resolved;
   }
   
   return resolveEnvValue(obj);
+}
+
+/**
+ * Apply default values to missing config fields
+ */
+function applyDefaults(config: any): any {
+  // Ensure base structure exists
+  config.server = config.server || {};
+  config.database = config.database || {};
+  config.auth = config.auth || {};
+  config.rateLimits = config.rateLimits || {};
+  
+  // Apply defaults for server (using env var references)
+  config.server.port = config.server.port ?? '$PORT';
+  config.server.domain = config.server.domain ?? '$DOMAIN';
+  config.server.corsOrigin = config.server.corsOrigin ?? '$CORS_ORIGIN';
+  
+  // Apply defaults for database
+  config.database.host = config.database.host ?? '$WEBPODS_DB_HOST';
+  config.database.port = config.database.port ?? '$WEBPODS_DB_PORT';
+  config.database.database = config.database.database ?? '$WEBPODS_DB_NAME';
+  config.database.user = config.database.user ?? '$WEBPODS_DB_USER';
+  config.database.password = config.database.password ?? '$WEBPODS_DB_PASSWORD';
+  
+  // Apply defaults for auth
+  config.auth.jwtSecret = config.auth.jwtSecret ?? '$JWT_SECRET';
+  config.auth.jwtExpiry = config.auth.jwtExpiry ?? '$JWT_EXPIRY';
+  config.auth.sessionSecret = config.auth.sessionSecret ?? '$SESSION_SECRET';
+  
+  // Apply defaults for rate limits
+  config.rateLimits.writes = config.rateLimits.writes ?? '$RATE_LIMIT_WRITES';
+  config.rateLimits.reads = config.rateLimits.reads ?? '$RATE_LIMIT_READS';
+  config.rateLimits.podCreate = config.rateLimits.podCreate ?? '$RATE_LIMIT_POD_CREATE';
+  config.rateLimits.streamCreate = config.rateLimits.streamCreate ?? '$RATE_LIMIT_STREAM_CREATE';
+  
+  return config;
 }
 
 /**
@@ -182,8 +249,11 @@ export function loadConfig(configPath?: string): AppConfig {
     const configContent = readFileSync(configFile, 'utf-8');
     const rawConfig = JSON.parse(configContent);
     
+    // Apply defaults for missing fields
+    const configWithDefaults = applyDefaults(rawConfig);
+    
     // Resolve environment variables
-    const config = resolveEnvVars(rawConfig) as AppConfig;
+    const config = resolveEnvVars(configWithDefaults) as AppConfig;
     
     // Validate required fields
     validateConfig(config);
@@ -206,7 +276,7 @@ export function loadConfig(configPath?: string): AppConfig {
 function validateConfig(config: AppConfig): void {
   // Check OAuth providers
   if (!config.oauth || !config.oauth.providers || config.oauth.providers.length === 0) {
-    throw new Error('No OAuth providers configured');
+    throw new Error('No OAuth providers configured in config.oauth.providers');
   }
   
   for (const provider of config.oauth.providers) {
@@ -215,7 +285,7 @@ function validateConfig(config: AppConfig): void {
     }
     
     if (!provider.clientId || !provider.clientSecret) {
-      throw new Error(`OAuth provider ${provider.id} missing clientId or clientSecret`);
+      throw new Error(`OAuth provider ${provider.id} missing clientId or clientSecret. Set oauth.providers[].clientSecret or environment variable referenced in the config`);
     }
     
     // Must have either issuer (for OIDC discovery) or manual endpoints
@@ -230,16 +300,16 @@ function validateConfig(config: AppConfig): void {
   
   // Check auth config
   if (!config.auth?.jwtSecret) {
-    throw new Error('JWT_SECRET is required');
+    throw new Error('auth.jwtSecret is required. Set it in config.json or provide environment variable JWT_SECRET');
   }
   
   if (!config.auth?.sessionSecret) {
-    throw new Error('SESSION_SECRET is required');
+    throw new Error('auth.sessionSecret is required. Set it in config.json or provide environment variable SESSION_SECRET');
   }
   
   // Check database config
   if (!config.database?.password) {
-    throw new Error('Database password is required');
+    throw new Error('database.password is required. Set it in config.json or provide environment variable WEBPODS_DB_PASSWORD');
   }
 }
 

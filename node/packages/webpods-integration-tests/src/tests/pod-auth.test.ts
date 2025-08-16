@@ -8,7 +8,7 @@ describe('Pod-Specific Authentication with SSO', () => {
   let client: TestHttpClient;
   const pod1 = 'alice';
   const pod2 = 'bob';
-  const jwtSecret = process.env.JWT_SECRET || 'test-secret-key';
+  const jwtSecret = 'test-secret-key'; // Must match test-config.json
   
   // Helper to create a test user and pod-specific token
   function createPodToken(userId: string, authId: string, pod: string, email: string = 'test@example.com') {

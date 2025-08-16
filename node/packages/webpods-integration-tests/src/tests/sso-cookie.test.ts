@@ -10,7 +10,7 @@ import { testDb } from '../test-setup.js';
 
 describe('SSO Cookie Management', () => {
   let client: TestHttpClient;
-  const jwtSecret = process.env.JWT_SECRET || 'test-secret-key';
+  const jwtSecret = 'test-secret-key'; // Must match test-config.json
   
   beforeEach(async () => {
     client = new TestHttpClient('http://localhost:3099');

@@ -5,7 +5,7 @@ export default {
     connection: {
       host: process.env.WEBPODS_DB_HOST || 'localhost',
       port: parseInt(process.env.WEBPODS_DB_PORT || '5432'),
-      database: process.env.WEBPODS_DB_NAME || 'webpods',
+      database: process.env.WEBPODS_DB_NAME || 'webpodsdb',
       user: process.env.WEBPODS_DB_USER || 'postgres',
       password: process.env.WEBPODS_DB_PASSWORD || 'postgres'
     },
@@ -18,7 +18,7 @@ export default {
     connection: {
       host: process.env.WEBPODS_DB_HOST || 'localhost',
       port: parseInt(process.env.WEBPODS_DB_PORT || '5432'),
-      database: process.env.WEBPODS_DB_NAME || 'webpods_test',
+      database: process.env.WEBPODS_DB_NAME || 'webpodsdb_test',
       user: process.env.WEBPODS_DB_USER || 'postgres',
       password: process.env.WEBPODS_DB_PASSWORD || 'postgres'
     },

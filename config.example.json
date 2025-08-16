@@ -1,8 +1,4 @@
 {
-  "environment": {
-    "nodeEnv": "$NODE_ENV || development",
-    "logLevel": "$LOG_LEVEL || info"
-  },
   "oauth": {
     "providers": [
       {
@@ -67,26 +63,26 @@
     "defaultProvider": "github"
   },
   "server": {
-    "port": "$PORT || 3000",
-    "domain": "$DOMAIN || webpods.org",
-    "corsOrigin": "$CORS_ORIGIN || *"
+    "port": "$PORT",
+    "domain": "$DOMAIN",
+    "corsOrigin": "$CORS_ORIGIN"
   },
   "database": {
-    "host": "$WEBPODS_DB_HOST || localhost",
-    "port": "$WEBPODS_DB_PORT || 5432",
-    "database": "$WEBPODS_DB_NAME || webpods",
-    "user": "$WEBPODS_DB_USER || postgres",
+    "host": "$WEBPODS_DB_HOST",
+    "port": "$WEBPODS_DB_PORT",
+    "database": "$WEBPODS_DB_NAME",
+    "user": "$WEBPODS_DB_USER",
     "password": "$WEBPODS_DB_PASSWORD"
   },
   "auth": {
     "jwtSecret": "$JWT_SECRET",
-    "jwtExpiry": "$JWT_EXPIRY || 7d",
+    "jwtExpiry": "$JWT_EXPIRY",
     "sessionSecret": "$SESSION_SECRET"
   },
   "rateLimits": {
-    "writes": "$RATE_LIMIT_WRITES || 1000",
-    "reads": "$RATE_LIMIT_READS || 10000",
-    "podCreate": "$RATE_LIMIT_POD_CREATE || 10",
-    "streamCreate": "$RATE_LIMIT_STREAM_CREATE || 100"
+    "writes": "$RATE_LIMIT_WRITES",
+    "reads": "$RATE_LIMIT_READS",
+    "podCreate": "$RATE_LIMIT_POD_CREATE",
+    "streamCreate": "$RATE_LIMIT_STREAM_CREATE"
   }
 }

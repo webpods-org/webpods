@@ -26,7 +26,7 @@ describe('WebPods Authentication', () => {
     
     return jwt.sign(
       payload,
-      process.env.JWT_SECRET || 'test-secret-key',
+      'test-secret-key', // Must match test-config.json
       { expiresIn: '1h' }
     );
   }
@@ -127,7 +127,7 @@ describe('WebPods Authentication', () => {
           name: 'Test User',
           provider: 'testprovider2'
         },
-        process.env.JWT_SECRET || 'test-secret-key',
+        'test-secret-key', // Must match test-config.json
         { expiresIn: '-1h' } // Already expired
       );
       

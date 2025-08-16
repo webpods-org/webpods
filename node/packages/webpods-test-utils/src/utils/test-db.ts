@@ -23,7 +23,7 @@ export class TestDatabase {
 
   constructor(config: TestDatabaseConfig = {}) {
     this.config = {
-      dbName: config.dbName || 'webpods_test',
+      dbName: config.dbName || 'webpodsdb_test',
       host: config.host || process.env.WEBPODS_DB_HOST || 'localhost',
       port: config.port || parseInt(process.env.WEBPODS_DB_PORT || '5432'),
       user: config.user || process.env.WEBPODS_DB_USER || 'postgres',

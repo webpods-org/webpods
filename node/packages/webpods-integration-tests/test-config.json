@@ -37,7 +37,7 @@
   "database": {
     "host": "localhost",
     "port": 5432,
-    "database": "webpods_test",
+    "database": "webpodsdb_test",
     "user": "postgres",
     "password": "postgres"
   },

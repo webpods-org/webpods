@@ -2,8 +2,8 @@
 import { TestDatabase, TestServer, testLogger } from 'webpods-test-utils';
 
 // Test configuration
-export const testDb = new TestDatabase({ dbName: 'webpods_test', logger: testLogger });
-export const testServer = new TestServer({ port: 3099, dbName: 'webpods_test', logger: testLogger });
+export const testDb = new TestDatabase({ dbName: 'webpodsdb_test', logger: testLogger });
+export const testServer = new TestServer({ port: 3099, dbName: 'webpodsdb_test', logger: testLogger });
 // Note: Each test file should create its own TestHttpClient instance to avoid interference
 
 // Setup before all tests
