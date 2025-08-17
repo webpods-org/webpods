@@ -102,6 +102,7 @@ function resolveEnvValue(value: any, defaultValue?: any): any {
   // Remove the $ prefix
   const varName = value.substring(1);
   
+  
   // Get environment variable value
   const envValue = process.env[varName];
   
@@ -181,7 +182,11 @@ function resolveEnvVars(obj: any, path: string[] = []): any {
           break;
       }
       
-      if (typeof value === 'object' && !Array.isArray(value)) {
+      if (Array.isArray(value)) {
+        // Process arrays recursively
+        resolved[key] = resolveEnvVars(value, currentPath);
+      } else if (typeof value === 'object' && value !== null) {
+        // Process objects recursively
         resolved[key] = resolveEnvVars(value, currentPath);
       } else if (typeof value === 'string' && value.startsWith('$')) {
         // Only apply defaults to environment variable references

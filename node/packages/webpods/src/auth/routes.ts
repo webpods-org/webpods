@@ -13,7 +13,7 @@ import {
   exchangeCodeForTokens,
   getUserInfo,
   validateProvider
-} from './providers-agnostic.js';
+} from './oauth-handlers.js';
 import { getConfiguredProviders, getDefaultProvider } from './oauth-config.js';
 
 type OAuthProvider = string;

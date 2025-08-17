@@ -6,6 +6,14 @@ set -euo pipefail
 
 echo "=== Starting WebPods server ==="
 
+# Load environment variables from .env if it exists
+if [[ -f ".env" ]]; then
+  echo "Loading environment variables from .env file..."
+  set -a  # Export all variables
+  source .env
+  set +a  # Stop exporting
+fi
+
 # Check if dist directory exists
 if [[ ! -d "node/packages/webpods/dist" ]]; then
   echo "Build not found. Running build first..."
@@ -13,12 +21,14 @@ if [[ ! -d "node/packages/webpods/dist" ]]; then
 fi
 
 # Check for config file in the root directory
-CONFIG_PATH="../../../config.json"
-if [[ ! -f "$CONFIG_PATH" ]]; then
+if [[ ! -f "config.json" ]]; then
   echo "Error: config.json not found in project root"
   echo "Please create a config.json file. You can copy config.example.json as a starting point."
   exit 1
 fi
+
+# Get absolute path to config
+CONFIG_PATH="$(pwd)/config.json"
 
 # Start the server
 cd node/packages/webpods
