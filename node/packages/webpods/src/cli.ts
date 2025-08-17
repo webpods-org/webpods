@@ -5,27 +5,15 @@
  */
 
 import { config } from 'dotenv';
-import { readFileSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
 import { start } from './index.js';
-
-// Get package.json path
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const packageJsonPath = join(__dirname, '..', 'package.json');
+import { getFullVersion } from './version.js';
 
 // Parse command line arguments
 const args = process.argv.slice(2);
 
 // Check for version flag
 if (args.includes('-v') || args.includes('--version')) {
-  try {
-    const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
-    console.info(`webpods v${packageJson.version}`);
-  } catch {
-    console.info('webpods v0.0.3');
-  }
+  console.info(getFullVersion());
   process.exit(0);
 }
 

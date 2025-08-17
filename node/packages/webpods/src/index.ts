@@ -8,6 +8,7 @@ import { closeDb, checkDbConnection } from './db.js';
 import { startStateCleanup } from './auth/pkce-store.js';
 import { createApp } from './server.js';
 import { getConfig } from './config-loader.js';
+import { getVersion } from './version.js';
 
 // Load environment variables (for secrets referenced in config.json)
 config();
@@ -51,6 +52,7 @@ export async function start() {
     
     const server = app.listen(port, () => {
       logger.info(`WebPods server started`, {
+        version: getVersion(),
         port,
         environment: process.env.NODE_ENV || 'development',
         cors: appConfig.server.corsOrigin,

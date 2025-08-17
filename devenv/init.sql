@@ -1,1 +1,1 @@
-CREATE DATABASE webpods;
+CREATE DATABASE webpodsdb;

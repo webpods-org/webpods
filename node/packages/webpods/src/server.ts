@@ -11,6 +11,7 @@ import cookieParser from 'cookie-parser';
 import { createLogger } from './logger.js';
 import { getSessionConfig } from './auth/session-store.js';
 import { getConfig } from './config-loader.js';
+import { getVersion } from './version.js';
 import authRouter from './auth/routes.js';
 import podsRouter from './routes/pods.js';
 
@@ -95,7 +96,7 @@ export function createApp(): Express {
       uptime,
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV || 'development',
-      version: '0.0.3',
+      version: getVersion(),
       services: {
         database: dbStatus,
         cache: 'not_configured'
