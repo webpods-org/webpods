@@ -99,7 +99,7 @@ router.get('/auth/callback', extractPod, (req: Request, res: Response) => {
     httpOnly: true,
     secure: isSecure,
     sameSite: isSecure ? 'strict' : 'lax',
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    maxAge: 10 * 365 * 24 * 60 * 60 * 1000, // 10 years (effectively unlimited)
     path: '/',
     // Cookie domain cannot have port
     domain: `.${req.pod_id}.${publicConfig?.hostname || 'localhost'}` // Scoped to pod subdomain

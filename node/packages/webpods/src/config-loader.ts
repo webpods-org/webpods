@@ -166,7 +166,7 @@ function resolveEnvVars(obj: any, path: string[] = []): any {
           defaultValue = 'postgres';
           break;
         case 'auth.jwtExpiry':
-          defaultValue = '7d';
+          defaultValue = undefined;  // No expiry by default
           break;
         case 'rateLimits.writes':
           defaultValue = 1000;

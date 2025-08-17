@@ -83,7 +83,13 @@ export function generateToken(user: User): string {
   const secret = config.auth.jwtSecret;
   const expiresIn = config.auth.jwtExpiry;
   
-  return jwt.sign(payload, secret, { expiresIn: expiresIn as any });
+  // If no expiry is set, don't include expiresIn option (token never expires)
+  const options: any = {};
+  if (expiresIn) {
+    options.expiresIn = expiresIn;
+  }
+  
+  return jwt.sign(payload, secret, options);
 }
 
 /**
@@ -103,7 +109,13 @@ export function generatePodToken(user: User, pod: string): string {
   const secret = config.auth.jwtSecret;
   const expiresIn = config.auth.jwtExpiry;
   
-  return jwt.sign(payload, secret, { expiresIn: expiresIn as any });
+  // If no expiry is set, don't include expiresIn option (token never expires)
+  const options: any = {};
+  if (expiresIn) {
+    options.expiresIn = expiresIn;
+  }
+  
+  return jwt.sign(payload, secret, options);
 }
 
 /**

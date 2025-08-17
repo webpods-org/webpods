@@ -55,7 +55,7 @@ export function getSessionConfig(): session.SessionOptions {
       secure: config.server.public?.isSecure || false, // Use HTTPS from public URL
       httpOnly: true,
       sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      maxAge: 10 * 365 * 24 * 60 * 60 * 1000, // 10 years (effectively unlimited)
       // Set domain to share across subdomains
       // Cookie domain cannot have port
       domain: `.${config.server.public?.hostname || 'localhost'}`
