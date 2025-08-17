@@ -34,11 +34,13 @@ export function loadProviderConfigs(): Map<string, OAuthProviderConfig> {
     return providerConfigs;
   }
   
-  const protocol = process.env.NODE_ENV === 'development' ? 'http' : 'https';
+  // Use configured protocol preference
+  const protocol = config.server.useHttps ? 'https' : 'http';
   const baseUrl = `${protocol}://${config.server.domain}`;
   
   for (const provider of config.oauth.providers) {
     // Build full config with redirect URI
+    // Use explicit callbackUrl if provided, otherwise construct from baseUrl
     const fullConfig: OAuthProviderConfig = {
       ...provider,
       redirectUri: provider.callbackUrl || `${baseUrl}/auth/${provider.id}/callback`

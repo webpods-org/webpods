@@ -54,7 +54,6 @@ export async function start() {
       logger.info(`WebPods server started`, {
         version: getVersion(),
         port,
-        environment: process.env.NODE_ENV || 'development',
         cors: appConfig.server.corsOrigin,
         domain: appConfig.server.domain
       });

@@ -301,9 +301,10 @@ router.get('/authorize', async (req: Request, res: Response) => {
       
       // Redirect back to pod with token
       const config = getConfig();
-      const protocol = process.env.NODE_ENV === 'test' ? 'http' : 'https';
+      const protocol = config.server.useHttps ? 'https' : 'http';
       const podDomain = `${pod}.${config.server.domain}`;
-      const port = process.env.NODE_ENV === 'test' ? `:${config.server.port}` : '';
+      // Domain should already include port if needed (e.g., localhost:3000)
+      const port = '';
       const callbackUrl = `${protocol}://${podDomain}${port}/auth/callback?token=${encodeURIComponent(podToken)}&redirect=${encodeURIComponent(redirect)}`;
       
       logger.info('SSO authorization successful', { pod, userId: (req as any).session.user.id });
@@ -462,16 +463,17 @@ router.get('/:provider/callback', async (req: Request, res: Response) => {
       });
     });
     
+    // Get config for redirect URLs
+    const config = getConfig();
+    
     // Check if this is pod-specific auth
     if (stateData.pod) {
       // Generate pod-specific token
       const podToken = generatePodToken(userResult.data, stateData.pod);
-      
-      // Redirect back to pod with token
-      const config = getConfig();
-      const protocol = process.env.NODE_ENV === 'test' ? 'http' : 'https';
+      const protocol = config.server.useHttps ? 'https' : 'http';
       const podDomain = `${stateData.pod}.${config.server.domain}`;
-      const port = process.env.NODE_ENV === 'test' ? `:${config.server.port}` : '';
+      // Domain should already include port if needed (e.g., localhost:3000)
+      const port = '';
       const callbackUrl = `${protocol}://${podDomain}${port}/auth/callback?token=${encodeURIComponent(podToken)}&redirect=${encodeURIComponent(stateData.redirect || '/')}`;
       
       logger.info('Pod authentication successful', { 
@@ -487,11 +489,11 @@ router.get('/:provider/callback', async (req: Request, res: Response) => {
       const token = generateToken(userResult.data);
       
       // Set cookie for web apps
-      const isProduction = process.env.NODE_ENV === 'production';
+      const useSecureCookie = config.server.useHttps;
       res.cookie('token', token, {
         httpOnly: true,
-        secure: isProduction,
-        sameSite: isProduction ? 'strict' : 'lax',
+        secure: useSecureCookie,
+        sameSite: useSecureCookie ? 'strict' : 'lax',
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
         path: '/'
       });

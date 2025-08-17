@@ -22,6 +22,6 @@ describe('Version', () => {
     // Should not be the old hardcoded version
     expect(response.data.version).to.not.equal('0.0.3');
     // Should be the current version from package.json
-    expect(response.data.version).to.equal('0.0.11');
+    expect(response.data.version).to.equal('0.0.12');
   });
 });

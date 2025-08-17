@@ -45,8 +45,6 @@ export function getSessionStore(): session.Store {
  */
 export function getSessionConfig(): session.SessionOptions {
   const config = getConfig();
-  const isDevelopment = process.env.NODE_ENV !== 'production';
-  
   return {
     store: getSessionStore(),
     secret: config.auth.sessionSecret,
@@ -54,12 +52,13 @@ export function getSessionConfig(): session.SessionOptions {
     saveUninitialized: false,
     rolling: true, // Reset expiry on activity
     cookie: {
-      secure: !isDevelopment, // HTTPS only in production
+      secure: config.server.useHttps, // Use HTTPS config setting
       httpOnly: true,
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      // Set domain to .localhost or .webpods.org to share across subdomains
-      domain: isDevelopment ? '.localhost' : `.${config.server.domain}`
+      // Set domain to share across subdomains
+      // Extract base domain (remove port if present)
+      domain: `.${config.server.domain.split(':')[0]}`
     },
     name: 'webpods.sid' // Custom session cookie name
   };

@@ -95,7 +95,6 @@ export function createApp(): Express {
       uptime_seconds: uptime,
       uptime,
       timestamp: new Date().toISOString(),
-      environment: process.env.NODE_ENV || 'development',
       version: getVersion(),
       services: {
         database: dbStatus,
@@ -169,9 +168,9 @@ export function createApp(): Express {
     res.status(err.status || 500).json({
       error: {
         code: 'INTERNAL_ERROR',
-        message: process.env.NODE_ENV === 'production' 
-          ? 'An error occurred' 
-          : err.message
+        message: process.env.LOG_LEVEL === 'debug' 
+          ? err.message
+          : 'An error occurred'
       }
     });
   });

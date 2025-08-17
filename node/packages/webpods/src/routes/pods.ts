@@ -64,9 +64,10 @@ router.get('/login', extractPod, (req: Request, res: Response) => {
   
   // Redirect to main domain authorization with pod info
   const config = getConfig();
-  const protocol = process.env.NODE_ENV === 'test' ? 'http' : 'https';
+  const protocol = config.server.useHttps ? 'https' : 'http';
   const domain = config.server.domain;
-  const port = process.env.NODE_ENV === 'test' ? `:${config.server.port}` : '';
+  // Domain should already include port if needed (e.g., localhost:3000)
+  const port = '';
   const authUrl = `${protocol}://${domain}${port}/auth/authorize?pod=${req.pod_id}&redirect=${encodeURIComponent(redirect)}`;
   
   logger.info('Pod login initiated', { pod: req.pod_id, redirect });
@@ -95,11 +96,11 @@ router.get('/auth/callback', extractPod, (req: Request, res: Response) => {
   
   // Set cookie for this pod subdomain
   const config = getConfig();
-  const isProduction = process.env.NODE_ENV === 'production';
+  const useSecureCookie = config.server.useHttps;
   res.cookie('pod_token', token, {
     httpOnly: true,
-    secure: isProduction,
-    sameSite: isProduction ? 'strict' : 'lax',
+    secure: useSecureCookie,
+    sameSite: useSecureCookie ? 'strict' : 'lax',
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     path: '/',
     domain: `.${req.pod_id}.${config.server.domain}` // Scoped to pod subdomain

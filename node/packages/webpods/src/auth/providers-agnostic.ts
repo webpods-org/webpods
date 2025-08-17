@@ -61,8 +61,8 @@ export async function exchangeCodeForTokens(
   const client = await getOAuthClient(providerId);
   const config = getProviderConfig(providerId)!;
   
-  // Handle test environment
-  if (process.env.NODE_ENV === 'test' && config.issuer?.includes('localhost')) {
+  // Handle localhost OAuth providers (for testing)
+  if (config.issuer?.includes('localhost')) {
     const tokenSet = await client.grant({
       grant_type: 'authorization_code',
       code,

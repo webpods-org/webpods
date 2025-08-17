@@ -43,6 +43,7 @@ export interface ServerConfig {
   port: number;
   domain: string;
   corsOrigin: string;
+  useHttps?: boolean;
 }
 
 export interface DatabaseConfig {
@@ -137,6 +138,9 @@ function resolveEnvVars(obj: any, path: string[] = []): any {
           break;
         case 'server.corsOrigin':
           defaultValue = '*';
+          break;
+        case 'server.useHttps':
+          defaultValue = true;
           break;
         case 'database.host':
           defaultValue = 'localhost';
