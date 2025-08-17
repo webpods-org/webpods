@@ -63,8 +63,9 @@
     "defaultProvider": "github"
   },
   "server": {
+    "host": "$HOST",
     "port": "$PORT",
-    "domain": "$DOMAIN",
+    "publicUrl": "$PUBLIC_URL",
     "corsOrigin": "$CORS_ORIGIN"
   },
   "database": {

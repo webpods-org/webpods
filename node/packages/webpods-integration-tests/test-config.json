@@ -30,8 +30,9 @@
     "defaultProvider": "testprovider2"
   },
   "server": {
+    "host": "localhost",
     "port": 3099,
-    "domain": "localhost",
+    "publicUrl": "http://localhost:3099",
     "corsOrigin": "*"
   },
   "database": {

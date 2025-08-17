@@ -64,11 +64,8 @@ router.get('/login', extractPod, (req: Request, res: Response) => {
   
   // Redirect to main domain authorization with pod info
   const config = getConfig();
-  const protocol = config.server.useHttps ? 'https' : 'http';
-  const domain = config.server.domain;
-  // Domain should already include port if needed (e.g., localhost:3000)
-  const port = '';
-  const authUrl = `${protocol}://${domain}${port}/auth/authorize?pod=${req.pod_id}&redirect=${encodeURIComponent(redirect)}`;
+  const publicUrl = config.server.publicUrl || 'http://localhost:3000';
+  const authUrl = `${publicUrl}/auth/authorize?pod=${req.pod_id}&redirect=${encodeURIComponent(redirect)}`;
   
   logger.info('Pod login initiated', { pod: req.pod_id, redirect });
   res.redirect(authUrl);
@@ -96,14 +93,16 @@ router.get('/auth/callback', extractPod, (req: Request, res: Response) => {
   
   // Set cookie for this pod subdomain
   const config = getConfig();
-  const useSecureCookie = config.server.useHttps;
+  const publicConfig = config.server.public;
+  const isSecure = publicConfig?.isSecure || false;
   res.cookie('pod_token', token, {
     httpOnly: true,
-    secure: useSecureCookie,
-    sameSite: useSecureCookie ? 'strict' : 'lax',
+    secure: isSecure,
+    sameSite: isSecure ? 'strict' : 'lax',
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     path: '/',
-    domain: `.${req.pod_id}.${config.server.domain}` // Scoped to pod subdomain
+    // Cookie domain cannot have port
+    domain: `.${req.pod_id}.${publicConfig?.hostname || 'localhost'}` // Scoped to pod subdomain
   });
   
   logger.info('Pod auth callback successful', { pod: req.pod_id });

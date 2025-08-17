@@ -34,9 +34,8 @@ export function loadProviderConfigs(): Map<string, OAuthProviderConfig> {
     return providerConfigs;
   }
   
-  // Use configured protocol preference
-  const protocol = config.server.useHttps ? 'https' : 'http';
-  const baseUrl = `${protocol}://${config.server.domain}`;
+  // Use public URL for OAuth callbacks
+  const baseUrl = config.server.publicUrl || 'http://localhost:3000';
   
   for (const provider of config.oauth.providers) {
     // Build full config with redirect URI

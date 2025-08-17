@@ -32,7 +32,8 @@ export async function start() {
     logger.info('Configuration loaded', {
       providers: configuredProviders,
       defaultProvider: appConfig.oauth.defaultProvider,
-      domain: appConfig.server.domain,
+      publicUrl: appConfig.server.publicUrl,
+      host: appConfig.server.host,
       port: appConfig.server.port
     });
     
@@ -50,12 +51,13 @@ export async function start() {
     const app = createApp();
     const port = appConfig.server.port;
     
-    const server = app.listen(port, () => {
+    const server = app.listen(port, appConfig.server.host, () => {
       logger.info(`WebPods server started`, {
         version: getVersion(),
+        host: appConfig.server.host,
         port,
-        cors: appConfig.server.corsOrigin,
-        domain: appConfig.server.domain
+        publicUrl: appConfig.server.publicUrl,
+        cors: appConfig.server.corsOrigin
       });
     });
     

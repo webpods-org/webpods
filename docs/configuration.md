@@ -97,8 +97,9 @@ Use `$VAR || default` for optional values:
 
 ```json
 {
+  "host": "$HOST || 0.0.0.0",
   "port": "$PORT || 3000",
-  "domain": "$DOMAIN || localhost"
+  "publicUrl": "$PUBLIC_URL || http://localhost:3000"
 }
 ```
 

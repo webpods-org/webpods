@@ -63,9 +63,10 @@ export function createApp(): Express {
   app.get('/health', async (req, res) => {
     // Only allow health checks on main domain
     const subdomain = req.hostname.split('.')[0];
+    const publicHostname = config.server.public?.hostname || 'localhost';
     const isMainDomain = subdomain === 'localhost' || 
                         subdomain === 'webpods' || 
-                        subdomain === config.server.domain?.split('.')[0];
+                        subdomain === publicHostname.split('.')[0];
     
     if (!isMainDomain) {
       res.status(404).json({
@@ -107,9 +108,10 @@ export function createApp(): Express {
   app.use('/auth', (req, res, next) => {
     // Check if this is the main domain
     const subdomain = req.hostname.split('.')[0];
+    const publicHostname = config.server.public?.hostname || 'localhost';
     const isMainDomain = subdomain === 'localhost' || 
                         subdomain === 'webpods' || 
-                        subdomain === config.server.domain?.split('.')[0];
+                        subdomain === publicHostname.split('.')[0];
     
     if (isMainDomain) {
       // On main domain, use auth router
@@ -165,10 +167,11 @@ export function createApp(): Express {
       method: req.method
     });
 
+    const showDetails = process.env.LOG_LEVEL === 'debug';
     res.status(err.status || 500).json({
       error: {
         code: 'INTERNAL_ERROR',
-        message: process.env.LOG_LEVEL === 'debug' 
+        message: showDetails 
           ? err.message
           : 'An error occurred'
       }

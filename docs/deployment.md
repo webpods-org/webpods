@@ -44,11 +44,12 @@ Register your application with OAuth providers:
 
 ```bash
 # Required
-NODE_ENV=production
 JWT_SECRET=<random-256-bit-key>
 SESSION_SECRET=<random-256-bit-key>
 DATABASE_URL=postgresql://user:pass@host/db
-DOMAIN=webpods.org
+PUBLIC_URL=https://webpods.org
+HOST=0.0.0.0
+PORT=3000
 
 # OAuth secrets (as referenced in config.json)
 GITHUB_OAUTH_SECRET=...

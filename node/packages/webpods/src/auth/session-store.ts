@@ -52,13 +52,13 @@ export function getSessionConfig(): session.SessionOptions {
     saveUninitialized: false,
     rolling: true, // Reset expiry on activity
     cookie: {
-      secure: config.server.useHttps, // Use HTTPS config setting
+      secure: config.server.public?.isSecure || false, // Use HTTPS from public URL
       httpOnly: true,
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       // Set domain to share across subdomains
-      // Extract base domain (remove port if present)
-      domain: `.${config.server.domain.split(':')[0]}`
+      // Cookie domain cannot have port
+      domain: `.${config.server.public?.hostname || 'localhost'}`
     },
     name: 'webpods.sid' // Custom session cookie name
   };

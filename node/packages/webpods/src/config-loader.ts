@@ -39,11 +39,21 @@ export interface OAuthConfig {
   defaultProvider?: string;
 }
 
-export interface ServerConfig {
+export interface PublicConfig {
+  protocol: string;
+  hostname: string;
   port: number;
-  domain: string;
+  host: string;
+  origin: string;
+  isSecure: boolean;
+}
+
+export interface ServerConfig {
+  host: string;
+  port: number;
+  publicUrl: string;
   corsOrigin: string;
-  useHttps?: boolean;
+  public?: PublicConfig; // Parsed from publicUrl
 }
 
 export interface DatabaseConfig {
@@ -130,17 +140,17 @@ function resolveEnvVars(obj: any, path: string[] = []): any {
       // Determine default value based on path
       let defaultValue: any;
       switch (fullPath) {
+        case 'server.host':
+          defaultValue = '0.0.0.0';
+          break;
         case 'server.port':
           defaultValue = 3000;
           break;
-        case 'server.domain':
-          defaultValue = 'localhost';
+        case 'server.publicUrl':
+          defaultValue = 'http://localhost:3000';
           break;
         case 'server.corsOrigin':
           defaultValue = '*';
-          break;
-        case 'server.useHttps':
-          defaultValue = true;
           break;
         case 'database.host':
           defaultValue = 'localhost';
@@ -198,8 +208,9 @@ function applyDefaults(config: any): any {
   config.rateLimits = config.rateLimits || {};
   
   // Apply defaults for server (using env var references)
+  config.server.host = config.server.host ?? '$HOST';
   config.server.port = config.server.port ?? '$PORT';
-  config.server.domain = config.server.domain ?? '$DOMAIN';
+  config.server.publicUrl = config.server.publicUrl ?? '$PUBLIC_URL';
   config.server.corsOrigin = config.server.corsOrigin ?? '$CORS_ORIGIN';
   
   // Apply defaults for database
@@ -258,6 +269,23 @@ export function loadConfig(configPath?: string): AppConfig {
     
     // Resolve environment variables
     const config = resolveEnvVars(configWithDefaults) as AppConfig;
+    
+    // Parse publicUrl to extract components
+    if (config.server?.publicUrl) {
+      try {
+        const url = new URL(config.server.publicUrl);
+        config.server.public = {
+          protocol: url.protocol.replace(':', ''),
+          hostname: url.hostname,
+          port: parseInt(url.port) || (url.protocol === 'https:' ? 443 : 80),
+          host: url.host,
+          origin: url.origin,
+          isSecure: url.protocol === 'https:'
+        };
+      } catch {
+        throw new Error(`Invalid publicUrl: ${config.server.publicUrl}`);
+      }
+    }
     
     // Validate required fields
     validateConfig(config);

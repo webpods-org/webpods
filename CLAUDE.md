@@ -173,7 +173,9 @@ npm test -- --grep "permission"
 ## Environment Variables
 
 See `.env.example` for complete list of configuration options. Key variables:
-- `DOMAIN` - Base domain for pods
+- `HOST` - Server bind address (default: 0.0.0.0)
+- `PORT` - Server bind port (default: 3000)
+- `PUBLIC_URL` - Public-facing URL for OAuth callbacks
 - `JWT_SECRET` - Required in production
 - `SESSION_SECRET` - Required for sessions
 - `DATABASE_URL` - PostgreSQL connection string

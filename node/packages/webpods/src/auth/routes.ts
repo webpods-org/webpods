@@ -301,11 +301,12 @@ router.get('/authorize', async (req: Request, res: Response) => {
       
       // Redirect back to pod with token
       const config = getConfig();
-      const protocol = config.server.useHttps ? 'https' : 'http';
-      const podDomain = `${pod}.${config.server.domain}`;
-      // Domain should already include port if needed (e.g., localhost:3000)
-      const port = '';
-      const callbackUrl = `${protocol}://${podDomain}${port}/auth/callback?token=${encodeURIComponent(podToken)}&redirect=${encodeURIComponent(redirect)}`;
+      // Build callback URL for pod subdomain
+      const publicConfig = config.server.public!;
+      const podHost = publicConfig.port === 80 || publicConfig.port === 443 
+        ? `${pod}.${publicConfig.hostname}`
+        : `${pod}.${publicConfig.hostname}:${publicConfig.port}`;
+      const callbackUrl = `${publicConfig.protocol}://${podHost}/auth/callback?token=${encodeURIComponent(podToken)}&redirect=${encodeURIComponent(redirect)}`;
       
       logger.info('SSO authorization successful', { pod, userId: (req as any).session.user.id });
       res.redirect(callbackUrl);
@@ -470,11 +471,12 @@ router.get('/:provider/callback', async (req: Request, res: Response) => {
     if (stateData.pod) {
       // Generate pod-specific token
       const podToken = generatePodToken(userResult.data, stateData.pod);
-      const protocol = config.server.useHttps ? 'https' : 'http';
-      const podDomain = `${stateData.pod}.${config.server.domain}`;
-      // Domain should already include port if needed (e.g., localhost:3000)
-      const port = '';
-      const callbackUrl = `${protocol}://${podDomain}${port}/auth/callback?token=${encodeURIComponent(podToken)}&redirect=${encodeURIComponent(stateData.redirect || '/')}`;
+      // Build callback URL for pod subdomain
+      const publicConfig = config.server.public!;
+      const podHost = publicConfig.port === 80 || publicConfig.port === 443 
+        ? `${stateData.pod}.${publicConfig.hostname}`
+        : `${stateData.pod}.${publicConfig.hostname}:${publicConfig.port}`;
+      const callbackUrl = `${publicConfig.protocol}://${podHost}/auth/callback?token=${encodeURIComponent(podToken)}&redirect=${encodeURIComponent(stateData.redirect || '/')}`;
       
       logger.info('Pod authentication successful', { 
         userId: userResult.data.id, 
@@ -489,11 +491,11 @@ router.get('/:provider/callback', async (req: Request, res: Response) => {
       const token = generateToken(userResult.data);
       
       // Set cookie for web apps
-      const useSecureCookie = config.server.useHttps;
+      const isSecure = config.server.public?.isSecure || false;
       res.cookie('token', token, {
         httpOnly: true,
-        secure: useSecureCookie,
-        sameSite: useSecureCookie ? 'strict' : 'lax',
+        secure: isSecure,
+        sameSite: isSecure ? 'strict' : 'lax',
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
         path: '/'
       });
