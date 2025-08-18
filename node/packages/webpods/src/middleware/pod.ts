@@ -2,18 +2,18 @@
  * Pod extraction middleware
  */
 
-import { Request, Response, NextFunction } from 'express';
-import { extractPodId, isMainDomain } from '../utils.js';
-import { findPodByDomain } from '../domain/routing.js';
-import { getPod } from '../domain/pods.js';
-import { getDb } from '../db.js';
-import { createLogger } from '../logger.js';
-import { Pod } from '../types.js';
+import { Request, Response, NextFunction } from "express";
+import { extractPodId, isMainDomain } from "../utils.js";
+import { findPodByDomain } from "../domain/routing.js";
+import { getPod } from "../domain/pods.js";
+import { getDb } from "../db.js";
+import { createLogger } from "../logger.js";
+import { Pod } from "../types.js";
 
-const logger = createLogger('webpods:pod');
+const logger = createLogger("webpods:pod");
 
 // Extend Express Request type
-declare module 'express-serve-static-core' {
+declare module "express-serve-static-core" {
   interface Request {
     pod?: Pod;
     pod_id?: string;
@@ -23,25 +23,29 @@ declare module 'express-serve-static-core' {
 /**
  * Extract pod from hostname
  */
-export async function extractPod(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function extractPod(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     // If pod_id is already set (e.g., by rootPod handler), skip extraction
     if (req.pod_id) {
       next();
       return;
     }
-    
-    const hostname = req.hostname || req.headers.host?.split(':')[0] || '';
+
+    const hostname = req.hostname || req.headers.host?.split(":")[0] || "";
     const db = getDb();
-    
+
     // Get config to determine main domain
-    const { getConfig } = await import('../config-loader.js');
+    const { getConfig } = await import("../config-loader.js");
     const config = getConfig();
-    const mainDomain = config.server.public?.hostname || 'localhost';
-    
+    const mainDomain = config.server.public?.hostname || "localhost";
+
     // First try standard subdomain format
     let podId = extractPodId(hostname, mainDomain);
-    
+
     // If not found, check custom domains
     if (!podId) {
       const result = await findPodByDomain(db, hostname);
@@ -49,38 +53,38 @@ export async function extractPod(req: Request, res: Response, next: NextFunction
         podId = result.data;
       }
     }
-    
+
     // If still no pod found and this is the main domain, check for rootPod config
     if (!podId && isMainDomain(hostname, mainDomain) && config.rootPod) {
       podId = config.rootPod;
     }
-    
+
     if (!podId) {
       // No pod found - just continue without setting pod
       next();
       return;
     }
-    
+
     // Store the pod_id even if pod doesn't exist yet
     req.pod_id = podId;
-    
+
     // Try to get the pod (may not exist yet)
     const podResult = await getPod(db, podId);
-    
+
     if (podResult.success) {
       req.pod = podResult.data;
     }
     // If pod doesn't exist, it will be created on first write
-    
-    logger.debug('Pod extracted', { podId, hostname });
+
+    logger.debug("Pod extracted", { podId, hostname });
     next();
   } catch (error) {
-    logger.error('Pod extraction error', { error });
+    logger.error("Pod extraction error", { error });
     res.status(500).json({
       error: {
-        code: 'INTERNAL_ERROR',
-        message: 'Failed to extract pod'
-      }
+        code: "INTERNAL_ERROR",
+        message: "Failed to extract pod",
+      },
     });
   }
 }
@@ -88,19 +92,23 @@ export async function extractPod(req: Request, res: Response, next: NextFunction
 /**
  * Optional pod extraction - doesn't fail if no pod found
  */
-export async function optionalExtractPod(req: Request, _res: Response, next: NextFunction): Promise<void> {
+export async function optionalExtractPod(
+  req: Request,
+  _res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
-    const hostname = req.hostname || req.headers.host?.split(':')[0] || '';
+    const hostname = req.hostname || req.headers.host?.split(":")[0] || "";
     const db = getDb();
-    
+
     // Get config to determine main domain
-    const { getConfig } = await import('../config-loader.js');
+    const { getConfig } = await import("../config-loader.js");
     const config = getConfig();
-    const mainDomain = config.server.public?.hostname || 'localhost';
-    
+    const mainDomain = config.server.public?.hostname || "localhost";
+
     // First try standard subdomain format
     let podId = extractPodId(hostname, mainDomain);
-    
+
     // If not found, check custom domains
     if (!podId) {
       const result = await findPodByDomain(db, hostname);
@@ -108,20 +116,20 @@ export async function optionalExtractPod(req: Request, _res: Response, next: Nex
         podId = result.data;
       }
     }
-    
+
     if (podId) {
       // Get the pod
       const podResult = await getPod(db, podId);
-      
+
       if (podResult.success) {
         req.pod = podResult.data;
         req.pod_id = podId;
       }
     }
-    
+
     next();
   } catch (error) {
-    logger.error('Optional pod extraction error', { error });
+    logger.error("Optional pod extraction error", { error });
     next();
   }
 }

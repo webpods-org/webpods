@@ -2,27 +2,29 @@
  * Permission checking domain logic
  */
 
-import { Knex } from 'knex';
-import { Stream } from '../types.js';
-import { createLogger } from '../logger.js';
+import { Knex } from "knex";
+import { Stream } from "../types.js";
+import { createLogger } from "../logger.js";
 
-const logger = createLogger('webpods:domain:permissions');
+const logger = createLogger("webpods:domain:permissions");
 
 /**
  * Parse permission string into components
  */
-export function parsePermission(permission: string): { type: 'basic' | 'stream', stream?: string } {
-  if (permission === 'public' || permission === 'private') {
-    return { type: 'basic' };
+export function parsePermission(permission: string): {
+  type: "basic" | "stream";
+  stream?: string;
+} {
+  if (permission === "public" || permission === "private") {
+    return { type: "basic" };
   }
-  
-  if (permission.startsWith('/')) {
-    return { type: 'stream', stream: permission.substring(1) };
-  }
-  
-  return { type: 'basic' };
-}
 
+  if (permission.startsWith("/")) {
+    return { type: "stream", stream: permission.substring(1) };
+  }
+
+  return { type: "basic" };
+}
 
 /**
  * Check if user exists in permission stream
@@ -32,43 +34,49 @@ async function checkPermissionStream(
   podId: string,
   streamId: string,
   authId: string,
-  action: 'read' | 'write'
+  action: "read" | "write",
 ): Promise<boolean> {
   try {
-    logger.debug('Checking permission stream', { podId, streamId, authId, action });
-    
+    logger.debug("Checking permission stream", {
+      podId,
+      streamId,
+      authId,
+      action,
+    });
+
     // First check if the stream exists
-    const stream = await db('stream')
-      .join('pod', 'pod.id', 'stream.pod_id')
-      .where('pod.pod_id', podId)
-      .where('stream.stream_id', streamId)
-      .select('stream.*')
+    const stream = await db("stream")
+      .join("pod", "pod.id", "stream.pod_id")
+      .where("pod.pod_id", podId)
+      .where("stream.stream_id", streamId)
+      .select("stream.*")
       .first();
-    
+
     if (!stream) {
-      logger.warn('Permission stream not found', { podId, streamId });
+      logger.warn("Permission stream not found", { podId, streamId });
       return false;
     }
-    
-    logger.info('Permission stream found', { 
-      streamId: stream.stream_id, 
-      id: stream.id 
+
+    logger.info("Permission stream found", {
+      streamId: stream.stream_id,
+      id: stream.id,
     });
-    
+
     // Get ALL records from the permission stream
-    const records = await db('record')
-      .where('stream_id', stream.id)
-      .orderBy('index', 'asc')
-      .select('*');
-    
+    const records = await db("record")
+      .where("stream_id", stream.id)
+      .orderBy("index", "asc")
+      .select("*");
+
     // Process records in memory to find the latest permission for this user
     let userPermission = null;
     for (const record of records) {
       try {
-        const content = typeof record.content === 'string' 
-          ? JSON.parse(record.content)
-          : record.content;
-        
+        const content =
+          typeof record.content === "string"
+            ? JSON.parse(record.content)
+            : record.content;
+
         // Check if this record is for our user
         if (content.id === authId) {
           // Last record wins
@@ -76,28 +84,38 @@ async function checkPermissionStream(
         }
       } catch {
         // Skip records that aren't valid JSON or don't have the right structure
-        logger.debug('Skipping non-permission record', { recordId: record.id });
+        logger.debug("Skipping non-permission record", { recordId: record.id });
       }
     }
-    
-    logger.info('Permission check result', { 
-      found: !!userPermission, 
-      authId, 
+
+    logger.info("Permission check result", {
+      found: !!userPermission,
+      authId,
       streamId,
-      permission: userPermission 
+      permission: userPermission,
     });
-    
+
     if (!userPermission) {
       return false;
     }
-    
+
     // Check if action is allowed
     const allowed = userPermission[action] === true;
-    logger.debug('Permission check result', { authId, action, allowed, userPermission });
-    
+    logger.debug("Permission check result", {
+      authId,
+      action,
+      allowed,
+      userPermission,
+    });
+
     return allowed;
   } catch (error) {
-    logger.error('Failed to check permission stream', { error, podId, streamId, authId });
+    logger.error("Failed to check permission stream", {
+      error,
+      podId,
+      streamId,
+      authId,
+    });
     return false;
   }
 }
@@ -109,52 +127,59 @@ export async function canRead(
   db: Knex,
   stream: Stream,
   authId: string | null,
-  userId?: string | null
+  userId?: string | null,
 ): Promise<boolean> {
-  logger.info('canRead check', { 
-    streamId: stream.stream_id, 
+  logger.info("canRead check", {
+    streamId: stream.stream_id,
     accessPermission: stream.access_permission,
     authId,
     userId,
-    creatorId: stream.creator_id
+    creatorId: stream.creator_id,
   });
-  
+
   // Creator always has access
   if (userId && userId === stream.creator_id) {
     return true;
   }
-  
+
   // Public read access - anyone can read
-  if (stream.access_permission === 'public') {
+  if (stream.access_permission === "public") {
     return true;
   }
-  
+
   // Private access - only creator
-  if (stream.access_permission === 'private') {
+  if (stream.access_permission === "private") {
     return userId === stream.creator_id;
   }
-  
+
   // No auth means no access for non-public
   if (!authId) {
     return false;
   }
-  
+
   // Parse permission
   const perm = parsePermission(stream.access_permission);
-  logger.debug('Parsed permission', { perm, accessPermission: stream.access_permission });
-  
-  if (perm.type === 'stream' && perm.stream) {
+  logger.debug("Parsed permission", {
+    perm,
+    accessPermission: stream.access_permission,
+  });
+
+  if (perm.type === "stream" && perm.stream) {
     // Get pod for this stream
-    const pod = await db('pod')
-      .where('id', stream.pod_id)
-      .first();
-    
+    const pod = await db("pod").where("id", stream.pod_id).first();
+
     if (!pod) return false;
-    
+
     // Check if user has read permission in the permission stream
-    return await checkPermissionStream(db, pod.pod_id, perm.stream, authId, 'read');
+    return await checkPermissionStream(
+      db,
+      pod.pod_id,
+      perm.stream,
+      authId,
+      "read",
+    );
   }
-  
+
   return false;
 }
 
@@ -165,37 +190,41 @@ export async function canWrite(
   db: Knex,
   stream: Stream,
   authId: string,
-  userId?: string | null
+  userId?: string | null,
 ): Promise<boolean> {
   // Creator always has access
   if (userId && userId === stream.creator_id) {
     return true;
   }
-  
+
   // Public write access - authenticated users can write
-  if (stream.access_permission === 'public') {
+  if (stream.access_permission === "public") {
     return true;
   }
-  
+
   // Private access - only creator
-  if (stream.access_permission === 'private') {
+  if (stream.access_permission === "private") {
     return userId === stream.creator_id;
   }
-  
+
   // Parse permission
   const perm = parsePermission(stream.access_permission);
-  
-  if (perm.type === 'stream' && perm.stream) {
+
+  if (perm.type === "stream" && perm.stream) {
     // Get pod for this stream
-    const pod = await db('pod')
-      .where('id', stream.pod_id)
-      .first();
-    
+    const pod = await db("pod").where("id", stream.pod_id).first();
+
     if (!pod) return false;
-    
+
     // Check if user has write permission in the permission stream
-    return await checkPermissionStream(db, pod.pod_id, perm.stream, authId, 'write');
+    return await checkPermissionStream(
+      db,
+      pod.pod_id,
+      perm.stream,
+      authId,
+      "write",
+    );
   }
-  
+
   return false;
 }

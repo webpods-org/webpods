@@ -8,7 +8,7 @@ Add the `rootPod` option to your `config.json`:
 
 ```json
 {
-  "rootPod": "root",
+  "rootPod": "root"
   // ... other config
 }
 ```
@@ -18,6 +18,7 @@ This tells WebPods to serve content from the pod named "root" when requests come
 ## Usage
 
 1. **Create the root pod** (manually, like any other pod):
+
    ```bash
    # Create the root pod as a user
    curl -X POST http://root.localhost:3000/pages/home \
@@ -27,20 +28,21 @@ This tells WebPods to serve content from the pod named "root" when requests come
    ```
 
 2. **Configure links** for clean URLs:
+
    ```bash
    curl -X POST http://root.localhost:3000/.meta/links \
      -H "Authorization: Bearer $TOKEN" \
      -H "Content-Type: application/json" \
-     -d '{
+     -d "{
        "/": "pages/home",
        "/about": "pages/about",
        "/docs": "documentation/index"
-     }'
+     }"
    ```
 
 3. **Access content** on the main domain:
-   - `http://localhost:3000/` → serves content from `root` pod's `/` link
-   - `http://localhost:3000/about` → serves content from `root` pod's `/about` link
+   - `http://localhost:3000/` → serves content from `root` pod"s `/` link
+   - `http://localhost:3000/about` → serves content from `root` pod"s `/about` link
    - `http://localhost:3000/pages/home` → directly serves the `home` record from `pages` stream
 
 ## Important Notes
@@ -48,7 +50,7 @@ This tells WebPods to serve content from the pod named "root" when requests come
 - The root pod is **optional** - if not configured, the main domain returns 404 as before
 - System endpoints (`/health`, `/auth/*`) always take precedence over root pod content
 - The root pod is a **normal pod** with no special restrictions
-- You must **manually create** the root pod - it's not auto-created
+- You must **manually create** the root pod - it"s not auto-created
 - All pod features work: streams, records, permissions, deletion, etc.
 
 ## Example: Landing Page
@@ -70,10 +72,10 @@ curl -X POST http://root.localhost:3000/docs/api \
 curl -X POST http://root.localhost:3000/.meta/links \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{
+  -d "{
     "/": "site/index",
     "/api": "docs/api"
-  }'
+  }"
 
 # 4. Update config.json
 {

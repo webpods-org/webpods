@@ -16,6 +16,7 @@ WebPods supports any OAuth 2.0 provider. Configure them in `config.json`:
 ### Common Providers
 
 #### GitHub
+
 ```json
 {
   "id": "github",
@@ -33,6 +34,7 @@ WebPods supports any OAuth 2.0 provider. Configure them in `config.json`:
 ```
 
 #### Google (OIDC)
+
 ```json
 {
   "id": "google",
@@ -47,6 +49,7 @@ WebPods supports any OAuth 2.0 provider. Configure them in `config.json`:
 ```
 
 #### Custom Provider
+
 ```json
 {
   "id": "mycompany",
@@ -64,22 +67,22 @@ WebPods supports any OAuth 2.0 provider. Configure them in `config.json`:
 
 ### Provider Configuration Fields
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `id` | Yes | Unique identifier for the provider |
-| `clientId` | Yes | OAuth application client ID |
-| `clientSecret` | Yes | OAuth application client secret (use `$VAR` for env reference) |
-| `issuer` | No* | OIDC discovery URL (for providers supporting OIDC) |
-| `authUrl` | No* | Authorization endpoint URL |
-| `tokenUrl` | No* | Token exchange endpoint URL |
-| `userinfoUrl` | No* | User information endpoint URL |
-| `emailUrl` | No | Separate email endpoint (e.g., GitHub) |
-| `scope` | Yes | OAuth scopes to request |
-| `userIdField` | Yes | Field name for user ID in provider response |
-| `emailField` | Yes | Field name for email in provider response |
-| `nameField` | Yes | Field name for display name in provider response |
+| Field          | Required | Description                                                    |
+| -------------- | -------- | -------------------------------------------------------------- |
+| `id`           | Yes      | Unique identifier for the provider                             |
+| `clientId`     | Yes      | OAuth application client ID                                    |
+| `clientSecret` | Yes      | OAuth application client secret (use `$VAR` for env reference) |
+| `issuer`       | No\*     | OIDC discovery URL (for providers supporting OIDC)             |
+| `authUrl`      | No\*     | Authorization endpoint URL                                     |
+| `tokenUrl`     | No\*     | Token exchange endpoint URL                                    |
+| `userinfoUrl`  | No\*     | User information endpoint URL                                  |
+| `emailUrl`     | No       | Separate email endpoint (e.g., GitHub)                         |
+| `scope`        | Yes      | OAuth scopes to request                                        |
+| `userIdField`  | Yes      | Field name for user ID in provider response                    |
+| `emailField`   | Yes      | Field name for email in provider response                      |
+| `nameField`    | Yes      | Field name for display name in provider response               |
 
-*Either `issuer` OR all three URLs (`authUrl`, `tokenUrl`, `userinfoUrl`) are required.
+\*Either `issuer` OR all three URLs (`authUrl`, `tokenUrl`, `userinfoUrl`) are required.
 
 ## Environment Variables
 

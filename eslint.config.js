@@ -1,17 +1,17 @@
-import js from '@eslint/js';
-import typescript from '@typescript-eslint/eslint-plugin';
-import typescriptParser from '@typescript-eslint/parser';
-import globals from 'globals';
+import js from "@eslint/js";
+import typescript from "@typescript-eslint/eslint-plugin";
+import typescriptParser from "@typescript-eslint/parser";
+import globals from "globals";
 
 export default [
   js.configs.recommended,
   {
-    files: ['**/*.ts', '**/*.tsx'],
+    files: ["**/*.ts", "**/*.tsx"],
     languageOptions: {
       parser: typescriptParser,
       parserOptions: {
         ecmaVersion: 2021,
-        sourceType: 'module',
+        sourceType: "module",
       },
       globals: {
         ...globals.node,
@@ -19,23 +19,31 @@ export default [
       },
     },
     plugins: {
-      '@typescript-eslint': typescript,
+      "@typescript-eslint": typescript,
     },
     rules: {
       ...typescript.configs.recommended.rules,
-      '@typescript-eslint/no-explicit-any': 'off',
-      '@typescript-eslint/explicit-module-boundary-types': 'off',
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
-      'no-console': ['error', { allow: ['warn', 'error', 'info'] }],
-      'prefer-const': 'error',
-      'no-var': 'error',
+      quotes: [
+        "error",
+        "double",
+        { avoidEscape: true, allowTemplateLiterals: true },
+      ],
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/explicit-module-boundary-types": "off",
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_" },
+      ],
+      "no-console": ["error", { allow: ["warn", "error", "info"] }],
+      "prefer-const": "error",
+      "no-var": "error",
     },
   },
   {
-    files: ['**/*.js', '**/*.mjs'],
+    files: ["**/*.js", "**/*.mjs"],
     languageOptions: {
       ecmaVersion: 2021,
-      sourceType: 'module',
+      sourceType: "module",
       globals: {
         ...globals.node,
         ...globals.es2021,
@@ -43,12 +51,12 @@ export default [
     },
   },
   {
-    files: ['**/webpods-integration-tests/**/*.ts'],
+    files: ["**/webpods-integration-tests/**/*.ts"],
     languageOptions: {
       parser: typescriptParser,
       parserOptions: {
         ecmaVersion: 2021,
-        sourceType: 'module',
+        sourceType: "module",
       },
       globals: {
         ...globals.node,
@@ -57,26 +65,29 @@ export default [
       },
     },
     plugins: {
-      '@typescript-eslint': typescript,
+      "@typescript-eslint": typescript,
     },
     rules: {
       ...typescript.configs.recommended.rules,
-      '@typescript-eslint/no-explicit-any': 'off',
-      '@typescript-eslint/explicit-module-boundary-types': 'off',
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
-      '@typescript-eslint/no-unused-expressions': 'off',
-      'no-console': 'off',
-      'prefer-const': 'error',
-      'no-var': 'error',
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/explicit-module-boundary-types": "off",
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_" },
+      ],
+      "@typescript-eslint/no-unused-expressions": "off",
+      "no-console": "off",
+      "prefer-const": "error",
+      "no-var": "error",
     },
   },
   {
-    files: ['**/webpods-test-utils/**/*.ts'],
+    files: ["**/webpods-test-utils/**/*.ts"],
     languageOptions: {
       parser: typescriptParser,
       parserOptions: {
         ecmaVersion: 2021,
-        sourceType: 'module',
+        sourceType: "module",
       },
       globals: {
         ...globals.node,
@@ -84,25 +95,28 @@ export default [
       },
     },
     plugins: {
-      '@typescript-eslint': typescript,
+      "@typescript-eslint": typescript,
     },
     rules: {
       ...typescript.configs.recommended.rules,
-      '@typescript-eslint/no-explicit-any': 'off',
-      '@typescript-eslint/explicit-module-boundary-types': 'off',
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
-      'no-console': 'off',
-      'prefer-const': 'error',
-      'no-var': 'error',
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/explicit-module-boundary-types": "off",
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_" },
+      ],
+      "no-console": "off",
+      "prefer-const": "error",
+      "no-var": "error",
     },
   },
   {
     ignores: [
-      'node_modules/**',
-      'dist/**',
-      'build/**',
-      '**/*.d.ts',
-      '**/generated/**',
+      "node_modules/**",
+      "dist/**",
+      "build/**",
+      "**/*.d.ts",
+      "**/generated/**",
     ],
   },
 ];

@@ -16,7 +16,7 @@ docker run -p 3000:3000 \
 ### Requirements
 
 - Domain with wildcard DNS (`*.webpods.org`)
-- PostgreSQL database  
+- PostgreSQL database
 - SSL certificate (wildcard recommended)
 - OAuth application credentials
 
@@ -25,12 +25,14 @@ docker run -p 3000:3000 \
 Register your application with OAuth providers:
 
 #### GitHub
+
 1. Go to https://github.com/settings/developers
 2. Create new OAuth App
 3. Set Authorization callback URL: `https://yourdomain.com/auth/github/callback`
 4. Copy Client ID and Secret
 
 #### Google
+
 1. Go to https://console.cloud.google.com/apis/credentials
 2. Create OAuth 2.0 Client ID
 3. Add authorized redirect URI: `https://yourdomain.com/auth/google/callback`
@@ -72,7 +74,7 @@ For production, use a reverse proxy (nginx, Caddy) with SSL termination:
 ```nginx
 server {
   server_name *.webpods.org;
-  
+
   location / {
     proxy_pass http://localhost:3000;
     proxy_set_header Host $host;

@@ -9,17 +9,17 @@ export interface Logger {
 
 export const consoleLogger: Logger = {
   debug: (message: string, meta?: any) => {
-    console.info(`[DEBUG] ${message}`, meta || '');
+    console.info(`[DEBUG] ${message}`, meta || "");
   },
   info: (message: string, meta?: any) => {
-    console.info(`[INFO] ${message}`, meta || '');
+    console.info(`[INFO] ${message}`, meta || "");
   },
   warn: (message: string, meta?: any) => {
-    console.warn(`[WARN] ${message}`, meta || '');
+    console.warn(`[WARN] ${message}`, meta || "");
   },
   error: (message: string, meta?: any) => {
-    console.error(`[ERROR] ${message}`, meta || '');
-  }
+    console.error(`[ERROR] ${message}`, meta || "");
+  },
 };
 
 // Silent logger for tests
@@ -27,5 +27,5 @@ export const testLogger: Logger = {
   debug: () => {},
   info: () => {},
   warn: () => {},
-  error: () => {}
+  error: () => {},
 };

@@ -1,220 +1,230 @@
 // Root pod tests for WebPods
-import { expect } from 'chai';
-import { TestHttpClient } from 'webpods-test-utils';
-import { testDb } from '../test-setup.js';
+import { expect } from "chai";
+import { TestHttpClient } from "webpods-test-utils";
+import { testDb } from "../test-setup.js";
 
-describe('WebPods Root Pod', () => {
+describe("WebPods Root Pod", () => {
   let client: TestHttpClient;
   let authToken: string;
   let userId: string;
-  const mainUrl = 'http://localhost:3099';
-  const rootPodId = 'root';
+  const mainUrl = "http://localhost:3099";
+  const rootPodId = "root";
   const rootPodUrl = `http://${rootPodId}.localhost:3099`;
-  
+
   before(async () => {
     client = new TestHttpClient(mainUrl);
-    
+
     // Create test user
     const db = testDb.getDb();
-    const [user] = await db('user').insert({
-      id: crypto.randomUUID(),
-      auth_id: 'auth:provider:roottest',
-      email: 'roottest@example.com',
-      name: 'Root Test User',
-      provider: 'testprovider1'
-    }).returning('*');
+    const [user] = await db("user")
+      .insert({
+        id: crypto.randomUUID(),
+        auth_id: "auth:provider:roottest",
+        email: "roottest@example.com",
+        name: "Root Test User",
+        provider: "testprovider1",
+      })
+      .returning("*");
     userId = user.id;
-    
+
     // Generate auth token
     authToken = TestHttpClient.generateToken({
       user_id: user.id,
       auth_id: user.auth_id,
       email: user.email,
       name: user.name,
-      provider: 'testprovider1'
+      provider: "testprovider1",
     });
   });
 
-  describe('Without rootPod configured', () => {
-    it('should return 404 on main domain root', async () => {
-      const response = await client.get('/');
+  describe("Without rootPod configured", () => {
+    it("should return 404 on main domain root", async () => {
+      const response = await client.get("/");
       expect(response.status).to.equal(404);
-      expect(response.data.error.code).to.equal('NOT_FOUND');
+      expect(response.data.error.code).to.equal("NOT_FOUND");
     });
-    
-    it('should return 404 on main domain paths', async () => {
-      const response = await client.get('/some/path');
+
+    it("should return 404 on main domain paths", async () => {
+      const response = await client.get("/some/path");
       expect(response.status).to.equal(404);
-      expect(response.data.error.code).to.equal('NOT_FOUND');
+      expect(response.data.error.code).to.equal("NOT_FOUND");
     });
-    
-    it('should still serve /health on main domain', async () => {
-      const response = await client.get('/health');
+
+    it("should still serve /health on main domain", async () => {
+      const response = await client.get("/health");
       expect(response.status).to.equal(200);
-      expect(response.data).to.have.property('status', 'healthy');
+      expect(response.data).to.have.property("status", "healthy");
     });
-    
-    it('should still serve /auth endpoints on main domain', async () => {
-      const response = await client.get('/auth/providers');
+
+    it("should still serve /auth endpoints on main domain", async () => {
+      const response = await client.get("/auth/providers");
       expect(response.status).to.equal(200);
-      expect(response.data).to.have.property('providers');
+      expect(response.data).to.have.property("providers");
     });
   });
 
-  describe('Root pod functionality', () => {
+  describe("Root pod functionality", () => {
     before(async () => {
       // Create and setup the root pod
       client.setBaseUrl(rootPodUrl);
-      
+
       // Generate pod-specific token
-      const podToken = client.generatePodToken({
-        user_id: userId,
-        auth_id: 'auth:provider:roottest',
-        email: 'roottest@example.com',
-        name: 'Root Test User',
-        provider: 'testprovider1'
-      }, rootPodId);
-      
+      const podToken = client.generatePodToken(
+        {
+          user_id: userId,
+          auth_id: "auth:provider:roottest",
+          email: "roottest@example.com",
+          name: "Root Test User",
+          provider: "testprovider1",
+        },
+        rootPodId,
+      );
+
       client.setAuthToken(podToken);
-      
+
       // Initialize the root pod by creating the first stream
       // The pod gets created on first write
-      const initResponse = await client.post('/pages/home', '<h1>Welcome to WebPods</h1>');
+      const initResponse = await client.post(
+        "/pages/home",
+        "<h1>Welcome to WebPods</h1>",
+      );
       if (initResponse.status !== 201) {
-        throw new Error(`Failed to create initial content: ${initResponse.status} ${JSON.stringify(initResponse.data)}`);
+        throw new Error(
+          `Failed to create initial content: ${initResponse.status} ${JSON.stringify(initResponse.data)}`,
+        );
       }
-      await client.post('/pages/about', '<h1>About WebPods</h1>');
-      await client.post('/api/data', JSON.stringify({ version: '1.0' }));
-      
+      await client.post("/pages/about", "<h1>About WebPods</h1>");
+      await client.post("/api/data", JSON.stringify({ version: "1.0" }));
+
       // Configure links
-      await client.post('/.meta/links', {
-        '/': 'pages/home',
-        '/about': 'pages/about'
+      await client.post("/.meta/links", {
+        "/": "pages/home",
+        "/about": "pages/about",
       });
-      
+
       // Now we need to simulate the rootPod config
       // This is a limitation of our test setup - we can't easily change config at runtime
       // So we'll test the behavior by directly calling the root pod
     });
-    
-    it('should serve root pod content when configured', async () => {
+
+    it("should serve root pod content when configured", async () => {
       // This tests that the root pod itself works
       client.setBaseUrl(rootPodUrl);
-      const response = await client.get('/');
+      const response = await client.get("/");
       expect(response.status).to.equal(200);
-      expect(response.data).to.equal('<h1>Welcome to WebPods</h1>');
+      expect(response.data).to.equal("<h1>Welcome to WebPods</h1>");
     });
-    
-    it('should serve root pod links', async () => {
+
+    it("should serve root pod links", async () => {
       client.setBaseUrl(rootPodUrl);
-      const response = await client.get('/about');
+      const response = await client.get("/about");
       expect(response.status).to.equal(200);
-      expect(response.data).to.equal('<h1>About WebPods</h1>');
+      expect(response.data).to.equal("<h1>About WebPods</h1>");
     });
-    
-    it('should serve root pod streams', async () => {
+
+    it("should serve root pod streams", async () => {
       client.setBaseUrl(rootPodUrl);
-      const response = await client.get('/pages/home');
+      const response = await client.get("/pages/home");
       expect(response.status).to.equal(200);
-      expect(response.data).to.equal('<h1>Welcome to WebPods</h1>');
+      expect(response.data).to.equal("<h1>Welcome to WebPods</h1>");
     });
-    
-    it('should return 404 for non-existent paths in root pod', async () => {
+
+    it("should return 404 for non-existent paths in root pod", async () => {
       client.setBaseUrl(rootPodUrl);
-      const response = await client.get('/nonexistent');
+      const response = await client.get("/nonexistent");
       expect(response.status).to.equal(404);
     });
-    
-    it('should allow POST to root pod streams', async () => {
+
+    it("should allow POST to root pod streams", async () => {
       client.setBaseUrl(rootPodUrl);
       client.setAuthToken(authToken);
-      const response = await client.post('/pages/new', 'New page content');
+      const response = await client.post("/pages/new", "New page content");
       expect(response.status).to.equal(201);
-      
+
       // Verify it was created
-      const getResponse = await client.get('/pages/new');
+      const getResponse = await client.get("/pages/new");
       expect(getResponse.status).to.equal(200);
-      expect(getResponse.data).to.equal('New page content');
+      expect(getResponse.data).to.equal("New page content");
     });
-    
-    it('should serve JSON content correctly', async () => {
+
+    it("should serve JSON content correctly", async () => {
       client.setBaseUrl(rootPodUrl);
-      const response = await client.get('/api/data');
+      const response = await client.get("/api/data");
       expect(response.status).to.equal(200);
       // The response should be the raw JSON string we stored
       expect(response.data).to.equal('{"version":"1.0"}');
     });
-    
-    it('should respect permissions for root pod', async () => {
+
+    it("should respect permissions for root pod", async () => {
       // Create a private stream in root pod
       client.setBaseUrl(rootPodUrl);
       client.setAuthToken(authToken);
-      await client.post('/private/secret?access=private', 'Secret content');
-      
+      await client.post("/private/secret?access=private", "Secret content");
+
       // Try to access without auth
-      client.setAuthToken('');
-      const response = await client.get('/private/secret');
+      client.setAuthToken("");
+      const response = await client.get("/private/secret");
       expect(response.status).to.equal(403);
-      
+
       // Access with auth should work
       client.setAuthToken(authToken);
-      const authResponse = await client.get('/private/secret');
+      const authResponse = await client.get("/private/secret");
       expect(authResponse.status).to.equal(200);
-      expect(authResponse.data).to.equal('Secret content');
+      expect(authResponse.data).to.equal("Secret content");
     });
-    
-    it('should allow deletion in root pod', async () => {
+
+    it("should allow deletion in root pod", async () => {
       client.setBaseUrl(rootPodUrl);
       client.setAuthToken(authToken);
-      
+
       // Create and delete a record
-      await client.post('/temp/data', 'Temporary data');
-      const deleteResponse = await client.delete('/temp/data');
+      await client.post("/temp/data", "Temporary data");
+      const deleteResponse = await client.delete("/temp/data");
       expect(deleteResponse.status).to.equal(204);
-      
+
       // Should return 404 after deletion
-      const getResponse = await client.get('/temp/data');
+      const getResponse = await client.get("/temp/data");
       expect(getResponse.status).to.equal(404);
-      expect(getResponse.data.error.code).to.equal('RECORD_DELETED');
+      expect(getResponse.data.error.code).to.equal("RECORD_DELETED");
     });
   });
-  
-  describe('Root pod behavior verification', () => {
-    it('should not interfere with subdomain pods', async () => {
+
+  describe("Root pod behavior verification", () => {
+    it("should not interfere with subdomain pods", async () => {
       // Create another pod
-      const alicePodUrl = 'http://alice.localhost:3099';
+      const alicePodUrl = "http://alice.localhost:3099";
       client.setBaseUrl(alicePodUrl);
       client.setAuthToken(authToken);
-      await client.post('/init/start', 'Initialize alice pod');
-      await client.post('/blog/post1', 'Alice blog post');
-      
+      await client.post("/init/start", "Initialize alice pod");
+      await client.post("/blog/post1", "Alice blog post");
+
       // Alice pod should work normally
-      const response = await client.get('/blog/post1');
+      const response = await client.get("/blog/post1");
       expect(response.status).to.equal(200);
-      expect(response.data).to.equal('Alice blog post');
-      
+      expect(response.data).to.equal("Alice blog post");
+
       // And be completely separate from root pod
       client.setBaseUrl(rootPodUrl);
-      const rootResponse = await client.get('/blog/post1');
+      const rootResponse = await client.get("/blog/post1");
       expect(rootResponse.status).to.equal(404);
     });
-    
-    it('should handle nested paths in root pod', async () => {
+
+    it("should handle nested paths in root pod", async () => {
       client.setBaseUrl(rootPodUrl);
       client.setAuthToken(authToken);
-      
+
       // Create nested stream structure
-      await client.post('/docs/api/v1/intro', 'API Introduction');
-      await client.post('/docs/guides/quickstart', 'Quick Start Guide');
-      
+      await client.post("/docs/api/v1/intro", "API Introduction");
+      await client.post("/docs/guides/quickstart", "Quick Start Guide");
+
       // Should be accessible
-      let response = await client.get('/docs/api/v1/intro');
+      let response = await client.get("/docs/api/v1/intro");
       expect(response.status).to.equal(200);
-      expect(response.data).to.equal('API Introduction');
-      
-      response = await client.get('/docs/guides/quickstart');
+      expect(response.data).to.equal("API Introduction");
+
+      response = await client.get("/docs/guides/quickstart");
       expect(response.status).to.equal(200);
-      expect(response.data).to.equal('Quick Start Guide');
+      expect(response.data).to.equal("Quick Start Guide");
     });
   });
 });

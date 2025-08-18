@@ -2,11 +2,14 @@
  * OAuth provider configuration using config.json
  */
 
-import { Issuer, Client } from 'openid-client';
-import { createLogger } from '../logger.js';
-import { getConfig, OAuthProviderConfig as ConfigProvider } from '../config-loader.js';
+import { Issuer, Client } from "openid-client";
+import { createLogger } from "../logger.js";
+import {
+  getConfig,
+  OAuthProviderConfig as ConfigProvider,
+} from "../config-loader.js";
 
-const logger = createLogger('webpods:auth:oauth-config');
+const logger = createLogger("webpods:auth:oauth-config");
 
 export interface OAuthProviderConfig extends ConfigProvider {
   redirectUri: string;
@@ -25,30 +28,31 @@ export function loadProviderConfigs(): Map<string, OAuthProviderConfig> {
   if (providerConfigs) {
     return providerConfigs;
   }
-  
+
   providerConfigs = new Map();
   const config = getConfig();
-  
+
   if (!config.oauth || !config.oauth.providers) {
-    logger.warn('No OAuth providers configured');
+    logger.warn("No OAuth providers configured");
     return providerConfigs;
   }
-  
+
   // Use public URL for OAuth callbacks
-  const baseUrl = config.server.publicUrl || 'http://localhost:3000';
-  
+  const baseUrl = config.server.publicUrl || "http://localhost:3000";
+
   for (const provider of config.oauth.providers) {
     // Build full config with redirect URI
     // Use explicit callbackUrl if provided, otherwise construct from baseUrl
     const fullConfig: OAuthProviderConfig = {
       ...provider,
-      redirectUri: provider.callbackUrl || `${baseUrl}/auth/${provider.id}/callback`
+      redirectUri:
+        provider.callbackUrl || `${baseUrl}/auth/${provider.id}/callback`,
     };
-    
+
     providerConfigs.set(provider.id, fullConfig);
-    logger.info('OAuth provider configured', { provider: provider.id });
+    logger.info("OAuth provider configured", { provider: provider.id });
   }
-  
+
   return providerConfigs;
 }
 
@@ -60,32 +64,34 @@ export async function getOAuthClient(providerId: string): Promise<Client> {
   if (clientCache.has(providerId)) {
     return clientCache.get(providerId)!;
   }
-  
+
   const configs = loadProviderConfigs();
   const config = configs.get(providerId);
-  
+
   if (!config) {
     throw new Error(`OAuth provider ${providerId} not configured`);
   }
-  
+
   let issuer: Issuer;
-  
+
   if (config.issuer) {
     // Try OIDC discovery
     try {
       issuer = await Issuer.discover(config.issuer);
-      logger.info('OIDC discovery successful', { provider: providerId });
+      logger.info("OIDC discovery successful", { provider: providerId });
     } catch (error) {
-      logger.warn('OIDC discovery failed, using manual config', { 
-        provider: providerId, 
-        error 
+      logger.warn("OIDC discovery failed, using manual config", {
+        provider: providerId,
+        error,
       });
-      
+
       // Fall back to manual configuration
       if (!config.authUrl || !config.tokenUrl) {
-        throw new Error(`OAuth provider ${providerId} discovery failed and no manual endpoints configured`);
+        throw new Error(
+          `OAuth provider ${providerId} discovery failed and no manual endpoints configured`,
+        );
       }
-      
+
       issuer = new Issuer({
         issuer: config.issuer,
         authorization_endpoint: config.authUrl,
@@ -96,9 +102,11 @@ export async function getOAuthClient(providerId: string): Promise<Client> {
   } else {
     // Manual configuration
     if (!config.authUrl || !config.tokenUrl || !config.userinfoUrl) {
-      throw new Error(`OAuth provider ${providerId} missing required endpoints`);
+      throw new Error(
+        `OAuth provider ${providerId} missing required endpoints`,
+      );
     }
-    
+
     issuer = new Issuer({
       issuer: providerId,
       authorization_endpoint: config.authUrl,
@@ -106,18 +114,18 @@ export async function getOAuthClient(providerId: string): Promise<Client> {
       userinfo_endpoint: config.userinfoUrl,
     });
   }
-  
+
   const client = new issuer.Client({
     client_id: config.clientId,
     client_secret: config.clientSecret,
     redirect_uris: [config.redirectUri],
-    response_types: ['code'],
+    response_types: ["code"],
   });
-  
+
   // Cache the client
   clientCache.set(providerId, client);
-  logger.info('OAuth client initialized', { provider: providerId });
-  
+  logger.info("OAuth client initialized", { provider: providerId });
+
   return client;
 }
 
@@ -140,7 +148,9 @@ export function isProviderConfigured(providerId: string): boolean {
 /**
  * Get provider configuration
  */
-export function getProviderConfig(providerId: string): OAuthProviderConfig | undefined {
+export function getProviderConfig(
+  providerId: string,
+): OAuthProviderConfig | undefined {
   const configs = loadProviderConfigs();
   return configs.get(providerId);
 }

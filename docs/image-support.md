@@ -77,34 +77,34 @@ curl -X POST alice.webpods.org/photos/mountain \
 curl -X POST alice.webpods.org/pages/gallery/index \
   -H "Authorization: Bearer $TOKEN" \
   -H "X-Content-Type: text/html" \
-  -d '<html>
+  -d "<html>
 <head><title>My Gallery</title></head>
 <body>
   <h1>Photo Gallery</h1>
   <img src="/photos/sunset" alt="Sunset" style="max-width: 500px;">
   <img src="/photos/mountain" alt="Mountain" style="max-width: 500px;">
 </body>
-</html>'
+</html>"
 
 # Set up routing
 curl -X POST alice.webpods.org/.meta/links \
   -H "Authorization: Bearer $TOKEN" \
-  -d '{"/":" pages/gallery/index"}'
+  -d "{"/":" pages/gallery/index"}"
 
 # Now visit alice.webpods.org to see your gallery!
 ```
 
 ## SVG Support
 
-SVG images are stored as text and don't require base64 encoding:
+SVG images are stored as text and don"t require base64 encoding:
 
 ```bash
 curl -X POST alice.webpods.org/icons/logo \
   -H "Authorization: Bearer $TOKEN" \
   -H "X-Content-Type: image/svg+xml" \
-  -d '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">
+  -d "<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">
     <circle cx="50" cy="50" r="40" fill="blue"/>
-  </svg>'
+  </svg>"
 ```
 
 ## Size Limits
@@ -133,27 +133,33 @@ Supported units: `kb`, `mb`, `gb` (e.g., "512kb", "50mb", "1gb")
 ## Technical Details
 
 ### Storage
+
 Images are stored as base64-encoded strings in the existing TEXT column of the database. This approach:
+
 - Maintains backward compatibility
 - Avoids database schema changes
 - Simplifies the implementation
 
 ### Content Detection
+
 The system automatically detects image content:
+
 1. Checks for data URLs (`data:image/png;base64,...`)
 2. Uses `X-Content-Type` header (highest priority)
 3. Falls back to `Content-Type` header
 4. Defaults to `text/plain` if not specified
 
 ### Performance Considerations
+
 - Base64 encoding increases storage size by ~33%
 - Decoding happens on-the-fly when serving images
 - Consider using external CDN for high-traffic images
-- SVG images don't require base64 encoding
+- SVG images don"t require base64 encoding
 
 ## Examples
 
 ### Favicon
+
 ```bash
 # Upload favicon
 curl -X POST alice.webpods.org/favicon.ico \
@@ -166,6 +172,7 @@ curl -X POST alice.webpods.org/favicon.ico \
 ```
 
 ### Profile Avatar System
+
 ```bash
 # Upload user avatar
 curl -X POST alice.webpods.org/users/john/avatar \
@@ -174,10 +181,11 @@ curl -X POST alice.webpods.org/users/john/avatar \
   -d "$AVATAR_BASE64"
 
 # Serve avatar
-<img src="/users/john/avatar" alt="John's Avatar">
+<img src="/users/john/avatar" alt="John"s Avatar">
 ```
 
 ### Logo with Versions
+
 ```bash
 # Upload multiple versions
 curl -X POST alice.webpods.org/brand/logo/v1 \

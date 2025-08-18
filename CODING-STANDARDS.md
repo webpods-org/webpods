@@ -16,7 +16,7 @@ export async function writeRecord(
   content: any,
   contentType: string,
   authorId: string,
-  alias?: string | null
+  alias?: string | null,
 ): Promise<Result<StreamRecord>> {
   // Implementation
 }
@@ -26,18 +26,18 @@ export async function writeRecord(
 export class WebSocketConnection {
   private socket: WebSocket;
   private reconnectAttempts = 0;
-  
+
   constructor(private config: WebSocketConfig) {
     this.socket = new WebSocket(config.url);
   }
-  
+
   async send(message: Message): Promise<void> {
     if (this.socket.readyState !== WebSocket.OPEN) {
       await this.reconnect();
     }
     this.socket.send(JSON.stringify(message));
   }
-  
+
   private async reconnect(): Promise<void> {
     // Reconnection logic with exponential backoff
   }
@@ -46,9 +46,9 @@ export class WebSocketConnection {
 // ❌ Bad - Class used unnecessarily for stateless operations
 export class StreamService {
   constructor(private db: Knex) {}
-  
+
   async writeRecord(streamId: string, content: any): Promise<StreamRecord> {
-    // This doesn't need to be a class
+    // This doesn"t need to be a class
   }
 }
 ```
@@ -64,40 +64,38 @@ export interface DomainError {
   message: string;
 }
 
-export type Result<T, E = DomainError> = 
+export type Result<T, E = DomainError> =
   | { success: true; data: T }
   | { success: false; error: E };
 
 // ✅ Good - Using Result type
 export async function findStream(
   db: Knex,
-  streamId: string
+  streamId: string,
 ): Promise<Result<Stream>> {
   try {
-    const stream = await db('stream')
-      .where('stream_id', streamId)
-      .first();
-    
+    const stream = await db("stream").where("stream_id", streamId).first();
+
     if (!stream) {
       return failure({
-        code: 'NOT_FOUND',
-        message: 'Stream not found'
+        code: "NOT_FOUND",
+        message: "Stream not found",
       });
     }
-    
+
     return success(stream);
   } catch (error) {
     return failure({
-      code: 'DATABASE_ERROR',
-      message: error.message
+      code: "DATABASE_ERROR",
+      message: error.message,
     });
   }
 }
 
 // ❌ Bad - Throwing exceptions
 export async function findStream(db: Knex, streamId: string): Promise<Stream> {
-  const stream = await db('stream').where('stream_id', streamId).first();
-  if (!stream) throw new Error('Stream not found');
+  const stream = await db("stream").where("stream_id", streamId).first();
+  if (!stream) throw new Error("Stream not found");
   return stream;
 }
 ```
@@ -105,60 +103,60 @@ export async function findStream(db: Knex, streamId: string): Promise<Stream> {
 ### 3. Database Patterns
 
 #### Direct Knex Usage
+
 Use Knex query builder directly. No ORMs or abstraction layers.
 
 ```typescript
 // ✅ Good - Direct Knex with type safety
-const stream = await db<Stream>('stream')
-  .where('stream_id', streamId)
-  .first();
+const stream = await db<Stream>("stream").where("stream_id", streamId).first();
 
-const [record] = await db('record')
+const [record] = await db("record")
   .insert({
     stream_id: stream.id,
     index: nextSeq,
     content: JSON.stringify(content),
     content_type: contentType,
-    created_by: userId
+    created_by: userId,
   })
-  .returning('*');
+  .returning("*");
 
 // ❌ Bad - Unnecessary abstraction
 const stream = await this.repository.findOne({ stream_id: streamId });
 ```
 
 #### Reserved Words
+
 PostgreSQL reserved words like `user` must be quoted:
 
 ```typescript
 // ✅ Good - Quoted reserved word
-const user = await db('`user`')
-  .where('auth_id', authId)
-  .first();
+const user = await db('"user"').where("auth_id", authId).first();
 
 // ❌ Bad - Unquoted reserved word
-const user = await db('user')  // Will fail!
-  .where('auth_id', authId)
+const user = await db("user") // Will fail!
+  .where("auth_id", authId)
   .first();
 ```
 
 ### 4. Module Structure
 
 #### Imports
+
 All imports MUST include the `.js` extension:
 
 ```typescript
 // ✅ Good
-import { createStream } from './domain/stream/create-stream.js';
-import { authenticate } from './middleware/auth.js';
-import { Result } from './types.js';
+import { createStream } from "./domain/stream/create-stream.js";
+import { authenticate } from "./middleware/auth.js";
+import { Result } from "./types.js";
 
 // ❌ Bad
-import { createStream } from './domain/stream/create-stream';
-import { authenticate } from './middleware/auth';
+import { createStream } from "./domain/stream/create-stream";
+import { authenticate } from "./middleware/auth";
 ```
 
 #### Exports
+
 Use named exports, avoid default exports:
 
 ```typescript
@@ -174,6 +172,7 @@ export default class StreamService { ... }
 ### 5. Naming Conventions
 
 #### General Rules
+
 - **Functions**: camelCase (`writeRecord`, `checkPermission`, `createStream`)
 - **Types/Interfaces**: PascalCase (`Stream`, `StreamRecord`, `User`)
 - **Constants**: UPPER_SNAKE_CASE (`MAX_RETRIES`, `DEFAULT_LIMIT`)
@@ -181,6 +180,7 @@ export default class StreamService { ... }
 - **Database**: snake_case tables and columns (`stream`, `created_at`, `index`)
 
 #### Database Naming
+
 - **Tables**: singular, lowercase (`user`, `stream`, `record`, `rate_limit`)
 - **Columns**: snake_case (`stream_id`, `created_at`, `content_type`)
 - **Foreign Keys**: `{table}_id` (`creator_id`, `stream_id`)
@@ -188,6 +188,7 @@ export default class StreamService { ... }
 ### 6. TypeScript Guidelines
 
 #### Strict Mode
+
 Always use TypeScript strict mode:
 
 ```json
@@ -203,6 +204,7 @@ Always use TypeScript strict mode:
 ```
 
 #### Type vs Interface
+
 Prefer `type` over `interface`:
 
 ```typescript
@@ -215,7 +217,7 @@ type Stream = {
   write_permission: string;
 };
 
-type Permission = 'public' | 'auth' | 'owner';
+type Permission = "public" | "auth" | "owner";
 
 // Use interface only for extensible contracts
 interface AuthProvider {
@@ -225,12 +227,13 @@ interface AuthProvider {
 ```
 
 #### Avoid `any`
+
 Never use `any`. Use `unknown` if type is truly unknown:
 
 ```typescript
 // ✅ Good
 function parseContent(content: unknown): any {
-  if (typeof content === 'string') {
+  if (typeof content === "string") {
     try {
       return JSON.parse(content);
     } catch {
@@ -256,20 +259,20 @@ export async function createStreamWithRecord(
   db: Knex,
   userId: string,
   streamId: string,
-  content: any
+  content: any,
 ): Promise<Result<StreamRecord>> {
   const streamResult = await createStream(db, userId, streamId);
   if (!streamResult.success) {
     return streamResult;
   }
-  
+
   const recordResult = await writeRecord(
     db,
     userId,
     streamResult.data.id,
-    content
+    content,
   );
-  
+
   return recordResult;
 }
 
@@ -278,9 +281,9 @@ export function createStreamWithRecord(
   db: Knex,
   userId: string,
   streamId: string,
-  content: any
+  content: any,
 ): Promise<Result<StreamRecord>> {
-  return createStream(db, userId, streamId).then(streamResult => {
+  return createStream(db, userId, streamId).then((streamResult) => {
     if (!streamResult.success) {
       return streamResult;
     }
@@ -293,58 +296,53 @@ export function createStreamWithRecord(
 
 ```typescript
 // ✅ Good - Proper error handling and validation
-router.post('/:stream_path(*)', authenticate, async (req, res) => {
+router.post("/:stream_path(*)", authenticate, async (req, res) => {
   try {
     // Validate input
     const streamPath = streamPathSchema.parse(req.params.stream_path);
     const content = writeSchema.parse(req.body);
-    
+
     // Check rate limit
-    const rateLimit = await checkRateLimit(db, req.auth!.userId, 'write');
+    const rateLimit = await checkRateLimit(db, req.auth!.userId, "write");
     if (!rateLimit.allowed) {
       res.status(429).json({
         error: {
-          code: 'RATE_LIMIT_EXCEEDED',
-          message: 'Too many requests'
-        }
+          code: "RATE_LIMIT_EXCEEDED",
+          message: "Too many requests",
+        },
       });
       return;
     }
-    
+
     // Execute business logic
-    const result = await writeRecord(
-      db,
-      req.auth!.userId,
-      qId,
-      content
-    );
-    
+    const result = await writeRecord(db, req.auth!.userId, qId, content);
+
     // Handle result
     if (!result.success) {
-      const code = result.error.code === 'FORBIDDEN' ? 403 : 400;
+      const code = result.error.code === "FORBIDDEN" ? 403 : 400;
       res.status(code).json({ error: result.error });
       return;
     }
-    
+
     res.status(201).json(result.data);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      res.status(400).json({ 
+      res.status(400).json({
         error: {
-          code: 'INVALID_INPUT',
-          message: 'Invalid request',
-          details: error.errors
-        }
+          code: "INVALID_INPUT",
+          message: "Invalid request",
+          details: error.errors,
+        },
       });
       return;
     }
-    
-    logger.error('Failed to write to stream', { error });
-    res.status(500).json({ 
+
+    logger.error("Failed to write to stream", { error });
+    res.status(500).json({
       error: {
-        code: 'INTERNAL_ERROR',
-        message: 'Internal server error'
-      }
+        code: "INTERNAL_ERROR",
+        message: "Internal server error",
+      },
     });
   }
 });
@@ -356,8 +354,8 @@ Add JSDoc comments for exported functions:
 
 ```typescript
 /**
- * Writes a record to a stream, creating the stream if it doesn't exist.
- * 
+ * Writes a record to a stream, creating the stream if it doesn"t exist.
+ *
  * @param db - Database connection
  * @param userId - ID of the user writing the record
  * @param streamId - User-defined stream identifier
@@ -371,8 +369,8 @@ export async function writeRecord(
   userId: string,
   streamId: string,
   content: any,
-  contentType: string = 'application/json',
-  metadata?: Record<string, any>
+  contentType: string = "application/json",
+  metadata?: Record<string, any>,
 ): Promise<Result<StreamRecord>> {
   // Implementation
 }
@@ -381,40 +379,37 @@ export async function writeRecord(
 ### 10. Testing
 
 ```typescript
-describe('Stream Operations', () => {
+describe("Stream Operations", () => {
   let db: Knex;
   let userId: string;
-  
+
   beforeEach(async () => {
     // Setup
     db = getTestDb();
     userId = await createTestUser(db);
   });
-  
+
   afterEach(async () => {
     // Cleanup
-    await db('record').delete();
-    await db('stream').delete();
-    await db('`user`').delete();
+    await db("record").delete();
+    await db("stream").delete();
+    await db('"user"').delete();
   });
-  
-  it('should create stream on first write', async () => {
+
+  it("should create stream on first write", async () => {
     // Act
-    const result = await writeRecord(
-      db,
-      userId,
-      'test-stream',
-      { message: 'Hello' }
-    );
-    
+    const result = await writeRecord(db, userId, "test-stream", {
+      message: "Hello",
+    });
+
     // Assert
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.content).toEqual({ message: 'Hello' });
-      
+      expect(result.data.content).toEqual({ message: "Hello" });
+
       // Verify stream was created
-      const stream = await db('stream')
-        .where('stream_id', 'test-stream')
+      const stream = await db("stream")
+        .where("stream_id", "test-stream")
         .first();
       expect(stream).toBeDefined();
       expect(stream.creator_id).toBe(userId);
@@ -426,12 +421,14 @@ describe('Stream Operations', () => {
 ### 11. Security Patterns
 
 #### Input Validation
+
 Always validate input with Zod:
 
 ```typescript
-import { z } from 'zod';
+import { z } from "zod";
 
-const streamPathSchema = z.string()
+const streamPathSchema = z
+  .string()
   .min(1)
   .max(256)
   .regex(/^[a-zA-Z0-9_\-/.]+$/);
@@ -439,7 +436,7 @@ const streamPathSchema = z.string()
 const writeSchema = z.union([
   z.string(),
   z.record(z.unknown()),
-  z.array(z.unknown())
+  z.array(z.unknown()),
 ]);
 
 // Use in routes
@@ -448,13 +445,14 @@ const content = writeSchema.parse(req.body);
 ```
 
 #### SQL Injection Prevention
+
 Always use parameterized queries with named parameters:
 
 ```typescript
 // ✅ Good - Named parameters with Knex query builder
-const stream = await db('stream')
-  .where('stream_id', streamId)
-  .andWhere('creator_id', userId)
+const stream = await db("stream")
+  .where("stream_id", streamId)
+  .andWhere("creator_id", userId)
   .first();
 
 // ✅ Good - Named parameters with raw queries
@@ -462,22 +460,23 @@ const result = await db.raw(
   `SELECT * FROM stream 
    WHERE pod_id = :podId 
    AND stream_id = :streamId`,
-  { podId, streamId }
+  { podId, streamId },
 );
 
 // ❌ Bad - Positional parameters (avoid!)
 const result = await db.raw(
   `SELECT * FROM stream WHERE pod_id = $1 AND stream_id = $2`,
-  [podId, streamId]
+  [podId, streamId],
 );
 
 // ❌ Bad - String concatenation (NEVER do this!)
 const stream = await db.raw(
-  `SELECT * FROM stream WHERE stream_id = '${streamId}'`
+  `SELECT * FROM stream WHERE stream_id = "${streamId}"`,
 );
 ```
 
 #### Database Parameter Convention
+
 **IMPORTANT**: Always use named parameters instead of positional parameters:
 
 ```typescript
@@ -486,7 +485,7 @@ await db.raw(
   `INSERT INTO record (stream_id, index, content, author_id)
    SELECT :streamId, COALESCE(MAX(index), -1) + 1, :content, :authorId
    FROM record WHERE stream_id = :streamId`,
-  { streamId, content, authorId }
+  { streamId, content, authorId },
 );
 
 // ❌ Bad - Positional parameters are error-prone
@@ -494,11 +493,12 @@ await db.raw(
   `INSERT INTO record (stream_id, index, content, author_id)
    SELECT $1, COALESCE(MAX(index), -1) + 1, $2, $3
    FROM record WHERE stream_id = $1`,
-  [streamId, content, authorId]
+  [streamId, content, authorId],
 );
 ```
 
 Benefits of named parameters:
+
 - Self-documenting queries
 - Reusable parameters (use `:streamId` multiple times)
 - Less error-prone (no counting positions)
@@ -507,30 +507,31 @@ Benefits of named parameters:
 ### 12. Performance Patterns
 
 #### Batch Operations
+
 ```typescript
 // ✅ Good - Single query for count
-const [{ count }] = await db('record')
-  .where('stream_id', streamId)
-  .count('* as count');
+const [{ count }] = await db("record")
+  .where("stream_id", streamId)
+  .count("* as count");
 
 // ❌ Bad - Loading all records to count
-const records = await db('record')
-  .where('stream_id', streamId);
+const records = await db("record").where("stream_id", streamId);
 const count = records.length;
 ```
 
 #### Pagination
+
 ```typescript
 // ✅ Good - Limit-based pagination
-const records = await db('record')
-  .where('stream_id', streamId)
-  .where('index', '>', after || 0)
-  .orderBy('index', 'asc')
-  .limit(limit + 1);  // +1 to check if there are more
+const records = await db("record")
+  .where("stream_id", streamId)
+  .where("index", ">", after || 0)
+  .orderBy("index", "asc")
+  .limit(limit + 1); // +1 to check if there are more
 
 const hasMore = records.length > limit;
 if (hasMore) {
-  records.pop();  // Remove the extra record
+  records.pop(); // Remove the extra record
 }
 ```
 

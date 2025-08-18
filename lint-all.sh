@@ -4,7 +4,14 @@
 # -------------------------------------------------------------------
 set -euo pipefail
 
-echo "Running linting across all packages..."
+# Check for --fix flag
+FIX_FLAG=""
+if [[ "${1:-}" == "--fix" ]]; then
+  FIX_FLAG="--fix"
+  echo "Running linting with auto-fix across all packages..."
+else
+  echo "Running linting across all packages..."
+fi
 
 # Define packages
 PACKAGES=(
@@ -27,11 +34,33 @@ for pkg_name in "${PACKAGES[@]}"; do
   if node -e "process.exit(require('./$pkg/package.json').scripts?.lint ? 0 : 1)"; then
     echo ""
     echo "Linting $pkg_name..."
-    if (cd "$pkg" && npm run lint); then
-      echo "✓ $pkg_name lint passed"
+    
+    # Run with or without fix flag
+    if [ -n "$FIX_FLAG" ]; then
+      # Check if lint:fix script exists
+      if node -e "process.exit(require('./$pkg/package.json').scripts?.['lint:fix'] ? 0 : 1)"; then
+        if (cd "$pkg" && npm run lint:fix); then
+          echo "✓ $pkg_name lint:fix passed"
+        else
+          echo "✗ $pkg_name lint:fix failed"
+          all_passed=false
+        fi
+      else
+        # Fall back to lint with --fix flag
+        if (cd "$pkg" && npm run lint -- --fix); then
+          echo "✓ $pkg_name lint --fix passed"
+        else
+          echo "✗ $pkg_name lint --fix failed"
+          all_passed=false
+        fi
+      fi
     else
-      echo "✗ $pkg_name lint failed"
-      all_passed=false
+      if (cd "$pkg" && npm run lint); then
+        echo "✓ $pkg_name lint passed"
+      else
+        echo "✗ $pkg_name lint failed"
+        all_passed=false
+      fi
     fi
   fi
 done

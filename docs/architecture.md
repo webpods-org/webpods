@@ -37,16 +37,19 @@ Pod (subdomain)
 ### Core Tables
 
 **user**
+
 - `id`: UUID primary key
 - `auth_id`: Provider ID (`auth:{provider}:{id}`)
 - `email`, `name`, `provider`
 
 **pod**
+
 - `id`: UUID primary key
 - `pod_id`: Subdomain identifier
 - `owner_id`: User UUID
 
 **stream**
+
 - `id`: UUID primary key
 - `pod_id`: Pod UUID
 - `stream_id`: Path (`blog/2024`)
@@ -54,6 +57,7 @@ Pod (subdomain)
 - `creator_id`: User UUID
 
 **record**
+
 - `id`: UUID primary key
 - `stream_id`: Stream UUID
 - `index`: Sequential position
@@ -64,11 +68,13 @@ Pod (subdomain)
 ### Session Tables (SSO)
 
 **session**
+
 - `sid`: Session ID
 - `sess`: Session data (user, cookie)
 - `expire`: Expiration timestamp
 
 **oauth_state**
+
 - `state`: PKCE state
 - `code_verifier`: PKCE verifier
 - `pod`: Target pod
@@ -77,16 +83,19 @@ Pod (subdomain)
 ## Security
 
 ### Authentication
+
 - OAuth 2.0 with PKCE
 - JWT tokens (pod-specific or global)
 - PostgreSQL session store for SSO
 
 ### Authorization
+
 - Stream-level permissions
 - In-memory permission evaluation
 - Pod ownership via `.meta/owner`
 
 ### Data Integrity
+
 - SHA-256 hash chain
 - Immutable records
 - Append-only streams
@@ -94,12 +103,14 @@ Pod (subdomain)
 ## Performance
 
 ### Optimizations
+
 - Connection pooling (PostgreSQL)
 - Indexed queries (pod_id, stream_id, name)
 - In-memory permission checks
 - Session-based SSO (no repeated OAuth)
 
 ### Scaling
+
 - Horizontal: Multiple server instances
 - Database: Read replicas for queries
 - Sessions: Shared PostgreSQL store

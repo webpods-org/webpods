@@ -3,12 +3,12 @@
  * Reads and caches the version from package.json on startup
  */
 
-import { readFileSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-import { createLogger } from './logger.js';
+import { readFileSync } from "fs";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
+import { createLogger } from "./logger.js";
 
-const logger = createLogger('version');
+const logger = createLogger("version");
 
 // Cache the version on module load
 let cachedVersion: string | null = null;
@@ -26,18 +26,20 @@ export function getVersion(): string {
     // Get package.json path relative to this module
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = dirname(__filename);
-    const packageJsonPath = join(__dirname, '..', 'package.json');
-    
-    const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
-    const version = packageJson.version || '0.0.0';
+    const packageJsonPath = join(__dirname, "..", "package.json");
+
+    const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8"));
+    const version = packageJson.version || "0.0.0";
     cachedVersion = version;
-    
-    logger.debug('Version loaded from package.json', { version: cachedVersion });
+
+    logger.debug("Version loaded from package.json", {
+      version: cachedVersion,
+    });
     return version;
   } catch (error) {
-    logger.error('Failed to read version from package.json', { error });
+    logger.error("Failed to read version from package.json", { error });
     // Fallback to a default version if package.json cannot be read
-    const fallbackVersion = '0.0.0';
+    const fallbackVersion = "0.0.0";
     cachedVersion = fallbackVersion;
     return fallbackVersion;
   }

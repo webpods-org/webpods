@@ -2,7 +2,7 @@
  * Utility functions for WebPods
  */
 
-import { createHash } from 'crypto';
+import { createHash } from "crypto";
 
 /**
  * Validate pod ID (subdomain)
@@ -20,13 +20,13 @@ export function isValidPodId(podId: string): boolean {
  */
 export function isValidStreamId(streamId: string): boolean {
   if (!streamId || streamId.length > 256) return false;
-  
+
   // Check for consecutive dots (not allowed)
-  if (streamId.includes('..')) return false;
-  
+  if (streamId.includes("..")) return false;
+
   // Cannot start or end with a dot
-  if (streamId.startsWith('.') || streamId.endsWith('.')) return false;
-  
+  if (streamId.startsWith(".") || streamId.endsWith(".")) return false;
+
   // Allow slashes for nested paths like blog/posts/2024, and single dots
   return /^[a-zA-Z0-9_\-/.]+$/.test(streamId);
 }
@@ -35,7 +35,7 @@ export function isValidStreamId(streamId: string): boolean {
  * Check if stream ID is a system stream (starts with .meta/)
  */
 export function isSystemStream(streamId: string): boolean {
-  return streamId.startsWith('.meta/');
+  return streamId.startsWith(".meta/");
 }
 
 /**
@@ -47,35 +47,37 @@ export function isSystemStream(streamId: string): boolean {
 export function isValidName(name: string): boolean {
   // Check for empty, null, or too long
   if (!name || name.length === 0 || name.length > 256) return false;
-  
+
   // Only allow: a-z, A-Z, 0-9, hyphen, underscore, period
-  // Pattern: starts with alphanumeric/underscore/hyphen, 
+  // Pattern: starts with alphanumeric/underscore/hyphen,
   // can have periods in middle but not at start/end
   const validPattern = /^[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)*$/;
-  
+
   // Check pattern and ensure no leading/trailing periods
-  return validPattern.test(name) && 
-         !name.startsWith('.') && 
-         !name.endsWith('.');
+  return (
+    validPattern.test(name) && !name.startsWith(".") && !name.endsWith(".")
+  );
 }
 
 /**
  * Parse index query parameter (e.g., "0", "-1", "10:20")
  */
-export function parseIndexQuery(query: string): { type: 'single' | 'range'; start: number; end?: number } | null {
+export function parseIndexQuery(
+  query: string,
+): { type: "single" | "range"; start: number; end?: number } | null {
   // Single index (including negative)
   if (/^-?\d+$/.test(query)) {
-    return { type: 'single', start: parseInt(query, 10) };
+    return { type: "single", start: parseInt(query, 10) };
   }
-  
+
   // Range with colon (e.g., "10:20", "-10:-1")
   const match = query.match(/^(-?\d+):(-?\d+)$/);
   if (match) {
     const start = parseInt(match[1]!, 10);
     const end = parseInt(match[2]!, 10);
-    return { type: 'range', start, end };
+    return { type: "range", start, end };
   }
-  
+
   return null;
 }
 
@@ -85,25 +87,28 @@ export function parseIndexQuery(query: string): { type: 'single' | 'range'; star
 export function calculateRecordHash(
   previousHash: string | null,
   timestamp: string,
-  content: any
+  content: any,
 ): string {
   const data = JSON.stringify({
     previous_hash: previousHash,
     timestamp: timestamp,
-    content: content
+    content: content,
   });
-  
-  return 'sha256:' + createHash('sha256').update(data).digest('hex');
+
+  return "sha256:" + createHash("sha256").update(data).digest("hex");
 }
 
 /**
  * Check if a hostname is the main domain
  */
-export function isMainDomain(hostname: string, configuredDomain: string): boolean {
+export function isMainDomain(
+  hostname: string,
+  configuredDomain: string,
+): boolean {
   // Handle port numbers - strip them for comparison
-  const hostWithoutPort = hostname.split(':')[0];
-  const configWithoutPort = configuredDomain.split(':')[0];
-  
+  const hostWithoutPort = hostname.split(":")[0];
+  const configWithoutPort = configuredDomain.split(":")[0];
+
   return hostWithoutPort === configWithoutPort;
 }
 
@@ -111,42 +116,45 @@ export function isMainDomain(hostname: string, configuredDomain: string): boolea
  * Check if a hostname is a subdomain of the main domain
  */
 export function isSubdomainOf(hostname: string, mainDomain: string): boolean {
-  const hostParts = hostname.split('.');
-  const mainParts = mainDomain.split('.');
-  
+  const hostParts = hostname.split(".");
+  const mainParts = mainDomain.split(".");
+
   // Must have more parts than main domain
   if (hostParts.length <= mainParts.length) {
     return false;
   }
-  
+
   // Check if it ends with the main domain
-  const hostSuffix = hostParts.slice(-mainParts.length).join('.');
+  const hostSuffix = hostParts.slice(-mainParts.length).join(".");
   return hostSuffix === mainDomain;
 }
 
 /**
  * Extract pod ID from hostname
  */
-export function extractPodId(hostname: string, mainDomain?: string): string | null {
+export function extractPodId(
+  hostname: string,
+  mainDomain?: string,
+): string | null {
   // Get the main domain from config if not provided
   if (!mainDomain) {
     // This will be passed from the middleware which has access to config
     // For now, return null and let the middleware handle it
     return null;
   }
-  
+
   // If it's the main domain itself, no pod
   if (isMainDomain(hostname, mainDomain)) {
     return null;
   }
-  
+
   // If it's a subdomain, extract the pod ID
   if (isSubdomainOf(hostname, mainDomain)) {
     // The first part is the pod ID
-    const podId = hostname.split('.')[0]!;
+    const podId = hostname.split(".")[0]!;
     return isValidPodId(podId) ? podId : null;
   }
-  
+
   // Not a subdomain of the main domain - could be a custom domain
   return null;
 }
@@ -155,61 +163,63 @@ export function extractPodId(hostname: string, mainDomain?: string): string | nu
  * Parse permission string
  */
 export function parsePermission(permission: string): {
-  type: 'public' | 'private' | 'allow' | 'deny';
+  type: "public" | "private" | "allow" | "deny";
   streams: string[];
 } {
-  if (permission === 'public') {
-    return { type: 'public', streams: [] };
+  if (permission === "public") {
+    return { type: "public", streams: [] };
   }
-  
-  if (permission === 'private') {
-    return { type: 'private', streams: [] };
+
+  if (permission === "private") {
+    return { type: "private", streams: [] };
   }
-  
+
   // Parse allow/deny lists
-  const parts = permission.split(',').map(p => p.trim());
+  const parts = permission.split(",").map((p) => p.trim());
   const allows: string[] = [];
   const denies: string[] = [];
-  
+
   for (const part of parts) {
-    if (part.startsWith('~/')) {
+    if (part.startsWith("~/")) {
       denies.push(part.substring(2));
-    } else if (part.startsWith('/')) {
+    } else if (part.startsWith("/")) {
       allows.push(part.substring(1));
     }
   }
-  
+
   if (allows.length > 0) {
-    return { type: 'allow', streams: allows };
+    return { type: "allow", streams: allows };
   }
-  
+
   if (denies.length > 0) {
-    return { type: 'deny', streams: denies };
+    return { type: "deny", streams: denies };
   }
-  
-  return { type: 'public', streams: [] };
+
+  return { type: "public", streams: [] };
 }
 
 /**
  * Detect content type from headers
  */
-export function detectContentType(headers: Record<string, string | string[] | undefined>): string {
+export function detectContentType(
+  headers: Record<string, string | string[] | undefined>,
+): string {
   // 1. Check X-Content-Type header (highest priority)
-  const xContentType = headers['x-content-type'];
+  const xContentType = headers["x-content-type"];
   if (xContentType) {
     return Array.isArray(xContentType) ? xContentType[0]! : xContentType;
   }
-  
+
   // 2. Check standard Content-Type header
-  const contentType = headers['content-type'];
+  const contentType = headers["content-type"];
   if (contentType) {
     const ct = Array.isArray(contentType) ? contentType[0]! : contentType;
     // Extract just the media type, ignore charset etc
-    return ct.split(';')[0]!.trim();
+    return ct.split(";")[0]!.trim();
   }
-  
+
   // 3. Default to text/plain
-  return 'text/plain';
+  return "text/plain";
 }
 
 /**
@@ -222,7 +232,9 @@ export function formatAuthId(provider: string, id: string): string {
 /**
  * Parse auth ID
  */
-export function parseAuthId(authId: string): { provider: string; id: string } | null {
+export function parseAuthId(
+  authId: string,
+): { provider: string; id: string } | null {
   const match = authId.match(/^auth:([^:]+):(.+)$/);
   if (!match) return null;
   return { provider: match[1]!, id: match[2]! };
@@ -239,44 +251,46 @@ export function isNumericIndex(str: string): boolean {
  * Get IP address from request
  */
 export function getIpAddress(req: any): string {
-  return req.headers['x-forwarded-for']?.split(',')[0].trim() ||
-         req.headers['x-real-ip'] ||
-         req.connection?.remoteAddress ||
-         req.socket?.remoteAddress ||
-         '127.0.0.1';
+  return (
+    req.headers["x-forwarded-for"]?.split(",")[0].trim() ||
+    req.headers["x-real-ip"] ||
+    req.connection?.remoteAddress ||
+    req.socket?.remoteAddress ||
+    "127.0.0.1"
+  );
 }
 
 /**
  * Supported content types for direct serving
  */
 export const SERVABLE_CONTENT_TYPES = [
-  'text/html',
-  'text/css',
-  'application/javascript',
-  'application/json',
-  'text/plain',
+  "text/html",
+  "text/css",
+  "application/javascript",
+  "application/json",
+  "text/plain",
   // Image types
-  'image/png',
-  'image/jpeg',
-  'image/jpg',
-  'image/gif',
-  'image/webp',
-  'image/svg+xml',
-  'image/x-icon',
-  'image/ico'
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+  "image/gif",
+  "image/webp",
+  "image/svg+xml",
+  "image/x-icon",
+  "image/ico",
 ];
 
 /**
  * Binary content types that need base64 encoding
  */
 export const BINARY_CONTENT_TYPES = [
-  'image/png',
-  'image/jpeg',
-  'image/jpg',
-  'image/gif',
-  'image/webp',
-  'image/x-icon',
-  'image/ico'
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+  "image/gif",
+  "image/webp",
+  "image/x-icon",
+  "image/ico",
 ];
 
 /**
@@ -298,14 +312,14 @@ export function isBinaryContentType(contentType: string): boolean {
  */
 export function isValidBase64(str: string): boolean {
   if (!str || str.length === 0) return false;
-  
+
   // Check if it's a data URL
-  if (str.startsWith('data:')) {
+  if (str.startsWith("data:")) {
     const matches = str.match(/^data:([^;]+);base64,(.+)$/);
     if (!matches) return false;
     str = matches[2]!;
   }
-  
+
   // Basic base64 validation
   const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
   return base64Regex.test(str) && str.length % 4 === 0;
@@ -314,12 +328,14 @@ export function isValidBase64(str: string): boolean {
 /**
  * Extract base64 data and content type from data URL
  */
-export function parseDataUrl(dataUrl: string): { contentType: string; data: string } | null {
+export function parseDataUrl(
+  dataUrl: string,
+): { contentType: string; data: string } | null {
   const matches = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
   if (!matches) return null;
-  
+
   return {
     contentType: matches[1]!,
-    data: matches[2]!
+    data: matches[2]!,
   };
 }

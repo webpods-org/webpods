@@ -1,9 +1,9 @@
 // Database connection for WebPods
-import knex, { Knex } from 'knex';
-import { createLogger } from './logger.js';
-import { getConfig } from './config-loader.js';
+import knex, { Knex } from "knex";
+import { createLogger } from "./logger.js";
+import { getConfig } from "./config-loader.js";
 
-const logger = createLogger('webpods:db');
+const logger = createLogger("webpods:db");
 
 let db: Knex | null = null;
 
@@ -17,9 +17,9 @@ export function getDb(): Knex {
       user: appConfig.database.user,
       password: appConfig.database.password,
     };
-    
+
     const knexConfig: Knex.Config = {
-      client: 'pg',
+      client: "pg",
       connection: connectionConfig,
       pool: {
         min: 2,
@@ -28,7 +28,7 @@ export function getDb(): Knex {
     };
 
     db = knex(knexConfig);
-    logger.info('Database connection established', {
+    logger.info("Database connection established", {
       host: connectionConfig.host,
       database: connectionConfig.database,
     });
@@ -40,7 +40,7 @@ export async function closeDb(): Promise<void> {
   if (db) {
     await db.destroy();
     db = null;
-    logger.info('Database connection closed');
+    logger.info("Database connection closed");
   }
 }
 
@@ -48,10 +48,10 @@ export async function closeDb(): Promise<void> {
 export async function checkDbConnection(): Promise<boolean> {
   try {
     const db = getDb();
-    await db.raw('SELECT 1');
+    await db.raw("SELECT 1");
     return true;
   } catch (error) {
-    logger.error('Database connection check failed', { error });
+    logger.error("Database connection check failed", { error });
     return false;
   }
 }

@@ -9,7 +9,7 @@ export interface DomainError {
   details?: any;
 }
 
-export type Result<T, E = DomainError> = 
+export type Result<T, E = DomainError> =
   | { success: true; data: T }
   | { success: false; error: E };
 
@@ -79,7 +79,7 @@ export interface CustomDomain {
 export interface RateLimit {
   id: string;
   key: string; // user_id or ip_address
-  action: 'read' | 'write' | 'pod_create' | 'stream_create';
+  action: "read" | "write" | "pod_create" | "stream_create";
   count: number;
   window_start: Date;
   window_end: Date;
@@ -126,7 +126,7 @@ export interface WhoAmIResponse {
 }
 
 // Permission types
-export type Permission = 'public' | 'private' | string; // Can be /allow-list or ~/deny-list
+export type Permission = "public" | "private" | string; // Can be /allow-list or ~/deny-list
 
 export interface PermissionRecord {
   id: string; // User auth_id
@@ -160,7 +160,7 @@ export interface JWTPayload {
 }
 
 // Express extensions
-import { Request } from 'express';
+import { Request } from "express";
 export interface AuthRequest extends Request {
   auth?: JWTPayload;
   pod?: Pod;

@@ -19,6 +19,7 @@ Only after reading these documents should you proceed with any implementation or
 ## Documentation Principles
 
 **IMPORTANT**: When writing or updating documentation:
+
 - Write as if the spec was designed from the beginning, not evolved over time
 - Avoid phrases like "now allows", "changed from", "previously was", "only X is allowed"
 - Present features and constraints as inherent design decisions
@@ -26,7 +27,8 @@ Only after reading these documents should you proceed with any implementation or
 
 ## Code Principles
 
-**NO BACKWARDS COMPATIBILITY**: 
+**NO BACKWARDS COMPATIBILITY**:
+
 - Do not write backwards compatibility code
 - Do not maintain legacy interfaces or environment variables
 - When refactoring, completely replace old implementations
@@ -36,6 +38,7 @@ Only after reading these documents should you proceed with any implementation or
 ## Project Structure
 
 The codebase follows a functional programming approach with these key directories:
+
 - `/node/packages/webpods/` - Main server implementation
 - `/node/packages/webpods-integration-tests/` - Integration test suite
 - `/database/webpods/migrations/` - Database migrations
@@ -44,6 +47,7 @@ The codebase follows a functional programming approach with these key directorie
 ## Key Technical Decisions
 
 ### Functional Programming First
+
 - **PREFER FUNCTIONS OVER CLASSES** - Export functions from modules when possible
 - **Classes only when beneficial**: Use classes for stateful connections, complex state management
 - **Pure Functions**: Use explicit dependency injection
@@ -51,11 +55,13 @@ The codebase follows a functional programming approach with these key directorie
 - **Type over Interface**: Prefer `type` over `interface`
 
 ### ESM Modules
-- **All imports MUST include `.js` extension**: `import { foo } from './bar.js'`
+
+- **All imports MUST include `.js` extension**: `import { foo } from "./bar.js"`
 - **TypeScript configured for `"module": "NodeNext"`**
 - **Type: `"module"` in all package.json files**
 
 ### Database Conventions
+
 - **PostgreSQL** with **Knex.js** for migrations and queries
 - **Singular table names**: lowercase (e.g., `pod`, `stream`, `record`)
 - **Column names**: snake_case for all columns
@@ -63,9 +69,18 @@ The codebase follows a functional programming approach with these key directorie
 
 For detailed schema information, see `/docs/database.md`
 
+## Git Workflow
+
+When the user asks you to commit and push:
+
+1. Run `./format-all.sh` to format all files with Prettier
+2. Run `./lint-all.sh` to ensure code passes linting
+3. Follow the git commit guidelines in the main Claude system prompt
+
 ## Essential Commands
 
 ### Build Commands
+
 ```bash
 # Build entire project (from root)
 ./build.sh              # Standard build
@@ -78,7 +93,12 @@ For detailed schema information, see `/docs/database.md`
 ./start.sh
 
 # Lint entire project
-./lint-all.sh
+./lint-all.sh           # Run ESLint on all packages
+./lint-all.sh --fix     # Run ESLint with auto-fix
+
+# Format code with Prettier (MUST run before committing)
+./format-all.sh         # Format all files
+./format-all.sh --check # Check formatting without changing files
 ```
 
 ### Database Commands
@@ -100,10 +120,12 @@ npm run migrate:rollback
 ## Core Architecture
 
 For detailed architecture information, see:
+
 - `/docs/architecture.md` - System design and component interaction
 - `/README.md` - API specification and examples
 
 Key concepts:
+
 - **Pods**: Subdomains that act as namespaces
 - **Streams**: Append-only logs within pods (supports nested paths)
 - **Records**: Immutable entries with hash chains
@@ -112,19 +134,21 @@ Key concepts:
 ## Code Patterns
 
 ### Import Patterns
+
 ```typescript
 // Always include .js extension
-import { createStream } from './domain/streams.js';
-import type { Result } from '../types.js';
+import { createStream } from "./domain/streams.js";
+import type { Result } from "../types.js";
 ```
 
 ### Result Type Pattern
+
 ```typescript
 export async function doSomething(): Promise<Result<Data>> {
   if (error) {
-    return { 
-      success: false, 
-      error: { code: 'ERROR_CODE', message: 'Description' }
+    return {
+      success: false,
+      error: { code: "ERROR_CODE", message: "Description" },
     };
   }
   return { success: true, data: result };
@@ -132,12 +156,14 @@ export async function doSomething(): Promise<Result<Data>> {
 ```
 
 ### Permission Checking
+
 Permission checks are done in-memory after fetching records:
+
 ```typescript
 // Get ALL records from permission stream
-const records = await db('record')
-  .where('stream_id', streamId)
-  .orderBy('index', 'asc');
+const records = await db("record")
+  .where("stream_id", streamId)
+  .orderBy("index", "asc");
 
 // Process in memory to find latest permission
 for (const record of records) {
@@ -160,6 +186,7 @@ npm test -- --grep "permission"
 ```
 
 **IMPORTANT**: When running tests with mocha:
+
 - NEVER use `2>&1` redirection with mocha commands - it will cause errors
 - Use plain `npm test` or `npx mocha` without stderr redirection
 - If you need to capture output, use `| tee` or similar tools instead
@@ -173,6 +200,7 @@ npm test -- --grep "permission"
 ## Environment Variables
 
 See `.env.example` for complete list of configuration options. Key variables:
+
 - `HOST` - Server bind address (default: 0.0.0.0)
 - `PORT` - Server bind port (default: 3000)
 - `PUBLIC_URL` - Public-facing URL for OAuth callbacks
@@ -192,6 +220,7 @@ See `.env.example` for complete list of configuration options. Key variables:
 ## Common Issues
 
 For troubleshooting common issues, refer to:
+
 - Wildcard DNS configuration
 - Permission stream processing (now done in-memory)
 - Content type handling

@@ -2,33 +2,37 @@
  * OAuth authentication routes
  */
 
-import { Router, Request, Response } from 'express';
-import jwt from 'jsonwebtoken';
-import { getDb } from '../db.js';
-import { createLogger } from '../logger.js';
-import { getConfig } from '../config-loader.js';
-import { findOrCreateUser, generateToken, generatePodToken } from '../domain/auth.js';
+import { Router, Request, Response } from "express";
+import jwt from "jsonwebtoken";
+import { getDb } from "../db.js";
+import { createLogger } from "../logger.js";
+import { getConfig } from "../config-loader.js";
+import {
+  findOrCreateUser,
+  generateToken,
+  generatePodToken,
+} from "../domain/auth.js";
 import {
   getAuthorizationUrl,
   exchangeCodeForTokens,
   getUserInfo,
-  validateProvider
-} from './oauth-handlers.js';
-import { getConfiguredProviders, getDefaultProvider } from './oauth-config.js';
+  validateProvider,
+} from "./oauth-handlers.js";
+import { getConfiguredProviders, getDefaultProvider } from "./oauth-config.js";
 
 type OAuthProvider = string;
-import { 
-  storePKCEState, 
-  retrievePKCEState, 
-  generatePKCEChallenge 
-} from './pkce-store.js';
-import sessionRouter from './session-routes.js';
+import {
+  storePKCEState,
+  retrievePKCEState,
+  generatePKCEChallenge,
+} from "./pkce-store.js";
+import sessionRouter from "./session-routes.js";
 
-const logger = createLogger('webpods:auth:routes');
+const logger = createLogger("webpods:auth:routes");
 const router = Router();
 
 // Mount session management routes
-router.use('/', sessionRouter);
+router.use("/", sessionRouter);
 
 // ===== SPECIFIC ROUTES FIRST =====
 
@@ -36,14 +40,14 @@ router.use('/', sessionRouter);
  * List available OAuth providers
  * GET /auth/providers
  */
-router.get('/providers', (_req: Request, res: Response) => {
+router.get("/providers", (_req: Request, res: Response) => {
   const providers = getConfiguredProviders();
   res.json({
-    providers: providers.map(id => ({
+    providers: providers.map((id) => ({
       id,
       name: id.charAt(0).toUpperCase() + id.slice(1),
-      login_url: `/auth/${id}`
-    }))
+      login_url: `/auth/${id}`,
+    })),
   });
 });
 
@@ -51,15 +55,15 @@ router.get('/providers', (_req: Request, res: Response) => {
  * Success page - displays token after OAuth
  * GET /auth/success
  */
-router.get('/success', (req: Request, res: Response) => {
+router.get("/success", (req: Request, res: Response) => {
   const token = req.query.token as string;
-  const redirect = req.query.redirect as string || '/';
-  
+  const redirect = (req.query.redirect as string) || "/";
+
   if (!token) {
-    res.status(400).send('Missing token parameter');
+    res.status(400).send("Missing token parameter");
     return;
   }
-  
+
   // Return HTML page that displays the token
   res.send(`
     <!DOCTYPE html>
@@ -240,15 +244,17 @@ router.get('/success', (req: Request, res: Response) => {
  * Get current user
  * GET /auth/whoami
  */
-router.get('/whoami', async (req: Request, res: Response) => {
-  const token = (req as any).cookies?.token || req.headers.authorization?.replace('Bearer ', '');
-  
+router.get("/whoami", async (req: Request, res: Response) => {
+  const token =
+    (req as any).cookies?.token ||
+    req.headers.authorization?.replace("Bearer ", "");
+
   if (!token) {
     res.status(401).json({
       error: {
-        code: 'UNAUTHENTICATED',
-        message: 'Not authenticated'
-      }
+        code: "UNAUTHENTICATED",
+        message: "Not authenticated",
+      },
     });
     return;
   }
@@ -257,20 +263,20 @@ router.get('/whoami', async (req: Request, res: Response) => {
     const config = getConfig();
     const secret = config.auth.jwtSecret;
     const payload = jwt.verify(token, secret) as any;
-    
+
     res.json({
       user_id: payload.user_id,
       auth_id: payload.auth_id,
       email: payload.email,
       name: payload.name,
-      provider: payload.provider
+      provider: payload.provider,
     });
   } catch {
     res.status(401).json({
       error: {
-        code: 'INVALID_TOKEN',
-        message: 'Invalid or expired token'
-      }
+        code: "INVALID_TOKEN",
+        message: "Invalid or expired token",
+      },
     });
   }
 });
@@ -279,69 +285,80 @@ router.get('/whoami', async (req: Request, res: Response) => {
  * Pod-specific authorization endpoint with SSO support
  * GET /auth/authorize?pod=alice&redirect=/path
  */
-router.get('/authorize', async (req: Request, res: Response) => {
+router.get("/authorize", async (req: Request, res: Response) => {
   const pod = req.query.pod as string;
-  const redirect = req.query.redirect as string || '/';
-  
+  const redirect = (req.query.redirect as string) || "/";
+
   if (!pod) {
     res.status(400).json({
       error: {
-        code: 'MISSING_POD',
-        message: 'Pod parameter is required'
-      }
+        code: "MISSING_POD",
+        message: "Pod parameter is required",
+      },
     });
     return;
   }
-  
+
   // Check if user has a valid session (SSO)
   if ((req as any).session?.user) {
     try {
       // User is already authenticated, generate pod-specific token
       const podToken = generatePodToken((req as any).session.user, pod);
-      
+
       // Redirect back to pod with token
       const config = getConfig();
       // Build callback URL for pod subdomain
       const publicConfig = config.server.public!;
-      const podHost = publicConfig.port === 80 || publicConfig.port === 443 
-        ? `${pod}.${publicConfig.hostname}`
-        : `${pod}.${publicConfig.hostname}:${publicConfig.port}`;
+      const podHost =
+        publicConfig.port === 80 || publicConfig.port === 443
+          ? `${pod}.${publicConfig.hostname}`
+          : `${pod}.${publicConfig.hostname}:${publicConfig.port}`;
       const callbackUrl = `${publicConfig.protocol}://${podHost}/auth/callback?token=${encodeURIComponent(podToken)}&redirect=${encodeURIComponent(redirect)}`;
-      
-      logger.info('SSO authorization successful', { pod, userId: (req as any).session.user.id });
+
+      logger.info("SSO authorization successful", {
+        pod,
+        userId: (req as any).session.user.id,
+      });
       res.redirect(callbackUrl);
     } catch (error: any) {
-      logger.error('Failed to generate pod token', { error, pod });
+      logger.error("Failed to generate pod token", { error, pod });
       res.status(500).json({
         error: {
-          code: 'TOKEN_ERROR',
-          message: 'Failed to generate authorization token'
-        }
+          code: "TOKEN_ERROR",
+          message: "Failed to generate authorization token",
+        },
       });
     }
   } else {
     // No session, redirect to OAuth with pod info
     const defaultProvider = getDefaultProvider();
-    
+
     if (!defaultProvider) {
       res.status(500).json({
         error: {
-          code: 'NO_PROVIDERS',
-          message: 'No OAuth providers configured'
-        }
+          code: "NO_PROVIDERS",
+          message: "No OAuth providers configured",
+        },
       });
       return;
     }
-    
+
     const { verifier, challenge, state } = generatePKCEChallenge();
-    
+
     // Store state with pod info in database
     await storePKCEState(state, verifier, pod, redirect);
-    
+
     // Get authorization URL
-    const authUrl = await getAuthorizationUrl(defaultProvider, state, challenge);
-    
-    logger.info('Redirecting to OAuth for pod authorization', { pod, provider: defaultProvider });
+    const authUrl = await getAuthorizationUrl(
+      defaultProvider,
+      state,
+      challenge,
+    );
+
+    logger.info("Redirecting to OAuth for pod authorization", {
+      pod,
+      provider: defaultProvider,
+    });
     res.redirect(authUrl);
   }
 });
@@ -352,43 +369,43 @@ router.get('/authorize', async (req: Request, res: Response) => {
  * Initiate OAuth flow
  * GET /auth/:provider
  */
-router.get('/:provider', async (req: Request, res: Response) => {
+router.get("/:provider", async (req: Request, res: Response) => {
   const provider = req.params.provider as OAuthProvider;
-  
+
   // Check if provider is configured
   if (!validateProvider(provider)) {
     const available = getConfiguredProviders();
     res.status(400).json({
       error: {
-        code: 'INVALID_PROVIDER',
-        message: `Invalid OAuth provider. Available providers: ${available.join(', ') || 'none configured'}`
-      }
+        code: "INVALID_PROVIDER",
+        message: `Invalid OAuth provider. Available providers: ${available.join(", ") || "none configured"}`,
+      },
     });
     return;
   }
 
   try {
     // Get redirect URL from query or default to root
-    const redirect = req.query.redirect ? String(req.query.redirect) : '/';
-    
+    const redirect = req.query.redirect ? String(req.query.redirect) : "/";
+
     // Generate PKCE and state
     const { verifier, challenge, state } = generatePKCEChallenge();
-    
+
     // Store state with verifier and redirect in database
     await storePKCEState(state, verifier, undefined, redirect);
-    
+
     // Get authorization URL
     const authUrl = await getAuthorizationUrl(provider, state, challenge);
-    
-    logger.info('OAuth flow initiated', { provider, state });
+
+    logger.info("OAuth flow initiated", { provider, state });
     res.redirect(authUrl);
   } catch (error: any) {
-    logger.error('Failed to initiate OAuth', { error, provider });
+    logger.error("Failed to initiate OAuth", { error, provider });
     res.status(500).json({
       error: {
-        code: 'OAUTH_ERROR',
-        message: 'Failed to initiate authentication'
-      }
+        code: "OAUTH_ERROR",
+        message: "Failed to initiate authentication",
+      },
     });
   }
 });
@@ -397,16 +414,16 @@ router.get('/:provider', async (req: Request, res: Response) => {
  * OAuth callback
  * GET /auth/:provider/callback
  */
-router.get('/:provider/callback', async (req: Request, res: Response) => {
+router.get("/:provider/callback", async (req: Request, res: Response) => {
   const provider = req.params.provider as OAuthProvider;
   const { code, state } = req.query;
 
   if (!code || !state) {
     res.status(400).json({
       error: {
-        code: 'INVALID_CALLBACK',
-        message: 'Missing code or state parameter'
-      }
+        code: "INVALID_CALLBACK",
+        message: "Missing code or state parameter",
+      },
     });
     return;
   }
@@ -414,110 +431,114 @@ router.get('/:provider/callback', async (req: Request, res: Response) => {
   try {
     // Retrieve and validate state from database
     const stateData = await retrievePKCEState(state as string);
-    
+
     if (!stateData) {
       res.status(400).json({
         error: {
-          code: 'INVALID_STATE',
-          message: 'Invalid or expired state'
-        }
+          code: "INVALID_STATE",
+          message: "Invalid or expired state",
+        },
       });
       return;
     }
-    
+
     // Exchange code for tokens
     const tokenSet = await exchangeCodeForTokens(
       provider,
       code as string,
-      stateData.codeVerifier
+      stateData.codeVerifier,
     );
-    
+
     // Get user info
     const userInfo = await getUserInfo(provider, tokenSet.access_token);
-    
+
     // Find or create user
     const db = getDb();
     const userResult = await findOrCreateUser(db, provider, userInfo);
-    
+
     if (!userResult.success) {
-      logger.error('Failed to create/find user', { error: userResult.error, provider });
+      logger.error("Failed to create/find user", {
+        error: userResult.error,
+        provider,
+      });
       res.status(500).json({
-        error: userResult.error
+        error: userResult.error,
       });
       return;
     }
-    
+
     // Store user in session for SSO
     (req as any).session = (req as any).session || {};
     (req as any).session.user = userResult.data;
-    
+
     // Save session to ensure it's persisted
     await new Promise<void>((resolve, reject) => {
       (req as any).session.save((err: any) => {
         if (err) {
-          logger.error('Failed to save session', { error: err });
+          logger.error("Failed to save session", { error: err });
           reject(err);
         } else {
-          logger.info('Session saved', { userId: userResult.data.id });
+          logger.info("Session saved", { userId: userResult.data.id });
           resolve();
         }
       });
     });
-    
+
     // Get config for redirect URLs
     const config = getConfig();
-    
+
     // Check if this is pod-specific auth
     if (stateData.pod) {
       // Generate pod-specific token
       const podToken = generatePodToken(userResult.data, stateData.pod);
       // Build callback URL for pod subdomain
       const publicConfig = config.server.public!;
-      const podHost = publicConfig.port === 80 || publicConfig.port === 443 
-        ? `${stateData.pod}.${publicConfig.hostname}`
-        : `${stateData.pod}.${publicConfig.hostname}:${publicConfig.port}`;
-      const callbackUrl = `${publicConfig.protocol}://${podHost}/auth/callback?token=${encodeURIComponent(podToken)}&redirect=${encodeURIComponent(stateData.redirect || '/')}`;
-      
-      logger.info('Pod authentication successful', { 
-        userId: userResult.data.id, 
+      const podHost =
+        publicConfig.port === 80 || publicConfig.port === 443
+          ? `${stateData.pod}.${publicConfig.hostname}`
+          : `${stateData.pod}.${publicConfig.hostname}:${publicConfig.port}`;
+      const callbackUrl = `${publicConfig.protocol}://${podHost}/auth/callback?token=${encodeURIComponent(podToken)}&redirect=${encodeURIComponent(stateData.redirect || "/")}`;
+
+      logger.info("Pod authentication successful", {
+        userId: userResult.data.id,
         provider,
         pod: stateData.pod,
-        redirect: stateData.redirect 
+        redirect: stateData.redirect,
       });
-      
+
       res.redirect(callbackUrl);
     } else {
       // Regular auth flow (backwards compatibility)
       const token = generateToken(userResult.data);
-      
+
       // Set cookie for web apps
       const isSecure = config.server.public?.isSecure || false;
-      res.cookie('token', token, {
+      res.cookie("token", token, {
         httpOnly: true,
         secure: isSecure,
-        sameSite: isSecure ? 'strict' : 'lax',
+        sameSite: isSecure ? "strict" : "lax",
         maxAge: 10 * 365 * 24 * 60 * 60 * 1000, // 10 years (effectively unlimited)
-        path: '/'
+        path: "/",
       });
-      
-      logger.info('User authenticated', { 
-        userId: userResult.data.id, 
+
+      logger.info("User authenticated", {
+        userId: userResult.data.id,
         provider,
-        redirect: stateData.redirect 
+        redirect: stateData.redirect,
       });
-      
+
       // Redirect to success page with token
-      const redirectUrl = stateData.redirect || '/';
+      const redirectUrl = stateData.redirect || "/";
       const successUrl = `/auth/success?token=${encodeURIComponent(token)}&redirect=${encodeURIComponent(redirectUrl)}`;
       res.redirect(successUrl);
     }
   } catch (error: any) {
-    logger.error('OAuth callback error', { error, provider });
+    logger.error("OAuth callback error", { error, provider });
     res.status(500).json({
       error: {
-        code: 'OAUTH_ERROR',
-        message: 'Authentication failed'
-      }
+        code: "OAUTH_ERROR",
+        message: "Authentication failed",
+      },
     });
   }
 });
