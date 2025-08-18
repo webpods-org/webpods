@@ -4,7 +4,7 @@
 
 import { Knex } from 'knex';
 import { StreamRecord, Result, StreamRecordResponse } from '../types.js';
-import { calculateRecordHash, isValidAlias, isNumericIndex } from '../utils.js';
+import { calculateRecordHash, isValidName, isNumericIndex } from '../utils.js';
 import { createLogger } from '../logger.js';
 
 const logger = createLogger('webpods:domain:records');
@@ -18,15 +18,15 @@ export async function writeRecord(
   content: any,
   contentType: string,
   authorId: string,
-  alias?: string | null
+  name: string
 ): Promise<Result<StreamRecord>> {
-  // Validate alias if provided (including empty string)
-  if (alias !== undefined && alias !== null && !isValidAlias(alias)) {
+  // Validate name (required)
+  if (!isValidName(name)) {
     return {
       success: false,
       error: {
-        code: 'INVALID_ALIAS',
-        message: 'Alias can only contain letters, numbers, hyphens, underscores, and periods. Cannot start or end with a period.'
+        code: 'INVALID_NAME',
+        message: 'Name can only contain letters, numbers, hyphens, underscores, and periods. Cannot start or end with a period.'
       }
     };
   }
@@ -59,7 +59,7 @@ export async function writeRecord(
           index: index,
           content: storedContent,
           content_type: contentType,
-          alias: alias || null,
+          name: name,
           hash: hash,
           previous_hash: previousHash,
           author_id: authorId,
@@ -67,15 +67,15 @@ export async function writeRecord(
         })
         .returning('*');
 
-      logger.info('Record written', { streamId, index, alias, hash });
+      logger.info('Record written', { streamId, index, name, hash });
       return { success: true, data: record };
     } catch (error: any) {
-      if (error.code === '23505' && error.constraint?.includes('alias')) {
+      if (error.code === '23505' && error.constraint?.includes('name')) {
         return {
           success: false,
           error: {
-            code: 'ALIAS_EXISTS',
-            message: 'Alias already exists in this stream'
+            code: 'NAME_EXISTS',
+            message: 'Name already exists in this stream'
           }
         };
       }
@@ -98,20 +98,20 @@ export async function getRecord(
   db: Knex,
   streamId: string,
   target: string,
-  preferAlias: boolean = false
+  preferName: boolean = false
 ): Promise<Result<StreamRecord>> {
   try {
     let record: StreamRecord | undefined;
 
-    // If preferAlias is true, try alias first even if target is numeric
-    if (preferAlias) {
-      // Try to get by alias first
+    // If preferName is true, try name first even if target is numeric
+    if (preferName) {
+      // Try to get by name first
       record = await db('record')
         .where('stream_id', streamId)
-        .where('alias', target)
+        .where('name', target)
         .first();
       
-      // If not found as alias and target is numeric, try as index
+      // If not found as name and target is numeric, try as index
       if (!record && isNumericIndex(target)) {
         let index = parseInt(target);
         
@@ -172,10 +172,10 @@ export async function getRecord(
           .where('index', index)
           .first();
       } else {
-        // Get by alias
+        // Get by name
         record = await db('record')
           .where('stream_id', streamId)
-          .where('alias', target)
+          .where('name', target)
           .first();
       }
     }
@@ -325,7 +325,7 @@ export function recordToResponse(record: StreamRecord): StreamRecordResponse {
     index: record.index,
     content: content,
     content_type: record.content_type,
-    alias: record.alias,
+    name: record.name,
     hash: record.hash,
     previous_hash: record.previous_hash,
     author: record.author_id,

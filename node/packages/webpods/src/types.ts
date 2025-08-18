@@ -59,7 +59,7 @@ export interface StreamRecord {
   index: number; // Position in stream (0-based)
   content: string | any; // Can be text or JSON
   content_type: string;
-  alias: string | null; // Can be any string including numbers
+  name: string; // Required name (like a filename)
   hash: string;
   previous_hash: string | null;
   author_id: string; // Format: auth:provider:id
@@ -90,7 +90,7 @@ export interface StreamRecordResponse {
   index: number; // Position in stream (0-based)
   content: any;
   content_type: string;
-  alias: string | null;
+  name: string;
   hash: string;
   previous_hash: string | null;
   author: string;
@@ -180,7 +180,7 @@ export interface CreateStreamInput {
 export interface WriteRecordInput {
   content: any;
   content_type?: string;
-  alias?: string;
+  name: string;
 }
 
 export interface ListRecordsQuery {

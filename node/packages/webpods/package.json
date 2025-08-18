@@ -1,6 +1,6 @@
 {
   "name": "webpods",
-  "version": "0.0.16",
+  "version": "0.0.18",
   "description": "Append-only log service with OAuth authentication",
   "type": "module",
   "main": "./dist/index.js",

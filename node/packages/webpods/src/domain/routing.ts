@@ -163,6 +163,7 @@ export async function updateLinks(
           index: index,
           content: JSON.stringify(links),
           content_type: 'application/json',
+          name: `links-${index}`,  // Add required name field
           hash: hash,
           previous_hash: previousHash,
           author_id: authorId,
@@ -288,6 +289,7 @@ export async function updateCustomDomains(
           index: index,
           content: JSON.stringify({ domains }),
           content_type: 'application/json',
+          name: `domains-${index}`,  // Add required name field
           hash: hash,
           previous_hash: previousHash,
           author_id: authorId,

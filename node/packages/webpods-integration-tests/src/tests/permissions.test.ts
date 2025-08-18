@@ -60,7 +60,7 @@ describe('WebPods Permissions', () => {
     it('should only allow creator to read private stream', async () => {
       // User1 creates private stream
       client.setAuthToken(user1Token);
-      await client.post('/private-read?access=private', 'Secret message');
+      await client.post('/private-read/secret?access=private', 'Secret message');
       
       // User1 can read
       const response1 = await client.get('/private-read?i=0');
@@ -82,17 +82,17 @@ describe('WebPods Permissions', () => {
     it('should only allow creator to write to private stream', async () => {
       // User1 creates private stream
       client.setAuthToken(user1Token);
-      await client.post('/private-write?access=private', 'First message');
+      await client.post('/private-write/first?access=private', 'First message');
       
       // User2 cannot write
       client.setAuthToken(user2Token);
-      const response = await client.post('/private-write', 'Attempt to write');
+      const response = await client.post('/private-write/attempt', 'Attempt to write');
       expect(response.status).to.equal(403);
       expect(response.data.error.code).to.equal('FORBIDDEN');
       
       // User1 can write more
       client.setAuthToken(user1Token);
-      const response2 = await client.post('/private-write', 'Second message');
+      const response2 = await client.post('/private-write/second', 'Second message');
       expect(response2.status).to.equal(201);
       expect(response2.data.index).to.equal(1);
     });
@@ -102,7 +102,7 @@ describe('WebPods Permissions', () => {
     it('should allow anyone to read public stream', async () => {
       // User1 creates public stream
       client.setAuthToken(user1Token);
-      await client.post('/public-stream', 'Public message');
+      await client.post('/public-stream/public', 'Public message');
       
       // User2 can read
       client.setAuthToken(user2Token);
@@ -118,11 +118,11 @@ describe('WebPods Permissions', () => {
     it('should allow any authenticated user to write to public stream', async () => {
       // User1 creates public stream
       client.setAuthToken(user1Token);
-      await client.post('/public-write', 'Message 1');
+      await client.post('/public-write/msg1', 'Message 1');
       
       // User2 can write
       client.setAuthToken(user2Token);
-      const response = await client.post('/public-write', 'Message 2');
+      const response = await client.post('/public-write/msg2', 'Message 2');
       expect(response.status).to.equal(201);
       
       // Verify both messages exist
@@ -131,7 +131,7 @@ describe('WebPods Permissions', () => {
       
       // Anonymous cannot write
       client.clearAuthToken();
-      const response2 = await client.post('/public-write', 'Anonymous attempt');
+      const response2 = await client.post('/public-write/anon', 'Anonymous attempt');
       expect(response2.status).to.equal(401);
     });
   });
@@ -141,14 +141,14 @@ describe('WebPods Permissions', () => {
       client.setAuthToken(user1Token);
       
       // Create permission stream with user2 allowed to read but not write
-      await client.post('/members', {
+      await client.post('/members/perms', {
         id: user2.auth_id,
         read: true,
         write: false
       });
       
       // Create stream with permission-based access
-      await client.post('/restricted?access=/members', 'Restricted content');
+      await client.post('/restricted/content1?access=/members', 'Restricted content');
       
       // User2 can read (has read permission)
       client.setAuthToken(user2Token);
@@ -156,14 +156,14 @@ describe('WebPods Permissions', () => {
       expect(response1.status).to.equal(200);
       
       // User2 cannot write (no write permission)
-      const response2 = await client.post('/restricted', 'Should fail');
+      const response2 = await client.post('/restricted/fail', 'Should fail');
       expect(response2.status).to.equal(403);
       
       // User1 can read and write (creator always has access)
       client.setAuthToken(user1Token);
       const response3 = await client.get('/restricted?i=0');
       expect(response3.status).to.equal(200);
-      const response4 = await client.post('/restricted', 'Creator can write');
+      const response4 = await client.post('/restricted/creator', 'Creator can write');
       expect(response4.status).to.equal(201);
       
       // Anonymous cannot read or write
@@ -177,7 +177,7 @@ describe('WebPods Permissions', () => {
     it('should transfer pod ownership via .meta/owner', async () => {
       // User1 creates pod
       client.setAuthToken(user1Token);
-      await client.post('/test', 'Create pod');
+      await client.post('/test/init', 'Create pod');
       
       // Transfer ownership to user2
       const response = await client.post('/.meta/owner', { owner: user2Id });
@@ -197,7 +197,7 @@ describe('WebPods Permissions', () => {
     it('should only allow current owner to transfer ownership', async () => {
       // User1 creates pod
       client.setAuthToken(user1Token);
-      await client.post('/test', 'Create pod');
+      await client.post('/test/init', 'Create pod');
       
       // User2 cannot transfer ownership
       client.setAuthToken(user2Token);
@@ -211,10 +211,10 @@ describe('WebPods Permissions', () => {
     it('should allow creator to update stream permissions', async () => {
       // User1 creates stream
       client.setAuthToken(user1Token);
-      await client.post('/perm-update', 'Initial');
+      await client.post('/perm-update/initial', 'Initial');
       
       // User1 can update permissions by writing with new permissions
-      const response = await client.post('/perm-update?access=private', 'Updated');
+      const response = await client.post('/perm-update/updated?access=private', 'Updated');
       expect(response.status).to.equal(201);
       
       // Verify permissions were updated for new records
@@ -236,31 +236,31 @@ describe('WebPods Permissions', () => {
       client.setAuthToken(user1Token);
       
       // Create private blog posts
-      await client.post('/blog/private/draft?access=private', 'Draft post');
-      await client.post('/blog/public/published', 'Published post');
+      await client.post('/blog/private/draft1?access=private', 'Draft post');
+      await client.post('/blog/public/published1', 'Published post');
       
       // User2 cannot read private
       client.setAuthToken(user2Token);
-      const response1 = await client.get('/blog/private/draft?i=0');
+      const response1 = await client.get('/blog/private/draft1');
       expect(response1.status).to.equal(403);
       
       // But can read public
-      const response2 = await client.get('/blog/public/published?i=0');
+      const response2 = await client.get('/blog/public/published1');
       expect(response2.status).to.equal(200);
     });
 
-    it('should respect permissions on aliased content', async () => {
+    it('should respect permissions on named content', async () => {
       client.setAuthToken(user1Token);
       
-      // Create private stream with alias
-      await client.post('/secrets?access=private&alias=topsecret', 'Classified');
+      // Create private stream with name
+      await client.post('/secrets/topsecret?access=private', 'Classified');
       
-      // User2 cannot read via alias
+      // User2 cannot read via name
       client.setAuthToken(user2Token);
       const response = await client.get('/secrets/topsecret');
       expect(response.status).to.equal(403);
       
-      // User1 can read via alias
+      // User1 can read via name
       client.setAuthToken(user1Token);
       const response2 = await client.get('/secrets/topsecret');
       expect(response2.status).to.equal(200);
@@ -271,14 +271,14 @@ describe('WebPods Permissions', () => {
       client.setAuthToken(user1Token);
       
       // Create permission stream
-      await client.post('/members', {
+      await client.post('/members/perms1', {
         id: user2.auth_id,
         read: true,
         write: false
       });
       
       // Create restricted stream
-      await client.post('/member-only?access=/members', 'Members content');
+      await client.post('/member-only/content1?access=/members', 'Members content');
       
       // User2 can read
       client.setAuthToken(user2Token);
@@ -287,7 +287,7 @@ describe('WebPods Permissions', () => {
       
       // User1 updates permission to revoke user2's access
       client.setAuthToken(user1Token);
-      await client.post('/members', {
+      await client.post('/members/perms2', {
         id: user2.auth_id,
         read: false,
         write: false

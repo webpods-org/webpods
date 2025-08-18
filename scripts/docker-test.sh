@@ -9,7 +9,7 @@ NC='\033[0m' # No Color
 
 # Default configuration
 CONTAINER_NAME="webpods-test-$$"
-TEST_DB_NAME="webpods_test_$$"
+TEST_DB_NAME="webpodsdb_test_$$"
 TEST_PORT=${2:-3099}
 TIMEOUT=30
 

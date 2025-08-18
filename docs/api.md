@@ -62,10 +62,10 @@ Authorization: Bearer {token}
 ```
 
 Query parameters:
-- `alias`: String identifier for this record (see restrictions below)
+- `name`: String identifier for this record (see restrictions below)
 - `access`: Permission mode (`public`, `private`, `/{stream}`)
 
-**Alias Restrictions:**
+**Name Restrictions:**
 - Allowed characters: `a-z`, `A-Z`, `0-9`, `-` (hyphen), `_` (underscore), `.` (period)
 - Cannot start or end with a period
 - Cannot contain slashes or other special characters
@@ -83,7 +83,7 @@ Response:
   "index": 0,
   "content": "...",
   "content_type": "text/plain",
-  "alias": "my-alias",
+  "name": "my-name",
   "hash": "sha256:...",
   "previous_hash": null,
   "author": "auth:{provider}:{id}",
@@ -101,9 +101,9 @@ GET {pod}.webpods.org/{stream}?i={index}
 - Negative: `-1` (latest), `-2` (second to last)
 - Range: `0:10` (items 0-9), `-10:-1` (last 10)
 
-#### By Alias  
+#### By Name  
 ```
-GET {pod}.webpods.org/{stream}/{alias}
+GET {pod}.webpods.org/{stream}/{name}
 ```
 
 #### List Records
@@ -188,7 +188,7 @@ Lists all streams in pod.
 | `UNAUTHORIZED` | Missing/invalid auth |
 | `FORBIDDEN` | Insufficient permissions |
 | `NOT_FOUND` | Resource not found |
-| `ALIAS_EXISTS` | Alias already used |
+| `ALIAS_EXISTS` | Name already used |
 | `RATE_LIMIT_EXCEEDED` | Too many requests |
 | `POD_EXISTS` | Pod ID taken |
 | `INVALID_POD_ID` | Invalid pod format |
@@ -216,19 +216,19 @@ Supported for direct serving:
 
 ### Blog with posts
 ```bash
-# Create post with alias
-curl -X POST alice.webpods.org/blog?alias=welcome \
+# Create post with name
+curl -X POST alice.webpods.org/blog?name=welcome \
   -H "Authorization: Bearer $TOKEN" \
   -d "Welcome post"
 
-# Read by alias
+# Read by name
 curl alice.webpods.org/blog/welcome
 ```
 
 ### Static website
 ```bash
 # Write HTML
-curl -X POST alice.webpods.org/page?alias=index \
+curl -X POST alice.webpods.org/page?name=index \
   -H "Authorization: Bearer $TOKEN" \
   -H "X-Content-Type: text/html" \
   -d "<h1>Hello</h1>"

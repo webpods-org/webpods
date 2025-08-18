@@ -97,7 +97,7 @@ describe('WebPods Authentication', () => {
     });
 
     it('should reject requests without auth token to write operations', async () => {
-      const response = await client.post('/protected-stream', 'test content');
+      const response = await client.post('/protected-stream/test', 'test content');
       
       expect(response.status).to.equal(401);
       expect(response.data.error.code).to.equal('UNAUTHORIZED');
@@ -107,7 +107,7 @@ describe('WebPods Authentication', () => {
     it('should accept requests with valid auth token', async () => {
       client.setAuthToken(authToken);
       
-      const response = await client.post('/protected-stream', 'authenticated content');
+      const response = await client.post('/protected-stream/auth', 'authenticated content');
       
       if (response.status === 500) {
         console.error('Server error:', response.data);
@@ -133,7 +133,7 @@ describe('WebPods Authentication', () => {
       
       client.setAuthToken(expiredToken);
       
-      const response = await client.post('/expired-test', 'content');
+      const response = await client.post('/expired-test/content', 'content');
       
       expect(response.status).to.equal(401);
       expect(response.data.error.code).to.equal('TOKEN_EXPIRED');
@@ -152,7 +152,7 @@ describe('WebPods Authentication', () => {
       
       client.setAuthToken(invalidToken);
       
-      const response = await client.post('/invalid-sig', 'content');
+      const response = await client.post('/invalid-sig/content', 'content');
       
       expect(response.status).to.equal(401);
       expect(response.data.error.code).to.equal('INVALID_TOKEN');
@@ -161,7 +161,7 @@ describe('WebPods Authentication', () => {
     it('should reject malformed JWT token', async () => {
       client.setAuthToken('not.a.valid.jwt.token');
       
-      const response = await client.post('/malformed', 'content');
+      const response = await client.post('/malformed/content', 'content');
       
       expect(response.status).to.equal(401);
       expect(response.data.error.code).to.equal('INVALID_TOKEN');
@@ -187,7 +187,7 @@ describe('WebPods Authentication', () => {
     it('should allow anonymous read on public streams', async () => {
       // First create a public stream as authenticated user
       client.setAuthToken(authToken);
-      await client.post('/public-data', 'Public content');
+      await client.post('/public-data/public', 'Public content');
       
       // Now read without auth
       client.clearAuthToken();
@@ -199,7 +199,7 @@ describe('WebPods Authentication', () => {
 
     it('should require auth for write on public streams', async () => {
       // Try to write without auth
-      const response = await client.post('/public-writable', 'Anonymous attempt');
+      const response = await client.post('/public-writable/anon', 'Anonymous attempt');
       
       expect(response.status).to.equal(401);
       expect(response.data.error.code).to.equal('UNAUTHORIZED');
@@ -208,7 +208,7 @@ describe('WebPods Authentication', () => {
     it('should track author correctly', async () => {
       client.setAuthToken(authToken);
       
-      const response = await client.post('/tracked', {
+      const response = await client.post('/tracked/data', {
         message: 'Track me'
       });
       
@@ -247,7 +247,7 @@ describe('WebPods Authentication', () => {
     });
 
     it('should accept Bearer token in Authorization header', async () => {
-      const response = await client.post('/bearer-test', 'content', {
+      const response = await client.post('/bearer-test/content', 'content', {
         headers: {
           'Authorization': `Bearer ${authToken}`
         }
@@ -257,7 +257,7 @@ describe('WebPods Authentication', () => {
     });
 
     it('should accept token without Bearer prefix', async () => {
-      const response = await client.post('/no-bearer', 'content', {
+      const response = await client.post('/no-bearer/content', 'content', {
         headers: {
           'Authorization': authToken
         }
@@ -267,7 +267,7 @@ describe('WebPods Authentication', () => {
     });
 
     it('should reject other auth schemes', async () => {
-      const response = await client.post('/basic-auth', 'content', {
+      const response = await client.post('/basic-auth/content', 'content', {
         headers: {
           'Authorization': `Basic ${Buffer.from('user:pass').toString('base64')}`
         }
@@ -420,7 +420,7 @@ describe('WebPods Authentication', () => {
       client.setBaseUrl(`http://pod-one.localhost:3099`);
       client.setAuthToken(token1);
       
-      const response1 = await client.post('/stream1', 'Pod one content');
+      const response1 = await client.post('/stream1/content', 'Pod one content');
       expect(response1.status).to.equal(201);
       
       // Create token for second pod
@@ -428,7 +428,7 @@ describe('WebPods Authentication', () => {
       client.setBaseUrl(`http://pod-two.localhost:3099`);
       client.setAuthToken(token2);
       
-      const response2 = await client.post('/stream2', 'Pod two content');
+      const response2 = await client.post('/stream2/content', 'Pod two content');
       expect(response2.status).to.equal(201);
       
       // Verify both pods exist and have correct ownership

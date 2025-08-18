@@ -77,6 +77,7 @@ export async function createPod(
           index: 0,
           content: JSON.stringify(ownerContent),
           content_type: 'application/json',
+          name: 'owner',  // Add required name field
           hash: hash,
           previous_hash: null,
           author_id: userId,
@@ -235,6 +236,7 @@ export async function transferPodOwnership(
           index: (lastRecord?.index || 0) + 1,
           content: JSON.stringify(ownerContent),
           content_type: 'application/json',
+          name: `owner-${(lastRecord?.index || 0) + 1}`,  // Add required name field
           hash: hash,
           previous_hash: lastRecord?.hash || null,
           author_id: currentUserId,

@@ -97,7 +97,7 @@ describe('Pod-Specific Authentication with SSO', () => {
       client.setBaseUrl(`http://${pod1}.localhost:3099`);
       
       // Create a stream with alice's token
-      const response = await client.post('/test-stream', 'Test content', {
+      const response = await client.post('/test-stream/test', 'Test content', {
         headers: {
           'Authorization': `Bearer ${aliceToken}`,
           'Content-Type': 'text/plain'
@@ -111,7 +111,7 @@ describe('Pod-Specific Authentication with SSO', () => {
       client.setBaseUrl(`http://${pod2}.localhost:3099`);
       
       // Try to use alice's token on bob's pod
-      const response = await client.post('/test-stream', 'Test content', {
+      const response = await client.post('/test-stream/test', 'Test content', {
         headers: {
           'Authorization': `Bearer ${aliceToken}`,
           'Content-Type': 'text/plain'
@@ -126,7 +126,7 @@ describe('Pod-Specific Authentication with SSO', () => {
       // Global tokens (without pod claim) should not work on pod subdomains
       // Test on pod1
       client.setBaseUrl(`http://${pod1}.localhost:3099`);
-      let response = await client.post('/stream1', 'Content 1', {
+      let response = await client.post('/stream1/content1', 'Content 1', {
         headers: {
           'Authorization': `Bearer ${globalToken}`,
           'Content-Type': 'text/plain'
@@ -137,7 +137,7 @@ describe('Pod-Specific Authentication with SSO', () => {
       
       // Test on pod2
       client.setBaseUrl(`http://${pod2}.localhost:3099`);
-      response = await client.post('/stream2', 'Content 2', {
+      response = await client.post('/stream2/content2', 'Content 2', {
         headers: {
           'Authorization': `Bearer ${globalToken}`,
           'Content-Type': 'text/plain'
@@ -195,7 +195,7 @@ describe('Pod-Specific Authentication with SSO', () => {
     it('should isolate data between pods', async () => {
       // Write to alice's pod
       client.setBaseUrl(`http://${pod1}.localhost:3099`);
-      await client.post('/secret-data', 'Alice secret', {
+      await client.post('/secret-data/secret', 'Alice secret', {
         headers: {
           'Authorization': `Bearer ${aliceToken}`,
           'Content-Type': 'text/plain'
@@ -215,7 +215,7 @@ describe('Pod-Specific Authentication with SSO', () => {
     it('should prevent cross-pod token usage for writes', async () => {
       // Try to write to bob's pod with alice's token
       client.setBaseUrl(`http://${pod2}.localhost:3099`);
-      const response = await client.post('/malicious-write', 'Evil data', {
+      const response = await client.post('/malicious-write/evil', 'Evil data', {
         headers: {
           'Authorization': `Bearer ${aliceToken}`,
           'Content-Type': 'text/plain'

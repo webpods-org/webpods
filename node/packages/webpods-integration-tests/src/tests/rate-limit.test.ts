@@ -43,9 +43,9 @@ describe('WebPods Rate Limiting', () => {
   describe('Write Rate Limits', () => {
     it('should track write rate limits per user', async () => {
       // Make multiple write requests
-      await client.post('/stream1', 'Message 1');
-      await client.post('/stream2', 'Message 2');
-      await client.post('/stream3', 'Message 3');
+      await client.post('/stream1/msg1', 'Message 1');
+      await client.post('/stream2/msg2', 'Message 2');
+      await client.post('/stream3/msg3', 'Message 3');
       await client.post('/nested/stream4', 'Message 4');
       
       // Check rate limit record was created
@@ -71,7 +71,7 @@ describe('WebPods Rate Limiting', () => {
         provider: testUser.provider
       }, 'pod-limit-1');
       client.setAuthToken(token1);
-      await client.post('/init', 'Pod 1');
+      await client.post('/init/pod1', 'Pod 1');
       
       client.setBaseUrl(`http://pod-limit-2.localhost:3099`);
       const token2 = client.generatePodToken({
@@ -82,7 +82,7 @@ describe('WebPods Rate Limiting', () => {
         provider: testUser.provider
       }, 'pod-limit-2');
       client.setAuthToken(token2);
-      await client.post('/init', 'Pod 2');
+      await client.post('/init/pod2', 'Pod 2');
       
       // Check rate limit records
       const db = testDb.getDb();
@@ -97,9 +97,9 @@ describe('WebPods Rate Limiting', () => {
 
     it('should track stream creation rate limits', async () => {
       // Create multiple streams in the same pod
-      await client.post('/rate-stream-1', 'First stream');
-      await client.post('/rate-stream-2', 'Second stream');
-      await client.post('/rate-stream-3', 'Third stream');
+      await client.post('/rate-stream-1/first', 'First stream');
+      await client.post('/rate-stream-2/second', 'Second stream');
+      await client.post('/rate-stream-3/third', 'Third stream');
       await client.post('/blog/posts/2024', 'Nested stream');
       
       const db = testDb.getDb();
@@ -114,11 +114,11 @@ describe('WebPods Rate Limiting', () => {
 
     it('should not count writes to existing streams as stream creation', async () => {
       // Create one stream
-      await client.post('/existing', 'First message');
+      await client.post('/existing/first', 'First message');
       
       // Write more to the same stream
-      await client.post('/existing', 'Second message');
-      await client.post('/existing', 'Third message');
+      await client.post('/existing/second', 'Second message');
+      await client.post('/existing/third', 'Third message');
       
       const db = testDb.getDb();
       const streamLimit = await db('rate_limit')
@@ -141,8 +141,8 @@ describe('WebPods Rate Limiting', () => {
   describe('Read Rate Limits', () => {
     beforeEach(async () => {
       // Create some test data
-      await client.post('/public-data', 'Public content');
-      await client.post('/public-data', 'More content');
+      await client.post('/public-data/public', 'Public content');
+      await client.post('/public-data/more', 'More content');
     });
 
     it('should track read rate limits separately from writes', async () => {
@@ -169,8 +169,8 @@ describe('WebPods Rate Limiting', () => {
 
     it('should track anonymous read rate limits by IP', async () => {
       // First create a public stream with data
-      await client.post('/public-data', 'First');
-      await client.post('/public-data', 'Second');
+      await client.post('/public-data/first', 'First');
+      await client.post('/public-data/second', 'Second');
       
       // Clear auth for anonymous requests
       client.clearAuthToken();
@@ -198,7 +198,7 @@ describe('WebPods Rate Limiting', () => {
       const db = testDb.getDb();
       
       // Make a request
-      await client.post('/window-test', 'Message');
+      await client.post('/window-test/msg', 'Message');
       
       // Check the window
       const rateLimit = await db('rate_limit')
@@ -229,7 +229,7 @@ describe('WebPods Rate Limiting', () => {
       });
       
       // Make a new request (should start new window)
-      const response = await client.post('/new-window', 'Message');
+      const response = await client.post('/new-window/msg', 'Message');
       expect(response.status).to.equal(201);
       
       // Check new window was created
@@ -267,7 +267,7 @@ describe('WebPods Rate Limiting', () => {
       ]);
       
       // Make a new request (triggers cleanup)
-      await client.post('/cleanup-trigger', 'New message');
+      await client.post('/cleanup-trigger/new', 'New message');
       
       // Check that old windows are gone
       const oldLimits = await db('rate_limit')
@@ -280,7 +280,7 @@ describe('WebPods Rate Limiting', () => {
 
   describe('Rate Limit Headers', () => {
     it('should return rate limit headers in responses', async () => {
-      const response = await client.post('/header-test', 'Message');
+      const response = await client.post('/header-test/msg', 'Message');
       
       expect(response.headers).to.have.property('x-ratelimit-limit');
       expect(response.headers).to.have.property('x-ratelimit-remaining');
@@ -294,10 +294,10 @@ describe('WebPods Rate Limiting', () => {
     });
 
     it('should decrease remaining count with each request', async () => {
-      const response1 = await client.post('/decrease-1', 'Message 1');
+      const response1 = await client.post('/decrease-1/msg1', 'Message 1');
       const remaining1 = parseInt(response1.headers['x-ratelimit-remaining']);
       
-      const response2 = await client.post('/decrease-2', 'Message 2');
+      const response2 = await client.post('/decrease-2/msg2', 'Message 2');
       const remaining2 = parseInt(response2.headers['x-ratelimit-remaining']);
       
       expect(remaining2).to.equal(remaining1 - 1);
@@ -325,7 +325,7 @@ describe('WebPods Rate Limiting', () => {
       });
       
       // Try to make another request
-      const response = await client.post('/over-limit', 'Should fail');
+      const response = await client.post('/over-limit/fail', 'Should fail');
       
       expect(response.status).to.equal(429);
       expect(response.data.error.code).to.equal('RATE_LIMIT_EXCEEDED');
@@ -369,12 +369,12 @@ describe('WebPods Rate Limiting', () => {
       });
       
       // User1 should be blocked
-      const response1 = await client.post('/user1-blocked', 'Should fail');
+      const response1 = await client.post('/user1-blocked/fail', 'Should fail');
       expect(response1.status).to.equal(429);
       
       // User2 should still be able to post
       client.setAuthToken(token2);
-      const response2 = await client.post('/user2-allowed', 'Should succeed');
+      const response2 = await client.post('/user2-allowed/succeed', 'Should succeed');
       expect(response2.status).to.equal(201);
     });
   });
@@ -436,7 +436,7 @@ describe('WebPods Rate Limiting', () => {
       ]);
       
       // Can still write
-      const writeResponse = await client.post('/can-write', 'Message');
+      const writeResponse = await client.post('/can-write/msg', 'Message');
       expect(writeResponse.status).to.equal(201);
       
       // Can create one more pod
@@ -449,7 +449,7 @@ describe('WebPods Rate Limiting', () => {
         provider: uniqueUser.provider
       }, 'pod-limit-final');
       client.setAuthToken(finalToken);
-      const podResponse = await client.post('/init', 'Final pod');
+      const podResponse = await client.post('/init/final', 'Final pod');
       if (podResponse.status !== 201) {
         console.log('Pod creation failed:', podResponse.data);
         const currentLimits = await db('rate_limit')
@@ -470,7 +470,7 @@ describe('WebPods Rate Limiting', () => {
         provider: uniqueUser.provider
       }, 'pod-limit-exceed');
       client.setAuthToken(exceedToken);
-      const exceededResponse = await client.post('/init', 'Too many pods');
+      const exceededResponse = await client.post('/init/toomany', 'Too many pods');
       expect(exceededResponse.status).to.equal(429);
     });
   });

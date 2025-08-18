@@ -60,16 +60,16 @@ export async function up(knex) {
     table.integer('index').notNullable(); // Position in stream (0-based)
     table.text('content'); // Can be text or JSON
     table.string('content_type', 100).defaultTo('text/plain');
-    table.string('alias', 256); // Optional alias (any string allowed)
+    table.string('name', 256).notNullable(); // Required name (like a filename)
     table.string('hash', 100).notNullable(); // SHA-256 hash with prefix
     table.string('previous_hash', 100); // NULL for first record
     table.string('author_id', 255).notNullable(); // auth:provider:id format
     table.timestamp('created_at').defaultTo(knex.fn.now());
     
     table.unique(['stream_id', 'index']);
-    table.unique(['stream_id', 'alias']);
+    table.unique(['stream_id', 'name']);
     table.index(['stream_id', 'index']);
-    table.index(['stream_id', 'alias']);
+    table.index(['stream_id', 'name']);
     table.index('author_id');
     table.index('hash');
   });

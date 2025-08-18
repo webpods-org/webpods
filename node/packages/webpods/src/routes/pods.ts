@@ -16,7 +16,8 @@ import {
   isSystemStream,
   isBinaryContentType,
   isValidBase64,
-  parseDataUrl
+  parseDataUrl,
+  isValidName
 } from '../utils.js';
 
 // Import domain functions
@@ -341,9 +342,9 @@ router.post('/.meta/domains', extractPod, authenticate, async (req: Request, res
 });
 
 /**
- * Write to stream
- * POST {pod}.webpods.org/{stream_path}?alias={alias}
- * Supports nested paths: /blog/posts/2024
+ * Write to stream with required name
+ * POST {pod}.webpods.org/{stream_path}/{name}
+ * Example: POST alice.webpods.org/blog/posts/first.md
  */
 router.post('/*', extractPod, authenticate, rateLimit('write'), async (req: Request, res: Response) => {
   if (!req.pod_id || !req.auth) {
@@ -357,9 +358,58 @@ router.post('/*', extractPod, authenticate, rateLimit('write'), async (req: Requ
   }
 
   try {
-    // Get stream path from URL (everything after domain)
-    const streamId = req.path.substring(1); // Remove leading /
-    const alias = req.query.alias as string | undefined;
+    // Extract stream path and name from URL
+    const fullPath = req.path.substring(1); // Remove leading /
+    
+    // Check for trailing slash which means empty name
+    if (fullPath.endsWith('/') || fullPath === '') {
+      res.status(400).json({
+        error: {
+          code: 'MISSING_NAME',
+          message: 'Record name is required'
+        }
+      });
+      return;
+    }
+    
+    const pathParts = fullPath.split('/');
+    
+    // Last segment is always the name (required)
+    if (pathParts.length === 0 || !pathParts[pathParts.length - 1]) {
+      res.status(400).json({
+        error: {
+          code: 'MISSING_NAME',
+          message: 'Record name is required'
+        }
+      });
+      return;
+    }
+    
+    const name = pathParts.pop()!;
+    
+    // Express might normalize single dot to empty, check for this
+    if (!name || name === '') {
+      res.status(400).json({
+        error: {
+          code: 'MISSING_NAME', 
+          message: 'Record name is required'
+        }
+      });
+      return;
+    }
+    
+    // Validate name early to provide better error messages
+    if (!isValidName(name)) {
+      res.status(400).json({
+        error: {
+          code: 'INVALID_NAME',
+          message: 'Name can only contain letters, numbers, hyphens, underscores, and periods. Cannot start or end with a period.'
+        }
+      });
+      return;
+    }
+    
+    const streamId = pathParts.join('/') || 'default'; // Use 'default' if no stream path
     let content = writeSchema.parse(req.body);
     let contentType = detectContentType(req.headers);
     const accessPermission = req.query.access as string | undefined;
@@ -509,15 +559,15 @@ router.post('/*', extractPod, authenticate, rateLimit('write'), async (req: Requ
       content,
       contentType,
       req.auth.auth_id,
-      alias
+      name
     );
     
     if (!recordResult.success) {
       // Check for specific error codes
       let status = 500;
-      if (recordResult.error.code === 'ALIAS_EXISTS') {
+      if (recordResult.error.code === 'NAME_EXISTS') {
         status = 409;
-      } else if (recordResult.error.code === 'INVALID_ALIAS') {
+      } else if (recordResult.error.code === 'INVALID_NAME') {
         status = 400;
       }
       
@@ -605,7 +655,7 @@ router.get('/', extractPod, optionalAuth, async (req: Request, res: Response) =>
  * GET {pod}.webpods.org/{stream_path}?i=0 - Get by index
  * GET {pod}.webpods.org/{stream_path}?i=-1 - Get latest
  * GET {pod}.webpods.org/{stream_path}?i=10:20 - Get range
- * GET {pod}.webpods.org/{stream_path}/{alias} - Get by alias
+ * GET {pod}.webpods.org/{stream_path}/{name} - Get by name
  */
 router.get('/*', extractPod, optionalAuth, rateLimit('read'), async (req: Request, res: Response) => {
   if (!req.pod) {
@@ -624,15 +674,15 @@ router.get('/*', extractPod, optionalAuth, rateLimit('read'), async (req: Reques
   // Check for index query parameter
   const indexQuery = req.query.i as string | undefined;
   
-  // Determine if last part is an alias or part of stream path
+  // Determine if last part is a name or part of stream path
   let streamId: string;
-  let alias: string | undefined;
+  let name: string | undefined;
   
   if (indexQuery) {
     // If using index query, entire path is stream ID
     streamId = pathParts.join('/');
   } else if (pathParts.length > 1) {
-    // Check if last part could be an alias (not using index query)
+    // Check if last part could be a name (not using index query)
     // Try to find stream with full path first
     const fullPath = pathParts.join('/');
     const streamResult = await getStream(db, req.pod!.id, fullPath);
@@ -640,8 +690,8 @@ router.get('/*', extractPod, optionalAuth, rateLimit('read'), async (req: Reques
     if (streamResult.success) {
       streamId = fullPath;
     } else {
-      // Assume last part is alias
-      alias = pathParts.pop();
+      // Assume last part is name
+      name = pathParts.pop();
       streamId = pathParts.join('/');
     }
   } else {
@@ -687,7 +737,7 @@ router.get('/*', extractPod, optionalAuth, rateLimit('read'), async (req: Reques
     }
     
     if (parsed.type === 'single') {
-      // Single record by index (don't prefer alias when using ?i=)
+      // Single record by index (don't prefer name when using ?i=)
       const result = await getRecord(db, streamResult.data.id, parsed.start.toString(), false);
       
       if (!result.success) {
@@ -740,9 +790,9 @@ router.get('/*', extractPod, optionalAuth, rateLimit('read'), async (req: Reques
         total: result.data.length
       });
     }
-  } else if (alias) {
-    // Get by alias (prefer alias over index for path-based access)
-    const result = await getRecord(db, streamResult.data.id, alias, true);
+  } else if (name) {
+    // Get by name (prefer name over index for path-based access)
+    const result = await getRecord(db, streamResult.data.id, name, true);
     
     if (!result.success) {
       res.status(404).json({

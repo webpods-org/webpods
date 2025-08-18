@@ -15,11 +15,19 @@ export function isValidPodId(podId: string): boolean {
 
 /**
  * Validate stream ID
- * Alphanumeric, underscore, hyphen, slash for nested paths, max 256 chars
+ * Alphanumeric, underscore, hyphen, slash for nested paths, single dots allowed (no consecutive dots)
+ * Max 256 chars
  */
 export function isValidStreamId(streamId: string): boolean {
   if (!streamId || streamId.length > 256) return false;
-  // Allow slashes for nested paths like blog/posts/2024
+  
+  // Check for consecutive dots (not allowed)
+  if (streamId.includes('..')) return false;
+  
+  // Cannot start or end with a dot
+  if (streamId.startsWith('.') || streamId.endsWith('.')) return false;
+  
+  // Allow slashes for nested paths like blog/posts/2024, and single dots
   return /^[a-zA-Z0-9_\-/.]+$/.test(streamId);
 }
 
@@ -31,14 +39,14 @@ export function isSystemStream(streamId: string): boolean {
 }
 
 /**
- * Validate alias - must be like a filename
+ * Validate name - must be like a filename
  * Allowed characters: a-z, A-Z, 0-9, hyphen (-), underscore (_), period (.)
  * Cannot start or end with a period (to avoid . and .. confusion)
  * Cannot contain slashes or other special characters
  */
-export function isValidAlias(alias: string): boolean {
+export function isValidName(name: string): boolean {
   // Check for empty, null, or too long
-  if (!alias || alias.length === 0 || alias.length > 256) return false;
+  if (!name || name.length === 0 || name.length > 256) return false;
   
   // Only allow: a-z, A-Z, 0-9, hyphen, underscore, period
   // Pattern: starts with alphanumeric/underscore/hyphen, 
@@ -46,9 +54,9 @@ export function isValidAlias(alias: string): boolean {
   const validPattern = /^[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)*$/;
   
   // Check pattern and ensure no leading/trailing periods
-  return validPattern.test(alias) && 
-         !alias.startsWith('.') && 
-         !alias.endsWith('.');
+  return validPattern.test(name) && 
+         !name.startsWith('.') && 
+         !name.endsWith('.');
 }
 
 /**

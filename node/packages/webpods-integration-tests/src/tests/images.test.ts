@@ -46,7 +46,7 @@ describe('WebPods Image Support', () => {
 
   describe('Image Upload', () => {
     it('should upload PNG image with base64 encoding', async () => {
-      const response = await client.post('/images/logo?alias=main-logo', testPngBase64, {
+      const response = await client.post('/images/logo/main-logo', testPngBase64, {
         headers: {
           'X-Content-Type': 'image/png'
         }
@@ -55,22 +55,22 @@ describe('WebPods Image Support', () => {
       expect(response.status).to.equal(201);
       expect(response.data).to.have.property('index', 0);
       expect(response.data).to.have.property('content_type', 'image/png');
-      expect(response.data).to.have.property('alias', 'main-logo');
+      expect(response.data).to.have.property('name', 'main-logo');
       expect(response.data).to.have.property('hash');
     });
 
     it('should upload image using data URL', async () => {
       // When sending a data URL, we don't need to set the content type header
       // The data URL itself contains the MIME type
-      const response = await client.post('/images/avatar?alias=user-avatar', testPngDataUrl);
+      const response = await client.post('/images/avatar/user-avatar', testPngDataUrl);
       
       expect(response.status).to.equal(201);
       expect(response.data).to.have.property('content_type', 'image/png');
-      expect(response.data).to.have.property('alias', 'user-avatar');
+      expect(response.data).to.have.property('name', 'user-avatar');
     });
 
     it('should upload SVG as text', async () => {
-      const response = await client.post('/images/icon?alias=app-icon', testSvg, {
+      const response = await client.post('/images/icon/app-icon', testSvg, {
         headers: {
           'X-Content-Type': 'image/svg+xml'
         }
@@ -113,7 +113,7 @@ describe('WebPods Image Support', () => {
       // Small JPEG test data (base64)
       const jpegBase64 = '/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAr/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCwAA8A/9k=';
       
-      const response = await client.post('/photos/test?alias=sample', jpegBase64, {
+      const response = await client.post('/photos/test/sample', jpegBase64, {
         headers: {
           'X-Content-Type': 'image/jpeg'
         }
@@ -127,13 +127,13 @@ describe('WebPods Image Support', () => {
   describe('Image Serving', () => {
     beforeEach(async () => {
       // Upload test images
-      await client.post('/gallery/photo1?alias=first', testPngBase64, {
+      await client.post('/gallery/photo1/first', testPngBase64, {
         headers: {
           'X-Content-Type': 'image/png'
         }
       });
       
-      await client.post('/gallery/photo2?alias=svg-image', testSvg, {
+      await client.post('/gallery/photo2/svg-image', testSvg, {
         headers: {
           'X-Content-Type': 'image/svg+xml'
         }
@@ -188,12 +188,12 @@ describe('WebPods Image Support', () => {
         <head><title>Gallery</title></head>
         <body>
           <h1>My Gallery</h1>
-          <img src="/assets/logo?i=-1" alt="Logo" />
+          <img src="/assets/logo" alt="Logo" />
         </body>
         </html>
       `;
       
-      await client.post('/pages/gallery?alias=index', htmlContent, {
+      await client.post('/pages/gallery/index', htmlContent, {
         headers: {
           'X-Content-Type': 'text/html'
         }
@@ -208,10 +208,10 @@ describe('WebPods Image Support', () => {
       const pageResponse = await client.get('/pages/gallery/index');
       expect(pageResponse.status).to.equal(200);
       expect(pageResponse.headers['content-type']).to.include('text/html');
-      expect(pageResponse.data).to.include('<img src="/assets/logo?i=-1"');
+      expect(pageResponse.data).to.include('<img src="/assets/logo"');
       
       // Verify the image can be served
-      const imageResponse = await client.get('/assets/logo?i=-1');
+      const imageResponse = await client.get('/assets/logo');
       expect(imageResponse.status).to.equal(200);
       expect(imageResponse.headers['content-type']).to.include('image/png');
     });
@@ -250,7 +250,7 @@ describe('WebPods Image Support', () => {
       // Small ICO test data (base64)
       const icoBase64 = 'AAABAAEAAQEAAAEAIAAwAAAAFgAAACgAAAABAAAAAgAAAAEAIAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAA////AAAAAAA=';
       
-      const response = await client.post('/favicon', icoBase64, {
+      const response = await client.post('/favicon/icon', icoBase64, {
         headers: {
           'X-Content-Type': 'image/x-icon'
         }

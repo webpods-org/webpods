@@ -22,7 +22,7 @@ Upload an image as a base64 encoded string:
 IMAGE_BASE64=$(base64 -w 0 < image.png)
 
 # Upload to WebPods
-curl -X POST alice.webpods.org/images/logo?alias=main \
+curl -X POST alice.webpods.org/images/logo?name=main \
   -H "Authorization: Bearer $TOKEN" \
   -H "X-Content-Type: image/png" \
   -d "$IMAGE_BASE64"
@@ -47,7 +47,7 @@ curl -X POST alice.webpods.org/images/avatar \
 Images are automatically decoded from base64 and served with the correct content type:
 
 ```bash
-# Get image by alias
+# Get image by name
 curl alice.webpods.org/images/logo/main
 
 # Get latest image
@@ -74,7 +74,7 @@ curl -X POST alice.webpods.org/photos/mountain \
   -d "$MOUNTAIN_BASE64"
 
 # Create gallery HTML
-curl -X POST alice.webpods.org/pages/gallery?alias=index \
+curl -X POST alice.webpods.org/pages/gallery?name=index \
   -H "Authorization: Bearer $TOKEN" \
   -H "X-Content-Type: text/html" \
   -d '<html>
@@ -180,12 +180,12 @@ curl -X POST alice.webpods.org/users/john/avatar \
 ### Logo with Versions
 ```bash
 # Upload multiple versions
-curl -X POST alice.webpods.org/brand/logo?alias=v1 \
+curl -X POST alice.webpods.org/brand/logo?name=v1 \
   -H "Authorization: Bearer $TOKEN" \
   -H "X-Content-Type: image/png" \
   -d "$LOGO_V1"
 
-curl -X POST alice.webpods.org/brand/logo?alias=v2 \
+curl -X POST alice.webpods.org/brand/logo?name=v2 \
   -H "Authorization: Bearer $TOKEN" \
   -H "X-Content-Type: image/png" \
   -d "$LOGO_V2"

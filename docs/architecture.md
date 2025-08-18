@@ -59,7 +59,7 @@ Pod (subdomain)
 - `index`: Sequential position
 - `content`: Text/JSON
 - `hash`, `previous_hash`: Chain links
-- `alias`: Optional named reference
+- `name`: Optional named reference
 
 ### Session Tables (SSO)
 
@@ -95,7 +95,7 @@ Pod (subdomain)
 
 ### Optimizations
 - Connection pooling (PostgreSQL)
-- Indexed queries (pod_id, stream_id, alias)
+- Indexed queries (pod_id, stream_id, name)
 - In-memory permission checks
 - Session-based SSO (no repeated OAuth)
 

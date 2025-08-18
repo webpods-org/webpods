@@ -10,10 +10,11 @@ curl https://webpods.org/auth/github
 # or
 curl https://webpods.org/auth/google
 
-# Write to stream (creates pod and stream automatically)
-curl -X POST https://alice.webpods.org/blog \
+# Write to stream (creates pod and stream automatically) 
+# Name is required - last segment of path
+curl -X POST https://alice.webpods.org/blog/first-post \
   -H "Authorization: Bearer $TOKEN" \
-  -d "First post"
+  -d "My first blog post"
 
 # Read latest
 curl https://alice.webpods.org/blog?i=-1
@@ -46,15 +47,20 @@ Authorization: Bearer {token}
 ### Write
 
 ```bash
-POST {pod}.webpods.org/{stream}
+POST {pod}.webpods.org/{stream}/{name}
 Authorization: Bearer {token}
 
+# Name is REQUIRED - last path segment
+# Examples:
+#   POST alice.webpods.org/blog/my-post
+#   POST alice.webpods.org/images/logo.png
+#   POST alice.webpods.org/data/2024/report.json
+
 # Optional parameters
-?alias={string}     # Named reference (letters, numbers, -, _, . only)
 ?access={mode}      # Set on first write only
 ```
 
-**Alias restrictions:**
+**Name restrictions:**
 - Can only contain: `a-z`, `A-Z`, `0-9`, `-`, `_`, `.`
 - Cannot start or end with `.`
 - Maximum 256 characters
@@ -73,8 +79,8 @@ GET {pod}.webpods.org/{stream}?i=0      # First
 GET {pod}.webpods.org/{stream}?i=-1     # Latest
 GET {pod}.webpods.org/{stream}?i=0:10   # Range
 
-# By alias
-GET {pod}.webpods.org/{stream}/{alias}
+# By name
+GET {pod}.webpods.org/{stream}/{name}
 
 # List all
 GET {pod}.webpods.org/{stream}?limit=100&after=50
@@ -131,11 +137,11 @@ Lists all pod streams.
 
 Write HTML/CSS/JS with proper content type:
 ```bash
-curl -X POST alice.webpods.org/page?alias=home \
+curl -X POST alice.webpods.org/page/home.html \
   -H "X-Content-Type: text/html" \
   -d "<h1>Welcome</h1>"
 
-# Access: alice.webpods.org/page/home
+# Access: alice.webpods.org/page/home.html
 ```
 
 ## Hash Chain

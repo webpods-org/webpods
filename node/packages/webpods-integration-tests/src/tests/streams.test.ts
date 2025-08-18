@@ -41,7 +41,7 @@ describe('WebPods Stream Operations', () => {
 
   describe('Pod and Stream Creation', () => {
     it('should create pod and stream on first write', async () => {
-      const response = await client.post('/my-first-stream', 'Hello WebPods!');
+      const response = await client.post('/my-first-stream/hello', 'Hello WebPods!');
       
       expect(response.status).to.equal(201);
       expect(response.data).to.have.property('index', 0);
@@ -76,14 +76,21 @@ describe('WebPods Stream Operations', () => {
       const pod = await db('pod').where('pod_id', testPodId).first();
       const stream = await db('stream')
         .where('pod_id', pod.id)
-        .where('stream_id', 'blog/posts/2024/january')
+        .where('stream_id', 'blog/posts/2024')
         .first();
       expect(stream).to.exist;
-      expect(stream.stream_id).to.equal('blog/posts/2024/january');
+      expect(stream.stream_id).to.equal('blog/posts/2024');
+      
+      // Verify the record was created with name 'january'
+      const record = await db('record')
+        .where('stream_id', stream.id)
+        .where('name', 'january')
+        .first();
+      expect(record).to.exist;
     });
 
     it('should set custom permissions on stream creation', async () => {
-      const response = await client.post('/private-stream?access=private', 'Secret data');
+      const response = await client.post('/private-stream/secret?access=private', 'Secret data');
       
       expect(response.status).to.equal(201);
       
@@ -100,11 +107,11 @@ describe('WebPods Stream Operations', () => {
   describe('Writing Records', () => {
     beforeEach(async () => {
       // Pre-create a stream
-      await client.post('/test-stream', 'Initial content');
+      await client.post('/test-stream/initial', 'Initial content');
     });
 
     it('should write string content', async () => {
-      const response = await client.post('/test-stream', 'Plain text message', {
+      const response = await client.post('/test-stream/text', 'Plain text message', {
         headers: { 'Content-Type': 'text/plain' }
       });
       expect(response.status).to.equal(201);
@@ -115,7 +122,7 @@ describe('WebPods Stream Operations', () => {
 
     it('should write JSON content', async () => {
       const data = { message: 'JSON data', count: 42 };
-      const response = await client.post('/test-stream', data);
+      const response = await client.post('/test-stream/json', data);
       
       expect(response.status).to.equal(201);
       expect(response.data.content).to.deep.equal(data);
@@ -123,7 +130,7 @@ describe('WebPods Stream Operations', () => {
     });
 
     it('should respect X-Content-Type header', async () => {
-      const response = await client.post('/test-stream', '<h1>HTML</h1>', {
+      const response = await client.post('/test-stream/html', '<h1>HTML</h1>', {
         headers: { 'X-Content-Type': 'text/html' }
       });
       
@@ -132,9 +139,9 @@ describe('WebPods Stream Operations', () => {
     });
 
     it('should maintain hash chain', async () => {
-      const response1 = await client.post('/hash-test', 'First');
-      const response2 = await client.post('/hash-test', 'Second');
-      const response3 = await client.post('/hash-test', 'Third');
+      const response1 = await client.post('/hash-test/first', 'First');
+      const response2 = await client.post('/hash-test/second', 'Second');
+      const response3 = await client.post('/hash-test/third', 'Third');
       
       expect(response1.data.previous_hash).to.be.null;
       expect(response2.data.previous_hash).to.equal(response1.data.hash);
@@ -144,40 +151,40 @@ describe('WebPods Stream Operations', () => {
       expect(response1.data.hash).to.match(/^sha256:[a-f0-9]{64}$/);
     });
 
-    it('should support aliases (including numeric)', async () => {
-      // String alias
-      const response1 = await client.post('/test-stream?alias=my-post', 'Content with alias');
+    it('should support names (including numeric)', async () => {
+      // String name
+      const response1 = await client.post('/test-stream/my-post', 'Content with name');
       expect(response1.status).to.equal(201);
-      expect(response1.data.alias).to.equal('my-post');
+      expect(response1.data.name).to.equal('my-post');
       
-      // Numeric alias (allowed now!)
-      const response2 = await client.post('/test-stream?alias=2024', 'Year 2024 content');
+      // Numeric name (allowed now!)
+      const response2 = await client.post('/test-stream/2024', 'Year 2024 content');
       expect(response2.status).to.equal(201);
-      expect(response2.data.alias).to.equal('2024');
+      expect(response2.data.name).to.equal('2024');
       
-      // Mixed alias
-      const response3 = await client.post('/test-stream?alias=post-123', 'Mixed alias');
+      // Mixed name
+      const response3 = await client.post('/test-stream/post-123', 'Mixed name');
       expect(response3.status).to.equal(201);
-      expect(response3.data.alias).to.equal('post-123');
+      expect(response3.data.name).to.equal('post-123');
     });
 
-    it('should reject duplicate aliases', async () => {
-      await client.post('/test-stream?alias=unique', 'First');
-      const response = await client.post('/test-stream?alias=unique', 'Second');
+    it('should reject duplicate names', async () => {
+      await client.post('/test-stream/unique', 'First');
+      const response = await client.post('/test-stream/unique', 'Second');
       
       expect(response.status).to.equal(409);
-      expect(response.data.error.code).to.equal('ALIAS_EXISTS');
+      expect(response.data.error.code).to.equal('NAME_EXISTS');
     });
   });
 
   describe('Reading Records', () => {
     beforeEach(async () => {
       // Create stream with test data
-      await client.post('/read-test', 'First');
-      await client.post('/read-test', { data: 'Second' });
-      await client.post('/read-test', 'Third');
-      await client.post('/read-test?alias=my-alias', 'Aliased');
-      await client.post('/read-test?alias=2024', 'Year 2024');
+      await client.post('/read-test/first', 'First');
+      await client.post('/read-test/second', { data: 'Second' });
+      await client.post('/read-test/third', 'Third');
+      await client.post('/read-test/my-name', 'Named');
+      await client.post('/read-test/2024', 'Year 2024');
     });
 
     it('should get record by positive index', async () => {
@@ -208,13 +215,13 @@ describe('WebPods Stream Operations', () => {
       expect(response.data.records[2].content).to.equal('Third');
     });
 
-    it('should get record by string alias', async () => {
-      const response = await client.get('/read-test/my-alias');
+    it('should get record by string name', async () => {
+      const response = await client.get('/read-test/my-name');
       expect(response.status).to.equal(200);
-      expect(response.data).to.equal('Aliased');
+      expect(response.data).to.equal('Named');
     });
 
-    it('should get record by numeric alias', async () => {
+    it('should get record by numeric name', async () => {
       const response = await client.get('/read-test/2024');
       expect(response.status).to.equal(200);
       expect(response.data).to.equal('Year 2024');
@@ -245,7 +252,7 @@ describe('WebPods Stream Operations', () => {
 
   describe('System Streams (.meta/)', () => {
     it('should create .meta/owner stream on pod creation', async () => {
-      await client.post('/any-stream', 'Create pod');
+      await client.post('/any-stream/init', 'Create pod');
       
       const db = testDb.getDb();
       const pod = await db('pod').where('pod_id', testPodId).first();
@@ -267,14 +274,16 @@ describe('WebPods Stream Operations', () => {
 
     it('should list streams via .meta/streams', async () => {
       // Create some streams
-      await client.post('/stream1', 'Content 1');
-      await client.post('/stream2', 'Content 2');
-      await client.post('/nested/stream3', 'Content 3');
+      await client.post('/stream1/content1', 'Content 1');
+      await client.post('/stream2/content2', 'Content 2');
+      await client.post('/nested/stream3/content3', 'Content 3');
       
       const response = await client.get('/.meta/streams');
       expect(response.status).to.equal(200);
       expect(response.data.pod).to.equal(testPodId);
       expect(response.data.streams).to.be.an('array');
+      
+      // The post to /nested/stream3/content3 creates stream "nested/stream3" with record "content3"
       expect(response.data.streams.map((s: any) => s.stream_id)).to.include.members([
         'stream1',
         'stream2',
@@ -284,7 +293,7 @@ describe('WebPods Stream Operations', () => {
     });
 
     it('should update .meta/links for URL routing', async () => {
-      await client.post('/homepage', '<h1>Welcome</h1>', {
+      await client.post('/homepage/index', '<h1>Welcome</h1>', {
         headers: { 'X-Content-Type': 'text/html' }
       });
       
@@ -323,7 +332,7 @@ describe('WebPods Stream Operations', () => {
       });
       
       // Create pod as first user
-      await client.post('/test', 'Create pod');
+      await client.post('/test/init', 'Create pod');
       
       // Try to update .meta/owner as second user
       client.setAuthToken(token2);
@@ -336,8 +345,8 @@ describe('WebPods Stream Operations', () => {
 
   describe('Stream Deletion', () => {
     it('should delete stream and all records', async () => {
-      await client.post('/delete-me', 'Message 1');
-      await client.post('/delete-me', 'Message 2');
+      await client.post('/delete-me/msg1', 'Message 1');
+      await client.post('/delete-me/msg2', 'Message 2');
       
       const response = await client.delete('/delete-me');
       expect(response.status).to.equal(204);
@@ -348,7 +357,7 @@ describe('WebPods Stream Operations', () => {
     });
 
     it('should prevent deletion of system streams', async () => {
-      await client.post('/test', 'Create pod');
+      await client.post('/test/init', 'Create pod');
       
       const response = await client.delete('/.meta/owner');
       expect(response.status).to.equal(403);
@@ -356,7 +365,7 @@ describe('WebPods Stream Operations', () => {
     });
 
     it('should only allow creator to delete stream', async () => {
-      await client.post('/my-stream', 'Content');
+      await client.post('/my-stream/content', 'Content');
       
       // Create second user and try to delete
       const db = testDb.getDb();
@@ -385,7 +394,7 @@ describe('WebPods Stream Operations', () => {
   describe('Content Types and Serving', () => {
     it('should serve HTML directly with correct content type', async () => {
       const html = '<html><body><h1>Hello</h1></body></html>';
-      await client.post('/page?alias=index', html, {
+      await client.post('/page/index', html, {
         headers: { 'X-Content-Type': 'text/html' }
       });
       
@@ -397,7 +406,7 @@ describe('WebPods Stream Operations', () => {
 
     it('should serve CSS with correct content type', async () => {
       const css = 'body { margin: 0; }';
-      await client.post('/assets/styles?alias=main.css', css, {
+      await client.post('/assets/styles/main.css', css, {
         headers: { 'X-Content-Type': 'text/css' }
       });
       
@@ -410,7 +419,7 @@ describe('WebPods Stream Operations', () => {
       const data = { api: 'response', version: 1 };
       await client.post('/api/data', data);
       
-      const response = await client.get('/api/data?i=-1');
+      const response = await client.get('/api/data');
       expect(response.headers['content-type']).to.include('application/json');
       expect(response.data).to.deep.equal(data);
     });

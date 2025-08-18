@@ -53,7 +53,7 @@ Immutable entries in streams.
 | hash | VARCHAR(100) | SHA-256 hash of content |
 | previous_hash | VARCHAR(100) | Hash of previous record (chain) |
 | author_id | VARCHAR(255) | Author's auth_id |
-| alias | VARCHAR(255) | Optional named reference |
+| name | VARCHAR(255) | Optional named reference |
 | created_at | TIMESTAMP | Record creation time |
 
 ### session
@@ -72,7 +72,7 @@ Active user sessions for SSO.
 - `pod.pod_id` - Unique index for subdomain routing
 - `stream.pod_id, stream.stream_id` - Composite unique index
 - `record.stream_id, record.index` - Composite unique index
-- `record.alias` - Index for alias lookups
+- `record.name` - Index for name lookups
 
 ## Migrations
 

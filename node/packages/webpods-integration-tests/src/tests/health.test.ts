@@ -45,7 +45,7 @@ describe('WebPods Health Checks', () => {
     client.setAuthToken(token);
     
     // Try to write to a stream on this pod
-    const response = await client.post('/health-stream', 'Health check content');
+    const response = await client.post('/health-stream/health', 'Health check content');
     
     // Should succeed, proving subdomain routing works
     expect(response.status).to.equal(201);
