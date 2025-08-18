@@ -61,7 +61,7 @@ describe('WebPods Root Pod', () => {
     });
   });
 
-  describe('With rootPod configured (simulated)', () => {
+  describe('Root pod functionality', () => {
     before(async () => {
       // Create and setup the root pod
       client.setBaseUrl(rootPodUrl);
@@ -81,7 +81,7 @@ describe('WebPods Root Pod', () => {
       // The pod gets created on first write
       const initResponse = await client.post('/pages/home', '<h1>Welcome to WebPods</h1>');
       if (initResponse.status !== 201) {
-        console.log('Failed to create initial content:', initResponse.status, initResponse.data);
+        throw new Error(`Failed to create initial content: ${initResponse.status} ${JSON.stringify(initResponse.data)}`);
       }
       await client.post('/pages/about', '<h1>About WebPods</h1>');
       await client.post('/api/data', JSON.stringify({ version: '1.0' }));
@@ -141,7 +141,8 @@ describe('WebPods Root Pod', () => {
       client.setBaseUrl(rootPodUrl);
       const response = await client.get('/api/data');
       expect(response.status).to.equal(200);
-      expect(response.data).to.deep.equal({ version: '1.0' });
+      // The response should be the raw JSON string we stored
+      expect(response.data).to.equal('{"version":"1.0"}');
     });
     
     it('should respect permissions for root pod', async () => {
