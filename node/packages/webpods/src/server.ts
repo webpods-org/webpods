@@ -137,6 +137,36 @@ export function createApp(): Express {
   // Pod routes (subdomain-based)
   app.use(podsRouter);
 
+  // Root pod handler for main domain
+  app.use(async (req, res, next) => {
+    // Check if this is the main domain
+    const subdomain = req.hostname.split('.')[0];
+    const publicHostname = config.server.public?.hostname || 'localhost';
+    const isMainDomain = subdomain === 'localhost' || 
+                        subdomain === 'webpods' || 
+                        subdomain === publicHostname.split('.')[0];
+    
+    // If it's the main domain and rootPod is configured
+    if (isMainDomain && config.rootPod && !req.pod_id) {
+      // Set the pod_id to the configured rootPod
+      req.pod_id = config.rootPod;
+      
+      // Try to get the pod
+      const { getDb } = await import('./db.js');
+      const { getPod } = await import('./domain/pods.js');
+      const db = getDb();
+      const podResult = await getPod(db, config.rootPod);
+      
+      if (podResult.success) {
+        req.pod = podResult.data;
+        // Re-run the pods router with the pod now set
+        return podsRouter(req, res, next);
+      }
+    }
+    
+    next();
+  });
+
   // 404 handler
   app.use((req, res) => {
     const subdomain = req.hostname.split('.')[0];

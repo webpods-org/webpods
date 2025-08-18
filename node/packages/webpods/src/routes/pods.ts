@@ -2,7 +2,7 @@
  * Pod and stream routes
  */
 
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { authenticate, optionalAuth } from '../middleware/auth.js';
 import { extractPod } from '../middleware/pod.js';
@@ -346,12 +346,17 @@ router.post('/.meta/domains', extractPod, authenticate, async (req: Request, res
  * POST {pod}.webpods.org/{stream_path}/{name}
  * Example: POST alice.webpods.org/blog/posts/first.md
  */
-router.post('/*', extractPod, authenticate, rateLimit('write'), async (req: Request, res: Response) => {
-  if (!req.pod_id || !req.auth) {
-    res.status(404).json({
+router.post('/*', extractPod, authenticate, rateLimit('write'), async (req: Request, res: Response, next: NextFunction) => {
+  // If no pod_id was extracted, this is the main domain - skip to next handler
+  if (!req.pod_id) {
+    return next();
+  }
+  
+  if (!req.auth) {
+    res.status(401).json({
       error: {
-        code: 'POD_NOT_FOUND',
-        message: 'Pod not found'
+        code: 'UNAUTHORIZED',
+        message: 'Authentication required'
       }
     });
     return;
@@ -603,8 +608,13 @@ router.post('/*', extractPod, authenticate, rateLimit('write'), async (req: Requ
  * Root path handler with .meta/links support
  * GET {pod}.webpods.org/
  */
-router.get('/', extractPod, optionalAuth, async (req: Request, res: Response) => {
-  if (!req.pod || !req.pod_id) {
+router.get('/', extractPod, optionalAuth, async (req: Request, res: Response, next: NextFunction) => {
+  // If no pod_id was extracted, this is the main domain - skip to next handler
+  if (!req.pod_id) {
+    return next();
+  }
+  
+  if (!req.pod) {
     res.status(404).json({
       error: {
         code: 'POD_NOT_FOUND',
@@ -657,7 +667,12 @@ router.get('/', extractPod, optionalAuth, async (req: Request, res: Response) =>
  * GET {pod}.webpods.org/{stream_path}?i=10:20 - Get range
  * GET {pod}.webpods.org/{stream_path}/{name} - Get by name
  */
-router.get('/*', extractPod, optionalAuth, rateLimit('read'), async (req: Request, res: Response) => {
+router.get('/*', extractPod, optionalAuth, rateLimit('read'), async (req: Request, res: Response, next: NextFunction) => {
+  // If no pod_id was extracted, this is the main domain - skip to next handler
+  if (!req.pod_id) {
+    return next();
+  }
+  
   if (!req.pod) {
     res.status(404).json({
       error: {
@@ -927,12 +942,17 @@ router.get('/*', extractPod, optionalAuth, rateLimit('read'), async (req: Reques
  * DELETE {pod}.webpods.org/{stream_path}/{name} - Delete record (soft delete)
  * DELETE {pod}.webpods.org/{stream_path}/{name}?purge=true - Purge record (hard delete)
  */
-router.delete('/*', extractPod, authenticate, async (req: Request, res: Response) => {
-  if (!req.pod_id || !req.auth) {
-    res.status(404).json({
+router.delete('/*', extractPod, authenticate, async (req: Request, res: Response, next: NextFunction) => {
+  // If no pod_id was extracted, this is the main domain - skip to next handler
+  if (!req.pod_id) {
+    return next();
+  }
+  
+  if (!req.auth) {
+    res.status(401).json({
       error: {
-        code: 'POD_NOT_FOUND',
-        message: 'Pod not found'
+        code: 'UNAUTHORIZED',
+        message: 'Authentication required'
       }
     });
     return;

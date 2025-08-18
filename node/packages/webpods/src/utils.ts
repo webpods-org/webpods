@@ -104,6 +104,11 @@ export function extractPodId(hostname: string): string | null {
   // For now, handle standard format: {pod_id}.webpods.org or {pod_id}.localhost
   
   const parts = hostname.split('.');
+  
+  // If it's just 'localhost' or 'webpods.org', it's the main domain
+  if (parts.length === 1 && parts[0] === 'localhost') return null;
+  if (parts.length === 2 && parts[0] === 'webpods' && parts[1] === 'org') return null;
+  
   if (parts.length < 2) return null;
   
   // Check if it's a webpods.org subdomain

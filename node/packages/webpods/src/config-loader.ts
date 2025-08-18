@@ -84,6 +84,7 @@ export interface AppConfig {
   database: DatabaseConfig;
   auth: AuthConfig;
   rateLimits: RateLimitsConfig;
+  rootPod?: string; // Optional pod to serve on main domain
 }
 
 /**
