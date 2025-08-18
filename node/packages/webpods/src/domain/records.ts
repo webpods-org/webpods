@@ -20,13 +20,13 @@ export async function writeRecord(
   authorId: string,
   alias?: string | null
 ): Promise<Result<StreamRecord>> {
-  // Validate alias if provided
-  if (alias && !isValidAlias(alias)) {
+  // Validate alias if provided (including empty string)
+  if (alias !== undefined && alias !== null && !isValidAlias(alias)) {
     return {
       success: false,
       error: {
         code: 'INVALID_ALIAS',
-        message: 'Alias must contain at least one non-numeric character'
+        message: 'Alias can only contain letters, numbers, hyphens, underscores, and periods. Cannot start or end with a period.'
       }
     };
   }

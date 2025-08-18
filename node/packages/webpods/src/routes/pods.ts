@@ -514,7 +514,13 @@ router.post('/*', extractPod, authenticate, rateLimit('write'), async (req: Requ
     
     if (!recordResult.success) {
       // Check for specific error codes
-      const status = recordResult.error.code === 'ALIAS_EXISTS' ? 409 : 500;
+      let status = 500;
+      if (recordResult.error.code === 'ALIAS_EXISTS') {
+        status = 409;
+      } else if (recordResult.error.code === 'INVALID_ALIAS') {
+        status = 400;
+      }
+      
       res.status(status).json({
         error: recordResult.error
       });

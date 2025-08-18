@@ -50,9 +50,15 @@ POST {pod}.webpods.org/{stream}
 Authorization: Bearer {token}
 
 # Optional parameters
-?alias={string}     # Named reference (any string)
+?alias={string}     # Named reference (letters, numbers, -, _, . only)
 ?access={mode}      # Set on first write only
 ```
+
+**Alias restrictions:**
+- Can only contain: `a-z`, `A-Z`, `0-9`, `-`, `_`, `.`
+- Cannot start or end with `.`
+- Maximum 256 characters
+- Examples: `index.html`, `logo.png`, `post-2024-01-15`
 
 Content type priority:
 1. `X-Content-Type` header

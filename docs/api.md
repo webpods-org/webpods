@@ -62,8 +62,16 @@ Authorization: Bearer {token}
 ```
 
 Query parameters:
-- `alias`: String identifier for this record
+- `alias`: String identifier for this record (see restrictions below)
 - `access`: Permission mode (`public`, `private`, `/{stream}`)
+
+**Alias Restrictions:**
+- Allowed characters: `a-z`, `A-Z`, `0-9`, `-` (hyphen), `_` (underscore), `.` (period)
+- Cannot start or end with a period
+- Cannot contain slashes or other special characters
+- Maximum length: 256 characters
+- Valid examples: `index.html`, `my-post`, `IMG_1234`, `v2.0.1`
+- Invalid examples: `path/to/file`, `.hidden`, `hello world`, `file@name`
 
 Headers:
 - `X-Content-Type`: Explicit content type (highest priority)

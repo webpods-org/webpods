@@ -31,12 +31,24 @@ export function isSystemStream(streamId: string): boolean {
 }
 
 /**
- * Validate alias - any string is valid, including pure numeric strings
+ * Validate alias - must be like a filename
+ * Allowed characters: a-z, A-Z, 0-9, hyphen (-), underscore (_), period (.)
+ * Cannot start or end with a period (to avoid . and .. confusion)
+ * Cannot contain slashes or other special characters
  */
 export function isValidAlias(alias: string): boolean {
-  if (!alias || alias.length > 256) return false;
-  // Any non-empty string is valid as an alias, including numbers
-  return true;
+  // Check for empty, null, or too long
+  if (!alias || alias.length === 0 || alias.length > 256) return false;
+  
+  // Only allow: a-z, A-Z, 0-9, hyphen, underscore, period
+  // Pattern: starts with alphanumeric/underscore/hyphen, 
+  // can have periods in middle but not at start/end
+  const validPattern = /^[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)*$/;
+  
+  // Check pattern and ensure no leading/trailing periods
+  return validPattern.test(alias) && 
+         !alias.startsWith('.') && 
+         !alias.endsWith('.');
 }
 
 /**
