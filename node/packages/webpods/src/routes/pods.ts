@@ -702,12 +702,25 @@ router.get('/*', extractPod, optionalAuth, rateLimit('read'), async (req: Reques
   const streamResult = await getStream(db, req.pod!.id, streamId);
   
   if (!streamResult.success) {
-    res.status(404).json({
-      error: {
-        code: 'STREAM_NOT_FOUND',
-        message: 'Stream not found'
-      }
-    });
+    // Provide more informative error message
+    const fullPath = req.path.substring(1);
+    if (name) {
+      // We were looking for a record in a stream that doesn't exist
+      res.status(404).json({
+        error: {
+          code: 'NOT_FOUND',
+          message: `Not found: no stream '${fullPath}' and no stream '${streamId}' with record '${name}'`
+        }
+      });
+    } else {
+      // We were looking for a stream
+      res.status(404).json({
+        error: {
+          code: 'STREAM_NOT_FOUND',
+          message: `Stream '${streamId}' not found`
+        }
+      });
+    }
     return;
   }
   
@@ -747,8 +760,27 @@ router.get('/*', extractPod, optionalAuth, rateLimit('read'), async (req: Reques
         return;
       }
       
-      // Return raw content for single records
+      // Check if record is deleted
       const record = result.data;
+      try {
+        const content = typeof record.content === 'string' && record.content_type === 'application/json'
+          ? JSON.parse(record.content)
+          : record.content;
+        
+        if (typeof content === 'object' && content !== null && content.deleted === true) {
+          res.status(404).json({
+            error: {
+              code: 'RECORD_DELETED',
+              message: 'Record has been deleted'
+            }
+          });
+          return;
+        }
+      } catch {
+        // Not JSON or can't parse, continue normally
+      }
+      
+      // Return raw content for single records
       // Set headers
       res.setHeader('X-Hash', record.hash);
       res.setHeader('X-Previous-Hash', record.previous_hash || '');
@@ -801,8 +833,47 @@ router.get('/*', extractPod, optionalAuth, rateLimit('read'), async (req: Reques
       return;
     }
     
-    // Return raw content for single records
+    // Check if there's a tombstone record for this name that's newer than the current record
+    const tombstonePattern = `${name}.deleted.%`;
+    const tombstones = await db('record')
+      .where('stream_id', streamResult.data.id)
+      .where('name', 'like', tombstonePattern)
+      .where('index', '>', result.data.index)  // Only tombstones newer than our record
+      .orderBy('index', 'desc')
+      .limit(1);
+    
+    if (tombstones.length > 0) {
+      // Found a newer tombstone, so this record is considered deleted
+      res.status(404).json({
+        error: {
+          code: 'RECORD_DELETED',
+          message: 'Record has been deleted'
+        }
+      });
+      return;
+    }
+    
+    // Check if record itself is a purged record
     const record = result.data;
+    try {
+      const content = typeof record.content === 'string' && record.content_type === 'application/json'
+        ? JSON.parse(record.content)
+        : record.content;
+      
+      if (typeof content === 'object' && content !== null && (content.deleted === true || content.purged === true)) {
+        res.status(404).json({
+          error: {
+            code: 'RECORD_DELETED',
+            message: 'Record has been deleted'
+          }
+        });
+        return;
+      }
+    } catch {
+      // Not JSON or can't parse, continue normally
+    }
+    
+    // Return raw content for single records
     // Set headers
     res.setHeader('X-Hash', record.hash);
     res.setHeader('X-Previous-Hash', record.previous_hash || '');
@@ -851,8 +922,10 @@ router.get('/*', extractPod, optionalAuth, rateLimit('read'), async (req: Reques
 });
 
 /**
- * Delete stream
- * DELETE {pod}.webpods.org/{stream_path}
+ * Delete stream or record
+ * DELETE {pod}.webpods.org/{stream_path} - Delete stream
+ * DELETE {pod}.webpods.org/{stream_path}/{name} - Delete record (soft delete)
+ * DELETE {pod}.webpods.org/{stream_path}/{name}?purge=true - Purge record (hard delete)
  */
 router.delete('/*', extractPod, authenticate, async (req: Request, res: Response) => {
   if (!req.pod_id || !req.auth) {
@@ -865,10 +938,33 @@ router.delete('/*', extractPod, authenticate, async (req: Request, res: Response
     return;
   }
 
-  const streamId = req.path.substring(1); // Remove leading /
+  const db = getDb();
+  const pathParts = req.path.substring(1).split('/'); // Remove leading /
+  const purge = req.query.purge === 'true';
+  
+  // Check if we're trying to delete a record or a stream
+  // Similar logic to GET - check if full path is a stream first
+  let streamId: string;
+  let recordName: string | undefined;
+  
+  if (pathParts.length > 1) {
+    const fullPath = pathParts.join('/');
+    const streamResult = await getStream(db, req.pod!.id, fullPath);
+    
+    if (streamResult.success) {
+      // Full path is a stream, delete the stream
+      streamId = fullPath;
+    } else {
+      // Try as record in parent stream
+      recordName = pathParts.pop();
+      streamId = pathParts.join('/');
+    }
+  } else {
+    streamId = pathParts[0]!;
+  }
   
   // Prevent deletion of system streams via this endpoint
-  if (streamId && isSystemStream(streamId)) {
+  if (!recordName && streamId && isSystemStream(streamId)) {
     res.status(403).json({
       error: {
         code: 'FORBIDDEN',
@@ -878,19 +974,107 @@ router.delete('/*', extractPod, authenticate, async (req: Request, res: Response
     return;
   }
   
-  const db = getDb();
-  const result = await deleteStream(db, req.pod!.id, streamId, req.auth!.user_id);
-  
-  if (!result.success) {
-    const status = result.error.code === 'FORBIDDEN' ? 403 : 
-                   result.error.code === 'STREAM_NOT_FOUND' ? 404 : 500;
-    res.status(status).json({
-      error: result.error
+  // Check ownership - only pod owner can delete
+  const ownerResult = await getPodOwner(db, req.pod_id);
+  if (!ownerResult.success || ownerResult.data !== req.auth.user_id) {
+    res.status(403).json({
+      error: {
+        code: 'FORBIDDEN',
+        message: 'Only pod owner can delete streams or records'
+      }
     });
     return;
   }
+  
+  if (recordName) {
+    // Delete or purge a record
+    const streamResult = await getStream(db, req.pod!.id, streamId);
+    
+    if (!streamResult.success) {
+      const fullPath = req.path.substring(1);
+      res.status(404).json({
+        error: {
+          code: 'NOT_FOUND',
+          message: `Not found: no stream '${fullPath}' and no stream '${streamId}' with record '${recordName}'`
+        }
+      });
+      return;
+    }
+    
+    if (purge) {
+      // Hard delete - physically overwrite the content
+      const updateResult = await db('record')
+        .where('stream_id', streamResult.data.id)
+        .where('name', recordName)
+        .update({
+          content: JSON.stringify({ deleted: true, purged: true, purgedAt: new Date().toISOString(), purgedBy: req.auth.auth_id }),
+          content_type: 'application/json'
+        });
+      
+      if (updateResult === 0) {
+        res.status(404).json({
+          error: {
+            code: 'RECORD_NOT_FOUND',
+            message: `Record '${recordName}' not found in stream '${streamId}'`
+          }
+        });
+        return;
+      }
+      
+      logger.info('Record purged', { podId: req.pod_id, streamId, recordName, userId: req.auth.user_id });
+      res.status(204).send();
+    } else {
+      // Soft delete - add a tombstone record with a unique name
+      // Get the next index for the tombstone
+      const lastRecord = await db('record')
+        .where('stream_id', streamResult.data.id)
+        .orderBy('index', 'desc')
+        .first();
+      
+      const nextIndex = (lastRecord?.index ?? -1) + 1;
+      const tombstoneName = `${recordName}.deleted.${nextIndex}`;
+      
+      const deletionRecord = {
+        deleted: true,
+        deletedAt: new Date().toISOString(),
+        deletedBy: req.auth.auth_id,
+        originalName: recordName
+      };
+      
+      const writeResult = await writeRecord(
+        db,
+        streamResult.data.id,
+        deletionRecord,
+        'application/json',
+        req.auth.auth_id,
+        tombstoneName
+      );
+      
+      if (!writeResult.success) {
+        res.status(500).json({
+          error: writeResult.error
+        });
+        return;
+      }
+      
+      logger.info('Record soft deleted', { podId: req.pod_id, streamId, recordName, userId: req.auth.user_id });
+      res.status(204).send();
+    }
+  } else {
+    // Delete entire stream
+    const result = await deleteStream(db, req.pod!.id, streamId, req.auth!.user_id);
+    
+    if (!result.success) {
+      const status = result.error.code === 'FORBIDDEN' ? 403 : 
+                     result.error.code === 'STREAM_NOT_FOUND' ? 404 : 500;
+      res.status(status).json({
+        error: result.error
+      });
+      return;
+    }
 
-  res.status(204).send();
+    res.status(204).send();
+  }
 });
 
 export default router;

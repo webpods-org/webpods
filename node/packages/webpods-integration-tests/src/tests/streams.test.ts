@@ -168,12 +168,17 @@ describe('WebPods Stream Operations', () => {
       expect(response3.data.name).to.equal('post-123');
     });
 
-    it('should reject duplicate names', async () => {
-      await client.post('/test-stream/unique', 'First');
-      const response = await client.post('/test-stream/unique', 'Second');
+    it('should allow duplicate names (last one wins)', async () => {
+      const response1 = await client.post('/test-stream/duplicate', 'First');
+      expect(response1.status).to.equal(201);
       
-      expect(response.status).to.equal(409);
-      expect(response.data.error.code).to.equal('NAME_EXISTS');
+      const response2 = await client.post('/test-stream/duplicate', 'Second');
+      expect(response2.status).to.equal(201);
+      
+      // When getting by name, should return the latest
+      const getResponse = await client.get('/test-stream/duplicate');
+      expect(getResponse.status).to.equal(200);
+      expect(getResponse.data).to.equal('Second');
     });
   });
 

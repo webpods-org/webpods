@@ -70,15 +70,6 @@ export async function writeRecord(
       logger.info('Record written', { streamId, index, name, hash });
       return { success: true, data: record };
     } catch (error: any) {
-      if (error.code === '23505' && error.constraint?.includes('name')) {
-        return {
-          success: false,
-          error: {
-            code: 'NAME_EXISTS',
-            message: 'Name already exists in this stream'
-          }
-        };
-      }
       logger.error('Failed to write record', { error, streamId });
       return {
         success: false,
@@ -105,10 +96,11 @@ export async function getRecord(
 
     // If preferName is true, try name first even if target is numeric
     if (preferName) {
-      // Try to get by name first
+      // Try to get by name first - get the latest record with this name
       record = await db('record')
         .where('stream_id', streamId)
         .where('name', target)
+        .orderBy('index', 'desc')
         .first();
       
       // If not found as name and target is numeric, try as index
@@ -172,10 +164,11 @@ export async function getRecord(
           .where('index', index)
           .first();
       } else {
-        // Get by name
+        // Get by name - get the latest record with this name
         record = await db('record')
           .where('stream_id', streamId)
           .where('name', target)
+          .orderBy('index', 'desc')
           .first();
       }
     }

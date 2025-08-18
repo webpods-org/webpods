@@ -67,7 +67,6 @@ export async function up(knex) {
     table.timestamp('created_at').defaultTo(knex.fn.now());
     
     table.unique(['stream_id', 'index']);
-    table.unique(['stream_id', 'name']);
     table.index(['stream_id', 'index']);
     table.index(['stream_id', 'name']);
     table.index('author_id');
