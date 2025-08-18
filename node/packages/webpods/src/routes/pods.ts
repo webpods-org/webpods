@@ -686,6 +686,30 @@ router.get('/*', extractPod, optionalAuth, rateLimit('read'), async (req: Reques
   const pathParts = req.path.substring(1).split('/'); // Remove leading /
   const db = getDb();
   
+  // First check if this path is mapped in .meta/links
+  const linkResult = await resolveLink(db, req.pod_id, req.path);
+  
+  if (linkResult.success && linkResult.data) {
+    // Redirect to the mapped stream/record
+    const { streamId, target } = linkResult.data;
+    
+    // Rewrite URL and forward to the stream handler
+    if (target && target.startsWith('?')) {
+      // Handle query parameters (e.g., "?i=-1")
+      req.url = `/${streamId}${target}`;
+      req.query = Object.fromEntries(new URLSearchParams(target.substring(1)));
+    } else if (target) {
+      // Named record
+      req.url = `/${streamId}/${target}`;
+    } else {
+      // Just the stream
+      req.url = `/${streamId}`;
+    }
+    
+    // Let Express router handle the rewritten request
+    return router(req, res, () => {});
+  }
+  
   // Check for index query parameter
   const indexQuery = req.query.i as string | undefined;
   

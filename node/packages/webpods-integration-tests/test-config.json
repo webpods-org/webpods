@@ -52,5 +52,6 @@
     "reads": 10000,
     "podCreate": 10,
     "streamCreate": 100
-  }
+  },
+  "rootPod": "testroot"
 }

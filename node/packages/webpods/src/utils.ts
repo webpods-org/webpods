@@ -97,37 +97,57 @@ export function calculateRecordHash(
 }
 
 /**
+ * Check if a hostname is the main domain
+ */
+export function isMainDomain(hostname: string, configuredDomain: string): boolean {
+  // Handle port numbers - strip them for comparison
+  const hostWithoutPort = hostname.split(':')[0];
+  const configWithoutPort = configuredDomain.split(':')[0];
+  
+  return hostWithoutPort === configWithoutPort;
+}
+
+/**
+ * Check if a hostname is a subdomain of the main domain
+ */
+export function isSubdomainOf(hostname: string, mainDomain: string): boolean {
+  const hostParts = hostname.split('.');
+  const mainParts = mainDomain.split('.');
+  
+  // Must have more parts than main domain
+  if (hostParts.length <= mainParts.length) {
+    return false;
+  }
+  
+  // Check if it ends with the main domain
+  const hostSuffix = hostParts.slice(-mainParts.length).join('.');
+  return hostSuffix === mainDomain;
+}
+
+/**
  * Extract pod ID from hostname
  */
-export function extractPodId(hostname: string): string | null {
-  // Handle custom domains first (check database)
-  // For now, handle standard format: {pod_id}.webpods.org or {pod_id}.localhost
-  
-  const parts = hostname.split('.');
-  
-  // If it's just 'localhost' or 'webpods.org', it's the main domain
-  if (parts.length === 1 && parts[0] === 'localhost') return null;
-  if (parts.length === 2 && parts[0] === 'webpods' && parts[1] === 'org') return null;
-  
-  if (parts.length < 2) return null;
-  
-  // Check if it's a webpods.org subdomain
-  if (parts[parts.length - 2] === 'webpods' && parts[parts.length - 1] === 'org') {
-    if (parts.length === 3) {
-      const podId = parts[0]!;
-      return isValidPodId(podId) ? podId : null;
-    }
+export function extractPodId(hostname: string, mainDomain?: string): string | null {
+  // Get the main domain from config if not provided
+  if (!mainDomain) {
+    // This will be passed from the middleware which has access to config
+    // For now, return null and let the middleware handle it
+    return null;
   }
   
-  // Check if it's a localhost subdomain (for testing)
-  if (parts[parts.length - 1] === 'localhost') {
-    if (parts.length === 2) {
-      const podId = parts[0]!;
-      return isValidPodId(podId) ? podId : null;
-    }
+  // If it's the main domain itself, no pod
+  if (isMainDomain(hostname, mainDomain)) {
+    return null;
   }
   
-  // For custom domains, we'll need to check the database
+  // If it's a subdomain, extract the pod ID
+  if (isSubdomainOf(hostname, mainDomain)) {
+    // The first part is the pod ID
+    const podId = hostname.split('.')[0]!;
+    return isValidPodId(podId) ? podId : null;
+  }
+  
+  // Not a subdomain of the main domain - could be a custom domain
   return null;
 }
 

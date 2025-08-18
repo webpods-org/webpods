@@ -3,7 +3,7 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { extractPodId } from '../utils.js';
+import { extractPodId, isMainDomain } from '../utils.js';
 import { findPodByDomain } from '../domain/routing.js';
 import { getPod } from '../domain/pods.js';
 import { getDb } from '../db.js';
@@ -25,11 +25,22 @@ declare module 'express-serve-static-core' {
  */
 export async function extractPod(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
+    // If pod_id is already set (e.g., by rootPod handler), skip extraction
+    if (req.pod_id) {
+      next();
+      return;
+    }
+    
     const hostname = req.hostname || req.headers.host?.split(':')[0] || '';
     const db = getDb();
     
+    // Get config to determine main domain
+    const { getConfig } = await import('../config-loader.js');
+    const config = getConfig();
+    const mainDomain = config.server.public?.hostname || 'localhost';
+    
     // First try standard subdomain format
-    let podId = extractPodId(hostname);
+    let podId = extractPodId(hostname, mainDomain);
     
     // If not found, check custom domains
     if (!podId) {
@@ -37,6 +48,11 @@ export async function extractPod(req: Request, res: Response, next: NextFunction
       if (result.success && result.data) {
         podId = result.data;
       }
+    }
+    
+    // If still no pod found and this is the main domain, check for rootPod config
+    if (!podId && isMainDomain(hostname, mainDomain) && config.rootPod) {
+      podId = config.rootPod;
     }
     
     if (!podId) {
@@ -77,8 +93,13 @@ export async function optionalExtractPod(req: Request, _res: Response, next: Nex
     const hostname = req.hostname || req.headers.host?.split(':')[0] || '';
     const db = getDb();
     
+    // Get config to determine main domain
+    const { getConfig } = await import('../config-loader.js');
+    const config = getConfig();
+    const mainDomain = config.server.public?.hostname || 'localhost';
+    
     // First try standard subdomain format
-    let podId = extractPodId(hostname);
+    let podId = extractPodId(hostname, mainDomain);
     
     // If not found, check custom domains
     if (!podId) {
