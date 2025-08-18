@@ -217,7 +217,7 @@ Supported for direct serving:
 ### Blog with posts
 ```bash
 # Create post with name
-curl -X POST alice.webpods.org/blog?name=welcome \
+curl -X POST alice.webpods.org/blog/welcome \
   -H "Authorization: Bearer $TOKEN" \
   -d "Welcome post"
 
@@ -228,7 +228,7 @@ curl alice.webpods.org/blog/welcome
 ### Static website
 ```bash
 # Write HTML
-curl -X POST alice.webpods.org/page?name=index \
+curl -X POST alice.webpods.org/page/index \
   -H "Authorization: Bearer $TOKEN" \
   -H "X-Content-Type: text/html" \
   -d "<h1>Hello</h1>"

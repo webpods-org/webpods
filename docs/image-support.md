@@ -22,7 +22,7 @@ Upload an image as a base64 encoded string:
 IMAGE_BASE64=$(base64 -w 0 < image.png)
 
 # Upload to WebPods
-curl -X POST alice.webpods.org/images/logo?name=main \
+curl -X POST alice.webpods.org/images/logo/main \
   -H "Authorization: Bearer $TOKEN" \
   -H "X-Content-Type: image/png" \
   -d "$IMAGE_BASE64"
@@ -74,15 +74,15 @@ curl -X POST alice.webpods.org/photos/mountain \
   -d "$MOUNTAIN_BASE64"
 
 # Create gallery HTML
-curl -X POST alice.webpods.org/pages/gallery?name=index \
+curl -X POST alice.webpods.org/pages/gallery/index \
   -H "Authorization: Bearer $TOKEN" \
   -H "X-Content-Type: text/html" \
   -d '<html>
 <head><title>My Gallery</title></head>
 <body>
   <h1>Photo Gallery</h1>
-  <img src="/photos/sunset?i=-1" alt="Sunset" style="max-width: 500px;">
-  <img src="/photos/mountain?i=-1" alt="Mountain" style="max-width: 500px;">
+  <img src="/photos/sunset" alt="Sunset" style="max-width: 500px;">
+  <img src="/photos/mountain" alt="Mountain" style="max-width: 500px;">
 </body>
 </html>'
 
@@ -174,18 +174,18 @@ curl -X POST alice.webpods.org/users/john/avatar \
   -d "$AVATAR_BASE64"
 
 # Serve avatar
-<img src="/users/john/avatar?i=-1" alt="John's Avatar">
+<img src="/users/john/avatar" alt="John's Avatar">
 ```
 
 ### Logo with Versions
 ```bash
 # Upload multiple versions
-curl -X POST alice.webpods.org/brand/logo?name=v1 \
+curl -X POST alice.webpods.org/brand/logo/v1 \
   -H "Authorization: Bearer $TOKEN" \
   -H "X-Content-Type: image/png" \
   -d "$LOGO_V1"
 
-curl -X POST alice.webpods.org/brand/logo?name=v2 \
+curl -X POST alice.webpods.org/brand/logo/v2 \
   -H "Authorization: Bearer $TOKEN" \
   -H "X-Content-Type: image/png" \
   -d "$LOGO_V2"
@@ -193,5 +193,5 @@ curl -X POST alice.webpods.org/brand/logo?name=v2 \
 # Access specific versions
 /brand/logo/v1  # First version
 /brand/logo/v2  # Second version
-/brand/logo?i=-1  # Latest version
+/brand/logo?i=-1  # Latest version by index
 ```
