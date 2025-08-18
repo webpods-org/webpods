@@ -7,8 +7,6 @@ describe('WebPods Record Deletion', () => {
   let client: TestHttpClient;
   let ownerToken: string;
   let nonOwnerToken: string;
-  let ownerId: string;
-  let nonOwnerId: string;
   const testPodId = 'test-delete';
   const baseUrl = `http://${testPodId}.localhost:3099`;
 
@@ -24,7 +22,6 @@ describe('WebPods Record Deletion', () => {
       name: 'Pod Owner',
       provider: 'testprovider1'
     }).returning('*');
-    ownerId = owner.id;
     
     // Create non-owner user
     const [nonOwner] = await db('user').insert({
@@ -34,7 +31,6 @@ describe('WebPods Record Deletion', () => {
       name: 'Other User',
       provider: 'testprovider1'
     }).returning('*');
-    nonOwnerId = nonOwner.id;
     
     // Generate tokens
     client.setBaseUrl(baseUrl);
