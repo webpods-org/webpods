@@ -13,7 +13,11 @@ import { getConfig } from '../config-loader.js';
 import { 
   parseIndexQuery, 
   detectContentType,
-  isSystemStream
+  isSystemStream,
+  isBinaryContentType,
+  isValidBase64,
+  parseDataUrl,
+  MAX_BINARY_SIZE
 } from '../utils.js';
 
 // Import domain functions
@@ -357,9 +361,65 @@ router.post('/*', extractPod, authenticate, rateLimit('write'), async (req: Requ
     // Get stream path from URL (everything after domain)
     const streamId = req.path.substring(1); // Remove leading /
     const alias = req.query.alias as string | undefined;
-    const content = writeSchema.parse(req.body);
-    const contentType = detectContentType(req.headers);
+    let content = writeSchema.parse(req.body);
+    let contentType = detectContentType(req.headers);
     const accessPermission = req.query.access as string | undefined;
+    
+    // Check if content is a data URL first (before checking content type)
+    if (typeof content === 'string' && content.startsWith('data:')) {
+      const parsed = parseDataUrl(content);
+      if (!parsed) {
+        res.status(400).json({
+          error: {
+            code: 'INVALID_CONTENT',
+            message: 'Invalid data URL format'
+          }
+        });
+        return;
+      }
+      // Use the content type from data URL if not explicitly set
+      if (!req.headers['x-content-type']) {
+        contentType = parsed.contentType;
+      }
+      content = parsed.data;
+    }
+    
+    // Handle binary content (images)
+    if (isBinaryContentType(contentType)) {
+      // For binary content, expect base64 encoded string
+      if (typeof content !== 'string') {
+        res.status(400).json({
+          error: {
+            code: 'INVALID_CONTENT',
+            message: 'Binary content must be provided as base64 encoded string'
+          }
+        });
+        return;
+      }
+      
+      // Validate base64
+      if (!isValidBase64(content)) {
+        res.status(400).json({
+          error: {
+            code: 'INVALID_CONTENT',
+            message: 'Invalid base64 encoding'
+          }
+        });
+        return;
+      }
+      
+      // Check size limit (base64 is ~33% larger than binary)
+      const estimatedBinarySize = (content.length * 3) / 4;
+      if (estimatedBinarySize > MAX_BINARY_SIZE) {
+        res.status(413).json({
+          error: {
+            code: 'CONTENT_TOO_LARGE',
+            message: `Binary content exceeds maximum size of ${MAX_BINARY_SIZE / (1024 * 1024)}MB`
+          }
+        });
+        return;
+      }
+    }
     
     const db = getDb();
     
@@ -634,8 +694,13 @@ router.get('/*', extractPod, optionalAuth, rateLimit('read'), async (req: Reques
       // Set content type and send response
       res.type(record.content_type);
       
-      // Parse JSON content if needed
-      if (record.content_type === 'application/json' && typeof record.content === 'string') {
+      // Handle different content types
+      if (isBinaryContentType(record.content_type)) {
+        // Decode base64 for binary content
+        const buffer = Buffer.from(record.content, 'base64');
+        res.send(buffer);
+      } else if (record.content_type === 'application/json' && typeof record.content === 'string') {
+        // Parse JSON content if needed
         try {
           res.send(JSON.parse(record.content));
         } catch {
@@ -683,8 +748,13 @@ router.get('/*', extractPod, optionalAuth, rateLimit('read'), async (req: Reques
     // Set content type and send response
     res.type(record.content_type);
     
-    // Parse JSON content if needed
-    if (record.content_type === 'application/json' && typeof record.content === 'string') {
+    // Handle different content types
+    if (isBinaryContentType(record.content_type)) {
+      // Decode base64 for binary content
+      const buffer = Buffer.from(record.content, 'base64');
+      res.send(buffer);
+    } else if (record.content_type === 'application/json' && typeof record.content === 'string') {
+      // Parse JSON content if needed
       try {
         res.send(JSON.parse(record.content));
       } catch {

@@ -200,3 +200,86 @@ export function getIpAddress(req: any): string {
          req.socket?.remoteAddress ||
          '127.0.0.1';
 }
+
+/**
+ * Supported content types for direct serving
+ */
+export const SERVABLE_CONTENT_TYPES = [
+  'text/html',
+  'text/css',
+  'application/javascript',
+  'application/json',
+  'text/plain',
+  // Image types
+  'image/png',
+  'image/jpeg',
+  'image/jpg',
+  'image/gif',
+  'image/webp',
+  'image/svg+xml',
+  'image/x-icon',
+  'image/ico'
+];
+
+/**
+ * Binary content types that need base64 encoding
+ */
+export const BINARY_CONTENT_TYPES = [
+  'image/png',
+  'image/jpeg',
+  'image/jpg',
+  'image/gif',
+  'image/webp',
+  'image/x-icon',
+  'image/ico'
+];
+
+/**
+ * Check if content type is servable
+ */
+export function isServableContentType(contentType: string): boolean {
+  return SERVABLE_CONTENT_TYPES.includes(contentType.toLowerCase());
+}
+
+/**
+ * Check if content type is binary
+ */
+export function isBinaryContentType(contentType: string): boolean {
+  return BINARY_CONTENT_TYPES.includes(contentType.toLowerCase());
+}
+
+/**
+ * Maximum size for binary content (10MB)
+ */
+export const MAX_BINARY_SIZE = 10 * 1024 * 1024; // 10MB in bytes
+
+/**
+ * Validate base64 string
+ */
+export function isValidBase64(str: string): boolean {
+  if (!str || str.length === 0) return false;
+  
+  // Check if it's a data URL
+  if (str.startsWith('data:')) {
+    const matches = str.match(/^data:([^;]+);base64,(.+)$/);
+    if (!matches) return false;
+    str = matches[2]!;
+  }
+  
+  // Basic base64 validation
+  const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
+  return base64Regex.test(str) && str.length % 4 === 0;
+}
+
+/**
+ * Extract base64 data and content type from data URL
+ */
+export function parseDataUrl(dataUrl: string): { contentType: string; data: string } | null {
+  const matches = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+  if (!matches) return null;
+  
+  return {
+    contentType: matches[1]!,
+    data: matches[2]!
+  };
+}
