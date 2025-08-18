@@ -29,12 +29,11 @@ export function createApp(): Express {
     credentials: true
   }));
 
-  // Request parsing
-  // Increased limit to support base64 encoded images (base64 is ~33% larger than binary)
-  // 10MB binary = ~13.3MB base64, so 15MB limit is safe
-  app.use(express.json({ limit: '15mb' }));
-  app.use(express.text({ limit: '15mb' }));
-  app.use(express.urlencoded({ extended: true }));
+  // Request parsing with configurable payload size
+  const payloadLimit = config.server.maxPayloadSize || '10mb';
+  app.use(express.json({ limit: payloadLimit }));
+  app.use(express.text({ limit: payloadLimit }));
+  app.use(express.urlencoded({ extended: true, limit: payloadLimit }));
   app.use(compression());
   app.use(cookieParser());
 

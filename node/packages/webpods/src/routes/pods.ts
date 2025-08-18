@@ -16,8 +16,7 @@ import {
   isSystemStream,
   isBinaryContentType,
   isValidBase64,
-  parseDataUrl,
-  MAX_BINARY_SIZE
+  parseDataUrl
 } from '../utils.js';
 
 // Import domain functions
@@ -409,12 +408,21 @@ router.post('/*', extractPod, authenticate, rateLimit('write'), async (req: Requ
       }
       
       // Check size limit (base64 is ~33% larger than binary)
+      // Get max payload size from config (e.g., "10mb" -> 10 * 1024 * 1024)
+      const config = getConfig();
+      const maxSizeStr = config.server.maxPayloadSize || '10mb';
+      const maxSizeMatch = maxSizeStr.match(/^(\d+)(mb|kb|gb)?$/i);
+      const maxSizeNum = maxSizeMatch ? parseInt(maxSizeMatch[1]!) : 10;
+      const unit = maxSizeMatch?.[2]?.toLowerCase() || 'mb';
+      const multiplier = unit === 'kb' ? 1024 : unit === 'mb' ? 1024 * 1024 : unit === 'gb' ? 1024 * 1024 * 1024 : 1024 * 1024;
+      const maxBinarySize = maxSizeNum * multiplier;
+      
       const estimatedBinarySize = (content.length * 3) / 4;
-      if (estimatedBinarySize > MAX_BINARY_SIZE) {
+      if (estimatedBinarySize > maxBinarySize) {
         res.status(413).json({
           error: {
             code: 'CONTENT_TOO_LARGE',
-            message: `Binary content exceeds maximum size of ${MAX_BINARY_SIZE / (1024 * 1024)}MB`
+            message: `Content exceeds maximum size of ${maxSizeStr}`
           }
         });
         return;

@@ -109,9 +109,26 @@ curl -X POST alice.webpods.org/icons/logo \
 
 ## Size Limits
 
-- Maximum binary content size: **10MB** (after base64 decoding)
-- Express body parser limit: **15MB** (to accommodate base64 overhead)
-- Base64 encoding adds ~33% overhead
+- Configurable via `MAX_PAYLOAD_SIZE` environment variable or `server.maxPayloadSize` in config.json
+- Default: **10mb**
+- Applies to ALL content types (text, JSON, images, etc.)
+- Base64 encoding adds ~33% overhead for binary content
+
+### Configuration Examples
+
+```bash
+# Environment variable
+export MAX_PAYLOAD_SIZE=50mb
+
+# Or in config.json
+{
+  "server": {
+    "maxPayloadSize": "50mb"
+  }
+}
+```
+
+Supported units: `kb`, `mb`, `gb` (e.g., "512kb", "50mb", "1gb")
 
 ## Technical Details
 

@@ -66,7 +66,8 @@
     "host": "$HOST",
     "port": "$PORT",
     "publicUrl": "$PUBLIC_URL",
-    "corsOrigin": "$CORS_ORIGIN"
+    "corsOrigin": "$CORS_ORIGIN",
+    "maxPayloadSize": "$MAX_PAYLOAD_SIZE"
   },
   "database": {
     "host": "$WEBPODS_DB_HOST",

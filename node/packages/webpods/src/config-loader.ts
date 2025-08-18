@@ -53,6 +53,7 @@ export interface ServerConfig {
   port: number;
   publicUrl: string;
   corsOrigin: string;
+  maxPayloadSize: string; // e.g., "10mb", "50mb"
   public?: PublicConfig; // Parsed from publicUrl
 }
 
@@ -153,6 +154,9 @@ function resolveEnvVars(obj: any, path: string[] = []): any {
         case 'server.corsOrigin':
           defaultValue = '*';
           break;
+        case 'server.maxPayloadSize':
+          defaultValue = '10mb';
+          break;
         case 'database.host':
           defaultValue = 'localhost';
           break;
@@ -217,6 +221,7 @@ function applyDefaults(config: any): any {
   config.server.port = config.server.port ?? '$PORT';
   config.server.publicUrl = config.server.publicUrl ?? '$PUBLIC_URL';
   config.server.corsOrigin = config.server.corsOrigin ?? '$CORS_ORIGIN';
+  config.server.maxPayloadSize = config.server.maxPayloadSize ?? '$MAX_PAYLOAD_SIZE';
   
   // Apply defaults for database
   config.database.host = config.database.host ?? '$WEBPODS_DB_HOST';

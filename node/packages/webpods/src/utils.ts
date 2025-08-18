@@ -249,11 +249,6 @@ export function isBinaryContentType(contentType: string): boolean {
 }
 
 /**
- * Maximum size for binary content (10MB)
- */
-export const MAX_BINARY_SIZE = 10 * 1024 * 1024; // 10MB in bytes
-
-/**
  * Validate base64 string
  */
 export function isValidBase64(str: string): boolean {
