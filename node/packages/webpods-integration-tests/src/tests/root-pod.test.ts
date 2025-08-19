@@ -5,11 +5,36 @@ import { testDb } from "../test-setup.js";
 
 describe("WebPods Root Pod", () => {
   let client: TestHttpClient;
-  let authToken: string;
   let userId: string;
   const mainUrl = "http://localhost:3099";
-  const rootPodId = "root";
+  const rootPodId = "testroot"; // Must match test-config.json
   const rootPodUrl = `http://${rootPodId}.localhost:3099`;
+
+  // Helper to create the root pod with initial content
+  async function setupRootPod() {
+    const podToken = client.generatePodToken(
+      {
+        user_id: userId,
+        auth_id: "auth:provider:roottest",
+        email: "roottest@example.com",
+        name: "Root Test User",
+        provider: "testprovider1",
+      },
+      rootPodId,
+    );
+    client.setAuthToken(podToken);
+    
+    // Create initial content
+    await client.post("/pages/home", "<h1>Welcome to WebPods</h1>");
+    await client.post("/pages/about", "<h1>About WebPods</h1>");
+    await client.post("/api/data", JSON.stringify({ version: "1.0" }));
+    
+    // Configure links
+    await client.post("/.meta/links", {
+      "/": "pages/home",
+      "/about": "pages/about",
+    });
+  }
 
   before(async () => {
     client = new TestHttpClient(mainUrl);
@@ -26,18 +51,9 @@ describe("WebPods Root Pod", () => {
       })
       .returning("*");
     userId = user.id;
-
-    // Generate auth token
-    authToken = TestHttpClient.generateToken({
-      user_id: user.id,
-      auth_id: user.auth_id,
-      email: user.email,
-      name: user.name,
-      provider: "testprovider1",
-    });
   });
 
-  describe("Without rootPod configured", () => {
+  describe("With rootPod configured but not existing", () => {
     it("should return 404 on main domain root", async () => {
       const response = await client.get("/");
       expect(response.status).to.equal(404);
@@ -64,11 +80,46 @@ describe("WebPods Root Pod", () => {
   });
 
   describe("Root pod functionality", () => {
-    before(async () => {
-      // Create and setup the root pod
+    it("should serve root pod content when configured", async () => {
+      // This tests that the root pod itself works
       client.setBaseUrl(rootPodUrl);
+      await setupRootPod();
+      
+      const response = await client.get("/");
+      expect(response.status).to.equal(200);
+      expect(response.data).to.equal("<h1>Welcome to WebPods</h1>");
+    });
 
-      // Generate pod-specific token
+    it("should serve root pod links", async () => {
+      client.setBaseUrl(rootPodUrl);
+      await setupRootPod();
+      
+      const response = await client.get("/about");
+      expect(response.status).to.equal(200);
+      expect(response.data).to.equal("<h1>About WebPods</h1>");
+    });
+
+    it("should serve root pod streams", async () => {
+      client.setBaseUrl(rootPodUrl);
+      await setupRootPod();
+      
+      const response = await client.get("/pages/home");
+      expect(response.status).to.equal(200);
+      expect(response.data).to.equal("<h1>Welcome to WebPods</h1>");
+    });
+
+    it("should return 404 for non-existent paths in root pod", async () => {
+      client.setBaseUrl(rootPodUrl);
+      await setupRootPod();
+      
+      const response = await client.get("/nonexistent");
+      expect(response.status).to.equal(404);
+    });
+
+    it("should allow POST to root pod streams", async () => {
+      client.setBaseUrl(rootPodUrl);
+      
+      // Create the pod first with a pod-specific token
       const podToken = client.generatePodToken(
         {
           user_id: userId,
@@ -79,65 +130,12 @@ describe("WebPods Root Pod", () => {
         },
         rootPodId,
       );
-
       client.setAuthToken(podToken);
-
-      // Initialize the root pod by creating the first stream
-      // The pod gets created on first write
-      const initResponse = await client.post(
-        "/pages/home",
-        "<h1>Welcome to WebPods</h1>",
-      );
-      if (initResponse.status !== 201) {
-        throw new Error(
-          `Failed to create initial content: ${initResponse.status} ${JSON.stringify(initResponse.data)}`,
-        );
-      }
-      await client.post("/pages/about", "<h1>About WebPods</h1>");
-      await client.post("/api/data", JSON.stringify({ version: "1.0" }));
-
-      // Configure links
-      await client.post("/.meta/links", {
-        "/": "pages/home",
-        "/about": "pages/about",
-      });
-
-      // Now we need to simulate the rootPod config
-      // This is a limitation of our test setup - we can't easily change config at runtime
-      // So we'll test the behavior by directly calling the root pod
-    });
-
-    it("should serve root pod content when configured", async () => {
-      // This tests that the root pod itself works
-      client.setBaseUrl(rootPodUrl);
-      const response = await client.get("/");
-      expect(response.status).to.equal(200);
-      expect(response.data).to.equal("<h1>Welcome to WebPods</h1>");
-    });
-
-    it("should serve root pod links", async () => {
-      client.setBaseUrl(rootPodUrl);
-      const response = await client.get("/about");
-      expect(response.status).to.equal(200);
-      expect(response.data).to.equal("<h1>About WebPods</h1>");
-    });
-
-    it("should serve root pod streams", async () => {
-      client.setBaseUrl(rootPodUrl);
-      const response = await client.get("/pages/home");
-      expect(response.status).to.equal(200);
-      expect(response.data).to.equal("<h1>Welcome to WebPods</h1>");
-    });
-
-    it("should return 404 for non-existent paths in root pod", async () => {
-      client.setBaseUrl(rootPodUrl);
-      const response = await client.get("/nonexistent");
-      expect(response.status).to.equal(404);
-    });
-
-    it("should allow POST to root pod streams", async () => {
-      client.setBaseUrl(rootPodUrl);
-      client.setAuthToken(authToken);
+      
+      // Create initial content to establish the pod
+      await client.post("/pages/home", "<h1>Welcome to WebPods</h1>");
+      
+      // Now test creating new content
       const response = await client.post("/pages/new", "New page content");
       expect(response.status).to.equal(201);
 
@@ -149,6 +147,23 @@ describe("WebPods Root Pod", () => {
 
     it("should serve JSON content correctly", async () => {
       client.setBaseUrl(rootPodUrl);
+      
+      // Create the pod and content first
+      const podToken = client.generatePodToken(
+        {
+          user_id: userId,
+          auth_id: "auth:provider:roottest",
+          email: "roottest@example.com",
+          name: "Root Test User",
+          provider: "testprovider1",
+        },
+        rootPodId,
+      );
+      client.setAuthToken(podToken);
+      await client.post("/api/data", JSON.stringify({ version: "1.0" }));
+      
+      // Now test reading it
+      client.setAuthToken(""); // Read without auth
       const response = await client.get("/api/data");
       expect(response.status).to.equal(200);
       // The response should be the raw JSON string we stored
@@ -158,7 +173,19 @@ describe("WebPods Root Pod", () => {
     it("should respect permissions for root pod", async () => {
       // Create a private stream in root pod
       client.setBaseUrl(rootPodUrl);
-      client.setAuthToken(authToken);
+      await setupRootPod();
+      
+      const podToken = client.generatePodToken(
+        {
+          user_id: userId,
+          auth_id: "auth:provider:roottest",
+          email: "roottest@example.com",
+          name: "Root Test User",
+          provider: "testprovider1",
+        },
+        rootPodId,
+      );
+      client.setAuthToken(podToken);
       await client.post("/private/secret?access=private", "Secret content");
 
       // Try to access without auth
@@ -167,7 +194,7 @@ describe("WebPods Root Pod", () => {
       expect(response.status).to.equal(403);
 
       // Access with auth should work
-      client.setAuthToken(authToken);
+      client.setAuthToken(podToken);
       const authResponse = await client.get("/private/secret");
       expect(authResponse.status).to.equal(200);
       expect(authResponse.data).to.equal("Secret content");
@@ -175,7 +202,19 @@ describe("WebPods Root Pod", () => {
 
     it("should allow deletion in root pod", async () => {
       client.setBaseUrl(rootPodUrl);
-      client.setAuthToken(authToken);
+      await setupRootPod();
+      
+      const podToken = client.generatePodToken(
+        {
+          user_id: userId,
+          auth_id: "auth:provider:roottest",
+          email: "roottest@example.com",
+          name: "Root Test User",
+          provider: "testprovider1",
+        },
+        rootPodId,
+      );
+      client.setAuthToken(podToken);
 
       // Create and delete a record
       await client.post("/temp/data", "Temporary data");
@@ -191,10 +230,26 @@ describe("WebPods Root Pod", () => {
 
   describe("Root pod behavior verification", () => {
     it("should not interfere with subdomain pods", async () => {
+      // First set up root pod
+      client.setBaseUrl(rootPodUrl);
+      await setupRootPod();
+      
       // Create another pod
       const alicePodUrl = "http://alice.localhost:3099";
       client.setBaseUrl(alicePodUrl);
-      client.setAuthToken(authToken);
+      
+      // Use a pod-specific token for alice pod
+      const aliceToken = client.generatePodToken(
+        {
+          user_id: userId,
+          auth_id: "auth:provider:roottest",
+          email: "roottest@example.com",
+          name: "Root Test User",
+          provider: "testprovider1",
+        },
+        "alice",
+      );
+      client.setAuthToken(aliceToken);
       await client.post("/init/start", "Initialize alice pod");
       await client.post("/blog/post1", "Alice blog post");
 
@@ -211,7 +266,19 @@ describe("WebPods Root Pod", () => {
 
     it("should handle nested paths in root pod", async () => {
       client.setBaseUrl(rootPodUrl);
-      client.setAuthToken(authToken);
+      await setupRootPod();
+      
+      const podToken = client.generatePodToken(
+        {
+          user_id: userId,
+          auth_id: "auth:provider:roottest",
+          email: "roottest@example.com",
+          name: "Root Test User",
+          provider: "testprovider1",
+        },
+        rootPodId,
+      );
+      client.setAuthToken(podToken);
 
       // Create nested stream structure
       await client.post("/docs/api/v1/intro", "API Introduction");

@@ -170,9 +170,8 @@ export function verifyToken(
 
     // If we're on a pod subdomain, verify the token is for this pod
     if (expectedPod) {
-      // Token must either be for this specific pod, or not have a pod claim at all
+      // Pod-specific token for a different pod is not allowed
       if (payload.pod && payload.pod !== expectedPod) {
-        // Pod-specific token for a different pod
         return {
           success: false,
           error: {
@@ -183,6 +182,8 @@ export function verifyToken(
       }
       
       // Global tokens (without pod claim) should not work on pod subdomains
+      // UNLESS we're creating the pod for the first time (write operations)
+      // The middleware will need to handle this case
       if (!payload.pod) {
         return {
           success: false,

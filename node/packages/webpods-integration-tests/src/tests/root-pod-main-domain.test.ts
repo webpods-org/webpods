@@ -16,7 +16,7 @@ describe("WebPods Root Pod Main Domain", () => {
   const mainUrl = "http://localhost:3099";
   const rootPodUrl = `http://${rootPodId}.localhost:3099`;
 
-  before(async () => {
+  beforeEach(async () => {
     // Create test user
     const db = testDb.getDb();
     const [user] = await db("user")
