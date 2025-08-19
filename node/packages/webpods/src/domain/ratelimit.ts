@@ -46,7 +46,7 @@ export async function incrementRateLimit(
   try {
     const rateLimitRecord = await db.oneOrNone<RateLimitDbRow>(
       `SELECT * FROM rate_limit
-       WHERE user_id = $(identifier)
+       WHERE identifier = $(identifier)
          AND action = $(type)
          AND window_start = $(windowStart)`,
       { identifier, type, windowStart: actualWindowStart },
@@ -55,15 +55,15 @@ export async function incrementRateLimit(
     if (!rateLimitRecord) {
       // Create new window with count 1
       await db.none(
-        `INSERT INTO rate_limit (id, user_id, action, count, window_start, created_at)
-         VALUES (gen_random_uuid(), $(identifier), $(type), 1, $(windowStart), NOW())`,
-        { identifier, type, windowStart: actualWindowStart },
+        `INSERT INTO rate_limit (id, identifier, action, count, window_start, window_end)
+         VALUES (gen_random_uuid(), $(identifier), $(type), 1, $(windowStart), $(windowEnd))`,
+        { identifier, type, windowStart: actualWindowStart, windowEnd },
       );
     } else {
       // Increment existing counter
       await db.none(
         `UPDATE rate_limit 
-         SET count = count + 1, updated_at = NOW()
+         SET count = count + 1
          WHERE id = $(id)`,
         { id: rateLimitRecord.id },
       );
@@ -95,7 +95,7 @@ export async function checkRateLimit(
 
     let rateLimitRecord = await db.oneOrNone<RateLimitDbRow>(
       `SELECT * FROM rate_limit
-       WHERE user_id = $(identifier)
+       WHERE identifier = $(identifier)
          AND action = $(type)
          AND window_start = $(windowStart)`,
       { identifier, type, windowStart: actualWindowStart },
@@ -104,15 +104,21 @@ export async function checkRateLimit(
     if (!rateLimitRecord) {
       // Create new window
       rateLimitRecord = await db.one<RateLimitDbRow>(
-        `INSERT INTO rate_limit (id, user_id, action, count, window_start, created_at)
-         VALUES (gen_random_uuid(), $(identifier), $(type), 0, $(windowStart), NOW())
+        `INSERT INTO rate_limit (id, identifier, action, count, window_start, window_end)
+         VALUES (gen_random_uuid(), $(identifier), $(type), 0, $(windowStart), $(windowEnd))
          RETURNING *`,
-        { identifier, type, windowStart: actualWindowStart },
+        { identifier, type, windowStart: actualWindowStart, windowEnd },
       );
     }
 
     const count = rateLimitRecord.count;
     const remaining = Math.max(0, limit - count);
+
+    // Clean old windows (do this before checking limit)
+    await db.none(
+      `DELETE FROM rate_limit WHERE window_start < $(windowStart)`,
+      { windowStart },
+    );
 
     if (count >= limit) {
       return {
@@ -125,18 +131,12 @@ export async function checkRateLimit(
       };
     }
 
-    // Increment counter
+    // Increment counter only if allowed
     await db.none(
       `UPDATE rate_limit 
-       SET count = count + 1, updated_at = NOW()
+       SET count = count + 1
        WHERE id = $(id)`,
       { id: rateLimitRecord.id },
-    );
-
-    // Clean old windows
-    await db.none(
-      `DELETE FROM rate_limit WHERE window_start < $(windowStart)`,
-      { windowStart },
     );
 
     return {
@@ -182,7 +182,7 @@ export async function getRateLimitStatus(
 
     const rateLimitRecord = await db.oneOrNone<RateLimitDbRow>(
       `SELECT * FROM rate_limit
-       WHERE user_id = $(identifier)
+       WHERE identifier = $(identifier)
          AND action = $(type)
          AND window_start = $(windowStart)`,
       { identifier, type, windowStart: actualWindowStart },

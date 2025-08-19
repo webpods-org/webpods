@@ -6,7 +6,7 @@ import { Request, Response, NextFunction } from "express";
 import { verifyToken } from "../domain/auth.js";
 import { JWTPayload } from "../types.js";
 import { createLogger } from "../logger.js";
-import { getIpAddress, extractPodId } from "../utils.js";
+import { getIpAddress } from "../utils.js";
 
 const logger = createLogger("webpods:auth");
 
@@ -27,9 +27,8 @@ export async function authenticate(
   next: NextFunction,
 ): Promise<void> {
   try {
-    // Determine current pod from hostname
-    const hostname = req.hostname || req.headers.host?.split(":")[0] || "";
-    const currentPod = extractPodId(hostname) || undefined;
+    // Get the pod from the request (set by pod middleware)
+    const currentPod = req.pod_id || undefined;
 
     // Get token from cookie or Authorization header
     // For pod requests, prefer pod_token cookie

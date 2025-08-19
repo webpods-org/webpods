@@ -168,15 +168,30 @@ export function verifyToken(
     const config = getConfig();
     const payload = jwt.verify(token, config.auth.jwtSecret) as JWTPayload;
 
-    // If we're on a pod subdomain, verify the token is for this pod or is a global token
-    if (expectedPod && payload.pod && payload.pod !== expectedPod) {
-      return {
-        success: false,
-        error: {
-          code: "INVALID_POD_TOKEN",
-          message: `Token is for pod '${payload.pod}' but request is for pod '${expectedPod}'`,
-        },
-      };
+    // If we're on a pod subdomain, verify the token is for this pod
+    if (expectedPod) {
+      // Token must either be for this specific pod, or not have a pod claim at all
+      if (payload.pod && payload.pod !== expectedPod) {
+        // Pod-specific token for a different pod
+        return {
+          success: false,
+          error: {
+            code: "POD_MISMATCH",
+            message: `Token is for pod '${payload.pod}' but request is for pod '${expectedPod}'`,
+          },
+        };
+      }
+      
+      // Global tokens (without pod claim) should not work on pod subdomains
+      if (!payload.pod) {
+        return {
+          success: false,
+          error: {
+            code: "POD_MISMATCH",
+            message: `Global token cannot be used on pod subdomain '${expectedPod}'`,
+          },
+        };
+      }
     }
 
     return { success: true, data: payload };

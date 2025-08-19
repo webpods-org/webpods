@@ -65,10 +65,9 @@ export type OAuthStateDbRow = {
 // Rate limit table
 export type RateLimitDbRow = {
   id?: string;
-  user_id: string;
+  identifier: string;
   action: string;
-  window_start: Date;
   count: number;
-  created_at: Date;
-  updated_at?: Date | null;
+  window_start: Date;
+  window_end: Date;
 };
