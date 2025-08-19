@@ -2,7 +2,8 @@
  * Stream operations domain logic
  */
 
-import { Knex } from "knex";
+import { Database } from "../db.js";
+import { StreamDbRow } from "../db-types.js";
 import { Stream, Result } from "../types.js";
 import { isValidStreamId, isSystemStream } from "../utils.js";
 import { createLogger } from "../logger.js";
@@ -10,10 +11,26 @@ import { createLogger } from "../logger.js";
 const logger = createLogger("webpods:domain:streams");
 
 /**
+ * Map database row to domain type
+ */
+function mapStreamFromDb(row: StreamDbRow): Stream {
+  return {
+    id: row.id,
+    pod_id: row.pod_id,
+    stream_id: row.stream_id,
+    creator_id: row.creator_id,
+    access_permission: row.access_permission,
+    metadata: undefined,
+    created_at: row.created_at,
+    updated_at: row.created_at,
+  };
+}
+
+/**
  * Get or create a stream
  */
 export async function getOrCreateStream(
-  db: Knex,
+  db: Database,
   podId: string,
   streamId: string,
   userId: string,
@@ -34,29 +51,38 @@ export async function getOrCreateStream(
 
   try {
     // Try to find existing stream
-    let stream = await db("stream")
-      .where("pod_id", podId)
-      .where("stream_id", actualStreamId)
-      .first();
+    let stream = await db.oneOrNone<StreamDbRow>(
+      `SELECT * FROM stream 
+       WHERE pod_id = $(podId) 
+         AND stream_id = $(streamId)`,
+      { podId, streamId: actualStreamId },
+    );
 
     if (stream) {
-      return { success: true, data: { stream, created: false } };
+      return {
+        success: true,
+        data: { stream: mapStreamFromDb(stream), created: false },
+      };
     }
 
     // Create new stream
-    [stream] = await db("stream")
-      .insert({
-        id: crypto.randomUUID(),
-        pod_id: podId,
-        stream_id: actualStreamId,
-        creator_id: userId,
-        access_permission: accessPermission || "public",
-        created_at: new Date(),
-      })
-      .returning("*");
+    stream = await db.one<StreamDbRow>(
+      `INSERT INTO stream (id, pod_id, stream_id, creator_id, access_permission, created_at)
+       VALUES (gen_random_uuid(), $(podId), $(streamId), $(userId), $(accessPermission), NOW())
+       RETURNING *`,
+      {
+        podId,
+        streamId: actualStreamId,
+        userId,
+        accessPermission: accessPermission || "public",
+      },
+    );
 
     logger.info("Stream created", { podId, streamId: actualStreamId, userId });
-    return { success: true, data: { stream, created: true } };
+    return {
+      success: true,
+      data: { stream: mapStreamFromDb(stream), created: true },
+    };
   } catch (error: any) {
     logger.error("Failed to get/create stream", { error, podId, streamId });
     return {
@@ -73,15 +99,17 @@ export async function getOrCreateStream(
  * Get stream by pod and stream ID
  */
 export async function getStream(
-  db: Knex,
+  db: Database,
   podId: string,
   streamId: string,
 ): Promise<Result<Stream>> {
   try {
-    const stream = await db("stream")
-      .where("pod_id", podId)
-      .where("stream_id", streamId)
-      .first();
+    const stream = await db.oneOrNone<StreamDbRow>(
+      `SELECT * FROM stream 
+       WHERE pod_id = $(podId) 
+         AND stream_id = $(streamId)`,
+      { podId, streamId },
+    );
 
     if (!stream) {
       return {
@@ -93,7 +121,7 @@ export async function getStream(
       };
     }
 
-    return { success: true, data: stream };
+    return { success: true, data: mapStreamFromDb(stream) };
   } catch (error: any) {
     logger.error("Failed to get stream", { error, podId, streamId });
     return {
@@ -110,7 +138,7 @@ export async function getStream(
  * Delete a stream
  */
 export async function deleteStream(
-  db: Knex,
+  db: Database,
   podId: string,
   streamId: string,
   userId: string,
@@ -127,10 +155,12 @@ export async function deleteStream(
   }
 
   try {
-    const stream = await db("stream")
-      .where("pod_id", podId)
-      .where("stream_id", streamId)
-      .first();
+    const stream = await db.oneOrNone<StreamDbRow>(
+      `SELECT * FROM stream 
+       WHERE pod_id = $(podId) 
+         AND stream_id = $(streamId)`,
+      { podId, streamId },
+    );
 
     if (!stream) {
       return {
@@ -154,7 +184,9 @@ export async function deleteStream(
     }
 
     // Delete stream (cascades to records)
-    await db("stream").where("id", stream.id).delete();
+    await db.none(`DELETE FROM stream WHERE id = $(streamId)`, {
+      streamId: stream.id,
+    });
 
     logger.info("Stream deleted", { podId, streamId, userId });
     return { success: true, data: undefined };
@@ -174,19 +206,18 @@ export async function deleteStream(
  * Update stream permissions
  */
 export async function updateStreamPermissions(
-  db: Knex,
+  db: Database,
   streamId: string,
   accessPermission?: string,
 ): Promise<Result<Stream>> {
   try {
-    const updates: any = {};
-    if (accessPermission !== undefined)
-      updates.access_permission = accessPermission;
-
-    const [stream] = await db("stream")
-      .where("id", streamId)
-      .update(updates)
-      .returning("*");
+    const stream = await db.oneOrNone<StreamDbRow>(
+      `UPDATE stream 
+       SET access_permission = COALESCE($(accessPermission), access_permission)
+       WHERE id = $(streamId)
+       RETURNING *`,
+      { streamId, accessPermission },
+    );
 
     if (!stream) {
       return {
@@ -198,7 +229,7 @@ export async function updateStreamPermissions(
       };
     }
 
-    return { success: true, data: stream };
+    return { success: true, data: mapStreamFromDb(stream) };
   } catch (error: any) {
     logger.error("Failed to update stream permissions", { error, streamId });
     return {

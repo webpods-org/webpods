@@ -2,8 +2,9 @@
  * Authentication domain logic
  */
 
-import { Knex } from "knex";
 import jwt from "jsonwebtoken";
+import { Database } from "../db.js";
+import { UserDbRow } from "../db-types.js";
 import { User, Result, JWTPayload } from "../types.js";
 import { createLogger } from "../logger.js";
 import { getConfig } from "../config-loader.js";
@@ -13,10 +14,78 @@ type OAuthProvider = string;
 const logger = createLogger("webpods:domain:auth");
 
 /**
+ * Map database row to domain type
+ */
+function mapUserFromDb(row: UserDbRow): User {
+  return {
+    id: row.id,
+    auth_id: row.auth_id,
+    email: row.email,
+    name: row.name,
+    provider: row.provider,
+    metadata: row.metadata,
+    created_at: row.created_at,
+    updated_at: row.updated_at || row.created_at,
+  };
+}
+
+/**
+ * Ensure user exists in database (create if missing)
+ * This is needed when a valid JWT references a user that was deleted
+ */
+export async function ensureUserExists(
+  db: Database,
+  userId: string,
+  authId: string,
+  email: string,
+  name: string,
+  provider: string,
+): Promise<Result<User>> {
+  try {
+    // First check if user exists by ID
+    let userRow = await db.oneOrNone<UserDbRow>(
+      `SELECT * FROM "user" WHERE id = $(userId)`,
+      { userId },
+    );
+
+    if (!userRow) {
+      // Check if user exists by auth_id (might have different ID)
+      userRow = await db.oneOrNone<UserDbRow>(
+        `SELECT * FROM "user" WHERE auth_id = $(authId)`,
+        { authId },
+      );
+
+      if (!userRow) {
+        // Create user with the specific ID from JWT
+        userRow = await db.one<UserDbRow>(
+          `INSERT INTO "user" (id, auth_id, email, name, provider, created_at)
+           VALUES ($(userId), $(authId), $(email), $(name), $(provider), NOW())
+           RETURNING *`,
+          { userId, authId, email, name, provider },
+        );
+
+        logger.info("User recreated from JWT", { userId, authId, provider });
+      }
+    }
+
+    return { success: true, data: mapUserFromDb(userRow) };
+  } catch (error: any) {
+    logger.error("Failed to ensure user exists", { error, userId, authId });
+    return {
+      success: false,
+      error: {
+        code: "DATABASE_ERROR",
+        message: "Failed to ensure user exists",
+      },
+    };
+  }
+}
+
+/**
  * Find or create user from OAuth profile
  */
 export async function findOrCreateUser(
-  db: Knex,
+  db: Database,
   provider: OAuthProvider,
   profile: any,
 ): Promise<Result<User>> {
@@ -26,40 +95,42 @@ export async function findOrCreateUser(
 
   try {
     // Try to find existing user
-    let user = await db("user").where("auth_id", authId).first();
+    let userRow = await db.oneOrNone<UserDbRow>(
+      `SELECT * FROM "user" WHERE auth_id = $(authId)`,
+      { authId },
+    );
 
-    if (!user) {
+    if (!userRow) {
       // Create new user
-      [user] = await db("user")
-        .insert({
-          id: crypto.randomUUID(),
-          auth_id: authId,
-          email,
-          name,
-          provider,
-          created_at: new Date(),
-        })
-        .returning("*");
+      userRow = await db.one<UserDbRow>(
+        `INSERT INTO "user" (id, auth_id, email, name, provider, created_at)
+         VALUES (gen_random_uuid(), $(authId), $(email), $(name), $(provider), NOW())
+         RETURNING *`,
+        { authId, email, name, provider },
+      );
 
       logger.info("New user created", { authId, provider });
     } else {
       // Update user info if changed
-      if (user.email !== email || user.name !== name) {
-        [user] = await db("user")
-          .where("id", user.id)
-          .update({ email, name, updated_at: new Date() })
-          .returning("*");
+      if (userRow.email !== email || userRow.name !== name) {
+        userRow = await db.one<UserDbRow>(
+          `UPDATE "user" 
+           SET email = $(email), name = $(name), updated_at = NOW()
+           WHERE id = $(userId)
+           RETURNING *`,
+          { userId: userRow.id, email, name },
+        );
       }
     }
 
-    return { success: true, data: user };
+    return { success: true, data: mapUserFromDb(userRow) };
   } catch (error: any) {
-    logger.error("Failed to find/create user", { error, authId });
+    logger.error("Failed to find or create user", { error, authId });
     return {
       success: false,
       error: {
-        code: "AUTH_ERROR",
-        message: "Failed to authenticate user",
+        code: "DATABASE_ERROR",
+        message: "Failed to find or create user",
       },
     };
   }
@@ -68,7 +139,11 @@ export async function findOrCreateUser(
 /**
  * Generate JWT token for user
  */
-export function generateToken(user: User): string {
+export function generateToken(
+  user: User,
+  pod?: string,
+  expiresIn: string = "7d",
+): string {
   const config = getConfig();
   const payload: JWTPayload = {
     user_id: user.id,
@@ -76,75 +151,36 @@ export function generateToken(user: User): string {
     email: user.email,
     name: user.name,
     provider: user.provider,
+    pod, // Include pod if provided (for pod-specific tokens)
   };
 
-  const secret = config.auth.jwtSecret;
-  const expiresIn = config.auth.jwtExpiry;
-
-  // If no expiry is set, don't include expiresIn option (token never expires)
-  const options: any = {};
-  if (expiresIn) {
-    options.expiresIn = expiresIn;
-  }
-
-  return jwt.sign(payload, secret, options);
+  return jwt.sign(payload, config.auth.jwtSecret, { expiresIn } as any);
 }
 
 /**
- * Generate pod-specific JWT token
- */
-export function generatePodToken(user: User, pod: string): string {
-  const config = getConfig();
-  const payload: JWTPayload & { pod: string } = {
-    user_id: user.id,
-    auth_id: user.auth_id,
-    email: user.email,
-    name: user.name,
-    provider: user.provider,
-    pod, // Critical: lock token to specific pod
-  };
-
-  const secret = config.auth.jwtSecret;
-  const expiresIn = config.auth.jwtExpiry;
-
-  // If no expiry is set, don't include expiresIn option (token never expires)
-  const options: any = {};
-  if (expiresIn) {
-    options.expiresIn = expiresIn;
-  }
-
-  return jwt.sign(payload, secret, options);
-}
-
-/**
- * Verify JWT token (optionally validate pod claim)
+ * Verify JWT token
  */
 export function verifyToken(
   token: string,
   expectedPod?: string,
-): Result<JWTPayload & { pod?: string }> {
+): Result<JWTPayload> {
   try {
     const config = getConfig();
-    const secret = config.auth.jwtSecret;
-    const payload = jwt.verify(token, secret) as JWTPayload & { pod?: string };
+    const payload = jwt.verify(token, config.auth.jwtSecret) as JWTPayload;
 
-    // If we're on a pod subdomain (expectedPod is provided)
-    if (expectedPod) {
-      // Token MUST have a pod claim that matches
-      if (!payload.pod || payload.pod !== expectedPod) {
-        return {
-          success: false,
-          error: {
-            code: "POD_MISMATCH",
-            message: `Token is not valid for pod '${expectedPod}'`,
-          },
-        };
-      }
+    // If we're on a pod subdomain, verify the token is for this pod or is a global token
+    if (expectedPod && payload.pod && payload.pod !== expectedPod) {
+      return {
+        success: false,
+        error: {
+          code: "INVALID_POD_TOKEN",
+          message: `Token is for pod '${payload.pod}' but request is for pod '${expectedPod}'`,
+        },
+      };
     }
 
     return { success: true, data: payload };
   } catch (error: any) {
-    // Determine specific error type
     if (error.name === "TokenExpiredError") {
       return {
         success: false,
@@ -153,7 +189,9 @@ export function verifyToken(
           message: "Token has expired",
         },
       };
-    } else if (error.name === "JsonWebTokenError") {
+    }
+
+    if (error.name === "JsonWebTokenError") {
       return {
         success: false,
         error: {
@@ -161,55 +199,13 @@ export function verifyToken(
           message: "Invalid token",
         },
       };
-    } else if (error.name === "NotBeforeError") {
-      return {
-        success: false,
-        error: {
-          code: "TOKEN_NOT_ACTIVE",
-          message: "Token not yet active",
-        },
-      };
     }
 
-    // Default error
     return {
       success: false,
       error: {
-        code: "INVALID_TOKEN",
-        message: "Invalid or expired token",
-      },
-    };
-  }
-}
-
-/**
- * Get user by ID
- */
-export async function getUserById(
-  db: Knex,
-  userId: string,
-): Promise<Result<User>> {
-  try {
-    const user = await db("user").where("id", userId).first();
-
-    if (!user) {
-      return {
-        success: false,
-        error: {
-          code: "USER_NOT_FOUND",
-          message: "User not found",
-        },
-      };
-    }
-
-    return { success: true, data: user };
-  } catch (error: any) {
-    logger.error("Failed to get user", { error, userId });
-    return {
-      success: false,
-      error: {
-        code: "DATABASE_ERROR",
-        message: "Failed to get user",
+        code: "TOKEN_ERROR",
+        message: error.message || "Token verification failed",
       },
     };
   }

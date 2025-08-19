@@ -14,12 +14,13 @@
     "@types/express": "^5.0.3",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
-    "knex": "^3.1.0",
-    "pg": "^8.16.3"
+    "pg": "^8.16.3",
+    "pg-promise": "^11.15.0"
   },
   "devDependencies": {
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^24.1.0",
+    "@types/pg-promise": "^0.0.28",
     "typescript": "^5.7.3"
   }
 }

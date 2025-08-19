@@ -2,7 +2,8 @@
  * Record operations domain logic
  */
 
-import { Knex } from "knex";
+import { Database } from "../db.js";
+import { RecordDbRow } from "../db-types.js";
 import { StreamRecord, Result, StreamRecordResponse } from "../types.js";
 import { calculateRecordHash, isValidName, isNumericIndex } from "../utils.js";
 import { createLogger } from "../logger.js";
@@ -10,10 +11,32 @@ import { createLogger } from "../logger.js";
 const logger = createLogger("webpods:domain:records");
 
 /**
+ * Map database row to domain type
+ */
+function mapRecordFromDb(row: RecordDbRow): StreamRecord {
+  return {
+    id: row.id ? parseInt(row.id) : 0,
+    stream_id: row.stream_id,
+    index: row.index,
+    content: row.content,
+    content_type: row.content_type,
+    name: row.name || "",
+    hash: row.hash,
+    previous_hash: row.previous_hash || null,
+    author_id: row.author_id,
+    metadata: undefined,
+    created_at:
+      typeof row.created_at === "string"
+        ? new Date(row.created_at)
+        : row.created_at,
+  };
+}
+
+/**
  * Write a record to a stream
  */
 export async function writeRecord(
-  db: Knex,
+  db: Database,
   streamId: string,
   content: any,
   contentType: string,
@@ -32,13 +55,16 @@ export async function writeRecord(
     };
   }
 
-  return await db.transaction(async (trx) => {
-    try {
+  try {
+    return await db.tx(async (t) => {
       // Get the previous record for hash chain
-      const previousRecord = await trx("record")
-        .where("stream_id", streamId)
-        .orderBy("index", "desc")
-        .first();
+      const previousRecord = await t.oneOrNone<RecordDbRow>(
+        `SELECT * FROM record 
+         WHERE stream_id = $(streamId)
+         ORDER BY index DESC
+         LIMIT 1`,
+        { streamId },
+      );
 
       const index = (previousRecord?.index ?? -1) + 1;
       const previousHash = previousRecord?.hash || null;
@@ -54,55 +80,61 @@ export async function writeRecord(
       }
 
       // Insert new record
-      const [record] = await trx("record")
-        .insert({
-          stream_id: streamId,
-          index: index,
+      const record = await t.one<RecordDbRow>(
+        `INSERT INTO record (stream_id, index, content, content_type, name, hash, previous_hash, author_id, created_at)
+         VALUES ($(streamId), $(index), $(content), $(contentType), $(name), $(hash), $(previousHash), $(authorId), $(timestamp))
+         RETURNING *`,
+        {
+          streamId,
+          index,
           content: storedContent,
-          content_type: contentType,
-          name: name,
-          hash: hash,
-          previous_hash: previousHash,
-          author_id: authorId,
-          created_at: timestamp,
-        })
-        .returning("*");
+          contentType,
+          name,
+          hash,
+          previousHash,
+          authorId,
+          timestamp,
+        },
+      );
 
       logger.info("Record written", { streamId, index, name, hash });
-      return { success: true, data: record };
-    } catch (error: any) {
-      logger.error("Failed to write record", { error, streamId });
-      return {
-        success: false,
-        error: {
-          code: "DATABASE_ERROR",
-          message: "Failed to write record",
-        },
-      };
-    }
-  });
+      return { success: true, data: mapRecordFromDb(record) };
+    });
+  } catch (error: any) {
+    logger.error("Failed to write record", { error, streamId });
+    return {
+      success: false,
+      error: {
+        code: "DATABASE_ERROR",
+        message: "Failed to write record",
+      },
+    };
+  }
 }
 
 /**
  * Get a record by index or alias
  */
 export async function getRecord(
-  db: Knex,
+  db: Database,
   streamId: string,
   target: string,
   preferName: boolean = false,
 ): Promise<Result<StreamRecord>> {
   try {
-    let record: StreamRecord | undefined;
+    let record: RecordDbRow | null = null;
 
     // If preferName is true, try name first even if target is numeric
     if (preferName) {
       // Try to get by name first - get the latest record with this name
-      record = await db("record")
-        .where("stream_id", streamId)
-        .where("name", target)
-        .orderBy("index", "desc")
-        .first();
+      record = await db.oneOrNone<RecordDbRow>(
+        `SELECT * FROM record
+         WHERE stream_id = $(streamId)
+           AND name = $(name)
+         ORDER BY index DESC
+         LIMIT 1`,
+        { streamId, name: target },
+      );
 
       // If not found as name and target is numeric, try as index
       if (!record && isNumericIndex(target)) {
@@ -110,13 +142,12 @@ export async function getRecord(
 
         // Handle negative indexing
         if (index < 0) {
-          const countResult = await db("record")
-            .where("stream_id", streamId)
-            .count("* as count")
-            .first();
+          const countResult = await db.one<{ count: string }>(
+            `SELECT COUNT(*) as count FROM record WHERE stream_id = $(streamId)`,
+            { streamId },
+          );
 
-          const count = countResult?.count as string | number;
-          index = (typeof count === "string" ? parseInt(count) : count) + index;
+          index = parseInt(countResult.count) + index;
 
           if (index < 0) {
             return {
@@ -129,10 +160,12 @@ export async function getRecord(
           }
         }
 
-        record = await db("record")
-          .where("stream_id", streamId)
-          .where("index", index)
-          .first();
+        record = await db.oneOrNone<RecordDbRow>(
+          `SELECT * FROM record
+           WHERE stream_id = $(streamId)
+             AND index = $(index)`,
+          { streamId, index },
+        );
       }
     } else {
       // Default behavior: check if target is numeric (index)
@@ -141,13 +174,12 @@ export async function getRecord(
 
         // Handle negative indexing
         if (index < 0) {
-          const countResult = await db("record")
-            .where("stream_id", streamId)
-            .count("* as count")
-            .first();
+          const countResult = await db.one<{ count: string }>(
+            `SELECT COUNT(*) as count FROM record WHERE stream_id = $(streamId)`,
+            { streamId },
+          );
 
-          const count = countResult?.count as string | number;
-          index = (typeof count === "string" ? parseInt(count) : count) + index;
+          index = parseInt(countResult.count) + index;
 
           if (index < 0) {
             return {
@@ -160,17 +192,22 @@ export async function getRecord(
           }
         }
 
-        record = await db("record")
-          .where("stream_id", streamId)
-          .where("index", index)
-          .first();
+        record = await db.oneOrNone<RecordDbRow>(
+          `SELECT * FROM record
+           WHERE stream_id = $(streamId)
+             AND index = $(index)`,
+          { streamId, index },
+        );
       } else {
         // Get by name - get the latest record with this name
-        record = await db("record")
-          .where("stream_id", streamId)
-          .where("name", target)
-          .orderBy("index", "desc")
-          .first();
+        record = await db.oneOrNone<RecordDbRow>(
+          `SELECT * FROM record
+           WHERE stream_id = $(streamId)
+             AND name = $(name)
+           ORDER BY index DESC
+           LIMIT 1`,
+          { streamId, name: target },
+        );
       }
     }
 
@@ -184,7 +221,7 @@ export async function getRecord(
       };
     }
 
-    return { success: true, data: record };
+    return { success: true, data: mapRecordFromDb(record) };
   } catch (error: any) {
     logger.error("Failed to get record", { error, streamId, target });
     return {
@@ -201,20 +238,19 @@ export async function getRecord(
  * Get a range of records
  */
 export async function getRecordRange(
-  db: Knex,
+  db: Database,
   streamId: string,
   start: number,
   end: number,
 ): Promise<Result<StreamRecord[]>> {
   try {
     // Get total count for negative index handling
-    const countResult = await db("record")
-      .where("stream_id", streamId)
-      .count("* as count")
-      .first();
+    const countResult = await db.one<{ count: string }>(
+      `SELECT COUNT(*) as count FROM record WHERE stream_id = $(streamId)`,
+      { streamId },
+    );
 
-    const count = countResult?.count as string | number;
-    const total = typeof count === "string" ? parseInt(count) : count;
+    const total = parseInt(countResult.count);
 
     // Handle negative indices
     if (start < 0) start = total + start;
@@ -231,13 +267,16 @@ export async function getRecordRange(
       };
     }
 
-    const records = await db("record")
-      .where("stream_id", streamId)
-      .where("index", ">=", start)
-      .where("index", "<", end) // Exclusive end (Python-style)
-      .orderBy("index", "asc");
+    const records = await db.manyOrNone<RecordDbRow>(
+      `SELECT * FROM record
+       WHERE stream_id = $(streamId)
+         AND index >= $(start)
+         AND index < $(end)
+       ORDER BY index ASC`,
+      { streamId, start, end },
+    );
 
-    return { success: true, data: records };
+    return { success: true, data: records.map(mapRecordFromDb) };
   } catch (error: any) {
     logger.error("Failed to get record range", { error, streamId, start, end });
     return {
@@ -254,7 +293,7 @@ export async function getRecordRange(
  * List records in a stream
  */
 export async function listRecords(
-  db: Knex,
+  db: Database,
   streamId: string,
   limit: number = 100,
   after?: number,
@@ -262,21 +301,24 @@ export async function listRecords(
   Result<{ records: StreamRecord[]; total: number; hasMore: boolean }>
 > {
   try {
-    const query = db("record").where("stream_id", streamId);
+    let query = `SELECT * FROM record WHERE stream_id = $(streamId)`;
+    const params: any = { streamId, limit: limit + 1 };
 
     if (after !== undefined) {
-      query.where("index", ">", after);
+      query += ` AND index > $(after)`;
+      params.after = after;
     }
 
-    const records = await query.orderBy("index", "asc").limit(limit + 1);
+    query += ` ORDER BY index ASC LIMIT $(limit)`;
 
-    const countResult = await db("record")
-      .where("stream_id", streamId)
-      .count("* as count")
-      .first();
+    const records = await db.manyOrNone<RecordDbRow>(query, params);
 
-    const count = countResult?.count as string | number;
-    const total = typeof count === "string" ? parseInt(count) : count;
+    const countResult = await db.one<{ count: string }>(
+      `SELECT COUNT(*) as count FROM record WHERE stream_id = $(streamId)`,
+      { streamId },
+    );
+
+    const total = parseInt(countResult.count);
     const hasMore = records.length > limit;
 
     if (hasMore) {
@@ -285,7 +327,11 @@ export async function listRecords(
 
     return {
       success: true,
-      data: { records, total, hasMore },
+      data: {
+        records: records.map(mapRecordFromDb),
+        total,
+        hasMore,
+      },
     };
   } catch (error: any) {
     logger.error("Failed to list records", { error, streamId });

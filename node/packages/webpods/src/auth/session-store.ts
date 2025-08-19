@@ -70,9 +70,15 @@ export function getSessionConfig(): session.SessionOptions {
 export async function getUserSessions(userId: string): Promise<any[]> {
   const db = getDb();
 
-  const sessions = await db("session")
-    .where("expire", ">", new Date())
-    .select("sid", "sess", "expire");
+  const sessions = await db.manyOrNone<{
+    sid: string;
+    sess: any;
+    expire: Date;
+  }>(
+    `SELECT sid, sess, expire 
+     FROM session 
+     WHERE expire > NOW()`,
+  );
 
   // Filter sessions that belong to the user
   const userSessions = [];
@@ -105,9 +111,13 @@ export async function getUserSessions(userId: string): Promise<any[]> {
 export async function revokeSession(sessionId: string): Promise<boolean> {
   const db = getDb();
 
-  const deleted = await db("session").where("sid", sessionId).delete();
+  const result = await db.result(
+    `DELETE FROM session WHERE sid = $(sessionId)`,
+    { sessionId },
+    (r) => r.rowCount,
+  );
 
-  return deleted > 0;
+  return result > 0;
 }
 
 /**
@@ -133,11 +143,15 @@ export async function revokeUserSessions(userId: string): Promise<number> {
 export async function cleanupExpiredSessions(): Promise<number> {
   const db = getDb();
 
-  const deleted = await db("session").where("expire", "<", new Date()).delete();
+  const result = await db.result(
+    `DELETE FROM session WHERE expire < NOW()`,
+    [],
+    (r) => r.rowCount,
+  );
 
-  if (deleted > 0) {
-    logger.info("Cleaned up expired sessions", { count: deleted });
+  if (result > 0) {
+    logger.info("Cleaned up expired sessions", { count: result });
   }
 
-  return deleted;
+  return result;
 }

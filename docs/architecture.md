@@ -119,7 +119,8 @@ Pod (subdomain)
 
 - **Runtime**: Node.js with TypeScript
 - **Framework**: Express.js
-- **Database**: PostgreSQL with Knex.js
+- **Database**: PostgreSQL with pg-promise
+- **Migrations**: Knex.js (root package only)
 - **Auth**: Passport.js, express-session
 - **Testing**: Mocha, Chai
 - **Build**: ESM modules, tsc

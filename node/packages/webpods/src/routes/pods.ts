@@ -581,6 +581,28 @@ router.post(
           return;
         }
 
+        // Ensure user exists in database before creating pod
+        // This handles cases where JWT is valid but user was deleted (e.g., in tests)
+        const { ensureUserExists } = await import("../domain/auth.js");
+        const userResult = await ensureUserExists(
+          db,
+          req.auth.user_id,
+          req.auth.auth_id,
+          req.auth.email || "",
+          req.auth.name || "Unknown User",
+          req.auth.provider,
+        );
+
+        if (!userResult.success) {
+          res.status(500).json({
+            error: {
+              code: "USER_ERROR",
+              message: "Failed to ensure user exists",
+            },
+          });
+          return;
+        }
+
         const podResult = await createPod(db, req.auth.user_id, req.pod_id);
         if (!podResult.success) {
           res.status(500).json({
@@ -1003,12 +1025,19 @@ router.get(
 
       // Check if there's a tombstone record for this name that's newer than the current record
       const tombstonePattern = `${name}.deleted.%`;
-      const tombstones = await db("record")
-        .where("stream_id", streamResult.data.id)
-        .where("name", "like", tombstonePattern)
-        .where("index", ">", result.data.index) // Only tombstones newer than our record
-        .orderBy("index", "desc")
-        .limit(1);
+      const tombstones = await db.manyOrNone(
+        `SELECT * FROM record
+         WHERE stream_id = $(streamId)
+           AND name LIKE $(pattern)
+           AND index > $(index)
+         ORDER BY index DESC
+         LIMIT 1`,
+        {
+          streamId: streamResult.data.id,
+          pattern: tombstonePattern,
+          index: result.data.index,
+        },
+      );
 
       if (tombstones.length > 0) {
         // Found a newer tombstone, so this record is considered deleted
@@ -1194,18 +1223,25 @@ router.delete(
 
       if (purge) {
         // Hard delete - physically overwrite the content
-        const updateResult = await db("record")
-          .where("stream_id", streamResult.data.id)
-          .where("name", recordName)
-          .update({
+        const updateResult = await db.result(
+          `UPDATE record
+           SET content = $(content),
+               content_type = $(contentType)
+           WHERE stream_id = $(streamId)
+             AND name = $(recordName)`,
+          {
+            streamId: streamResult.data.id,
+            recordName,
             content: JSON.stringify({
               deleted: true,
               purged: true,
               purgedAt: new Date().toISOString(),
               purgedBy: req.auth.auth_id,
             }),
-            content_type: "application/json",
-          });
+            contentType: "application/json",
+          },
+          (r) => r.rowCount,
+        );
 
         if (updateResult === 0) {
           res.status(404).json({
@@ -1227,10 +1263,13 @@ router.delete(
       } else {
         // Soft delete - add a tombstone record with a unique name
         // Get the next index for the tombstone
-        const lastRecord = await db("record")
-          .where("stream_id", streamResult.data.id)
-          .orderBy("index", "desc")
-          .first();
+        const lastRecord = await db.oneOrNone(
+          `SELECT * FROM record
+           WHERE stream_id = $(streamId)
+           ORDER BY index DESC
+           LIMIT 1`,
+          { streamId: streamResult.data.id },
+        );
 
         const nextIndex = (lastRecord?.index ?? -1) + 1;
         const tombstoneName = `${recordName}.deleted.${nextIndex}`;

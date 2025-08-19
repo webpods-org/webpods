@@ -32,13 +32,17 @@ export async function storePKCEState(
   const expiresAt = new Date();
   expiresAt.setMinutes(expiresAt.getMinutes() + STATE_TTL_MINUTES);
 
-  await db("oauth_state").insert({
-    state,
-    code_verifier: codeVerifier,
-    pod,
-    redirect_url: redirect,
-    expires_at: expiresAt,
-  });
+  await db.none(
+    `INSERT INTO oauth_state (state, code_verifier, pod, redirect_url, expires_at)
+     VALUES ($(state), $(codeVerifier), $(pod), $(redirectUrl), $(expiresAt))`,
+    {
+      state,
+      codeVerifier,
+      pod: pod || null,
+      redirectUrl: redirect || null,
+      expiresAt,
+    },
+  );
 
   logger.info("PKCE state stored", { state, pod, expiresAt });
 }
@@ -51,77 +55,65 @@ export async function retrievePKCEState(
 ): Promise<PKCEState | null> {
   const db = getDb();
 
-  // Get the state if not expired
-  const result = await db("oauth_state")
-    .where("state", state)
-    .where("expires_at", ">", new Date())
-    .first();
+  const row = await db.oneOrNone<{
+    state: string;
+    code_verifier: string;
+    pod: string | null;
+    redirect_url: string | null;
+  }>(
+    `SELECT state, code_verifier, pod, redirect_url 
+     FROM oauth_state 
+     WHERE state = $(state) 
+       AND expires_at > NOW()`,
+    { state },
+  );
 
-  if (!result) {
+  if (!row) {
     logger.warn("PKCE state not found or expired", { state });
     return null;
   }
 
   // Delete the state (one-time use)
-  await db("oauth_state").where("state", state).delete();
+  await db.none(`DELETE FROM oauth_state WHERE state = $(state)`, { state });
 
   logger.info("PKCE state retrieved and deleted", { state });
 
   return {
-    state: result.state,
-    codeVerifier: result.code_verifier,
-    pod: result.pod,
-    redirect: result.redirect_url,
+    state: row.state,
+    codeVerifier: row.code_verifier,
+    pod: row.pod || undefined,
+    redirect: row.redirect_url || undefined,
   };
 }
 
 /**
- * Generate new PKCE challenge
+ * Generate PKCE challenge and verifier
  */
-export function generatePKCEChallenge(): {
-  verifier: string;
-  challenge: string;
+export function generatePKCE(): {
+  codeVerifier: string;
+  codeChallenge: string;
   state: string;
 } {
-  const verifier = generators.codeVerifier();
-  const challenge = generators.codeChallenge(verifier);
+  const codeVerifier = generators.codeVerifier();
+  const codeChallenge = generators.codeChallenge(codeVerifier);
   const state = generators.state();
 
-  return { verifier, challenge, state };
+  return { codeVerifier, codeChallenge, state };
 }
 
 /**
- * Clean up expired PKCE states
+ * Clean up expired states
  */
-export async function cleanupExpiredStates(): Promise<number> {
+export async function cleanupExpiredStates(): Promise<void> {
   const db = getDb();
 
-  const deleted = await db("oauth_state")
-    .where("expires_at", "<", new Date())
-    .delete();
-
-  if (deleted > 0) {
-    logger.info("Cleaned up expired PKCE states", { count: deleted });
-  }
-
-  return deleted;
-}
-
-/**
- * Start periodic cleanup of expired states
- */
-export function startStateCleanup(): void {
-  // Run cleanup every hour
-  setInterval(
-    async () => {
-      try {
-        await cleanupExpiredStates();
-      } catch (error) {
-        logger.error("Failed to cleanup expired states", { error });
-      }
-    },
-    60 * 60 * 1000,
+  const result = await db.result(
+    `DELETE FROM oauth_state WHERE expires_at < NOW()`,
+    [],
+    (r) => r.rowCount,
   );
 
-  logger.info("PKCE state cleanup scheduled");
+  if (result > 0) {
+    logger.info("Cleaned up expired PKCE states", { count: result });
+  }
 }

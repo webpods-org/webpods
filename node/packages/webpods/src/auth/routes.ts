@@ -7,11 +7,7 @@ import jwt from "jsonwebtoken";
 import { getDb } from "../db.js";
 import { createLogger } from "../logger.js";
 import { getConfig } from "../config-loader.js";
-import {
-  findOrCreateUser,
-  generateToken,
-  generatePodToken,
-} from "../domain/auth.js";
+import { findOrCreateUser, generateToken } from "../domain/auth.js";
 import {
   getAuthorizationUrl,
   exchangeCodeForTokens,
@@ -24,7 +20,7 @@ type OAuthProvider = string;
 import {
   storePKCEState,
   retrievePKCEState,
-  generatePKCEChallenge,
+  generatePKCE,
 } from "./pkce-store.js";
 import sessionRouter from "./session-routes.js";
 
@@ -303,7 +299,7 @@ router.get("/authorize", async (req: Request, res: Response) => {
   if ((req as any).session?.user) {
     try {
       // User is already authenticated, generate pod-specific token
-      const podToken = generatePodToken((req as any).session.user, pod);
+      const podToken = generateToken((req as any).session.user, pod);
 
       // Redirect back to pod with token
       const config = getConfig();
@@ -343,16 +339,16 @@ router.get("/authorize", async (req: Request, res: Response) => {
       return;
     }
 
-    const { verifier, challenge, state } = generatePKCEChallenge();
+    const { codeVerifier, codeChallenge, state } = generatePKCE();
 
     // Store state with pod info in database
-    await storePKCEState(state, verifier, pod, redirect);
+    await storePKCEState(state, codeVerifier, pod, redirect);
 
     // Get authorization URL
     const authUrl = await getAuthorizationUrl(
       defaultProvider,
       state,
-      challenge,
+      codeChallenge,
     );
 
     logger.info("Redirecting to OAuth for pod authorization", {
@@ -389,13 +385,13 @@ router.get("/:provider", async (req: Request, res: Response) => {
     const redirect = req.query.redirect ? String(req.query.redirect) : "/";
 
     // Generate PKCE and state
-    const { verifier, challenge, state } = generatePKCEChallenge();
+    const { codeVerifier, codeChallenge, state } = generatePKCE();
 
-    // Store state with verifier and redirect in database
-    await storePKCEState(state, verifier, undefined, redirect);
+    // Store state with codeVerifier and redirect in database
+    await storePKCEState(state, codeVerifier, undefined, redirect);
 
     // Get authorization URL
-    const authUrl = await getAuthorizationUrl(provider, state, challenge);
+    const authUrl = await getAuthorizationUrl(provider, state, codeChallenge);
 
     logger.info("OAuth flow initiated", { provider, state });
     res.redirect(authUrl);
@@ -490,7 +486,7 @@ router.get("/:provider/callback", async (req: Request, res: Response) => {
     // Check if this is pod-specific auth
     if (stateData.pod) {
       // Generate pod-specific token
-      const podToken = generatePodToken(userResult.data, stateData.pod);
+      const podToken = generateToken(userResult.data, stateData.pod);
       // Build callback URL for pod subdomain
       const publicConfig = config.server.public!;
       const podHost =

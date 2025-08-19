@@ -2,7 +2,8 @@
  * URL routing and custom domain logic
  */
 
-import { Knex } from "knex";
+import { Database } from "../db.js";
+import { PodDbRow, StreamDbRow, RecordDbRow } from "../db-types.js";
 import { Result } from "../types.js";
 import { createLogger } from "../logger.js";
 import { calculateRecordHash } from "../utils.js";
@@ -18,20 +19,23 @@ interface LinkMapping {
  * Resolve a path using .meta/links configuration
  */
 export async function resolveLink(
-  db: Knex,
+  db: Database,
   podId: string,
   path: string,
 ): Promise<Result<LinkMapping | null>> {
   try {
     // Get the latest .meta/links record
-    const record = await db("record")
-      .join("stream", "stream.id", "record.stream_id")
-      .join("pod", "pod.id", "stream.pod_id")
-      .where("pod.pod_id", podId)
-      .where("stream.stream_id", ".meta/links")
-      .orderBy("record.created_at", "desc")
-      .select("record.*")
-      .first();
+    const record = await db.oneOrNone<RecordDbRow>(
+      `SELECT r.*
+       FROM record r
+       JOIN stream s ON s.id = r.stream_id
+       JOIN pod p ON p.id = s.pod_id
+       WHERE p.pod_id = $(podId)
+         AND s.stream_id = '.meta/links'
+       ORDER BY r.created_at DESC
+       LIMIT 1`,
+      { podId },
+    );
 
     if (!record) {
       return { success: true, data: null };
@@ -102,16 +106,19 @@ export async function resolveLink(
  * Update .meta/links configuration
  */
 export async function updateLinks(
-  db: Knex,
+  db: Database,
   podId: string,
   links: Record<string, string>,
   userId: string,
   authorId: string,
 ): Promise<Result<void>> {
-  return await db.transaction(async (trx) => {
-    try {
+  try {
+    return await db.tx(async (t) => {
       // Get pod
-      const pod = await trx("pod").where("pod_id", podId).first();
+      const pod = await t.oneOrNone<PodDbRow>(
+        `SELECT * FROM pod WHERE pod_id = $(podId)`,
+        { podId },
+      );
 
       if (!pod) {
         return {
@@ -124,29 +131,30 @@ export async function updateLinks(
       }
 
       // Get or create .meta/links stream
-      let linksStream = await trx("stream")
-        .where("pod_id", pod.id)
-        .where("stream_id", ".meta/links")
-        .first();
+      let linksStream = await t.oneOrNone<StreamDbRow>(
+        `SELECT * FROM stream
+         WHERE pod_id = $(podId)
+           AND stream_id = '.meta/links'`,
+        { podId: pod.id },
+      );
 
       if (!linksStream) {
-        [linksStream] = await trx("stream")
-          .insert({
-            id: crypto.randomUUID(),
-            pod_id: pod.id,
-            stream_id: ".meta/links",
-            creator_id: userId,
-            access_permission: "private", // Only owner can modify
-            created_at: new Date(),
-          })
-          .returning("*");
+        linksStream = await t.one<StreamDbRow>(
+          `INSERT INTO stream (id, pod_id, stream_id, creator_id, access_permission, created_at)
+           VALUES (gen_random_uuid(), $(podId), '.meta/links', $(userId), 'private', NOW())
+           RETURNING *`,
+          { podId: pod.id, userId },
+        );
       }
 
       // Get previous record for hash chain
-      const previousRecord = await trx("record")
-        .where("stream_id", linksStream.id)
-        .orderBy("index", "desc")
-        .first();
+      const previousRecord = await t.oneOrNone<RecordDbRow>(
+        `SELECT * FROM record
+         WHERE stream_id = $(streamId)
+         ORDER BY index DESC
+         LIMIT 1`,
+        { streamId: linksStream.id },
+      );
 
       const index = (previousRecord?.index ?? -1) + 1;
       const previousHash = previousRecord?.hash || null;
@@ -156,51 +164,59 @@ export async function updateLinks(
       const hash = calculateRecordHash(previousHash, timestamp, links);
 
       // Write new links record
-      await trx("record").insert({
-        stream_id: linksStream.id,
-        index: index,
-        content: JSON.stringify(links),
-        content_type: "application/json",
-        name: `links-${index}`, // Add required name field
-        hash: hash,
-        previous_hash: previousHash,
-        author_id: authorId,
-        created_at: timestamp,
-      });
+      await t.none(
+        `INSERT INTO record (stream_id, index, content, content_type, name, hash, previous_hash, author_id, created_at)
+         VALUES ($(streamId), $(index), $(content), 'application/json', $(name), $(hash), $(previousHash), $(authorId), $(timestamp))`,
+        {
+          streamId: linksStream.id,
+          index,
+          content: JSON.stringify(links),
+          name: `links-${index}`,
+          hash,
+          previousHash,
+          authorId,
+          timestamp,
+        },
+      );
 
       logger.info("Links updated", { podId, paths: Object.keys(links) });
       return { success: true, data: undefined };
-    } catch (error: any) {
-      logger.error("Failed to update links", { error, podId });
-      return {
-        success: false,
-        error: {
-          code: "DATABASE_ERROR",
-          message: "Failed to update links",
-        },
-      };
-    }
-  });
+    });
+  } catch (error: any) {
+    logger.error("Failed to update links", { error, podId });
+    return {
+      success: false,
+      error: {
+        code: "DATABASE_ERROR",
+        message: "Failed to update links",
+      },
+    };
+  }
 }
 
 /**
  * Find pod by custom domain
  */
 export async function findPodByDomain(
-  db: Knex,
+  db: Database,
   domain: string,
 ): Promise<Result<string | null>> {
   try {
-    const customDomain = await db("custom_domain")
-      .where("domain", domain)
-      .where("verified", true)
-      .first();
+    const customDomain = await db.oneOrNone<{ pod_id: string }>(
+      `SELECT pod_id FROM custom_domain
+       WHERE domain = $(domain)
+         AND ssl_provisioned = true`,
+      { domain },
+    );
 
     if (!customDomain) {
       return { success: true, data: null };
     }
 
-    const pod = await db("pod").where("id", customDomain.pod_id).first();
+    const pod = await db.oneOrNone<PodDbRow>(
+      `SELECT * FROM pod WHERE id = $(podId)`,
+      { podId: customDomain.pod_id },
+    );
 
     if (!pod) {
       return { success: true, data: null };
@@ -223,16 +239,19 @@ export async function findPodByDomain(
  * Update custom domains for a pod
  */
 export async function updateCustomDomains(
-  db: Knex,
+  db: Database,
   podId: string,
   domains: string[],
   userId: string,
   authorId: string,
 ): Promise<Result<void>> {
-  return await db.transaction(async (trx) => {
-    try {
+  try {
+    return await db.tx(async (t) => {
       // Get pod
-      const pod = await trx("pod").where("pod_id", podId).first();
+      const pod = await t.oneOrNone<PodDbRow>(
+        `SELECT * FROM pod WHERE pod_id = $(podId)`,
+        { podId },
+      );
 
       if (!pod) {
         return {
@@ -245,29 +264,30 @@ export async function updateCustomDomains(
       }
 
       // Get or create .meta/domains stream
-      let domainsStream = await trx("stream")
-        .where("pod_id", pod.id)
-        .where("stream_id", ".meta/domains")
-        .first();
+      let domainsStream = await t.oneOrNone<StreamDbRow>(
+        `SELECT * FROM stream
+         WHERE pod_id = $(podId)
+           AND stream_id = '.meta/domains'`,
+        { podId: pod.id },
+      );
 
       if (!domainsStream) {
-        [domainsStream] = await trx("stream")
-          .insert({
-            id: crypto.randomUUID(),
-            pod_id: pod.id,
-            stream_id: ".meta/domains",
-            creator_id: userId,
-            access_permission: "private", // Only owner can modify
-            created_at: new Date(),
-          })
-          .returning("*");
+        domainsStream = await t.one<StreamDbRow>(
+          `INSERT INTO stream (id, pod_id, stream_id, creator_id, access_permission, created_at)
+           VALUES (gen_random_uuid(), $(podId), '.meta/domains', $(userId), 'private', NOW())
+           RETURNING *`,
+          { podId: pod.id, userId },
+        );
       }
 
       // Get previous record for hash chain
-      const previousRecord = await trx("record")
-        .where("stream_id", domainsStream.id)
-        .orderBy("index", "desc")
-        .first();
+      const previousRecord = await t.oneOrNone<RecordDbRow>(
+        `SELECT * FROM record
+         WHERE stream_id = $(streamId)
+         ORDER BY index DESC
+         LIMIT 1`,
+        { streamId: domainsStream.id },
+      );
 
       const index = (previousRecord?.index ?? -1) + 1;
       const previousHash = previousRecord?.hash || null;
@@ -277,46 +297,58 @@ export async function updateCustomDomains(
       const hash = calculateRecordHash(previousHash, timestamp, { domains });
 
       // Write new domains record
-      await trx("record").insert({
-        stream_id: domainsStream.id,
-        index: index,
-        content: JSON.stringify({ domains }),
-        content_type: "application/json",
-        name: `domains-${index}`, // Add required name field
-        hash: hash,
-        previous_hash: previousHash,
-        author_id: authorId,
-        created_at: timestamp,
-      });
+      await t.none(
+        `INSERT INTO record (stream_id, index, content, content_type, name, hash, previous_hash, author_id, created_at)
+         VALUES ($(streamId), $(index), $(content), 'application/json', $(name), $(hash), $(previousHash), $(authorId), $(timestamp))`,
+        {
+          streamId: domainsStream.id,
+          index,
+          content: JSON.stringify({ domains }),
+          name: `domains-${index}`,
+          hash,
+          previousHash,
+          authorId,
+          timestamp,
+        },
+      );
 
       // Update custom_domain table (for faster lookups)
       // Remove old domains
-      await trx("custom_domain").where("pod_id", pod.id).delete();
+      await t.none(`DELETE FROM custom_domain WHERE pod_id = $(podId)`, {
+        podId: pod.id,
+      });
 
       // Add new domains
       if (domains.length > 0) {
-        await trx("custom_domain").insert(
-          domains.map((domain) => ({
-            id: crypto.randomUUID(),
-            pod_id: pod.id,
-            domain: domain,
-            verified: false, // Needs CNAME verification
-            created_at: new Date(),
-          })),
-        );
+        const values = domains.map((domain) => ({
+          id: crypto.randomUUID(),
+          pod_id: pod.id,
+          domain: domain,
+          ssl_provisioned: false, // Needs CNAME verification
+          created_at: new Date(),
+        }));
+
+        // Build insert query for multiple domains
+        for (const value of values) {
+          await t.none(
+            `INSERT INTO custom_domain (id, pod_id, domain, ssl_provisioned, created_at)
+             VALUES ($(id), $(pod_id), $(domain), $(ssl_provisioned), $(created_at))`,
+            value,
+          );
+        }
       }
 
       logger.info("Custom domains updated", { podId, domains });
       return { success: true, data: undefined };
-    } catch (error: any) {
-      logger.error("Failed to update custom domains", { error, podId });
-      return {
-        success: false,
-        error: {
-          code: "DATABASE_ERROR",
-          message: "Failed to update custom domains",
-        },
-      };
-    }
-  });
+    });
+  } catch (error: any) {
+    logger.error("Failed to update custom domains", { error, podId });
+    return {
+      success: false,
+      error: {
+        code: "DATABASE_ERROR",
+        message: "Failed to update custom domains",
+      },
+    };
+  }
 }

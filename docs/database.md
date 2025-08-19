@@ -1,6 +1,6 @@
 # Database Schema
 
-WebPods uses PostgreSQL with Knex.js for migrations and queries.
+WebPods uses PostgreSQL with pg-promise for queries. Knex.js is used only for migrations.
 
 ## Core Tables
 

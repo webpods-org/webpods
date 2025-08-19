@@ -1,13 +1,36 @@
-// Database connection for WebPods
-import knex, { Knex } from "knex";
+/**
+ * Database connection using pg-promise
+ */
+
+import pgPromise from "pg-promise";
 import { createLogger } from "./logger.js";
 import { getConfig } from "./config-loader.js";
 
 const logger = createLogger("webpods:db");
 
-let db: Knex | null = null;
+// Initialize pg-promise
+const pgp = pgPromise({
+  // Log queries in debug mode
+  query(e) {
+    if (process.env.LOG_LEVEL === "debug") {
+      logger.debug("Query", { query: e.query, params: e.params });
+    }
+  },
+  error(err, e) {
+    logger.error("Database error", {
+      error: err,
+      query: e?.query,
+      params: e?.params,
+    });
+  },
+});
 
-export function getDb(): Knex {
+// Database connection instance
+let db: pgPromise.IDatabase<unknown> | null = null;
+
+export type Database = pgPromise.IDatabase<unknown>;
+
+export function getDb(): Database {
   if (!db) {
     const appConfig = getConfig();
     const connectionConfig = {
@@ -18,16 +41,8 @@ export function getDb(): Knex {
       password: appConfig.database.password,
     };
 
-    const knexConfig: Knex.Config = {
-      client: "pg",
-      connection: connectionConfig,
-      pool: {
-        min: 2,
-        max: 10,
-      },
-    };
+    db = pgp(connectionConfig);
 
-    db = knex(knexConfig);
     logger.info("Database connection established", {
       host: connectionConfig.host,
       database: connectionConfig.database,
@@ -38,7 +53,7 @@ export function getDb(): Knex {
 
 export async function closeDb(): Promise<void> {
   if (db) {
-    await db.destroy();
+    await db.$pool.end();
     db = null;
     logger.info("Database connection closed");
   }
@@ -47,11 +62,14 @@ export async function closeDb(): Promise<void> {
 // Helper to check if database is connected
 export async function checkDbConnection(): Promise<boolean> {
   try {
-    const db = getDb();
-    await db.raw("SELECT 1");
+    const database = getDb();
+    await database.one("SELECT 1 as result");
     return true;
   } catch (error) {
     logger.error("Database connection check failed", { error });
     return false;
   }
 }
+
+// Export pgp for use in transactions and helpers
+export { pgp };

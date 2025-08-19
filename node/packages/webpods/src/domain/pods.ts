@@ -2,7 +2,8 @@
  * Pod operations domain logic
  */
 
-import { Knex } from "knex";
+import { Database } from "../db.js";
+import { PodDbRow, StreamDbRow, RecordDbRow } from "../db-types.js";
 import { Pod, Stream, Result } from "../types.js";
 import { isValidPodId, calculateRecordHash } from "../utils.js";
 import { createLogger } from "../logger.js";
@@ -10,10 +11,40 @@ import { createLogger } from "../logger.js";
 const logger = createLogger("webpods:domain:pods");
 
 /**
+ * Map database row to domain type
+ */
+function mapPodFromDb(row: PodDbRow): Pod {
+  return {
+    id: row.id,
+    pod_id: row.pod_id,
+    owner_id: "", // Will be populated from .meta/owner stream
+    metadata: undefined,
+    created_at: row.created_at,
+    updated_at: row.created_at,
+  };
+}
+
+/**
+ * Map stream database row to domain type
+ */
+function mapStreamFromDb(row: StreamDbRow): Stream {
+  return {
+    id: row.id,
+    pod_id: row.pod_id,
+    stream_id: row.stream_id,
+    creator_id: row.creator_id,
+    access_permission: row.access_permission,
+    metadata: undefined,
+    created_at: row.created_at,
+    updated_at: row.created_at,
+  };
+}
+
+/**
  * Create a new pod
  */
 export async function createPod(
-  db: Knex,
+  db: Database,
   userId: string,
   podId: string,
 ): Promise<Result<Pod>> {
@@ -28,10 +59,13 @@ export async function createPod(
     };
   }
 
-  return await db.transaction(async (trx) => {
-    try {
+  try {
+    return await db.tx(async (t) => {
       // Check if pod already exists
-      const existing = await trx("pod").where("pod_id", podId).first();
+      const existing = await t.oneOrNone<PodDbRow>(
+        `SELECT * FROM pod WHERE pod_id = $(podId)`,
+        { podId },
+      );
 
       if (existing) {
         return {
@@ -44,64 +78,67 @@ export async function createPod(
       }
 
       // Create pod
-      const [pod] = await trx("pod")
-        .insert({
-          id: crypto.randomUUID(),
-          pod_id: podId,
-          created_at: new Date(),
-        })
-        .returning("*");
+      const pod = await t.one<PodDbRow>(
+        `INSERT INTO pod (id, pod_id, created_at)
+         VALUES (gen_random_uuid(), $(podId), NOW())
+         RETURNING *`,
+        { podId },
+      );
 
       // Create .meta/owner stream with initial owner record
-      const [ownerStream] = await trx("stream")
-        .insert({
-          id: crypto.randomUUID(),
-          pod_id: pod.id,
-          stream_id: ".meta/owner",
-          creator_id: userId,
-          access_permission: "private", // Only owner can modify
-          created_at: new Date(),
-        })
-        .returning("*");
+      const ownerStream = await t.one<StreamDbRow>(
+        `INSERT INTO stream (id, pod_id, stream_id, creator_id, access_permission, created_at)
+         VALUES (gen_random_uuid(), $(podId), '.meta/owner', $(userId), 'private', NOW())
+         RETURNING *`,
+        { podId: pod.id, userId },
+      );
 
       // Write initial owner record
       const ownerContent = { owner: userId };
       const timestamp = new Date().toISOString();
       const hash = calculateRecordHash(null, timestamp, ownerContent);
 
-      await trx("record").insert({
-        stream_id: ownerStream.id,
-        index: 0,
-        content: JSON.stringify(ownerContent),
-        content_type: "application/json",
-        name: "owner", // Add required name field
-        hash: hash,
-        previous_hash: null,
-        author_id: userId,
-        created_at: timestamp,
-      });
+      await t.none(
+        `INSERT INTO record (stream_id, index, content, content_type, name, hash, previous_hash, author_id, created_at)
+         VALUES ($(streamId), 0, $(content), 'application/json', 'owner', $(hash), NULL, $(authorId), $(timestamp))`,
+        {
+          streamId: ownerStream.id,
+          content: JSON.stringify(ownerContent),
+          hash,
+          authorId: userId,
+          timestamp,
+        },
+      );
 
       logger.info("Pod created", { podId, userId });
-      return { success: true, data: pod };
-    } catch (error: any) {
-      logger.error("Failed to create pod", { error, podId });
-      return {
-        success: false,
-        error: {
-          code: "DATABASE_ERROR",
-          message: "Failed to create pod",
-        },
-      };
-    }
-  });
+      const mappedPod = mapPodFromDb(pod);
+      mappedPod.owner_id = userId; // Set owner from what we just wrote
+      return { success: true, data: mappedPod };
+    });
+  } catch (error: any) {
+    logger.error("Failed to create pod", { error, podId });
+    return {
+      success: false,
+      error: {
+        code: "DATABASE_ERROR",
+        message: "Failed to create pod",
+      },
+    };
+  }
 }
 
 /**
  * Get pod by ID
  */
-export async function getPod(db: Knex, podId: string): Promise<Result<Pod>> {
+export async function getPod(
+  db: Database,
+  podId: string,
+): Promise<Result<Pod>> {
   try {
-    const pod = await db("pod").where("pod_id", podId).first();
+    const pod = await db.oneOrNone<PodDbRow>(
+      `SELECT * FROM pod WHERE pod_id = $(podId)`,
+      { podId },
+    );
 
     if (!pod) {
       return {
@@ -113,7 +150,15 @@ export async function getPod(db: Knex, podId: string): Promise<Result<Pod>> {
       };
     }
 
-    return { success: true, data: pod };
+    const mappedPod = mapPodFromDb(pod);
+
+    // Get owner from .meta/owner stream
+    const ownerResult = await getPodOwner(db, podId);
+    if (ownerResult.success) {
+      mappedPod.owner_id = ownerResult.data;
+    }
+
+    return { success: true, data: mappedPod };
   } catch (error: any) {
     logger.error("Failed to get pod", { error, podId });
     return {
@@ -130,18 +175,21 @@ export async function getPod(db: Knex, podId: string): Promise<Result<Pod>> {
  * Get pod owner from .meta/owner stream
  */
 export async function getPodOwner(
-  db: Knex,
+  db: Database,
   podId: string,
 ): Promise<Result<string>> {
   try {
-    const record = await db("record")
-      .join("stream", "stream.id", "record.stream_id")
-      .join("pod", "pod.id", "stream.pod_id")
-      .where("pod.pod_id", podId)
-      .where("stream.stream_id", ".meta/owner")
-      .orderBy("record.created_at", "desc")
-      .select("record.*")
-      .first();
+    const record = await db.oneOrNone<RecordDbRow>(
+      `SELECT r.*
+       FROM record r
+       JOIN stream s ON s.id = r.stream_id
+       JOIN pod p ON p.id = s.pod_id
+       WHERE p.pod_id = $(podId)
+         AND s.stream_id = '.meta/owner'
+       ORDER BY r.created_at DESC
+       LIMIT 1`,
+      { podId },
+    );
 
     if (!record) {
       return {
@@ -175,15 +223,15 @@ export async function getPodOwner(
  * Transfer pod ownership
  */
 export async function transferPodOwnership(
-  db: Knex,
+  db: Database,
   podId: string,
   currentUserId: string,
   newOwnerId: string,
 ): Promise<Result<void>> {
-  return await db.transaction(async (trx) => {
-    try {
+  try {
+    return await db.tx(async (t) => {
       // Check current ownership
-      const ownerResult = await getPodOwner(trx, podId);
+      const ownerResult = await getPodOwner(t as any, podId);
       if (!ownerResult.success || ownerResult.data !== currentUserId) {
         return {
           success: false,
@@ -195,12 +243,14 @@ export async function transferPodOwnership(
       }
 
       // Get .meta/owner stream
-      const ownerStream = await trx("stream")
-        .join("pod", "pod.id", "stream.pod_id")
-        .where("pod.pod_id", podId)
-        .where("stream.stream_id", ".meta/owner")
-        .select("stream.*")
-        .first();
+      const ownerStream = await t.oneOrNone<StreamDbRow>(
+        `SELECT s.*
+         FROM stream s
+         JOIN pod p ON p.id = s.pod_id
+         WHERE p.pod_id = $(podId)
+           AND s.stream_id = '.meta/owner'`,
+        { podId },
+      );
 
       if (!ownerStream) {
         return {
@@ -213,10 +263,13 @@ export async function transferPodOwnership(
       }
 
       // Get last record for hash chain
-      const lastRecord = await trx("record")
-        .where("stream_id", ownerStream.id)
-        .orderBy("index", "desc")
-        .first();
+      const lastRecord = await t.oneOrNone<RecordDbRow>(
+        `SELECT * FROM record
+         WHERE stream_id = $(streamId)
+         ORDER BY index DESC
+         LIMIT 1`,
+        { streamId: ownerStream.id },
+      );
 
       // Write new owner record
       const ownerContent = { owner: newOwnerId };
@@ -227,17 +280,20 @@ export async function transferPodOwnership(
         ownerContent,
       );
 
-      await trx("record").insert({
-        stream_id: ownerStream.id,
-        index: (lastRecord?.index || 0) + 1,
-        content: JSON.stringify(ownerContent),
-        content_type: "application/json",
-        name: `owner-${(lastRecord?.index || 0) + 1}`, // Add required name field
-        hash: hash,
-        previous_hash: lastRecord?.hash || null,
-        author_id: currentUserId,
-        created_at: timestamp,
-      });
+      await t.none(
+        `INSERT INTO record (stream_id, index, content, content_type, name, hash, previous_hash, author_id, created_at)
+         VALUES ($(streamId), $(index), $(content), 'application/json', $(name), $(hash), $(previousHash), $(authorId), $(timestamp))`,
+        {
+          streamId: ownerStream.id,
+          index: (lastRecord?.index || 0) + 1,
+          content: JSON.stringify(ownerContent),
+          name: `owner-${(lastRecord?.index || 0) + 1}`,
+          hash,
+          previousHash: lastRecord?.hash || null,
+          authorId: currentUserId,
+          timestamp,
+        },
+      );
 
       logger.info("Pod ownership transferred", {
         podId,
@@ -245,31 +301,31 @@ export async function transferPodOwnership(
         to: newOwnerId,
       });
       return { success: true, data: undefined };
-    } catch (error: any) {
-      logger.error("Failed to transfer pod ownership", { error, podId });
-      return {
-        success: false,
-        error: {
-          code: "DATABASE_ERROR",
-          message: "Failed to transfer ownership",
-        },
-      };
-    }
-  });
+    });
+  } catch (error: any) {
+    logger.error("Failed to transfer pod ownership", { error, podId });
+    return {
+      success: false,
+      error: {
+        code: "DATABASE_ERROR",
+        message: "Failed to transfer ownership",
+      },
+    };
+  }
 }
 
 /**
  * Delete pod and all its streams
  */
 export async function deletePod(
-  db: Knex,
+  db: Database,
   podId: string,
   userId: string,
 ): Promise<Result<void>> {
-  return await db.transaction(async (trx) => {
-    try {
+  try {
+    return await db.tx(async (t) => {
       // Check ownership
-      const ownerResult = await getPodOwner(trx, podId);
+      const ownerResult = await getPodOwner(t as any, podId);
       if (!ownerResult.success || ownerResult.data !== userId) {
         return {
           success: false,
@@ -281,7 +337,10 @@ export async function deletePod(
       }
 
       // Get pod
-      const pod = await trx("pod").where("pod_id", podId).first();
+      const pod = await t.oneOrNone<PodDbRow>(
+        `SELECT * FROM pod WHERE pod_id = $(podId)`,
+        { podId },
+      );
 
       if (!pod) {
         return {
@@ -293,36 +352,41 @@ export async function deletePod(
         };
       }
 
-      // Delete pod (cascades to streams and records)
-      await trx("pod").where("id", pod.id).delete();
-
       // Delete custom domains
-      await trx("custom_domain").where("pod_id", pod.id).delete();
+      await t.none(`DELETE FROM custom_domain WHERE pod_id = $(podId)`, {
+        podId: pod.id,
+      });
+
+      // Delete pod (cascades to streams and records)
+      await t.none(`DELETE FROM pod WHERE id = $(podId)`, { podId: pod.id });
 
       logger.info("Pod deleted", { podId, userId });
       return { success: true, data: undefined };
-    } catch (error: any) {
-      logger.error("Failed to delete pod", { error, podId });
-      return {
-        success: false,
-        error: {
-          code: "DATABASE_ERROR",
-          message: "Failed to delete pod",
-        },
-      };
-    }
-  });
+    });
+  } catch (error: any) {
+    logger.error("Failed to delete pod", { error, podId });
+    return {
+      success: false,
+      error: {
+        code: "DATABASE_ERROR",
+        message: "Failed to delete pod",
+      },
+    };
+  }
 }
 
 /**
  * List all streams in a pod
  */
 export async function listPodStreams(
-  db: Knex,
+  db: Database,
   podId: string,
 ): Promise<Result<Stream[]>> {
   try {
-    const pod = await db("pod").where("pod_id", podId).first();
+    const pod = await db.oneOrNone<PodDbRow>(
+      `SELECT * FROM pod WHERE pod_id = $(podId)`,
+      { podId },
+    );
 
     if (!pod) {
       return {
@@ -334,11 +398,14 @@ export async function listPodStreams(
       };
     }
 
-    const streams = await db("stream")
-      .where("pod_id", pod.id)
-      .orderBy("created_at", "asc");
+    const streams = await db.manyOrNone<StreamDbRow>(
+      `SELECT * FROM stream 
+       WHERE pod_id = $(podId)
+       ORDER BY created_at ASC`,
+      { podId: pod.id },
+    );
 
-    return { success: true, data: streams };
+    return { success: true, data: streams.map(mapStreamFromDb) };
   } catch (error: any) {
     logger.error("Failed to list pod streams", { error, podId });
     return {

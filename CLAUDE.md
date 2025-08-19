@@ -62,10 +62,13 @@ The codebase follows a functional programming approach with these key directorie
 
 ### Database Conventions
 
-- **PostgreSQL** with **Knex.js** for migrations and queries
+- **PostgreSQL** with **pg-promise** for queries
+- **Knex.js** ONLY for migrations (in root package)
 - **Singular table names**: lowercase (e.g., `pod`, `stream`, `record`)
 - **Column names**: snake_case for all columns
-- **Reserved words**: Use backticks for PostgreSQL reserved words
+- **Reserved words**: Use double quotes for PostgreSQL reserved words (e.g., `"user"`)
+- **Always use named parameters**: `$(paramName)` not `$1`
+- **Always specify type parameters**: `db.one<UserDbRow>(...)`
 
 For detailed schema information, see `/docs/database.md`
 

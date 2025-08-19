@@ -2,7 +2,8 @@
  * Permission checking domain logic
  */
 
-import { Knex } from "knex";
+import { Database } from "../db.js";
+import { PodDbRow, StreamDbRow, RecordDbRow } from "../db-types.js";
 import { Stream } from "../types.js";
 import { createLogger } from "../logger.js";
 
@@ -30,7 +31,7 @@ export function parsePermission(permission: string): {
  * Check if user exists in permission stream
  */
 async function checkPermissionStream(
-  db: Knex,
+  db: Database,
   podId: string,
   streamId: string,
   authId: string,
@@ -45,12 +46,14 @@ async function checkPermissionStream(
     });
 
     // First check if the stream exists
-    const stream = await db("stream")
-      .join("pod", "pod.id", "stream.pod_id")
-      .where("pod.pod_id", podId)
-      .where("stream.stream_id", streamId)
-      .select("stream.*")
-      .first();
+    const stream = await db.oneOrNone<StreamDbRow>(
+      `SELECT s.*
+       FROM stream s
+       JOIN pod p ON p.id = s.pod_id
+       WHERE p.pod_id = $(podId)
+         AND s.stream_id = $(streamId)`,
+      { podId, streamId },
+    );
 
     if (!stream) {
       logger.warn("Permission stream not found", { podId, streamId });
@@ -63,10 +66,12 @@ async function checkPermissionStream(
     });
 
     // Get ALL records from the permission stream
-    const records = await db("record")
-      .where("stream_id", stream.id)
-      .orderBy("index", "asc")
-      .select("*");
+    const records = await db.manyOrNone<RecordDbRow>(
+      `SELECT * FROM record
+       WHERE stream_id = $(streamId)
+       ORDER BY index ASC`,
+      { streamId: stream.id },
+    );
 
     // Process records in memory to find the latest permission for this user
     let userPermission = null;
@@ -124,7 +129,7 @@ async function checkPermissionStream(
  * Check if user can read from stream
  */
 export async function canRead(
-  db: Knex,
+  db: Database,
   stream: Stream,
   authId: string | null,
   userId?: string | null,
@@ -166,7 +171,10 @@ export async function canRead(
 
   if (perm.type === "stream" && perm.stream) {
     // Get pod for this stream
-    const pod = await db("pod").where("id", stream.pod_id).first();
+    const pod = await db.oneOrNone<PodDbRow>(
+      `SELECT * FROM pod WHERE id = $(podId)`,
+      { podId: stream.pod_id },
+    );
 
     if (!pod) return false;
 
@@ -187,7 +195,7 @@ export async function canRead(
  * Check if user can write to stream
  */
 export async function canWrite(
-  db: Knex,
+  db: Database,
   stream: Stream,
   authId: string,
   userId?: string | null,
@@ -212,7 +220,10 @@ export async function canWrite(
 
   if (perm.type === "stream" && perm.stream) {
     // Get pod for this stream
-    const pod = await db("pod").where("id", stream.pod_id).first();
+    const pod = await db.oneOrNone<PodDbRow>(
+      `SELECT * FROM pod WHERE id = $(podId)`,
+      { podId: stream.pod_id },
+    );
 
     if (!pod) return false;
 

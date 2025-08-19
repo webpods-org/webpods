@@ -2,7 +2,8 @@
  * Rate limiting domain logic
  */
 
-import { Knex } from "knex";
+import { Database } from "../db.js";
+import { RateLimitDbRow } from "../db-types.js";
 import { Result } from "../types.js";
 import { createLogger } from "../logger.js";
 import { getConfig } from "../config-loader.js";
@@ -33,7 +34,7 @@ function getRateLimits(): RateLimitConfig {
  * Increment rate limit counter for tracking purposes
  */
 export async function incrementRateLimit(
-  db: Knex,
+  db: Database,
   identifier: string,
   type: RateLimitType,
 ): Promise<void> {
@@ -43,27 +44,29 @@ export async function incrementRateLimit(
   const actualWindowStart = new Date(windowEnd.getTime() - windowMs);
 
   try {
-    const rateLimitRecord = await db("rate_limit")
-      .where("identifier", identifier)
-      .where("action", type)
-      .where("window_start", actualWindowStart)
-      .first();
+    const rateLimitRecord = await db.oneOrNone<RateLimitDbRow>(
+      `SELECT * FROM rate_limit
+       WHERE user_id = $(identifier)
+         AND action = $(type)
+         AND window_start = $(windowStart)`,
+      { identifier, type, windowStart: actualWindowStart },
+    );
 
     if (!rateLimitRecord) {
       // Create new window with count 1
-      await db("rate_limit").insert({
-        id: crypto.randomUUID(),
-        identifier,
-        action: type,
-        count: 1,
-        window_start: actualWindowStart,
-        window_end: windowEnd,
-      });
+      await db.none(
+        `INSERT INTO rate_limit (id, user_id, action, count, window_start, created_at)
+         VALUES (gen_random_uuid(), $(identifier), $(type), 1, $(windowStart), NOW())`,
+        { identifier, type, windowStart: actualWindowStart },
+      );
     } else {
       // Increment existing counter
-      await db("rate_limit")
-        .where("id", rateLimitRecord.id)
-        .increment("count", 1);
+      await db.none(
+        `UPDATE rate_limit 
+         SET count = count + 1, updated_at = NOW()
+         WHERE id = $(id)`,
+        { id: rateLimitRecord.id },
+      );
     }
   } catch (error) {
     // Log but don't fail the operation
@@ -75,7 +78,7 @@ export async function incrementRateLimit(
  * Check if request is rate limited
  */
 export async function checkRateLimit(
-  db: Knex,
+  db: Database,
   identifier: string,
   type: RateLimitType,
 ): Promise<Result<{ allowed: boolean; remaining: number; resetAt: Date }>> {
@@ -90,24 +93,22 @@ export async function checkRateLimit(
     const windowEnd = new Date(Math.ceil(now.getTime() / windowMs) * windowMs);
     const actualWindowStart = new Date(windowEnd.getTime() - windowMs);
 
-    let rateLimitRecord = await db("rate_limit")
-      .where("identifier", identifier)
-      .where("action", type)
-      .where("window_start", actualWindowStart)
-      .first();
+    let rateLimitRecord = await db.oneOrNone<RateLimitDbRow>(
+      `SELECT * FROM rate_limit
+       WHERE user_id = $(identifier)
+         AND action = $(type)
+         AND window_start = $(windowStart)`,
+      { identifier, type, windowStart: actualWindowStart },
+    );
 
     if (!rateLimitRecord) {
       // Create new window
-      [rateLimitRecord] = await db("rate_limit")
-        .insert({
-          id: crypto.randomUUID(),
-          identifier,
-          action: type,
-          count: 0,
-          window_start: actualWindowStart,
-          window_end: windowEnd,
-        })
-        .returning("*");
+      rateLimitRecord = await db.one<RateLimitDbRow>(
+        `INSERT INTO rate_limit (id, user_id, action, count, window_start, created_at)
+         VALUES (gen_random_uuid(), $(identifier), $(type), 0, $(windowStart), NOW())
+         RETURNING *`,
+        { identifier, type, windowStart: actualWindowStart },
+      );
     }
 
     const count = rateLimitRecord.count;
@@ -125,12 +126,18 @@ export async function checkRateLimit(
     }
 
     // Increment counter
-    await db("rate_limit")
-      .where("id", rateLimitRecord.id)
-      .increment("count", 1);
+    await db.none(
+      `UPDATE rate_limit 
+       SET count = count + 1, updated_at = NOW()
+       WHERE id = $(id)`,
+      { id: rateLimitRecord.id },
+    );
 
     // Clean old windows
-    await db("rate_limit").where("window_end", "<", windowStart).delete();
+    await db.none(
+      `DELETE FROM rate_limit WHERE window_start < $(windowStart)`,
+      { windowStart },
+    );
 
     return {
       success: true,
@@ -158,7 +165,7 @@ export async function checkRateLimit(
  * Get rate limit status without incrementing
  */
 export async function getRateLimitStatus(
-  db: Knex,
+  db: Database,
   identifier: string,
   type: RateLimitType,
 ): Promise<
@@ -173,11 +180,13 @@ export async function getRateLimitStatus(
     const windowEnd = new Date(Math.ceil(now.getTime() / windowMs) * windowMs);
     const actualWindowStart = new Date(windowEnd.getTime() - windowMs);
 
-    const rateLimitRecord = await db("rate_limit")
-      .where("identifier", identifier)
-      .where("action", type)
-      .where("window_start", actualWindowStart)
-      .first();
+    const rateLimitRecord = await db.oneOrNone<RateLimitDbRow>(
+      `SELECT * FROM rate_limit
+       WHERE user_id = $(identifier)
+         AND action = $(type)
+         AND window_start = $(windowStart)`,
+      { identifier, type, windowStart: actualWindowStart },
+    );
 
     const used = rateLimitRecord?.count || 0;
     const remaining = Math.max(0, limit - used);

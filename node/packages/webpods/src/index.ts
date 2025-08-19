@@ -5,7 +5,7 @@
 import { config } from "dotenv";
 import { createLogger } from "./logger.js";
 import { closeDb, checkDbConnection } from "./db.js";
-import { startStateCleanup } from "./auth/pkce-store.js";
+import { cleanupExpiredStates } from "./auth/pkce-store.js";
 import { createApp } from "./server.js";
 import { getConfig } from "./config-loader.js";
 import { getVersion } from "./version.js";
@@ -47,7 +47,14 @@ export async function start() {
     }
 
     // Start PKCE state cleanup
-    startStateCleanup();
+    setInterval(
+      () => {
+        cleanupExpiredStates().catch((err) =>
+          logger.error("Failed to cleanup expired states", err),
+        );
+      },
+      60 * 60 * 1000,
+    ); // Run every hour
 
     // Create app
     const app = createApp();

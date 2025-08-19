@@ -86,7 +86,7 @@ export function createApp(): Express {
     try {
       const { getDb } = await import("./db.js");
       const db = getDb();
-      await db.raw("SELECT 1");
+      await db.one("SELECT 1 as result");
       dbStatus = "connected";
     } catch {
       dbStatus = "disconnected";

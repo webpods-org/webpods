@@ -11,7 +11,7 @@ This document outlines the coding standards and patterns used throughout the Web
 ```typescript
 // ✅ Good - Pure function with explicit dependencies
 export async function writeRecord(
-  db: Knex,
+  db: Database,
   streamId: string,
   content: any,
   contentType: string,
@@ -45,7 +45,7 @@ export class WebSocketConnection {
 
 // ❌ Bad - Class used unnecessarily for stateless operations
 export class StreamService {
-  constructor(private db: Knex) {}
+  constructor(private db: Database) {}
 
   async writeRecord(streamId: string, content: any): Promise<StreamRecord> {
     // This doesn"t need to be a class
@@ -70,7 +70,7 @@ export type Result<T, E = DomainError> =
 
 // ✅ Good - Using Result type
 export async function findStream(
-  db: Knex,
+  db: Database,
   streamId: string,
 ): Promise<Result<Stream>> {
   try {
@@ -93,7 +93,10 @@ export async function findStream(
 }
 
 // ❌ Bad - Throwing exceptions
-export async function findStream(db: Knex, streamId: string): Promise<Stream> {
+export async function findStream(
+  db: Database,
+  streamId: string,
+): Promise<Stream> {
   const stream = await db("stream").where("stream_id", streamId).first();
   if (!stream) throw new Error("Stream not found");
   return stream;
@@ -102,40 +105,79 @@ export async function findStream(db: Knex, streamId: string): Promise<Stream> {
 
 ### 3. Database Patterns
 
-#### Direct Knex Usage
+#### DbRow Types
 
-Use Knex query builder directly. No ORMs or abstraction layers.
+All database interactions use `*DbRow` types that exactly mirror the database schema with snake_case:
 
 ```typescript
-// ✅ Good - Direct Knex with type safety
-const stream = await db<Stream>("stream").where("stream_id", streamId).first();
+// Database type (snake_case)
+type UserDbRow = {
+  id: string;
+  auth_id: string;
+  email: string;
+  name: string;
+  provider: string;
+  created_at: Date;
+  updated_at: Date | null;
+};
 
-const [record] = await db("record")
-  .insert({
-    stream_id: stream.id,
-    index: nextSeq,
-    content: JSON.stringify(content),
-    content_type: contentType,
-    created_by: userId,
-  })
-  .returning("*");
+type StreamDbRow = {
+  id: string;
+  pod_id: string;
+  stream_id: string;
+  creator_id: string;
+  access_permission: string;
+  created_at: Date;
+};
+```
 
-// ❌ Bad - Unnecessary abstraction
-const stream = await this.repository.findOne({ stream_id: streamId });
+#### Direct pg-promise Usage
+
+Use pg-promise directly with typed queries and named parameters:
+
+```typescript
+// ✅ Good - Type-safe query with named parameters
+const stream = await db.oneOrNone<StreamDbRow>(
+  `SELECT * FROM stream WHERE stream_id = $(streamId) AND pod_id = $(podId)`,
+  { streamId, podId },
+);
+
+const record = await db.one<RecordDbRow>(
+  `INSERT INTO record (stream_id, index, content, content_type, author_id)
+   VALUES ($(streamId), $(index), $(content), $(contentType), $(authorId))
+   RETURNING *`,
+  { streamId, index, content, contentType, authorId },
+);
+
+// ❌ Bad - Positional parameters
+const stream = await db.oneOrNone(
+  `SELECT * FROM stream WHERE stream_id = $1 AND pod_id = $2`,
+  [streamId, podId],
+);
+
+// ❌ Bad - No type parameter
+const stream = await db.oneOrNone(
+  `SELECT * FROM stream WHERE stream_id = $(streamId)`,
+  { streamId },
+);
 ```
 
 #### Reserved Words
 
-PostgreSQL reserved words like `user` must be quoted:
+PostgreSQL reserved words like `user` must be double-quoted:
 
 ```typescript
-// ✅ Good - Quoted reserved word
-const user = await db('"user"').where("auth_id", authId).first();
+// ✅ Good - Double-quoted reserved word
+const user = await db.oneOrNone<UserDbRow>(
+  `SELECT * FROM "user" WHERE auth_id = $(authId)`,
+  { authId },
+);
 
 // ❌ Bad - Unquoted reserved word
-const user = await db("user") // Will fail!
-  .where("auth_id", authId)
-  .first();
+const user = await db.oneOrNone<UserDbRow>(
+  `SELECT * FROM user WHERE auth_id = $(authId)`, // Will fail!
+  { authId },
+);
 ```
 
 ### 4. Module Structure
@@ -256,7 +298,7 @@ Always use async/await instead of promises:
 ```typescript
 // ✅ Good
 export async function createStreamWithRecord(
-  db: Knex,
+  db: Database,
   userId: string,
   streamId: string,
   content: any,
@@ -278,7 +320,7 @@ export async function createStreamWithRecord(
 
 // ❌ Bad - Promise chains
 export function createStreamWithRecord(
-  db: Knex,
+  db: Database,
   userId: string,
   streamId: string,
   content: any,
@@ -365,7 +407,7 @@ Add JSDoc comments for exported functions:
  * @returns Result containing the created record or an error
  */
 export async function writeRecord(
-  db: Knex,
+  db: Database,
   userId: string,
   streamId: string,
   content: any,
@@ -380,7 +422,7 @@ export async function writeRecord(
 
 ```typescript
 describe("Stream Operations", () => {
-  let db: Knex;
+  let db: Database;
   let userId: string;
 
   beforeEach(async () => {
@@ -449,11 +491,13 @@ const content = writeSchema.parse(req.body);
 Always use parameterized queries with named parameters:
 
 ```typescript
-// ✅ Good - Named parameters with Knex query builder
-const stream = await db("stream")
-  .where("stream_id", streamId)
-  .andWhere("creator_id", userId)
-  .first();
+// ✅ Good - Named parameters with pg-promise
+const stream = await db.oneOrNone<StreamDbRow>(
+  `SELECT * FROM stream 
+   WHERE stream_id = $(streamId) 
+   AND creator_id = $(userId)`,
+  { streamId, userId },
+);
 
 // ✅ Good - Named parameters with raw queries
 const result = await db.raw(
@@ -542,7 +586,7 @@ Before submitting a PR, ensure:
 - [ ] All functions use Result types for error handling
 - [ ] No classes used (functions only)
 - [ ] All imports include `.js` extension
-- [ ] Database queries use Knex query builder
+- [ ] Database queries use pg-promise with named parameters
 - [ ] Reserved words like `user` are quoted
 - [ ] JSDoc comments for public functions
 - [ ] Input validation with Zod
