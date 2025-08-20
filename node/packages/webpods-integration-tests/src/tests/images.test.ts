@@ -184,7 +184,7 @@ describe("WebPods Image Support", () => {
 
       expect(response.status).to.equal(200);
       expect(response.headers).to.have.property("x-hash");
-      expect(response.headers).to.have.property("x-author", authId);
+      expect(response.headers).to.have.property("x-author", userId);
       expect(response.headers).to.have.property("x-timestamp");
     });
   });

@@ -1,7 +1,7 @@
 // Pod-specific authentication tests
 import { expect } from "chai";
 import jwt from "jsonwebtoken";
-import { TestHttpClient } from "webpods-test-utils";
+import { TestHttpClient, createTestUser } from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 
 describe("Pod-Specific Authentication with SSO", () => {

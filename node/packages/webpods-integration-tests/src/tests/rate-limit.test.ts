@@ -1,6 +1,6 @@
 // Rate limiting tests for WebPods
 import { expect } from "chai";
-import { TestHttpClient } from "webpods-test-utils";
+import { TestHttpClient, createTestUser } from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 
 describe("WebPods Rate Limiting", () => {

@@ -1,6 +1,6 @@
 // Name validation tests for WebPods
 import { expect } from "chai";
-import { TestHttpClient } from "webpods-test-utils";
+import { TestHttpClient, createTestUser } from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 
 describe("WebPods Name Validation", () => {
@@ -13,25 +13,20 @@ describe("WebPods Name Validation", () => {
     client = new TestHttpClient("http://localhost:3099");
     // Create a test user and auth token
     const db = testDb.getDb();
-    const [user] = await db("user")
-      .insert({
-        id: crypto.randomUUID(),
-        auth_id: "auth:provider:name123",
-        email: "name@example.com",
-        name: "Name Test User",
-        provider: "testprovider1",
-      })
-      .returning("*");
+    const user = await createTestUser(db, {
+      provider: "testprovider1",
+      providerId: "name123",
+      email: "name@example.com",
+      name: "Name Test User",
+    });
 
     // Generate pod-specific token
     client.setBaseUrl(baseUrl);
     authToken = client.generatePodToken(
       {
-        user_id: user.id,
-        auth_id: user.auth_id,
+        user_id: user.userId,
         email: user.email,
         name: user.name,
-        provider: "testprovider1",
       },
       testPodId,
     );
