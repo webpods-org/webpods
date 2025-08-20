@@ -18,6 +18,58 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - webpods-network
+
+  hydra-migrate:
+    image: oryd/hydra:v2.2.0
+    container_name: devenv-hydra-migrate
+    command: migrate sql --yes postgres://postgres:postgres@postgres:5432/hydra?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - webpods-network
+    restart: on-failure
+
+  hydra:
+    image: oryd/hydra:v2.2.0
+    container_name: devenv-hydra-1
+    depends_on:
+      postgres:
+        condition: service_healthy
+      hydra-migrate:
+        condition: service_completed_successfully
+    ports:
+      - "4444:4444" # Public API
+      - "4445:4445" # Admin API
+    command: serve all --dev
+    environment:
+      - DSN=postgres://postgres:postgres@postgres:5432/hydra?sslmode=disable
+      - URLS_SELF_ISSUER=http://localhost:4444/
+      - URLS_CONSENT=http://host.docker.internal:3000/oauth/consent
+      - URLS_LOGIN=http://host.docker.internal:3000/oauth/login
+      - URLS_LOGOUT=http://host.docker.internal:3000/oauth/logout
+      - SECRETS_SYSTEM=youReallyNeedToChangeThis-UseARandomValue
+      - OIDC_SUBJECT_IDENTIFIERS_SUPPORTED_TYPES=public,pairwise
+      - OIDC_SUBJECT_IDENTIFIERS_PAIRWISE_SALT=youReallyNeedToChangeThis
+      - SERVE_COOKIES_SAME_SITE_MODE=Lax
+      - LOG_LEVEL=debug
+      - LOG_FORMAT=json
+      - STRATEGIES_ACCESS_TOKEN=jwt
+      - TTL_ACCESS_TOKEN=1h
+      - TTL_REFRESH_TOKEN=720h
+      - OAUTH2_EXPOSE_INTERNAL_ERRORS=true
+      - WEBFINGER_OIDC_DISCOVERY_SUPPORTED_SCOPES=openid,offline,offline_access,profile,email,pod:read,pod:write
+      - WEBFINGER_OIDC_DISCOVERY_SUPPORTED_CLAIMS=sub,name,email,email_verified,pods,permissions
+    networks:
+      - webpods-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+networks:
+  webpods-network:
+    driver: bridge
 
 volumes:
   postgres_data:
