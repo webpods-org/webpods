@@ -5,7 +5,7 @@
 
 import { expect } from "chai";
 import jwt from "jsonwebtoken";
-import { TestHttpClient, createTestUser } from "webpods-test-utils";
+import { TestHttpClient } from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 
 describe("Full SSO OAuth Flow", () => {
@@ -19,7 +19,7 @@ describe("Full SSO OAuth Flow", () => {
     await testDb.getDb().raw("TRUNCATE TABLE session CASCADE");
     await testDb.getDb().raw("TRUNCATE TABLE oauth_state CASCADE");
     await testDb.getDb().raw('TRUNCATE TABLE "user" CASCADE');
-    await testDb.getDb().raw('TRUNCATE TABLE identity CASCADE');
+    await testDb.getDb().raw("TRUNCATE TABLE identity CASCADE");
   });
 
   it("should complete full OAuth flow with mock provider", async () => {
@@ -85,7 +85,7 @@ describe("Full SSO OAuth Flow", () => {
     // 5. Verify user and identity were created
     const users = await testDb.getDb()("user").select("*");
     expect(users).to.have.lengthOf(1);
-    
+
     const identities = await testDb.getDb()("identity").select("*");
     expect(identities).to.have.lengthOf(1);
     expect(identities[0].email).to.equal("test@example.com");
@@ -140,7 +140,7 @@ describe("Full SSO OAuth Flow", () => {
     // 3. Verify only one user was created
     const users = await testDb.getDb()("user").select("*");
     expect(users).to.have.lengthOf(1);
-    
+
     const identities = await testDb.getDb()("identity").select("*");
     expect(identities).to.have.lengthOf(1);
     expect(identities[0].email).to.equal("test@example.com");

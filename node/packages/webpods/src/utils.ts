@@ -222,7 +222,6 @@ export function detectContentType(
   return "text/plain";
 }
 
-
 /**
  * Check if a string is a valid index (numeric)
  */

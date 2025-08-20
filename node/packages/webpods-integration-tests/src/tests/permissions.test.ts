@@ -43,7 +43,7 @@ describe("WebPods Permissions", () => {
         email: user1.email,
         name: user1.name,
       },
-      testPodId
+      testPodId,
     );
 
     user2Token = client.generatePodToken(
@@ -52,7 +52,7 @@ describe("WebPods Permissions", () => {
         email: user2.email,
         name: user2.name,
       },
-      testPodId
+      testPodId,
     );
   });
 

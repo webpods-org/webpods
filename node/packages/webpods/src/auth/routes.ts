@@ -297,7 +297,11 @@ router.get("/authorize", async (req: Request, res: Response) => {
   if ((req as any).session?.user) {
     try {
       // User is already authenticated, generate pod-specific token
-      const podToken = generateToken((req as any).session.user, (req as any).session.identity, pod);
+      const podToken = generateToken(
+        (req as any).session.user,
+        (req as any).session.identity,
+        pod,
+      );
 
       // Redirect back to pod with token
       const config = getConfig();
@@ -485,7 +489,11 @@ router.get("/:provider/callback", async (req: Request, res: Response) => {
     // Check if this is pod-specific auth
     if (stateData.pod) {
       // Generate pod-specific token
-      const podToken = generateToken(userResult.data.user, userResult.data.identity, stateData.pod);
+      const podToken = generateToken(
+        userResult.data.user,
+        userResult.data.identity,
+        stateData.pod,
+      );
       // Build callback URL for pod subdomain
       const publicConfig = config.server.public!;
       const podHost =
@@ -504,7 +512,10 @@ router.get("/:provider/callback", async (req: Request, res: Response) => {
       res.redirect(callbackUrl);
     } else {
       // Regular auth flow (backwards compatibility)
-      const token = generateToken(userResult.data.user, userResult.data.identity);
+      const token = generateToken(
+        userResult.data.user,
+        userResult.data.identity,
+      );
 
       // Set cookie for web apps
       const isSecure = config.server.public?.isSecure || false;

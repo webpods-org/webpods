@@ -3,7 +3,7 @@
  */
 
 import { expect } from "chai";
-import { TestHttpClient, createTestUser } from "webpods-test-utils";
+import { TestHttpClient } from "webpods-test-utils";
 
 describe("Version", () => {
   let client: TestHttpClient;

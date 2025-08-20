@@ -20,7 +20,7 @@ export async function createTestUser(
     providerId?: string;
     email?: string;
     name?: string;
-  }
+  },
 ): Promise<TestUser> {
   const userId = crypto.randomUUID();
   const identityId = crypto.randomUUID();

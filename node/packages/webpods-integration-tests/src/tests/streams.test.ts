@@ -354,7 +354,7 @@ describe("WebPods Stream Operations", () => {
           email: user2.email,
           name: user2.name,
         },
-        testPodId
+        testPodId,
       );
 
       // Create pod as first user
@@ -362,7 +362,9 @@ describe("WebPods Stream Operations", () => {
 
       // Try to update .meta/owner as second user
       client.setAuthToken(token2);
-      const response = await client.post("/.meta/owner", { owner: user2.userId });
+      const response = await client.post("/.meta/owner", {
+        owner: user2.userId,
+      });
 
       expect(response.status).to.equal(403);
       expect(response.data.error.code).to.equal("FORBIDDEN");
@@ -408,7 +410,7 @@ describe("WebPods Stream Operations", () => {
           email: user2.email,
           name: user2.name,
         },
-        testPodId
+        testPodId,
       );
 
       client.setAuthToken(token2);

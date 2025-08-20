@@ -98,9 +98,14 @@ describe("WebPods Authentication", () => {
         email: "test@example.com",
         name: "Test User",
       });
-      
+
       userId = testUser.userId;
-      authToken = createTestToken(userId, testUser.email, testUser.name, testPodId);
+      authToken = createTestToken(
+        userId,
+        testUser.email,
+        testUser.name,
+        testPodId,
+      );
       client.setBaseUrl(baseUrl);
     });
 
@@ -194,7 +199,12 @@ describe("WebPods Authentication", () => {
       });
 
       userId = testUser.userId;
-      authToken = createTestToken(testUser.userId, testUser.email, testUser.name, testPodId);
+      authToken = createTestToken(
+        testUser.userId,
+        testUser.email,
+        testUser.name,
+        testPodId,
+      );
     });
 
     it("should allow anonymous read on public streams", async () => {
@@ -256,7 +266,12 @@ describe("WebPods Authentication", () => {
         name: "Bearer Test",
       });
 
-      authToken = createTestToken(testUser.userId, testUser.email, testUser.name, testPodId);
+      authToken = createTestToken(
+        testUser.userId,
+        testUser.email,
+        testUser.name,
+        testPodId,
+      );
     });
 
     it("should accept Bearer token in Authorization header", async () => {
@@ -366,7 +381,12 @@ describe("WebPods Authentication", () => {
         name: "Logout Test",
       });
 
-      authToken = createTestToken(testUser.userId, testUser.email, testUser.name, testPodId);
+      authToken = createTestToken(
+        testUser.userId,
+        testUser.email,
+        testUser.name,
+        testPodId,
+      );
       client.setAuthToken(authToken);
     });
 
@@ -501,9 +521,9 @@ describe("WebPods Authentication", () => {
       // Simulate OAuth user creation with metadata in identity
       const userId = crypto.randomUUID();
       const identityId = crypto.randomUUID();
-      
+
       await db("user").insert({ id: userId });
-      
+
       const [identity] = await db("identity")
         .insert({
           id: identityId,

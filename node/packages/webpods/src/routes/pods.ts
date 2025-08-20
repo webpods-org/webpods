@@ -734,17 +734,18 @@ router.get(
       const config = getConfig();
       const mainDomain = config.server.public?.hostname || "localhost";
       const port = config.server.public?.port || config.server.port;
-      
+
       // Check if this is the main domain (with or without port)
-      const isMainDomain = hostname === mainDomain || 
-                          hostname === `${mainDomain}:${port}` ||
-                          (hostname === "localhost" && mainDomain === "localhost");
-      
+      const isMainDomain =
+        hostname === mainDomain ||
+        hostname === `${mainDomain}:${port}` ||
+        (hostname === "localhost" && mainDomain === "localhost");
+
       if (isMainDomain) {
         // Main domain - fall through to 404 handler
         return next();
       }
-      
+
       // Subdomain - pod not found
       res.status(404).json({
         error: {
@@ -820,17 +821,18 @@ router.get(
       const config = getConfig();
       const mainDomain = config.server.public?.hostname || "localhost";
       const port = config.server.public?.port || config.server.port;
-      
+
       // Check if this is the main domain (with or without port)
-      const isMainDomain = hostname === mainDomain || 
-                          hostname === `${mainDomain}:${port}` ||
-                          (hostname === "localhost" && mainDomain === "localhost");
-      
+      const isMainDomain =
+        hostname === mainDomain ||
+        hostname === `${mainDomain}:${port}` ||
+        (hostname === "localhost" && mainDomain === "localhost");
+
       if (isMainDomain) {
         // Main domain - fall through to 404 handler
         return next();
       }
-      
+
       // Subdomain - pod not found
       res.status(404).json({
         error: {

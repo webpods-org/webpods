@@ -164,11 +164,25 @@ export interface JWTPayload {
   exp?: number;
 }
 
+// Hydra OAuth token payload
+export interface HydraAuth {
+  user_id: string;
+  client_id?: string;
+  pods?: string[];
+  permissions?: string[];
+  scope?: string;
+}
+
+// Combined auth type
+export type AuthPayload = JWTPayload | HydraAuth;
+
 // Express extensions
 import { Request } from "express";
 export interface AuthRequest extends Request {
-  auth?: JWTPayload;
+  auth?: AuthPayload;
+  auth_type?: "webpods" | "hydra";
   pod?: Pod;
+  pod_id?: string;
   ip_address?: string;
 }
 

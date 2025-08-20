@@ -351,7 +351,7 @@ describe("WebPods Rate Limiting", () => {
           email: user2.email,
           name: user2.name,
         },
-        testPodId
+        testPodId,
       );
 
       // Calculate proper window boundaries
@@ -404,7 +404,7 @@ describe("WebPods Rate Limiting", () => {
           email: uniqueUser.email,
           name: uniqueUser.name,
         },
-        testPodId
+        testPodId,
       );
 
       // Use the unique user for this test

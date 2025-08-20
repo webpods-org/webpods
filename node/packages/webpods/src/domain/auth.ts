@@ -93,7 +93,8 @@ export async function findOrCreateUser(
 ): Promise<Result<{ user: User; identity: Identity }>> {
   const providerId = profile.id;
   const email = profile.email || null;
-  const name = profile.name || profile.username || (email ? email.split("@")[0] : null);
+  const name =
+    profile.name || profile.username || (email ? email.split("@")[0] : null);
 
   try {
     // Try to find existing identity
@@ -119,7 +120,11 @@ export async function findOrCreateUser(
         { userId: userRow.id, provider, providerId, email, name },
       );
 
-      logger.info("New user and identity created", { userId: userRow.id, provider, providerId });
+      logger.info("New user and identity created", {
+        userId: userRow.id,
+        provider,
+        providerId,
+      });
     } else {
       // Get existing user
       userRow = await db.one<UserDbRow>(
@@ -139,15 +144,19 @@ export async function findOrCreateUser(
       }
     }
 
-    return { 
-      success: true, 
+    return {
+      success: true,
       data: {
         user: mapUserFromDb(userRow),
-        identity: mapIdentityFromDb(identityRow)
-      }
+        identity: mapIdentityFromDb(identityRow),
+      },
     };
   } catch (error: any) {
-    logger.error("Failed to find or create user", { error, provider, providerId });
+    logger.error("Failed to find or create user", {
+      error,
+      provider,
+      providerId,
+    });
     return {
       success: false,
       error: {
@@ -201,7 +210,7 @@ export function verifyToken(
           },
         };
       }
-      
+
       // Global tokens (without pod claim) should not work on pod subdomains
       // UNLESS we're creating the pod for the first time (write operations)
       // The middleware will need to handle this case
