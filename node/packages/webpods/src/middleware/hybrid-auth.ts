@@ -94,33 +94,14 @@ export async function authenticateHybrid(
         }
       }
 
-      // Check write permissions for write operations
-      const isWriteOperation = ["POST", "PUT", "DELETE", "PATCH"].includes(
-        req.method,
-      );
-      if (isWriteOperation) {
-        const permissions = payload.ext?.permissions || [];
-        if (!permissions.includes("write") && !permissions.includes("full")) {
-          logger.warn("Hydra token lacks write permission", {
-            method: req.method,
-            permissions,
-          });
-          res.status(403).json({
-            error: {
-              code: "PERMISSION_DENIED",
-              message: "Token lacks write permission",
-            },
-          });
-          return;
-        }
-      }
+      // Pod-level access means both read and write are allowed
+      // No need to check for specific permissions
 
       // Attach Hydra auth info
       req.auth = {
         user_id: payload.sub,
         client_id: payload.client_id,
         pods: payload.ext?.pods,
-        permissions: payload.ext?.permissions,
         scope: payload.scope,
       } as HydraAuth;
       req.auth_type = "hydra";
@@ -192,7 +173,6 @@ export async function optionalAuthHybrid(
           user_id: payload.sub,
           client_id: payload.client_id,
           pods: payload.ext?.pods,
-          permissions: payload.ext?.permissions,
           scope: payload.scope,
         } as HydraAuth;
         req.auth_type = "hydra";

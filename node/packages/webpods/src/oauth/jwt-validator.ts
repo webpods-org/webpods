@@ -43,8 +43,7 @@ export interface HydraTokenPayload {
   client_id: string;
   scope: string;
   ext?: {
-    pods?: string[];
-    permissions?: string[];
+    pods?: string[]; // List of pods with full access
   };
 }
 

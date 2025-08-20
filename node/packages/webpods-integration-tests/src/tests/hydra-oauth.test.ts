@@ -27,7 +27,7 @@ describe("Hydra OAuth Integration", () => {
 
       const res = await client.post("/oauth/register", clientData);
       expect(res.status).to.equal(201);
-      
+
       const body = res.data;
       expect(body).to.have.property("client_id");
       expect(body).to.have.property("client_name", "Test OAuth Client");
@@ -50,7 +50,7 @@ describe("Hydra OAuth Integration", () => {
       // Now get client info
       const res = await client.get(`/oauth/client/${client_id}`);
       expect(res.status).to.equal(200);
-      
+
       const body = res.data;
       expect(body).to.have.property("client_id", client_id);
       expect(body).to.have.property("client_name", "Test Client for Info");
@@ -65,7 +65,7 @@ describe("Hydra OAuth Integration", () => {
 
       const res = await client.post("/oauth/register", invalidData);
       expect(res.status).to.equal(400);
-      
+
       const body = res.data;
       expect(body).to.have.property("error");
       expect(body.error).to.have.property("code", "INVALID_REQUEST");
@@ -74,7 +74,7 @@ describe("Hydra OAuth Integration", () => {
     it("should return 404 for non-existent client", async () => {
       const res = await client.get("/oauth/client/non-existent-client-id");
       expect(res.status).to.equal(404);
-      
+
       const body = res.data;
       expect(body).to.have.property("error");
       expect(body.error).to.have.property("code", "CLIENT_NOT_FOUND");
@@ -106,7 +106,7 @@ describe("Hydra OAuth Integration", () => {
         name: "test.txt",
       });
       expect(res.status).to.equal(401);
-      
+
       const body = res.data;
       expect(body).to.have.property("error");
       expect(body.error).to.have.property("code", "UNAUTHORIZED");

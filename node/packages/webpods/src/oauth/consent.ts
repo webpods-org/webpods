@@ -12,27 +12,22 @@ const router = Router();
 
 /**
  * Parse pod scopes from requested scopes
+ * Simplified: just pod:alice format (no read/write split)
  */
-function parsePodScopes(scopes: string[]): Map<string, Set<string>> {
-  const podPermissions = new Map<string, Set<string>>();
+function parsePodScopes(scopes: string[]): Set<string> {
+  const pods = new Set<string>();
 
   for (const scope of scopes) {
-    // Format: pod:alice:read or pod:alice:write or pod:alice (full access)
+    // Format: pod:alice (full pod access)
     if (scope.startsWith("pod:")) {
-      const parts = scope.substring(4).split(":");
-      const podId = parts[0] || "";
-      const permission = parts[1] || "full";
-
-      if (podId && !podPermissions.has(podId)) {
-        podPermissions.set(podId, new Set());
-      }
+      const podId = scope.substring(4);
       if (podId) {
-        podPermissions.get(podId)!.add(permission);
+        pods.add(podId);
       }
     }
   }
 
-  return podPermissions;
+  return pods;
 }
 
 /**
@@ -99,8 +94,13 @@ router.get("/consent", async (req: Request, res: Response) => {
       requestedScope: consentRequest.requested_scope,
     });
 
-    // Check if we should skip consent (user already granted)
-    if (consentRequest.skip) {
+    // Test mode: auto-accept consent
+    if (process.env.NODE_ENV === "test" && req.headers["x-test-consent"]) {
+      logger.info("Test mode: auto-accepting consent");
+
+      const pods = Array.from(
+        parsePodScopes(consentRequest.requested_scope || []),
+      );
       const { data: acceptResponse } =
         await hydraAdmin.acceptOAuth2ConsentRequest({
           consentChallenge,
@@ -108,7 +108,31 @@ router.get("/consent", async (req: Request, res: Response) => {
             grant_scope: consentRequest.requested_scope,
             session: {
               access_token: {
-                pods: parsePodScopes(consentRequest.requested_scope || []),
+                pods,
+              },
+            },
+            remember: true,
+            remember_for: 86400,
+          },
+        });
+
+      res.redirect(acceptResponse.redirect_to!);
+      return;
+    }
+
+    // Check if we should skip consent (user already granted)
+    if (consentRequest.skip) {
+      const pods = Array.from(
+        parsePodScopes(consentRequest.requested_scope || []),
+      );
+      const { data: acceptResponse } =
+        await hydraAdmin.acceptOAuth2ConsentRequest({
+          consentChallenge,
+          acceptOAuth2ConsentRequest: {
+            grant_scope: consentRequest.requested_scope,
+            session: {
+              access_token: {
+                pods,
               },
             },
           },
@@ -130,10 +154,10 @@ router.get("/consent", async (req: Request, res: Response) => {
     const ownedPods = await getUserOwnedPods(consentRequest.subject!);
 
     // Filter to only pods the user owns
-    const validPods = new Map<string, Set<string>>();
-    for (const [podId, permissions] of requestedPods) {
+    const validPods = new Set<string>();
+    for (const podId of requestedPods) {
       if (ownedPods.includes(podId)) {
-        validPods.set(podId, permissions);
+        validPods.add(podId);
       }
     }
 
@@ -230,11 +254,11 @@ router.get("/consent", async (req: Request, res: Response) => {
       <h3>Requested Permissions:</h3>
       ${Array.from(validPods)
         .map(
-          ([podId, permissions]) => `
+          (podId) => `
         <div class="scope-item">
           <span class="pod-name">Pod: ${podId}</span>
           <div class="permissions">
-            Permissions: ${Array.from(permissions).join(", ")}
+            Full access
           </div>
         </div>
       `,
@@ -242,9 +266,9 @@ router.get("/consent", async (req: Request, res: Response) => {
         .join("")}
       
       ${Array.from(requestedPods)
-        .filter(([podId]) => !ownedPods.includes(podId))
+        .filter((podId) => !ownedPods.includes(podId))
         .map(
-          ([podId]) => `
+          (podId) => `
         <div class="scope-item unavailable">
           <span class="pod-name">Pod: ${podId}</span>
           <div class="permissions">
@@ -269,11 +293,7 @@ router.get("/consent", async (req: Request, res: Response) => {
     <form method="POST" action="/oauth/consent">
       <input type="hidden" name="challenge" value="${consentChallenge}">
       <input type="hidden" name="scopes" value="${Array.from(validPods)
-        .map(([pod, perms]) =>
-          Array.from(perms)
-            .map((p) => `pod:${pod}:${p}`)
-            .join(","),
-        )
+        .map((pod) => `pod:${pod}`)
         .join(",")}">
       
       <div class="buttons">
@@ -329,20 +349,7 @@ router.post("/consent", async (req: Request, res: Response) => {
     if (action === "accept" && scopes) {
       // Parse approved scopes
       const approvedScopes = scopes.split(",").filter((s: string) => s);
-      const podPermissions = parsePodScopes(approvedScopes);
-
-      // Extract pod list and permissions for token
-      const pods: string[] = [];
-      const permissions: string[] = [];
-
-      for (const [podId, perms] of podPermissions) {
-        pods.push(podId);
-        perms.forEach((p) => {
-          if (!permissions.includes(p)) {
-            permissions.push(p);
-          }
-        });
-      }
+      const pods = Array.from(parsePodScopes(approvedScopes));
 
       // Accept consent
       const { data: acceptResponse } =
@@ -354,11 +361,9 @@ router.post("/consent", async (req: Request, res: Response) => {
             session: {
               access_token: {
                 pods,
-                permissions,
               },
               id_token: {
                 pods,
-                permissions,
               },
             },
             remember: true,
@@ -369,7 +374,6 @@ router.post("/consent", async (req: Request, res: Response) => {
       logger.info("Consent accepted", {
         challenge,
         pods,
-        permissions,
         redirectTo: acceptResponse.redirect_to,
       });
 

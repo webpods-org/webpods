@@ -42,6 +42,25 @@ router.get("/login", async (req: Request, res: Response) => {
       requestedScope: loginRequest.requested_scope,
     });
 
+    // Test mode: auto-accept with test user
+    if (process.env.NODE_ENV === "test" && req.headers["x-test-user"]) {
+      const testUserId = req.headers["x-test-user"] as string;
+      logger.info("Test mode: auto-accepting login", { testUserId });
+
+      const { data: acceptResponse } =
+        await hydraAdmin.acceptOAuth2LoginRequest({
+          loginChallenge,
+          acceptOAuth2LoginRequest: {
+            subject: testUserId,
+            remember: true,
+            remember_for: 3600, // Remember for 1 hour
+          },
+        });
+
+      res.redirect(acceptResponse.redirect_to!);
+      return;
+    }
+
     // Check if user has existing WebPods session
     const session = (req as any).session;
 

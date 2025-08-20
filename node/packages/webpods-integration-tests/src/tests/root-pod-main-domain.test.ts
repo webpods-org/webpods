@@ -88,7 +88,7 @@ describe("WebPods Root Pod Main Domain", () => {
     if (!pod) {
       throw new Error("Root pod was not created");
     }
-    
+
     // Now switch to main domain client
     mainClient = new TestHttpClient(mainUrl);
   });

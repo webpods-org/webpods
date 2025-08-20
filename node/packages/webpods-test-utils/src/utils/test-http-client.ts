@@ -337,4 +337,110 @@ export class TestHttpClient {
     const response = await fetch(fullUrl, options);
     return this.processResponse(response);
   }
+
+  /**
+   * Authenticate via OAuth flow for tests
+   * This uses test mode headers to auto-accept login and consent
+   * @param userId Test user ID
+   * @param pods List of pods to request access to (e.g., ["alice", "bob"])
+   * @returns Access token
+   */
+  public async authenticateViaOAuth(
+    userId: string,
+    pods: string[] = [],
+  ): Promise<string> {
+    // Use a test client ID (no registration needed for public clients)
+    const clientId = "http://localhost:3099/test-client";
+    const redirectUri = "http://localhost:3099/callback";
+    const scopes = ["openid", "offline", ...pods.map((p) => `pod:${p}`)].join(
+      " ",
+    );
+
+    // Generate PKCE challenge (simplified for tests)
+    const codeVerifier = "test-code-verifier-" + Math.random();
+    const codeChallenge = codeVerifier; // In real impl, this would be SHA256(codeVerifier)
+
+    // Start OAuth flow
+    const authUrl =
+      `http://localhost:4444/oauth2/auth?` +
+      `client_id=${encodeURIComponent(clientId)}&` +
+      `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+      `response_type=code&` +
+      `scope=${encodeURIComponent(scopes)}&` +
+      `state=test-state&` +
+      `code_challenge=${codeChallenge}&` +
+      `code_challenge_method=plain`; // Using plain for simplicity in tests
+
+    // Follow OAuth flow with test headers
+    const authResponse = await fetch(authUrl, {
+      redirect: "manual",
+      headers: {
+        "x-test-user": userId,
+        "x-test-consent": "true",
+      },
+    });
+
+    // Follow redirects through login and consent
+    let location = authResponse.headers.get("location");
+    let cookies = "";
+
+    while (location && !location.includes("code=")) {
+      const nextResponse = await fetch(location, {
+        redirect: "manual",
+        headers: {
+          "x-test-user": userId,
+          "x-test-consent": "true",
+          Cookie: cookies,
+        },
+      });
+
+      // Collect cookies
+      const setCookie = nextResponse.headers.get("set-cookie");
+      if (setCookie) {
+        cookies = cookies + (cookies ? "; " : "") + setCookie.split(";")[0];
+      }
+
+      location = nextResponse.headers.get("location");
+    }
+
+    // Extract authorization code from redirect
+    if (!location || !location.includes("code=")) {
+      throw new Error("Failed to get authorization code");
+    }
+
+    const urlParams = new URL(location, "http://localhost:3099");
+    const code = urlParams.searchParams.get("code");
+
+    if (!code) {
+      throw new Error("No authorization code in redirect");
+    }
+
+    // Exchange code for token
+    const tokenResponse = await fetch("http://localhost:4444/oauth2/token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        grant_type: "authorization_code",
+        code,
+        redirect_uri: redirectUri,
+        client_id: clientId,
+        code_verifier: codeVerifier,
+      }),
+    });
+
+    const tokenData = (await tokenResponse.json()) as any;
+
+    if (!tokenData.access_token) {
+      throw new Error(
+        "Failed to get access token: " + JSON.stringify(tokenData),
+      );
+    }
+
+    // Set the token for future requests
+    this.setAuthToken(tokenData.access_token);
+
+    return tokenData.access_token;
+  }
 }

@@ -168,8 +168,7 @@ export interface JWTPayload {
 export interface HydraAuth {
   user_id: string;
   client_id?: string;
-  pods?: string[];
-  permissions?: string[];
+  pods?: string[]; // List of pods with full access
   scope?: string;
 }
 
