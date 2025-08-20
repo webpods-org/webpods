@@ -82,17 +82,23 @@ describe("WebPods Record Deletion", () => {
 
       // Verify the tombstone record exists in database
       const db = testDb.getDb();
-      const pod = await db("pod").where("pod_id", testPodId).first();
-      const stream = await db("stream")
-        .where("pod_id", pod.id)
-        .where("stream_id", "documents")
-        .first();
+      const pod = await db.oneOrNone(
+        `SELECT * FROM pod WHERE pod_id = $(podId)`,
+        { podId: testPodId },
+      );
+      const stream = await db.oneOrNone(
+        `SELECT * FROM stream WHERE pod_id = $(podId) AND stream_id = $(streamId)`,
+        { podId: pod.id, streamId: "documents" },
+      );
 
       // Check for tombstone record
-      const tombstones = await db("record")
-        .where("stream_id", stream.id)
-        .where("name", "like", "report.deleted.%")
-        .orderBy("index", "desc");
+      const tombstones = await db.manyOrNone(
+        `SELECT * FROM record 
+         WHERE stream_id = $(streamId) 
+         AND name LIKE 'report.deleted.%'
+         ORDER BY index DESC`,
+        { streamId: stream.id },
+      );
 
       expect(tombstones).to.have.lengthOf(1);
       const tombstone = JSON.parse(tombstones[0].content);
@@ -157,15 +163,18 @@ describe("WebPods Record Deletion", () => {
 
       // Verify the content was physically deleted but hash preserved
       const db = testDb.getDb();
-      const pod = await db("pod").where("pod_id", testPodId).first();
-      const stream = await db("stream")
-        .where("pod_id", pod.id)
-        .where("stream_id", "secrets")
-        .first();
-      const record = await db("record")
-        .where("stream_id", stream.id)
-        .where("name", "password")
-        .first();
+      const pod = await db.oneOrNone(
+        `SELECT * FROM pod WHERE pod_id = $(podId)`,
+        { podId: testPodId },
+      );
+      const stream = await db.oneOrNone(
+        `SELECT * FROM stream WHERE pod_id = $(podId) AND stream_id = $(streamId)`,
+        { podId: pod.id, streamId: "secrets" },
+      );
+      const record = await db.oneOrNone(
+        `SELECT * FROM record WHERE stream_id = $(streamId) AND name = $(name)`,
+        { streamId: stream.id, name: "password" },
+      );
 
       expect(record).to.exist;
       const content = JSON.parse(record.content);

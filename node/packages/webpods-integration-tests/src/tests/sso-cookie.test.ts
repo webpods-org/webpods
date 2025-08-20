@@ -17,9 +17,10 @@ describe("SSO Cookie Management", () => {
 
     // Clear cookies and test data
     client.clearCookies();
-    await testDb.getDb().raw('TRUNCATE TABLE "user" CASCADE');
-    await testDb.getDb().raw('TRUNCATE TABLE "session" CASCADE');
-    await testDb.getDb().raw('TRUNCATE TABLE "oauth_state" CASCADE');
+    const db = testDb.getDb();
+    await db.none('TRUNCATE TABLE "user" CASCADE');
+    await db.none('TRUNCATE TABLE "session" CASCADE');
+    await db.none('TRUNCATE TABLE "oauth_state" CASCADE');
   });
 
   describe("Cookie Jar Functionality", () => {
@@ -80,23 +81,24 @@ describe("SSO Cookie Management", () => {
         },
       };
 
-      await testDb
-        .getDb()("session")
-        .insert({
+      await db.none(
+        `INSERT INTO session (sid, sess, expire) VALUES ($(sid), $(sess), $(expire))`,
+        {
           sid: sessionId,
-          sess: sessionData,
+          sess: JSON.stringify(sessionData),
           expire: new Date(Date.now() + 604800000),
-        });
+        },
+      );
 
       // Simulate having the session cookie
       client.setCookie("webpods.sid", sessionId);
 
       // Now when we make authorized requests, the session cookie should work
       // This would enable SSO if the server properly reads the session
-      const sessionCheck = await testDb
-        .getDb()("session")
-        .where("sid", sessionId)
-        .first();
+      const sessionCheck = await db.oneOrNone(
+        `SELECT * FROM session WHERE sid = $(sid)`,
+        { sid: sessionId },
+      );
 
       expect(sessionCheck).to.exist;
       expect(sessionCheck.sid).to.equal(sessionId);
@@ -134,11 +136,11 @@ describe("SSO Cookie Management", () => {
 
       // 2. Create session (this would normally happen in OAuth callback)
       const sessionId = "sso-session-" + Date.now();
-      await testDb
-        .getDb()("session")
-        .insert({
+      await db.none(
+        `INSERT INTO session (sid, sess, expire) VALUES ($(sid), $(sess), $(expire))`,
+        {
           sid: sessionId,
-          sess: {
+          sess: JSON.stringify({
             cookie: {
               originalMaxAge: 604800000,
               expires: new Date(Date.now() + 604800000).toISOString(),
@@ -152,9 +154,10 @@ describe("SSO Cookie Management", () => {
               name: user.name,
               provider: "testprovider2",
             },
-          },
+          }),
           expire: new Date(Date.now() + 604800000),
-        });
+        },
+      );
 
       // 3. Set session cookie (browser would do this from Set-Cookie header)
       client.setCookie("webpods.sid", sessionId);
@@ -164,11 +167,10 @@ describe("SSO Cookie Management", () => {
       // without requiring re-authentication
 
       // Verify session exists and is valid
-      const session = await testDb
-        .getDb()("session")
-        .where("sid", sessionId)
-        .where("expire", ">", new Date())
-        .first();
+      const session = await db.oneOrNone(
+        `SELECT * FROM session WHERE sid = $(sid) AND expire > $(now)`,
+        { sid: sessionId, now: new Date() },
+      );
 
       expect(session).to.exist;
       expect(client.getCookie("webpods.sid")).to.equal(sessionId);

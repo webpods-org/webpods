@@ -1,4 +1,4 @@
-import { Knex } from "knex";
+import pgPromise from "pg-promise";
 import crypto from "crypto";
 
 export interface TestUser {
@@ -14,7 +14,7 @@ export interface TestUser {
  * Create a test user with identity in the database
  */
 export async function createTestUser(
-  db: Knex,
+  db: pgPromise.IDatabase<any>,
   options?: {
     provider?: string;
     providerId?: string;
@@ -30,19 +30,25 @@ export async function createTestUser(
   const name = options?.name || "Test User";
 
   // Create user
-  await db("user").insert({
-    id: userId,
-  });
+  await db.none(
+    `INSERT INTO "user" (id, created_at, updated_at) 
+     VALUES ($(userId), NOW(), NOW())`,
+    { userId },
+  );
 
   // Create identity
-  await db("identity").insert({
-    id: identityId,
-    user_id: userId,
-    provider,
-    provider_id: providerId,
-    email,
-    name,
-  });
+  await db.none(
+    `INSERT INTO identity (id, user_id, provider, provider_id, email, name, created_at, updated_at) 
+     VALUES ($(identityId), $(userId), $(provider), $(providerId), $(email), $(name), NOW(), NOW())`,
+    {
+      identityId,
+      userId,
+      provider,
+      providerId,
+      email,
+      name,
+    },
+  );
 
   return {
     userId,

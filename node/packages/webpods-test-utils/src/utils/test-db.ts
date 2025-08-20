@@ -1,10 +1,11 @@
 // Test database utilities
 import knex from "knex";
-import { Knex } from "knex";
+import pgPromise from "pg-promise";
 import * as path from "path";
 import { fileURLToPath } from "url";
 import { Logger, consoleLogger } from "./test-logger.js";
 
+const pgp = pgPromise();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export interface TestDatabaseConfig {
@@ -17,7 +18,7 @@ export interface TestDatabaseConfig {
 }
 
 export class TestDatabase {
-  private db: Knex | null = null;
+  private db: pgPromise.IDatabase<any> | null = null;
   private config: TestDatabaseConfig;
   private logger: Logger;
 
@@ -37,7 +38,7 @@ export class TestDatabase {
   public async setup(): Promise<void> {
     this.logger.info(`📦 Setting up test database ${this.config.dbName}...`);
 
-    // First connect to postgres database to drop/create test database
+    // First connect to postgres database to drop/create test database using Knex (for migrations only)
     const adminDb = knex({
       client: "pg",
       connection: {
@@ -63,8 +64,8 @@ export class TestDatabase {
       await adminDb.destroy();
     }
 
-    // Now connect to the fresh test database
-    this.db = knex({
+    // Connect to test database with Knex for migrations
+    const knexDb = knex({
       client: "pg",
       connection: {
         host: this.config.host,
@@ -75,16 +76,24 @@ export class TestDatabase {
       },
     });
 
-    // Run all migrations from scratch
-    const migrationsPath = path.join(
-      __dirname,
-      "../../../../../database/webpods/migrations",
-    );
-    this.logger.info(`Running full migrations from: ${migrationsPath}`);
+    try {
+      // Run all migrations from scratch
+      const migrationsPath = path.join(
+        __dirname,
+        "../../../../../database/webpods/migrations",
+      );
+      this.logger.info(`Running full migrations from: ${migrationsPath}`);
 
-    await this.db.migrate.latest({
-      directory: migrationsPath,
-    });
+      await knexDb.migrate.latest({
+        directory: migrationsPath,
+      });
+    } finally {
+      await knexDb.destroy();
+    }
+
+    // Now connect with pg-promise for actual usage
+    const connectionString = `postgres://${this.config.user}:${this.config.password}@${this.config.host}:${this.config.port}/${this.config.dbName}`;
+    this.db = pgp(connectionString);
 
     this.logger.info(
       `✅ Test database ${this.config.dbName} ready with fresh schema`,
@@ -94,30 +103,34 @@ export class TestDatabase {
   public async truncateAllTables(): Promise<void> {
     if (!this.db) throw new Error("Database not initialized");
 
-    // Get all tables except knex_migrations
-    const tables = await this.db("pg_tables")
-      .select("tablename")
-      .where("schemaname", "public")
-      .whereNotIn("tablename", ["knex_migrations", "knex_migrations_lock"]);
+    // Get all tables except knex_migrations using pg-promise
+    const tables = await this.db.manyOrNone<{ tablename: string }>(
+      `SELECT tablename FROM pg_tables 
+       WHERE schemaname = 'public' 
+       AND tablename NOT IN ('knex_migrations', 'knex_migrations_lock')`,
+    );
 
     // Truncate all tables
     for (const { tablename } of tables) {
-      await this.db.raw(`TRUNCATE TABLE "${tablename}" CASCADE`);
+      await this.db.none(`TRUNCATE TABLE "${tablename}" CASCADE`);
     }
   }
 
   public async cleanup(): Promise<void> {
     if (this.db) {
-      await this.db.destroy();
+      // pg-promise uses $pool.end() to close connections
+      await (this.db as any).$pool.end();
       this.db = null;
     }
     this.logger.info(
-      `✅ Test database ${this.config.dbName} connection closed`,
+      `🧹 Test database ${this.config.dbName} connections closed`,
     );
   }
 
-  public getDb(): Knex {
-    if (!this.db) throw new Error("Database not initialized");
+  public getDb(): pgPromise.IDatabase<any> {
+    if (!this.db) {
+      throw new Error("Database not initialized. Call setup() first.");
+    }
     return this.db;
   }
 }

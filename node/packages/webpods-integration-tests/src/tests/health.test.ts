@@ -55,7 +55,10 @@ describe("WebPods Health Checks", () => {
     expect(response.data).to.have.property("index", 0);
 
     // Verify pod was created
-    const pod = await db("pod").where("pod_id", uniquePodId).first();
+    const pod = await db.oneOrNone(
+      `SELECT * FROM pod WHERE pod_id = $(podId)`,
+      { podId: uniquePodId },
+    );
     expect(pod).to.exist;
   });
 });

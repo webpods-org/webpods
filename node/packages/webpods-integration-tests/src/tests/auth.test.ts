@@ -243,12 +243,18 @@ describe("WebPods Authentication", () => {
 
       // Verify in database
       const db = testDb.getDb();
-      const pod = await db("pod").where("pod_id", testPodId).first();
-      const stream = await db("stream")
-        .where("pod_id", pod.id)
-        .where("stream_id", "tracked")
-        .first();
-      const record = await db("record").where("stream_id", stream.id).first();
+      const pod = await db.oneOrNone(
+        `SELECT * FROM pod WHERE pod_id = $(podId)`,
+        { podId: testPodId },
+      );
+      const stream = await db.oneOrNone(
+        `SELECT * FROM stream WHERE pod_id = $(podId) AND stream_id = $(streamId)`,
+        { podId: pod.id, streamId: "tracked" },
+      );
+      const record = await db.oneOrNone(
+        `SELECT * FROM record WHERE stream_id = $(streamId) ORDER BY index ASC LIMIT 1`,
+        { streamId: stream.id },
+      );
 
       expect(record.author_id).to.equal(userId);
     });
@@ -487,29 +493,37 @@ describe("WebPods Authentication", () => {
 
       // Verify both pods exist and have correct ownership
       const db = testDb.getDb();
-      const pod1 = await db("pod").where("pod_id", "pod-one").first();
-      const pod2 = await db("pod").where("pod_id", "pod-two").first();
+      const pod1 = await db.oneOrNone(
+        `SELECT * FROM pod WHERE pod_id = $(podId)`,
+        { podId: "pod-one" },
+      );
+      const pod2 = await db.oneOrNone(
+        `SELECT * FROM pod WHERE pod_id = $(podId)`,
+        { podId: "pod-two" },
+      );
 
       expect(pod1).to.exist;
       expect(pod2).to.exist;
 
       // Check .meta/owner for both pods
-      const owner1Stream = await db("stream")
-        .where("pod_id", pod1.id)
-        .where("stream_id", ".meta/owner")
-        .first();
-      const owner1Record = await db("record")
-        .where("stream_id", owner1Stream.id)
-        .first();
+      const owner1Stream = await db.oneOrNone(
+        `SELECT * FROM stream WHERE pod_id = $(podId) AND stream_id = $(streamId)`,
+        { podId: pod1.id, streamId: ".meta/owner" },
+      );
+      const owner1Record = await db.oneOrNone(
+        `SELECT * FROM record WHERE stream_id = $(streamId) ORDER BY index ASC LIMIT 1`,
+        { streamId: owner1Stream.id },
+      );
       expect(JSON.parse(owner1Record.content).owner).to.equal(userId);
 
-      const owner2Stream = await db("stream")
-        .where("pod_id", pod2.id)
-        .where("stream_id", ".meta/owner")
-        .first();
-      const owner2Record = await db("record")
-        .where("stream_id", owner2Stream.id)
-        .first();
+      const owner2Stream = await db.oneOrNone(
+        `SELECT * FROM stream WHERE pod_id = $(podId) AND stream_id = $(streamId)`,
+        { podId: pod2.id, streamId: ".meta/owner" },
+      );
+      const owner2Record = await db.oneOrNone(
+        `SELECT * FROM record WHERE stream_id = $(streamId) ORDER BY index ASC LIMIT 1`,
+        { streamId: owner2Stream.id },
+      );
       expect(JSON.parse(owner2Record.content).owner).to.equal(userId);
     });
   });
@@ -522,23 +536,30 @@ describe("WebPods Authentication", () => {
       const userId = crypto.randomUUID();
       const identityId = crypto.randomUUID();
 
-      await db("user").insert({ id: userId });
+      await db.none(
+        `INSERT INTO "user" (id, created_at, updated_at) 
+         VALUES ($(userId), NOW(), NOW())`,
+        { userId },
+      );
 
-      const [identity] = await db("identity")
-        .insert({
-          id: identityId,
-          user_id: userId,
+      const identity = await db.one(
+        `INSERT INTO identity (id, user_id, provider, provider_id, email, name, metadata, created_at, updated_at)
+         VALUES ($(identityId), $(userId), $(provider), $(providerId), $(email), $(name), $(metadata), NOW(), NOW())
+         RETURNING *`,
+        {
+          identityId,
+          userId,
           provider: "testprovider1",
-          provider_id: "12345",
+          providerId: "12345",
           email: "oauth@example.com",
           name: "OAuth User",
-          metadata: {
+          metadata: JSON.stringify({
             avatar_url: "https://example.com/avatar.jpg",
             bio: "Developer",
             location: "San Francisco",
-          },
-        })
-        .returning("*");
+          }),
+        },
+      );
 
       expect(identity.metadata).to.deep.equal({
         avatar_url: "https://example.com/avatar.jpg",
@@ -567,12 +588,14 @@ describe("WebPods Authentication", () => {
       });
 
       // Verify identities were created correctly
-      const [identity1] = await db("identity")
-        .where({ user_id: user1.userId })
-        .returning("*");
-      const [identity2] = await db("identity")
-        .where({ user_id: user2.userId })
-        .returning("*");
+      const identity1 = await db.oneOrNone(
+        `SELECT * FROM identity WHERE user_id = $(userId)`,
+        { userId: user1.userId },
+      );
+      const identity2 = await db.oneOrNone(
+        `SELECT * FROM identity WHERE user_id = $(userId)`,
+        { userId: user2.userId },
+      );
 
       expect(identity1.provider).to.equal("testprovider1");
       expect(identity1.provider_id).to.equal("p1-123");

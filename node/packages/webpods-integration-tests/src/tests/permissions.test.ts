@@ -243,11 +243,14 @@ describe("WebPods Permissions", () => {
       // Verify permissions were updated for new records
       // (Note: existing stream permissions don't change, only apply to new writes)
       const db = testDb.getDb();
-      const pod = await db("pod").where("pod_id", testPodId).first();
-      const stream = await db("stream")
-        .where("pod_id", pod.id)
-        .where("stream_id", "perm-update")
-        .first();
+      const pod = await db.oneOrNone(
+        `SELECT * FROM pod WHERE pod_id = $(podId)`,
+        { podId: testPodId },
+      );
+      const stream = await db.oneOrNone(
+        `SELECT * FROM stream WHERE pod_id = $(podId) AND stream_id = $(streamId)`,
+        { podId: pod.id, streamId: "perm-update" },
+      );
 
       // Original permissions should remain (first write sets them)
       expect(stream.access_permission).to.equal("public");

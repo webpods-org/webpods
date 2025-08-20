@@ -16,10 +16,11 @@ describe("Full SSO OAuth Flow", () => {
     client = new TestHttpClient("http://localhost:3099");
 
     // Clear any existing sessions and state
-    await testDb.getDb().raw("TRUNCATE TABLE session CASCADE");
-    await testDb.getDb().raw("TRUNCATE TABLE oauth_state CASCADE");
-    await testDb.getDb().raw('TRUNCATE TABLE "user" CASCADE');
-    await testDb.getDb().raw("TRUNCATE TABLE identity CASCADE");
+    const db = testDb.getDb();
+    await db.none("TRUNCATE TABLE session CASCADE");
+    await db.none("TRUNCATE TABLE oauth_state CASCADE");
+    await db.none('TRUNCATE TABLE "user" CASCADE');
+    await db.none("TRUNCATE TABLE identity CASCADE");
   });
 
   it("should complete full OAuth flow with mock provider", async () => {
@@ -68,7 +69,7 @@ describe("Full SSO OAuth Flow", () => {
     expect(successUrl).to.include("token=");
 
     // 4. Verify session was created
-    const sessions = await testDb.getDb()("session").select("*");
+    const sessions = await testDb.getDb().manyOrNone("SELECT * FROM session");
     expect(sessions).to.have.lengthOf(1);
 
     // Parse session data
@@ -83,10 +84,12 @@ describe("Full SSO OAuth Flow", () => {
     // expect(sessionData.user.provider).to.equal("testprovider2");
 
     // 5. Verify user and identity were created
-    const users = await testDb.getDb()("user").select("*");
+    const users = await testDb.getDb().manyOrNone('SELECT * FROM "user"');
     expect(users).to.have.lengthOf(1);
 
-    const identities = await testDb.getDb()("identity").select("*");
+    const identities = await testDb
+      .getDb()
+      .manyOrNone("SELECT * FROM identity");
     expect(identities).to.have.lengthOf(1);
     expect(identities[0].email).to.equal("test@example.com");
     expect(identities[0].provider).to.equal("testprovider2");
@@ -119,7 +122,7 @@ describe("Full SSO OAuth Flow", () => {
     );
 
     // Verify session exists
-    const sessions = await testDb.getDb()("session").select("*");
+    const sessions = await testDb.getDb().manyOrNone("SELECT * FROM session");
     expect(sessions).to.have.lengthOf(1);
 
     // 2. Test SSO - accessing /auth/authorize with active session should not require OAuth
@@ -138,10 +141,12 @@ describe("Full SSO OAuth Flow", () => {
     // expect(sessionData.user.email).to.equal("test@example.com");
 
     // 3. Verify only one user was created
-    const users = await testDb.getDb()("user").select("*");
+    const users = await testDb.getDb().manyOrNone('SELECT * FROM "user"');
     expect(users).to.have.lengthOf(1);
 
-    const identities = await testDb.getDb()("identity").select("*");
+    const identities = await testDb
+      .getDb()
+      .manyOrNone("SELECT * FROM identity");
     expect(identities).to.have.lengthOf(1);
     expect(identities[0].email).to.equal("test@example.com");
   });
@@ -172,24 +177,29 @@ describe("Full SSO OAuth Flow", () => {
     );
 
     // Get session
-    const sessions = await testDb.getDb()("session").select("*");
+    const sessions = await testDb.getDb().manyOrNone("SELECT * FROM session");
 
     // 2. Verify session exists
     expect(sessions).to.have.lengthOf(1);
 
     // 3. Simulate logout by deleting the session directly (since we can't send cookies)
     const sessionId = sessions[0].sid;
-    await testDb.getDb()("session").where("sid", sessionId).delete();
+    await testDb
+      .getDb()
+      .none("DELETE FROM session WHERE sid = $(sessionId)", { sessionId });
 
     // Session should be deleted
     const sessionsAfterLogout = await testDb
-      .getDb()("session")
-      .where("sid", sessionId)
-      .select("*");
+      .getDb()
+      .manyOrNone("SELECT * FROM session WHERE sid = $(sessionId)", {
+        sessionId,
+      });
     expect(sessionsAfterLogout).to.have.lengthOf(0);
 
     // 4. Verify no sessions remain
-    const allSessions = await testDb.getDb()("session").select("*");
+    const allSessions = await testDb
+      .getDb()
+      .manyOrNone("SELECT * FROM session");
     expect(allSessions).to.have.lengthOf(0);
   });
 
@@ -212,9 +222,8 @@ describe("Full SSO OAuth Flow", () => {
 
     // Verify state includes pod info
     const stateData = await testDb
-      .getDb()("oauth_state")
-      .where("state", state)
-      .first();
+      .getDb()
+      .oneOrNone("SELECT * FROM oauth_state WHERE state = $(state)", { state });
 
     expect(stateData).to.exist;
     expect(stateData.pod).to.equal("alice");

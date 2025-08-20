@@ -84,7 +84,10 @@ describe("WebPods Root Pod Main Domain", () => {
 
     // Verify the pod exists
     const podDb = testDb.getDb();
-    const pod = await podDb("pod").where("pod_id", rootPodId).first();
+    const pod = await podDb.oneOrNone(
+      `SELECT * FROM pod WHERE pod_id = $(podId)`,
+      { podId: rootPodId },
+    );
     if (!pod) {
       throw new Error("Root pod was not created");
     }

@@ -62,8 +62,10 @@ services:
       - TTL_ACCESS_TOKEN=1h
       - TTL_REFRESH_TOKEN=720h
       - OAUTH2_EXPOSE_INTERNAL_ERRORS=true
-      - WEBFINGER_OIDC_DISCOVERY_SUPPORTED_SCOPES=openid,offline,offline_access,profile,email,pod:read,pod:write
-      - WEBFINGER_OIDC_DISCOVERY_SUPPORTED_CLAIMS=sub,name,email,email_verified,pods,permissions
+      - WEBFINGER_OIDC_DISCOVERY_SUPPORTED_SCOPES=openid,offline,offline_access,profile,email
+      - WEBFINGER_OIDC_DISCOVERY_SUPPORTED_CLAIMS=sub,name,email,email_verified,pods
+      - OAUTH2_PKCE_ENFORCED_FOR_PUBLIC_CLIENTS=true
+      - OAUTH2_PKCE_ENFORCED=false
     networks:
       - webpods-network
     restart: always
