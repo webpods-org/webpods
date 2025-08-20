@@ -55,20 +55,13 @@ describe("SSO Cookie Management", () => {
   describe("Session Cookie Flow", () => {
     it("should simulate session cookie behavior", async () => {
       // Create a test user
-      const userId = "cookie-test-user";
-      const authId = `auth:provider:${userId}`;
-
-      await testDb.getDb()("user").insert({
-        auth_id: authId,
+      const db = testDb.getDb();
+      const user = await createTestUser(db, {
+        provider: "testprovider2",
+        providerId: "cookie-test-user",
         email: "cookie@example.com",
         name: "Cookie User",
-        provider: "testprovider2",
       });
-
-      const user = await testDb
-        .getDb()("user")
-        .where("auth_id", authId)
-        .first();
 
       // Create a session in the database
       const sessionId = "test-session-" + Date.now();
@@ -80,10 +73,9 @@ describe("SSO Cookie Management", () => {
           path: "/",
         },
         user: {
-          id: user.id,
-          auth_id: authId,
-          email: "cookie@example.com",
-          name: "Cookie User",
+          id: user.userId,
+          email: user.email,
+          name: user.name,
           provider: "testprovider2",
         },
       };
@@ -132,20 +124,13 @@ describe("SSO Cookie Management", () => {
   describe("SSO Simulation", () => {
     it("should simulate SSO flow with cookies", async () => {
       // 1. Create a user and session (simulating successful OAuth)
-      const userId = "sso-test-user";
-      const authId = `auth:provider:${userId}`;
-
-      await testDb.getDb()("user").insert({
-        auth_id: authId,
+      const db = testDb.getDb();
+      const user = await createTestUser(db, {
+        provider: "testprovider2",
+        providerId: "sso-test-user",
         email: "sso@example.com",
         name: "SSO User",
-        provider: "testprovider2",
       });
-
-      const user = await testDb
-        .getDb()("user")
-        .where("auth_id", authId)
-        .first();
 
       // 2. Create session (this would normally happen in OAuth callback)
       const sessionId = "sso-session-" + Date.now();
@@ -162,10 +147,9 @@ describe("SSO Cookie Management", () => {
               domain: ".localhost",
             },
             user: {
-              id: user.id,
-              auth_id: authId,
-              email: "sso@example.com",
-              name: "SSO User",
+              id: user.userId,
+              email: user.email,
+              name: user.name,
               provider: "testprovider2",
             },
           },
@@ -192,11 +176,9 @@ describe("SSO Cookie Management", () => {
       // 5. Generate pod-specific token (what would happen in /auth/authorize)
       const podToken = jwt.sign(
         {
-          user_id: user.id,
-          auth_id: authId,
-          email: "sso@example.com",
-          name: "SSO User",
-          provider: "testprovider2",
+          user_id: user.userId,
+          email: user.email,
+          name: user.name,
           pod: "test-pod",
         },
         jwtSecret,
@@ -206,7 +188,7 @@ describe("SSO Cookie Management", () => {
       // Verify token was created correctly
       const decoded = jwt.decode(podToken) as any;
       expect(decoded.pod).to.equal("test-pod");
-      expect(decoded.user_id).to.equal(user.id);
+      expect(decoded.user_id).to.equal(user.userId);
     });
   });
 });

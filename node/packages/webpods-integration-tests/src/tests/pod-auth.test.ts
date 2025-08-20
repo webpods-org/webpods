@@ -13,17 +13,14 @@ describe("Pod-Specific Authentication with SSO", () => {
   // Helper to create a test user and pod-specific token
   function createPodToken(
     userId: string,
-    authId: string,
     pod: string,
     email: string = "test@example.com",
   ) {
     return jwt.sign(
       {
         user_id: userId,
-        auth_id: authId,
         email,
         name: "Test User",
-        provider: "testprovider2",
         pod, // Pod-specific claim
       },
       jwtSecret,
@@ -34,16 +31,13 @@ describe("Pod-Specific Authentication with SSO", () => {
   // Helper to create a global token (no pod claim)
   function createGlobalToken(
     userId: string,
-    authId: string,
     email: string = "test@example.com",
   ) {
     return jwt.sign(
       {
         user_id: userId,
-        auth_id: authId,
         email,
         name: "Test User",
-        provider: "testprovider2",
       },
       jwtSecret,
       { expiresIn: "1h" },
@@ -91,19 +85,16 @@ describe("Pod-Specific Authentication with SSO", () => {
       const db = testDb.getDb();
 
       // Create test user
-      [user] = await db("user")
-        .insert({
-          id: crypto.randomUUID(),
-          auth_id: "auth:provider:12345",
-          email: "pod-test@example.com",
-          name: "Pod Test User",
-          provider: "testprovider2",
-        })
-        .returning("*");
+      user = await createTestUser(db, {
+        provider: "testprovider2",
+        providerId: "12345",
+        email: "pod-test@example.com",
+        name: "Pod Test User",
+      });
 
       // Create tokens
-      aliceToken = createPodToken(user.id, user.auth_id, pod1);
-      globalToken = createGlobalToken(user.id, user.auth_id);
+      aliceToken = createPodToken(user.userId, pod1);
+      globalToken = createGlobalToken(user.userId);
     });
 
     it("should accept pod-specific token on correct pod", async () => {
@@ -195,18 +186,15 @@ describe("Pod-Specific Authentication with SSO", () => {
       const db = testDb.getDb();
 
       // Create test user
-      [user] = await db("user")
-        .insert({
-          id: crypto.randomUUID(),
-          auth_id: "auth:provider:67890",
-          email: "isolation-test@example.com",
-          name: "Isolation Test User",
-          provider: "testprovider2",
-        })
-        .returning("*");
+      user = await createTestUser(db, {
+        provider: "testprovider2",
+        providerId: "67890",
+        email: "isolation-test@example.com",
+        name: "Isolation Test User",
+      });
 
       // Create pod-specific tokens
-      aliceToken = createPodToken(user.id, user.auth_id, pod1);
+      aliceToken = createPodToken(user.userId, pod1);
     });
 
     it("should isolate data between pods", async () => {
@@ -246,7 +234,7 @@ describe("Pod-Specific Authentication with SSO", () => {
 
   describe("Auth Callback on Pods", () => {
     it("should handle auth callback with token", async () => {
-      const token = createPodToken("user123", "auth:provider:123", pod1);
+      const token = createPodToken("user123", pod1);
       client.setBaseUrl(`http://${pod1}.localhost:3099`);
 
       const response = await client.get(

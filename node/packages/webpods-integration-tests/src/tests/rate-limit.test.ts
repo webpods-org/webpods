@@ -5,7 +5,7 @@ import { testDb } from "../test-setup.js";
 
 describe("WebPods Rate Limiting", () => {
   let client: TestHttpClient;
-  let authId: string;
+  let userId: string;
   let authToken: string;
   let testUser: any; // Store user for token generation
   const testPodId = "rate-test";
@@ -15,29 +15,24 @@ describe("WebPods Rate Limiting", () => {
     // Create a new client instance for each test
     client = new TestHttpClient("http://localhost:3099");
     const db = testDb.getDb();
-    const [user] = await db("user")
-      .insert({
-        id: crypto.randomUUID(),
-        auth_id: "auth:provider:ratelimit",
-        email: "ratelimit@example.com",
-        name: "Rate Limit User",
-        provider: "testprovider2",
-      })
-      .returning("*");
+    const user = await createTestUser(db, {
+      provider: "testprovider2",
+      providerId: "ratelimit",
+      email: "ratelimit@example.com",
+      name: "Rate Limit User",
+    });
 
     testUser = user; // Save for later use
-    authId = user.auth_id;
+    userId = user.userId;
 
     client.setBaseUrl(baseUrl);
 
     // Generate pod-specific token for rate-test pod
     authToken = client.generatePodToken(
       {
-        user_id: user.id,
-        auth_id: user.auth_id,
+        user_id: user.userId,
         email: user.email,
         name: user.name,
-        provider: "testprovider2",
       },
       testPodId,
     );
@@ -56,7 +51,7 @@ describe("WebPods Rate Limiting", () => {
       // Check rate limit record was created
       const db = testDb.getDb();
       const rateLimit = await db("rate_limit")
-        .where("identifier", authId)
+        .where("identifier", userId)
         .where("action", "write")
         .first();
 
@@ -70,11 +65,9 @@ describe("WebPods Rate Limiting", () => {
       client.setBaseUrl(`http://pod-limit-1.localhost:3099`);
       const token1 = client.generatePodToken(
         {
-          user_id: testUser.id,
-          auth_id: testUser.auth_id,
+          user_id: testUser.userId,
           email: testUser.email,
           name: testUser.name,
-          provider: testUser.provider,
         },
         "pod-limit-1",
       );
@@ -84,11 +77,9 @@ describe("WebPods Rate Limiting", () => {
       client.setBaseUrl(`http://pod-limit-2.localhost:3099`);
       const token2 = client.generatePodToken(
         {
-          user_id: testUser.id,
-          auth_id: testUser.auth_id,
+          user_id: testUser.userId,
           email: testUser.email,
           name: testUser.name,
-          provider: testUser.provider,
         },
         "pod-limit-2",
       );
@@ -98,7 +89,7 @@ describe("WebPods Rate Limiting", () => {
       // Check rate limit records
       const db = testDb.getDb();
       const podLimit = await db("rate_limit")
-        .where("identifier", authId)
+        .where("identifier", userId)
         .where("action", "pod_create")
         .first();
 
@@ -115,7 +106,7 @@ describe("WebPods Rate Limiting", () => {
 
       const db = testDb.getDb();
       const streamLimit = await db("rate_limit")
-        .where("identifier", authId)
+        .where("identifier", userId)
         .where("action", "stream_create")
         .first();
 
@@ -133,7 +124,7 @@ describe("WebPods Rate Limiting", () => {
 
       const db = testDb.getDb();
       const streamLimit = await db("rate_limit")
-        .where("identifier", authId)
+        .where("identifier", userId)
         .where("action", "stream_create")
         .first();
 
@@ -142,7 +133,7 @@ describe("WebPods Rate Limiting", () => {
 
       // But 3 writes were made
       const writeLimit = await db("rate_limit")
-        .where("identifier", authId)
+        .where("identifier", userId)
         .where("action", "write")
         .first();
       expect(writeLimit.count).to.equal(3);
@@ -165,12 +156,12 @@ describe("WebPods Rate Limiting", () => {
       // Check rate limit records
       const db = testDb.getDb();
       const writeLimit = await db("rate_limit")
-        .where("identifier", authId)
+        .where("identifier", userId)
         .where("action", "write")
         .first();
 
       const readLimit = await db("rate_limit")
-        .where("identifier", authId)
+        .where("identifier", userId)
         .where("action", "read")
         .first();
 
@@ -213,7 +204,7 @@ describe("WebPods Rate Limiting", () => {
 
       // Check the window
       const rateLimit = await db("rate_limit")
-        .where("identifier", authId)
+        .where("identifier", userId)
         .where("action", "write")
         .first();
 
@@ -232,7 +223,7 @@ describe("WebPods Rate Limiting", () => {
       // Insert an expired window with high count
       await db("rate_limit").insert({
         id: crypto.randomUUID(),
-        identifier: authId, // Rate limiting uses auth_id
+        identifier: userId, // Rate limiting uses user_id
         action: "write",
         count: 999, // Just under limit
         window_start: new Date(now.getTime() - 2 * 60 * 60 * 1000), // 2 hours ago
@@ -245,7 +236,7 @@ describe("WebPods Rate Limiting", () => {
 
       // Check new window was created
       const newLimit = await db("rate_limit")
-        .where("identifier", authId)
+        .where("identifier", userId)
         .where("action", "write")
         .where("window_end", ">", now)
         .first();
@@ -328,7 +319,7 @@ describe("WebPods Rate Limiting", () => {
       // Set a rate limit that's already exceeded
       await db("rate_limit").insert({
         id: crypto.randomUUID(),
-        identifier: authId, // Rate limiting uses auth_id, not user_id
+        identifier: userId, // Rate limiting uses user_id
         action: "write",
         count: 1001, // Over the default limit of 1000
         window_start: windowStart,
@@ -347,23 +338,21 @@ describe("WebPods Rate Limiting", () => {
       const db = testDb.getDb();
 
       // Create a second user
-      const [user2] = await db("user")
-        .insert({
-          id: crypto.randomUUID(),
-          auth_id: "auth:provider:ratelimit2",
-          email: "ratelimit2@example.com",
-          name: "Rate Limit User 2",
-          provider: "testprovider1",
-        })
-        .returning("*");
-
-      const token2 = client.generatePodToken({
-        user_id: user2.id,
-        auth_id: user2.auth_id,
-        email: user2.email,
-        name: user2.name,
+      const user2 = await createTestUser(db, {
         provider: "testprovider1",
+        providerId: "ratelimit2",
+        email: "ratelimit2@example.com",
+        name: "Rate Limit User 2",
       });
+
+      const token2 = client.generatePodToken(
+        {
+          user_id: user2.userId,
+          email: user2.email,
+          name: user2.name,
+        },
+        testPodId
+      );
 
       // Calculate proper window boundaries
       const windowMs = 60 * 60 * 1000;
@@ -374,7 +363,7 @@ describe("WebPods Rate Limiting", () => {
       // Set user1 at limit
       await db("rate_limit").insert({
         id: crypto.randomUUID(),
-        identifier: authId, // Rate limiting uses auth_id
+        identifier: userId, // Rate limiting uses user_id
         action: "write",
         count: 1000, // At the limit
         window_start: windowStart,
@@ -402,27 +391,25 @@ describe("WebPods Rate Limiting", () => {
       const db = testDb.getDb();
 
       // Create a unique user for this test to avoid rate limit conflicts
-      const [uniqueUser] = await db("user")
-        .insert({
-          id: crypto.randomUUID(),
-          auth_id: "auth:provider:ratelimit-unique",
-          email: "ratelimit-unique@example.com",
-          name: "Rate Limit Unique User",
-          provider: "testprovider1",
-        })
-        .returning("*");
-
-      const uniqueToken = client.generatePodToken({
-        user_id: uniqueUser.id,
-        auth_id: uniqueUser.auth_id,
-        email: uniqueUser.email,
-        name: uniqueUser.name,
+      const uniqueUser = await createTestUser(db, {
         provider: "testprovider1",
+        providerId: "ratelimit-unique",
+        email: "ratelimit-unique@example.com",
+        name: "Rate Limit Unique User",
       });
+
+      const uniqueToken = client.generatePodToken(
+        {
+          user_id: uniqueUser.userId,
+          email: uniqueUser.email,
+          name: uniqueUser.name,
+        },
+        testPodId
+      );
 
       // Use the unique user for this test
       client.setAuthToken(uniqueToken);
-      const testAuthId = uniqueUser.auth_id;
+      const testUserId = uniqueUser.userId;
 
       // Calculate proper window boundaries
       const windowMs = 60 * 60 * 1000;
@@ -431,13 +418,13 @@ describe("WebPods Rate Limiting", () => {
       const windowStart = new Date(windowEnd.getTime() - windowMs);
 
       // Clear any existing rate limits for this user
-      await db("rate_limit").where("identifier", testAuthId).delete();
+      await db("rate_limit").where("identifier", testUserId).delete();
 
       // Set different counts for different actions
       await db("rate_limit").insert([
         {
           id: crypto.randomUUID(),
-          identifier: testAuthId, // Rate limiting uses auth_id
+          identifier: testUserId, // Rate limiting uses user_id
           action: "pod_create",
           count: 8, // Leave room for 2 more (checkRateLimit will increment to 9, then 10)
           window_start: windowStart,
@@ -445,7 +432,7 @@ describe("WebPods Rate Limiting", () => {
         },
         {
           id: crypto.randomUUID(),
-          identifier: testAuthId, // Rate limiting uses auth_id
+          identifier: testUserId, // Rate limiting uses user_id
           action: "write",
           count: 100, // Well under the limit of 1000
           window_start: windowStart,
@@ -461,11 +448,9 @@ describe("WebPods Rate Limiting", () => {
       client.setBaseUrl(`http://pod-limit-final.localhost:3099`);
       const finalToken = client.generatePodToken(
         {
-          user_id: uniqueUser.id,
-          auth_id: uniqueUser.auth_id,
+          user_id: uniqueUser.userId,
           email: uniqueUser.email,
           name: uniqueUser.name,
-          provider: uniqueUser.provider,
         },
         "pod-limit-final",
       );
@@ -474,7 +459,7 @@ describe("WebPods Rate Limiting", () => {
       if (podResponse.status !== 201) {
         console.log("Pod creation failed:", podResponse.data);
         const currentLimits = await db("rate_limit")
-          .where("identifier", testAuthId)
+          .where("identifier", testUserId)
           .where("action", "pod_create")
           .first();
         console.log("Current pod_create limit:", currentLimits);
@@ -485,11 +470,9 @@ describe("WebPods Rate Limiting", () => {
       client.setBaseUrl(`http://pod-limit-exceed.localhost:3099`);
       const exceedToken = client.generatePodToken(
         {
-          user_id: uniqueUser.id,
-          auth_id: uniqueUser.auth_id,
+          user_id: uniqueUser.userId,
           email: uniqueUser.email,
           name: uniqueUser.name,
-          provider: uniqueUser.provider,
         },
         "pod-limit-exceed",
       );

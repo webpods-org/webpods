@@ -18,46 +18,42 @@ describe("WebPods Permissions", () => {
     const db = testDb.getDb();
 
     // Create two test users
-    [user1] = await db("user")
-      .insert({
-        id: crypto.randomUUID(),
-        auth_id: "auth:provider:user1",
-        email: "user1@example.com",
-        name: "User One",
-        provider: "testprovider2",
-      })
-      .returning("*");
+    user1 = await createTestUser(db, {
+      provider: "testprovider2",
+      providerId: "user1",
+      email: "user1@example.com",
+      name: "User One",
+    });
 
-    [user2] = await db("user")
-      .insert({
-        id: crypto.randomUUID(),
-        auth_id: "auth:provider:user2",
-        email: "user2@example.com",
-        name: "User Two",
-        provider: "testprovider2",
-      })
-      .returning("*");
+    user2 = await createTestUser(db, {
+      provider: "testprovider2",
+      providerId: "user2",
+      email: "user2@example.com",
+      name: "User Two",
+    });
 
-    user2Id = user2.id;
+    user2Id = user2.userId;
 
     client.setBaseUrl(baseUrl);
 
     // Generate pod-specific tokens for perm-test pod
-    user1Token = client.generatePodToken({
-      user_id: user1.id,
-      auth_id: user1.auth_id,
-      email: user1.email,
-      name: user1.name,
-      provider: "testprovider2",
-    });
+    user1Token = client.generatePodToken(
+      {
+        user_id: user1.userId,
+        email: user1.email,
+        name: user1.name,
+      },
+      testPodId
+    );
 
-    user2Token = client.generatePodToken({
-      user_id: user2.id,
-      auth_id: user2.auth_id,
-      email: user2.email,
-      name: user2.name,
-      provider: "testprovider2",
-    });
+    user2Token = client.generatePodToken(
+      {
+        user_id: user2.userId,
+        email: user2.email,
+        name: user2.name,
+      },
+      testPodId
+    );
   });
 
   describe("Private Streams", () => {
@@ -158,7 +154,7 @@ describe("WebPods Permissions", () => {
 
       // Create permission stream with user2 allowed to read but not write
       await client.post("/members/perms", {
-        id: user2.auth_id,
+        id: user2Id,
         read: true,
         write: false,
       });
@@ -299,7 +295,7 @@ describe("WebPods Permissions", () => {
 
       // Create permission stream
       await client.post("/members/perms1", {
-        id: user2.auth_id,
+        id: user2Id,
         read: true,
         write: false,
       });
@@ -318,7 +314,7 @@ describe("WebPods Permissions", () => {
       // User1 updates permission to revoke user2's access
       client.setAuthToken(user1Token);
       await client.post("/members/perms2", {
-        id: user2.auth_id,
+        id: user2Id,
         read: false,
         write: false,
       });

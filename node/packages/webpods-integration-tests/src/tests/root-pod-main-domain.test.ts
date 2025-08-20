@@ -19,25 +19,20 @@ describe("WebPods Root Pod Main Domain", () => {
   beforeEach(async () => {
     // Create test user
     const db = testDb.getDb();
-    const [user] = await db("user")
-      .insert({
-        id: crypto.randomUUID(),
-        auth_id: "auth:provider:mainroot",
-        email: "mainroot@example.com",
-        name: "Main Root User",
-        provider: "testprovider1",
-      })
-      .returning("*");
+    const user = await createTestUser(db, {
+      provider: "testprovider1",
+      providerId: "mainroot",
+      email: "mainroot@example.com",
+      name: "Main Root User",
+    });
 
     // Create root pod and add content
     rootClient = new TestHttpClient(rootPodUrl);
     authToken = rootClient.generatePodToken(
       {
-        user_id: user.id,
-        auth_id: user.auth_id,
+        user_id: user.userId,
         email: user.email,
         name: user.name,
-        provider: "testprovider1",
       },
       rootPodId,
     );
@@ -226,23 +221,18 @@ describe("WebPods Root Pod Main Domain", () => {
       // Create content in a different pod
       const aliceClient = new TestHttpClient("http://alice.localhost:3099");
       const db = testDb.getDb();
-      const [user] = await db("user")
-        .insert({
-          id: crypto.randomUUID(),
-          auth_id: "auth:provider:alice2",
-          email: "alice2@example.com",
-          name: "Alice Two",
-          provider: "testprovider1",
-        })
-        .returning("*");
+      const user = await createTestUser(db, {
+        provider: "testprovider1",
+        providerId: "alice2",
+        email: "alice2@example.com",
+        name: "Alice Two",
+      });
 
       const aliceToken = aliceClient.generatePodToken(
         {
-          user_id: user.id,
-          auth_id: user.auth_id,
+          user_id: user.userId,
           email: user.email,
           name: user.name,
-          provider: "testprovider1",
         },
         "alice",
       );

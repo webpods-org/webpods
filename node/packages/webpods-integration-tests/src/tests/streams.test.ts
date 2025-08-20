@@ -6,7 +6,6 @@ import { testDb } from "../test-setup.js";
 describe("WebPods Stream Operations", () => {
   let client: TestHttpClient;
   let userId: string;
-  let authId: string;
   let authToken: string;
   const testPodId = "test-pod";
   const baseUrl = `http://${testPodId}.localhost:3099`;
@@ -15,28 +14,22 @@ describe("WebPods Stream Operations", () => {
     client = new TestHttpClient("http://localhost:3099");
     // Create a test user and auth token
     const db = testDb.getDb();
-    const [user] = await db("user")
-      .insert({
-        id: crypto.randomUUID(),
-        auth_id: "auth:provider:123456",
-        email: "test@example.com",
-        name: "Test User",
-        provider: "testprovider1",
-      })
-      .returning("*");
+    const user = await createTestUser(db, {
+      provider: "testprovider1",
+      providerId: "123456",
+      email: "test@example.com",
+      name: "Test User",
+    });
 
-    userId = user.id;
-    authId = user.auth_id;
+    userId = user.userId;
 
     // Generate pod-specific token for test-pod
     client.setBaseUrl(baseUrl);
     authToken = client.generatePodToken(
       {
-        user_id: user.id,
-        auth_id: user.auth_id,
+        user_id: user.userId,
         email: user.email,
         name: user.name,
-        provider: "testprovider1",
       },
       testPodId,
     );
@@ -56,7 +49,7 @@ describe("WebPods Stream Operations", () => {
       expect(response.data).to.have.property("content", "Hello WebPods!");
       expect(response.data).to.have.property("hash");
       expect(response.data).to.have.property("previous_hash", null);
-      expect(response.data).to.have.property("author", authId);
+      expect(response.data).to.have.property("author", userId);
 
       // Verify pod was created
       const db = testDb.getDb();
@@ -275,7 +268,7 @@ describe("WebPods Stream Operations", () => {
       // Express adds charset, so check if content-type starts with expected value
       expect(response.headers["content-type"]).to.include("text/plain");
       expect(response.headers["x-hash"]).to.exist;
-      expect(response.headers["x-author"]).to.equal(authId);
+      expect(response.headers["x-author"]).to.equal(userId);
       expect(response.headers["x-timestamp"]).to.exist;
       expect(response.data).to.equal("First");
     });
@@ -348,30 +341,28 @@ describe("WebPods Stream Operations", () => {
     it("should only allow owner to write to .meta/ streams", async () => {
       // Create second user
       const db = testDb.getDb();
-      const [user2] = await db("user")
-        .insert({
-          id: crypto.randomUUID(),
-          auth_id: "auth:provider:789",
-          email: "other@example.com",
-          name: "Other User",
-          provider: "testprovider1",
-        })
-        .returning("*");
-
-      const token2 = client.generatePodToken({
-        user_id: user2.id,
-        auth_id: user2.auth_id,
-        email: user2.email,
-        name: user2.name,
+      const user2 = await createTestUser(db, {
         provider: "testprovider1",
+        providerId: "789",
+        email: "other@example.com",
+        name: "Other User",
       });
+
+      const token2 = client.generatePodToken(
+        {
+          user_id: user2.userId,
+          email: user2.email,
+          name: user2.name,
+        },
+        testPodId
+      );
 
       // Create pod as first user
       await client.post("/test/init", "Create pod");
 
       // Try to update .meta/owner as second user
       client.setAuthToken(token2);
-      const response = await client.post("/.meta/owner", { owner: user2.id });
+      const response = await client.post("/.meta/owner", { owner: user2.userId });
 
       expect(response.status).to.equal(403);
       expect(response.data.error.code).to.equal("FORBIDDEN");
@@ -404,23 +395,21 @@ describe("WebPods Stream Operations", () => {
 
       // Create second user and try to delete
       const db = testDb.getDb();
-      const [user2] = await db("user")
-        .insert({
-          id: crypto.randomUUID(),
-          auth_id: "auth:provider:999",
-          email: "other@example.com",
-          name: "Other User",
-          provider: "testprovider1",
-        })
-        .returning("*");
-
-      const token2 = client.generatePodToken({
-        user_id: user2.id,
-        auth_id: user2.auth_id,
-        email: user2.email,
-        name: user2.name,
+      const user2 = await createTestUser(db, {
         provider: "testprovider1",
+        providerId: "999",
+        email: "other@example.com",
+        name: "Other User",
       });
+
+      const token2 = client.generatePodToken(
+        {
+          user_id: user2.userId,
+          email: user2.email,
+          name: user2.name,
+        },
+        testPodId
+      );
 
       client.setAuthToken(token2);
       const response = await client.delete("/my-stream");

@@ -129,17 +129,15 @@ describe("WebPods Authentication", () => {
 
       expect(response.status).to.equal(201);
       expect(response.data).to.have.property("index", 0);
-      expect(response.data).to.have.property("author", "auth:provider:test123");
+      expect(response.data).to.have.property("author", userId);
     });
 
     it("should reject expired JWT token", async () => {
       const expiredToken = jwt.sign(
         {
-          userId,
-          auth_id: "auth:provider:test123",
+          user_id: userId,
           email: "test@example.com",
           name: "Test User",
-          provider: "testprovider2",
         },
         "test-secret-key", // Must match test-config.json
         { expiresIn: "-1h" }, // Already expired
@@ -156,9 +154,9 @@ describe("WebPods Authentication", () => {
     it("should reject invalid JWT signature", async () => {
       const invalidToken = jwt.sign(
         {
-          userId,
-          auth_id: "auth:provider:test123",
+          user_id: userId,
           email: "test@example.com",
+          name: "Test User",
         },
         "wrong-secret", // Wrong secret
         { expiresIn: "1h" },
@@ -184,6 +182,7 @@ describe("WebPods Authentication", () => {
 
   describe("Public vs Authenticated Access", () => {
     let authToken: string;
+    let userId: string;
 
     beforeEach(async () => {
       const db = testDb.getDb();
@@ -194,6 +193,7 @@ describe("WebPods Authentication", () => {
         name: "Public Test User",
       });
 
+      userId = testUser.userId;
       authToken = createTestToken(testUser.userId, testUser.email, testUser.name, testPodId);
     });
 
@@ -229,7 +229,7 @@ describe("WebPods Authentication", () => {
       });
 
       expect(response.status).to.equal(201);
-      expect(response.data.author).to.equal("auth:provider:public-test");
+      expect(response.data.author).to.equal(userId);
 
       // Verify in database
       const db = testDb.getDb();
@@ -240,7 +240,7 @@ describe("WebPods Authentication", () => {
         .first();
       const record = await db("record").where("stream_id", stream.id).first();
 
-      expect(record.author_id).to.equal("auth:provider:public-test");
+      expect(record.author_id).to.equal(userId);
     });
   });
 

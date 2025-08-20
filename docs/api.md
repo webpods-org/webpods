@@ -47,10 +47,9 @@ Returns:
 
 ```json
 {
-  "user_id": "auth:{provider}:{id}",
+  "user_id": "uuid-here",
   "email": "user@example.com",
-  "name": "User Name",
-  "provider": "{provider}"
+  "name": "User Name"
 }
 ```
 
@@ -99,7 +98,7 @@ Response:
   "name": "my-name",
   "hash": "sha256:...",
   "previous_hash": null,
-  "author": "auth:{provider}:{id}",
+  "author": "user-uuid-here",
   "timestamp": "2024-01-01T00:00:00Z"
 }
 ```

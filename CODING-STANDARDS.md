@@ -113,10 +113,18 @@ All database interactions use `*DbRow` types that exactly mirror the database sc
 // Database type (snake_case)
 type UserDbRow = {
   id: string;
-  auth_id: string;
-  email: string;
-  name: string;
+  created_at: Date;
+  updated_at: Date | null;
+};
+
+type IdentityDbRow = {
+  id: string;
+  user_id: string;
   provider: string;
+  provider_id: string;
+  email: string | null;
+  name: string | null;
+  metadata: any;
   created_at: Date;
   updated_at: Date | null;
 };
@@ -125,7 +133,7 @@ type StreamDbRow = {
   id: string;
   pod_id: string;
   stream_id: string;
-  creator_id: string;
+  user_id: string;  // Creator user ID
   access_permission: string;
   created_at: Date;
 };
@@ -169,14 +177,14 @@ PostgreSQL reserved words like `user` must be double-quoted:
 ```typescript
 // ✅ Good - Double-quoted reserved word
 const user = await db.oneOrNone<UserDbRow>(
-  `SELECT * FROM "user" WHERE auth_id = $(authId)`,
-  { authId },
+  `SELECT * FROM "user" WHERE id = $(userId)`,
+  { userId },
 );
 
 // ❌ Bad - Unquoted reserved word
 const user = await db.oneOrNone<UserDbRow>(
-  `SELECT * FROM user WHERE auth_id = $(authId)`, // Will fail!
-  { authId },
+  `SELECT * FROM user WHERE id = $(userId)`, // Will fail!
+  { userId },
 );
 ```
 

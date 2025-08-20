@@ -91,7 +91,7 @@ GET {pod}.webpods.org/{stream}?limit=100&after=50
 Single records return raw content with metadata in headers:
 
 - `X-Hash`: Record hash
-- `X-Author`: Creator ID
+- `X-Author`: Creator user ID
 - `X-Timestamp`: Creation time
 
 ### Delete
@@ -115,7 +115,7 @@ Only stream creator can delete. System streams cannot be deleted.
 
 ```json
 {
-  "id": "auth:{provider}:{id}",
+  "id": "user-uuid-here",
   "read": true,
   "write": false
 }

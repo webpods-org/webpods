@@ -4,9 +4,10 @@ This document tracks security improvements and considerations for the WebPods pr
 
 ## Current State (as of commit 467dd20)
 
-The system uses simple JWT-based authentication with the following characteristics:
+The system uses JWT-based authentication with OAuth providers:
 - JWT tokens are signed with a configurable secret
-- Tokens include user_id, auth_id, email, name, provider, and optional pod claim
+- Tokens include user_id, email, name, and optional pod claim
+- Supports multiple OAuth identities per user (one-to-many relationship)
 - Pod-specific tokens restrict access to specific pods
 - Rate limiting is implemented per user/IP
 

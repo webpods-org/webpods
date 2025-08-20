@@ -39,14 +39,22 @@ Pod (subdomain)
 **user**
 
 - `id`: UUID primary key
-- `auth_id`: Provider ID (`auth:{provider}:{id}`)
-- `email`, `name`, `provider`
+- Container for multiple identities
+- Only stores timestamps
+
+**identity**
+
+- `id`: UUID primary key
+- `user_id`: References user.id
+- `provider`: OAuth provider name
+- `provider_id`: ID from the provider
+- `email`, `name`, `metadata`
 
 **pod**
 
 - `id`: UUID primary key
 - `pod_id`: Subdomain identifier
-- `owner_id`: User UUID
+- `user_id`: Owner user UUID
 
 **stream**
 
@@ -54,7 +62,7 @@ Pod (subdomain)
 - `pod_id`: Pod UUID
 - `stream_id`: Path (`blog/2024`)
 - `access_permission`: Access mode
-- `creator_id`: User UUID
+- `user_id`: Creator user UUID
 
 **record**
 
@@ -63,6 +71,7 @@ Pod (subdomain)
 - `index`: Sequential position
 - `content`: Text/JSON
 - `hash`, `previous_hash`: Chain links
+- `author_id`: Author user UUID
 - `name`: Optional named reference
 
 ### Session Tables (SSO)

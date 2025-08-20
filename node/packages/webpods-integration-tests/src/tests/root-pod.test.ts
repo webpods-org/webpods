@@ -15,10 +15,8 @@ describe("WebPods Root Pod", () => {
     const podToken = client.generatePodToken(
       {
         user_id: userId,
-        auth_id: "auth:provider:roottest",
         email: "roottest@example.com",
         name: "Root Test User",
-        provider: "testprovider1",
       },
       rootPodId,
     );
@@ -41,16 +39,13 @@ describe("WebPods Root Pod", () => {
 
     // Create test user
     const db = testDb.getDb();
-    const [user] = await db("user")
-      .insert({
-        id: crypto.randomUUID(),
-        auth_id: "auth:provider:roottest",
-        email: "roottest@example.com",
-        name: "Root Test User",
-        provider: "testprovider1",
-      })
-      .returning("*");
-    userId = user.id;
+    const user = await createTestUser(db, {
+      provider: "testprovider1",
+      providerId: "roottest",
+      email: "roottest@example.com",
+      name: "Root Test User",
+    });
+    userId = user.userId;
   });
 
   describe("With rootPod configured but not existing", () => {
@@ -123,10 +118,8 @@ describe("WebPods Root Pod", () => {
       const podToken = client.generatePodToken(
         {
           user_id: userId,
-          auth_id: "auth:provider:roottest",
           email: "roottest@example.com",
           name: "Root Test User",
-          provider: "testprovider1",
         },
         rootPodId,
       );
@@ -152,10 +145,8 @@ describe("WebPods Root Pod", () => {
       const podToken = client.generatePodToken(
         {
           user_id: userId,
-          auth_id: "auth:provider:roottest",
           email: "roottest@example.com",
           name: "Root Test User",
-          provider: "testprovider1",
         },
         rootPodId,
       );
@@ -178,10 +169,8 @@ describe("WebPods Root Pod", () => {
       const podToken = client.generatePodToken(
         {
           user_id: userId,
-          auth_id: "auth:provider:roottest",
           email: "roottest@example.com",
           name: "Root Test User",
-          provider: "testprovider1",
         },
         rootPodId,
       );
@@ -207,10 +196,8 @@ describe("WebPods Root Pod", () => {
       const podToken = client.generatePodToken(
         {
           user_id: userId,
-          auth_id: "auth:provider:roottest",
           email: "roottest@example.com",
           name: "Root Test User",
-          provider: "testprovider1",
         },
         rootPodId,
       );
@@ -242,10 +229,8 @@ describe("WebPods Root Pod", () => {
       const aliceToken = client.generatePodToken(
         {
           user_id: userId,
-          auth_id: "auth:provider:roottest",
           email: "roottest@example.com",
           name: "Root Test User",
-          provider: "testprovider1",
         },
         "alice",
       );
@@ -271,10 +256,8 @@ describe("WebPods Root Pod", () => {
       const podToken = client.generatePodToken(
         {
           user_id: userId,
-          auth_id: "auth:provider:roottest",
           email: "roottest@example.com",
           name: "Root Test User",
-          provider: "testprovider1",
         },
         rootPodId,
       );

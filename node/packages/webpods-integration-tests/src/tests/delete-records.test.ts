@@ -7,6 +7,7 @@ describe("WebPods Record Deletion", () => {
   let client: TestHttpClient;
   let ownerToken: string;
   let nonOwnerToken: string;
+  let ownerId: string;
   const testPodId = "test-delete";
   const baseUrl = `http://${testPodId}.localhost:3099`;
 
@@ -21,6 +22,7 @@ describe("WebPods Record Deletion", () => {
       email: "owner@example.com",
       name: "Pod Owner",
     });
+    ownerId = owner.userId;
 
     // Create non-owner user
     const nonOwner = await createTestUser(db, {
@@ -96,7 +98,7 @@ describe("WebPods Record Deletion", () => {
       const tombstone = JSON.parse(tombstones[0].content);
       expect(tombstone).to.have.property("deleted", true);
       expect(tombstone).to.have.property("deletedAt");
-      expect(tombstone).to.have.property("deletedBy", "auth:provider:owner");
+      expect(tombstone).to.have.property("deletedBy", ownerId);
       expect(tombstone).to.have.property("originalName", "report");
     });
 
@@ -170,7 +172,7 @@ describe("WebPods Record Deletion", () => {
       expect(content).to.have.property("deleted", true);
       expect(content).to.have.property("purged", true);
       expect(content).to.have.property("purgedAt");
-      expect(content).to.have.property("purgedBy", "auth:provider:owner");
+      expect(content).to.have.property("purgedBy", ownerId);
       // Original content should be gone
       expect(content).to.not.have.property("super-secret-password-123");
 
