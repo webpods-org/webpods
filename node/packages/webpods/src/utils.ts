@@ -222,23 +222,6 @@ export function detectContentType(
   return "text/plain";
 }
 
-/**
- * Format auth ID
- */
-export function formatAuthId(provider: string, id: string): string {
-  return `auth:${provider}:${id}`;
-}
-
-/**
- * Parse auth ID
- */
-export function parseAuthId(
-  authId: string,
-): { provider: string; id: string } | null {
-  const match = authId.match(/^auth:([^:]+):(.+)$/);
-  if (!match) return null;
-  return { provider: match[1]!, id: match[2]! };
-}
 
 /**
  * Check if a string is a valid index (numeric)

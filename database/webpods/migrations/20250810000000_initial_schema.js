@@ -11,18 +11,27 @@
  */
 
 export async function up(knex) {
-  // User table - stores OAuth authenticated users
+  // User table - container for multiple identities
   await knex.schema.createTable('user', (table) => {
     table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
-    table.string('auth_id', 255).unique().notNullable(); // Format: auth:provider:id
+    table.timestamp('created_at').defaultTo(knex.fn.now());
+    table.timestamp('updated_at').defaultTo(knex.fn.now());
+  });
+
+  // Identity table - stores OAuth provider identities
+  await knex.schema.createTable('identity', (table) => {
+    table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
+    table.uuid('user_id').references('id').inTable('user').onDelete('CASCADE');
+    table.string('provider', 50).notNullable(); // OAuth provider ID from config.json
+    table.string('provider_id', 255).notNullable(); // ID from the provider
     table.string('email', 255);
     table.string('name', 255);
-    table.string('provider', 50).notNullable(); // OAuth provider ID from config.json
     table.jsonb('metadata').defaultTo('{}');
     table.timestamp('created_at').defaultTo(knex.fn.now());
     table.timestamp('updated_at').defaultTo(knex.fn.now());
     
-    table.index('auth_id');
+    table.unique(['provider', 'provider_id']);
+    table.index('user_id');
     table.index('email');
   });
 
@@ -63,7 +72,7 @@ export async function up(knex) {
     table.string('name', 256).notNullable(); // Required name (like a filename)
     table.string('hash', 100).notNullable(); // SHA-256 hash with prefix
     table.string('previous_hash', 100); // NULL for first record
-    table.string('author_id', 255).notNullable(); // auth:provider:id format
+    table.uuid('author_id').references('id').inTable('user').onDelete('RESTRICT'); // User who created the record
     table.timestamp('created_at').defaultTo(knex.fn.now());
     
     table.unique(['stream_id', 'index']);
@@ -138,6 +147,11 @@ export async function up(knex) {
   `);
 
   await knex.raw(`
+    CREATE TRIGGER update_identity_updated_at BEFORE UPDATE ON identity
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  `);
+
+  await knex.raw(`
     CREATE TRIGGER update_pod_updated_at BEFORE UPDATE ON pod
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
   `);
@@ -158,6 +172,7 @@ export async function down(knex) {
   await knex.raw('DROP TRIGGER IF EXISTS update_custom_domain_updated_at ON custom_domain');
   await knex.raw('DROP TRIGGER IF EXISTS update_stream_updated_at ON stream');
   await knex.raw('DROP TRIGGER IF EXISTS update_pod_updated_at ON pod');
+  await knex.raw('DROP TRIGGER IF EXISTS update_identity_updated_at ON identity');
   await knex.raw('DROP TRIGGER IF EXISTS update_user_updated_at ON "user"');
   await knex.raw('DROP FUNCTION IF EXISTS update_updated_at_column');
   
@@ -169,5 +184,6 @@ export async function down(knex) {
   await knex.schema.dropTableIfExists('record');
   await knex.schema.dropTableIfExists('stream');
   await knex.schema.dropTableIfExists('pod');
+  await knex.schema.dropTableIfExists('identity');
   await knex.schema.dropTableIfExists('user');
 }

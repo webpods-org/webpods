@@ -3,13 +3,21 @@
  * All database columns use snake_case
  */
 
-// User table
+// User table - container for multiple identities
 export type UserDbRow = {
   id: string;
-  auth_id: string;
-  email: string;
-  name: string;
+  created_at: Date;
+  updated_at?: Date | null;
+};
+
+// Identity table - OAuth provider identities
+export type IdentityDbRow = {
+  id: string;
+  user_id: string;
   provider: string;
+  provider_id: string;
+  email?: string | null;
+  name?: string | null;
   metadata?: any; // JSONB
   created_at: Date;
   updated_at?: Date | null;
@@ -41,7 +49,7 @@ export type RecordDbRow = {
   content_type: string;
   hash: string;
   previous_hash?: string | null;
-  author_id: string;
+  author_id: string; // Now references user.id
   name?: string | null;
   created_at: Date | string; // Can be string when inserting
 };

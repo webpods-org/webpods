@@ -83,7 +83,6 @@ export async function authenticate(
 
     logger.debug("User authenticated", {
       userId: result.data.user_id,
-      provider: result.data.provider,
       ip: req.ip_address,
     });
 

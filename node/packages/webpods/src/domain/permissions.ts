@@ -34,14 +34,14 @@ async function checkPermissionStream(
   db: Database,
   podId: string,
   streamId: string,
-  authId: string,
+  userId: string,
   action: "read" | "write",
 ): Promise<boolean> {
   try {
     logger.debug("Checking permission stream", {
       podId,
       streamId,
-      authId,
+      userId,
       action,
     });
 
@@ -83,7 +83,7 @@ async function checkPermissionStream(
             : record.content;
 
         // Check if this record is for our user
-        if (content.id === authId) {
+        if (content.id === userId) {
           // Last record wins
           userPermission = content;
         }
@@ -95,7 +95,7 @@ async function checkPermissionStream(
 
     logger.info("Permission check result", {
       found: !!userPermission,
-      authId,
+      userId,
       streamId,
       permission: userPermission,
     });
@@ -107,7 +107,7 @@ async function checkPermissionStream(
     // Check if action is allowed
     const allowed = userPermission[action] === true;
     logger.debug("Permission check result", {
-      authId,
+      userId,
       action,
       allowed,
       userPermission,
@@ -119,7 +119,7 @@ async function checkPermissionStream(
       error,
       podId,
       streamId,
-      authId,
+      userId,
     });
     return false;
   }
@@ -131,13 +131,11 @@ async function checkPermissionStream(
 export async function canRead(
   db: Database,
   stream: Stream,
-  authId: string | null,
-  userId?: string | null,
+  userId: string | null,
 ): Promise<boolean> {
   logger.info("canRead check", {
     streamId: stream.stream_id,
     accessPermission: stream.access_permission,
-    authId,
     userId,
     creatorId: stream.creator_id,
   });
@@ -158,7 +156,7 @@ export async function canRead(
   }
 
   // No auth means no access for non-public
-  if (!authId) {
+  if (!userId) {
     return false;
   }
 
@@ -183,7 +181,7 @@ export async function canRead(
       db,
       pod.pod_id,
       perm.stream,
-      authId,
+      userId,
       "read",
     );
   }
@@ -197,11 +195,10 @@ export async function canRead(
 export async function canWrite(
   db: Database,
   stream: Stream,
-  authId: string,
-  userId?: string | null,
+  userId: string,
 ): Promise<boolean> {
   // Creator always has access
-  if (userId && userId === stream.creator_id) {
+  if (userId === stream.creator_id) {
     return true;
   }
 
@@ -232,7 +229,7 @@ export async function canWrite(
       db,
       pod.pod_id,
       perm.stream,
-      authId,
+      userId,
       "write",
     );
   }

@@ -24,10 +24,17 @@ export function failure(error: DomainError): Result<never> {
 // Database entities
 export interface User {
   id: string;
-  auth_id: string; // Format: auth:provider:id
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface Identity {
+  id: string;
+  user_id: string;
+  provider: string; // OAuth provider ID from config.json
+  provider_id: string; // ID from the provider
   email: string | null;
   name: string | null;
-  provider: string; // OAuth provider ID from config.json
   metadata?: any;
   created_at: Date;
   updated_at: Date;
@@ -62,7 +69,7 @@ export interface StreamRecord {
   name: string; // Required name (like a filename)
   hash: string;
   previous_hash: string | null;
-  author_id: string; // Format: auth:provider:id
+  author_id: string; // User ID who created the record
   metadata?: any;
   created_at: Date;
 }
@@ -129,14 +136,14 @@ export interface WhoAmIResponse {
 export type Permission = "public" | "private" | string; // Can be /allow-list or ~/deny-list
 
 export interface PermissionRecord {
-  id: string; // User auth_id
+  id: string; // User ID
   read: boolean;
   write: boolean;
 }
 
 // System stream content types
 export interface OwnerRecord {
-  owner: string; // auth:provider:id
+  owner: string; // User ID
 }
 
 export interface LinksRecord {
@@ -150,10 +157,8 @@ export interface DomainsRecord {
 // JWT payload
 export interface JWTPayload {
   user_id: string;
-  auth_id: string;
-  email: string | null;
-  name: string | null;
-  provider: string;
+  email?: string | null;
+  name?: string | null;
   pod?: string; // Optional pod claim for pod-specific tokens
   iat?: number;
   exp?: number;

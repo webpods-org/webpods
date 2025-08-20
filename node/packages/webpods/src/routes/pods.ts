@@ -303,7 +303,7 @@ router.post(
         req.pod_id,
         data,
         req.auth.user_id,
-        req.auth.auth_id,
+        req.auth.user_id,
       );
 
       if (!result.success) {
@@ -371,7 +371,7 @@ router.post(
         req.pod_id,
         data.domains,
         req.auth.user_id,
-        req.auth.auth_id,
+        req.auth.user_id,
       );
 
       if (!result.success) {
@@ -567,7 +567,7 @@ router.post(
         // Check pod creation rate limit first
         const podLimitResult = await checkRateLimit(
           db,
-          req.auth.auth_id,
+          req.auth.user_id,
           "pod_create",
         );
 
@@ -587,10 +587,8 @@ router.post(
         const userResult = await ensureUserExists(
           db,
           req.auth.user_id,
-          req.auth.auth_id,
-          req.auth.email || "",
-          req.auth.name || "Unknown User",
-          req.auth.provider,
+          req.auth.email,
+          req.auth.name,
         );
 
         if (!userResult.success) {
@@ -620,7 +618,7 @@ router.post(
       if (!existingStream.success) {
         const streamLimitResult = await checkRateLimit(
           db,
-          req.auth.auth_id,
+          req.auth.user_id,
           "stream_create",
         );
 
@@ -655,7 +653,6 @@ router.post(
       const canWriteResult = await canWrite(
         db,
         streamResult.data.stream,
-        req.auth.auth_id,
         req.auth.user_id,
       );
       if (!canWriteResult) {
@@ -674,7 +671,7 @@ router.post(
         streamResult.data.stream.id,
         content,
         contentType,
-        req.auth.auth_id,
+        req.auth.user_id,
         name,
       );
 
@@ -930,7 +927,6 @@ router.get(
     const canReadResult = await canRead(
       db,
       streamResult.data,
-      req.auth?.auth_id || null,
       req.auth?.user_id || null,
     );
     if (!canReadResult) {
@@ -1272,7 +1268,7 @@ router.delete(
               deleted: true,
               purged: true,
               purgedAt: new Date().toISOString(),
-              purgedBy: req.auth.auth_id,
+              purgedBy: req.auth.user_id,
             }),
             contentType: "application/json",
           },
@@ -1313,7 +1309,7 @@ router.delete(
         const deletionRecord = {
           deleted: true,
           deletedAt: new Date().toISOString(),
-          deletedBy: req.auth.auth_id,
+          deletedBy: req.auth.user_id,
           originalName: recordName,
         };
 
@@ -1322,7 +1318,7 @@ router.delete(
           streamResult.data.id,
           deletionRecord,
           "application/json",
-          req.auth.auth_id,
+          req.auth.user_id,
           tombstoneName,
         );
 

@@ -262,10 +262,8 @@ router.get("/whoami", async (req: Request, res: Response) => {
 
     res.json({
       user_id: payload.user_id,
-      auth_id: payload.auth_id,
       email: payload.email,
       name: payload.name,
-      provider: payload.provider,
     });
   } catch {
     res.status(401).json({
@@ -299,7 +297,7 @@ router.get("/authorize", async (req: Request, res: Response) => {
   if ((req as any).session?.user) {
     try {
       // User is already authenticated, generate pod-specific token
-      const podToken = generateToken((req as any).session.user, pod);
+      const podToken = generateToken((req as any).session.user, (req as any).session.identity, pod);
 
       // Redirect back to pod with token
       const config = getConfig();
@@ -465,7 +463,8 @@ router.get("/:provider/callback", async (req: Request, res: Response) => {
 
     // Store user in session for SSO
     (req as any).session = (req as any).session || {};
-    (req as any).session.user = userResult.data;
+    (req as any).session.user = userResult.data.user;
+    (req as any).session.identity = userResult.data.identity;
 
     // Save session to ensure it's persisted
     await new Promise<void>((resolve, reject) => {
@@ -474,7 +473,7 @@ router.get("/:provider/callback", async (req: Request, res: Response) => {
           logger.error("Failed to save session", { error: err });
           reject(err);
         } else {
-          logger.info("Session saved", { userId: userResult.data.id });
+          logger.info("Session saved", { userId: userResult.data.user.id });
           resolve();
         }
       });
@@ -486,7 +485,7 @@ router.get("/:provider/callback", async (req: Request, res: Response) => {
     // Check if this is pod-specific auth
     if (stateData.pod) {
       // Generate pod-specific token
-      const podToken = generateToken(userResult.data, stateData.pod);
+      const podToken = generateToken(userResult.data.user, userResult.data.identity, stateData.pod);
       // Build callback URL for pod subdomain
       const publicConfig = config.server.public!;
       const podHost =
@@ -496,7 +495,7 @@ router.get("/:provider/callback", async (req: Request, res: Response) => {
       const callbackUrl = `${publicConfig.protocol}://${podHost}/auth/callback?token=${encodeURIComponent(podToken)}&redirect=${encodeURIComponent(stateData.redirect || "/")}`;
 
       logger.info("Pod authentication successful", {
-        userId: userResult.data.id,
+        userId: userResult.data.user.id,
         provider,
         pod: stateData.pod,
         redirect: stateData.redirect,
@@ -505,7 +504,7 @@ router.get("/:provider/callback", async (req: Request, res: Response) => {
       res.redirect(callbackUrl);
     } else {
       // Regular auth flow (backwards compatibility)
-      const token = generateToken(userResult.data);
+      const token = generateToken(userResult.data.user, userResult.data.identity);
 
       // Set cookie for web apps
       const isSecure = config.server.public?.isSecure || false;
@@ -518,7 +517,7 @@ router.get("/:provider/callback", async (req: Request, res: Response) => {
       });
 
       logger.info("User authenticated", {
-        userId: userResult.data.id,
+        userId: userResult.data.user.id,
         provider,
         redirect: stateData.redirect,
       });

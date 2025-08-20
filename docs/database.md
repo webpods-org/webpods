@@ -6,18 +6,29 @@ WebPods uses PostgreSQL with pg-promise for queries. Knex.js is used only for mi
 
 ### user
 
-Stores authenticated users from OAuth providers.
+Container for multiple identities.
 
-| Column     | Type         | Description                                     |
-| ---------- | ------------ | ----------------------------------------------- |
-| id         | UUID         | Primary key                                     |
-| auth_id    | VARCHAR(255) | Unique auth identifier (`auth:{provider}:{id}`) |
-| email      | VARCHAR(255) | User email from OAuth provider                  |
-| name       | VARCHAR(255) | Display name                                    |
-| provider   | VARCHAR(50)  | OAuth provider ID (e.g., `github`, `google`)    |
-| metadata   | JSONB        | Additional user data from OAuth                 |
-| created_at | TIMESTAMP    | User creation time                              |
-| updated_at | TIMESTAMP    | Last update time                                |
+| Column     | Type      | Description        |
+| ---------- | --------- | ------------------ |
+| id         | UUID      | Primary key        |
+| created_at | TIMESTAMP | User creation time |
+| updated_at | TIMESTAMP | Last update time   |
+
+### identity
+
+Stores OAuth provider identities.
+
+| Column      | Type         | Description                                   |
+| ----------- | ------------ | --------------------------------------------- |
+| id          | UUID         | Primary key                                   |
+| user_id     | UUID         | User (references user.id)                     |
+| provider    | VARCHAR(50)  | OAuth provider ID (e.g., `github`, `google`)  |
+| provider_id | VARCHAR(255) | ID from the provider                          |
+| email       | VARCHAR(255) | User email from OAuth provider                |
+| name        | VARCHAR(255) | Display name                                  |
+| metadata    | JSONB        | Additional user data from OAuth               |
+| created_at  | TIMESTAMP    | Identity creation time                        |
+| updated_at  | TIMESTAMP    | Last update time                              |
 
 ### pod
 
@@ -56,7 +67,7 @@ Immutable entries in streams.
 | content_type  | VARCHAR(100) | MIME type                            |
 | hash          | VARCHAR(100) | SHA-256 hash of content              |
 | previous_hash | VARCHAR(100) | Hash of previous record (chain)      |
-| author_id     | VARCHAR(255) | Author"s auth_id                     |
+| author_id     | UUID         | Author (references user.id)          |
 | name          | VARCHAR(255) | Optional named reference             |
 | created_at    | TIMESTAMP    | Record creation time                 |
 
@@ -72,8 +83,9 @@ Active user sessions for SSO.
 
 ## Indexes
 
-- `user.auth_id` - Unique index for OAuth lookups
-- `user.email` - Index for email searches
+- `identity.provider, identity.provider_id` - Composite unique index for OAuth lookups
+- `identity.user_id` - Index for user's identities
+- `identity.email` - Index for email searches
 - `pod.pod_id` - Unique index for subdomain routing
 - `stream.pod_id, stream.stream_id` - Composite unique index
 - `record.stream_id, record.index` - Composite unique index
@@ -119,7 +131,7 @@ Permissions are stored as records in permission streams (`/{stream}`) with this 
 
 ```json
 {
-  "id": "auth:{provider}:{id}",
+  "id": "{user_id}",
   "read": true,
   "write": false,
   "admin": false

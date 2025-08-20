@@ -4,8 +4,8 @@
 
 import jwt from "jsonwebtoken";
 import { Database } from "../db.js";
-import { UserDbRow } from "../db-types.js";
-import { User, Result, JWTPayload } from "../types.js";
+import { UserDbRow, IdentityDbRow } from "../db-types.js";
+import { User, Identity, Result, JWTPayload } from "../types.js";
 import { createLogger } from "../logger.js";
 import { getConfig } from "../config-loader.js";
 
@@ -19,10 +19,22 @@ const logger = createLogger("webpods:domain:auth");
 function mapUserFromDb(row: UserDbRow): User {
   return {
     id: row.id,
-    auth_id: row.auth_id,
-    email: row.email,
-    name: row.name,
+    created_at: row.created_at,
+    updated_at: row.updated_at || row.created_at,
+  };
+}
+
+/**
+ * Map identity database row to domain type
+ */
+function mapIdentityFromDb(row: IdentityDbRow): Identity {
+  return {
+    id: row.id,
+    user_id: row.user_id,
     provider: row.provider,
+    provider_id: row.provider_id,
+    email: row.email || null,
+    name: row.name || null,
     metadata: row.metadata,
     created_at: row.created_at,
     updated_at: row.updated_at || row.created_at,
@@ -36,41 +48,31 @@ function mapUserFromDb(row: UserDbRow): User {
 export async function ensureUserExists(
   db: Database,
   userId: string,
-  authId: string,
-  email: string,
-  name: string,
-  provider: string,
+  _email?: string | null,
+  _name?: string | null,
 ): Promise<Result<User>> {
   try {
-    // First check if user exists by ID
+    // Check if user exists by ID
     let userRow = await db.oneOrNone<UserDbRow>(
       `SELECT * FROM "user" WHERE id = $(userId)`,
       { userId },
     );
 
     if (!userRow) {
-      // Check if user exists by auth_id (might have different ID)
-      userRow = await db.oneOrNone<UserDbRow>(
-        `SELECT * FROM "user" WHERE auth_id = $(authId)`,
-        { authId },
+      // Create user with the specific ID from JWT
+      userRow = await db.one<UserDbRow>(
+        `INSERT INTO "user" (id, created_at)
+         VALUES ($(userId), NOW())
+         RETURNING *`,
+        { userId },
       );
 
-      if (!userRow) {
-        // Create user with the specific ID from JWT
-        userRow = await db.one<UserDbRow>(
-          `INSERT INTO "user" (id, auth_id, email, name, provider, created_at)
-           VALUES ($(userId), $(authId), $(email), $(name), $(provider), NOW())
-           RETURNING *`,
-          { userId, authId, email, name, provider },
-        );
-
-        logger.info("User recreated from JWT", { userId, authId, provider });
-      }
+      logger.info("User recreated from JWT", { userId });
     }
 
     return { success: true, data: mapUserFromDb(userRow) };
   } catch (error: any) {
-    logger.error("Failed to ensure user exists", { error, userId, authId });
+    logger.error("Failed to ensure user exists", { error, userId });
     return {
       success: false,
       error: {
@@ -88,44 +90,64 @@ export async function findOrCreateUser(
   db: Database,
   provider: OAuthProvider,
   profile: any,
-): Promise<Result<User>> {
-  const authId = `auth:${provider}:${profile.id}`;
-  const email = profile.email || "";
-  const name = profile.name || profile.username || email.split("@")[0];
+): Promise<Result<{ user: User; identity: Identity }>> {
+  const providerId = profile.id;
+  const email = profile.email || null;
+  const name = profile.name || profile.username || (email ? email.split("@")[0] : null);
 
   try {
-    // Try to find existing user
-    let userRow = await db.oneOrNone<UserDbRow>(
-      `SELECT * FROM "user" WHERE auth_id = $(authId)`,
-      { authId },
+    // Try to find existing identity
+    let identityRow = await db.oneOrNone<IdentityDbRow>(
+      `SELECT * FROM identity WHERE provider = $(provider) AND provider_id = $(providerId)`,
+      { provider, providerId },
     );
 
-    if (!userRow) {
-      // Create new user
+    let userRow: UserDbRow;
+
+    if (!identityRow) {
+      // Create new user and identity
       userRow = await db.one<UserDbRow>(
-        `INSERT INTO "user" (id, auth_id, email, name, provider, created_at)
-         VALUES (gen_random_uuid(), $(authId), $(email), $(name), $(provider), NOW())
+        `INSERT INTO "user" (id, created_at)
+         VALUES (gen_random_uuid(), NOW())
          RETURNING *`,
-        { authId, email, name, provider },
       );
 
-      logger.info("New user created", { authId, provider });
+      identityRow = await db.one<IdentityDbRow>(
+        `INSERT INTO identity (id, user_id, provider, provider_id, email, name, created_at)
+         VALUES (gen_random_uuid(), $(userId), $(provider), $(providerId), $(email), $(name), NOW())
+         RETURNING *`,
+        { userId: userRow.id, provider, providerId, email, name },
+      );
+
+      logger.info("New user and identity created", { userId: userRow.id, provider, providerId });
     } else {
-      // Update user info if changed
-      if (userRow.email !== email || userRow.name !== name) {
-        userRow = await db.one<UserDbRow>(
-          `UPDATE "user" 
+      // Get existing user
+      userRow = await db.one<UserDbRow>(
+        `SELECT * FROM "user" WHERE id = $(userId)`,
+        { userId: identityRow.user_id },
+      );
+
+      // Update identity info if changed
+      if (identityRow.email !== email || identityRow.name !== name) {
+        identityRow = await db.one<IdentityDbRow>(
+          `UPDATE identity 
            SET email = $(email), name = $(name), updated_at = NOW()
-           WHERE id = $(userId)
+           WHERE id = $(identityId)
            RETURNING *`,
-          { userId: userRow.id, email, name },
+          { identityId: identityRow.id, email, name },
         );
       }
     }
 
-    return { success: true, data: mapUserFromDb(userRow) };
+    return { 
+      success: true, 
+      data: {
+        user: mapUserFromDb(userRow),
+        identity: mapIdentityFromDb(identityRow)
+      }
+    };
   } catch (error: any) {
-    logger.error("Failed to find or create user", { error, authId });
+    logger.error("Failed to find or create user", { error, provider, providerId });
     return {
       success: false,
       error: {
@@ -141,16 +163,15 @@ export async function findOrCreateUser(
  */
 export function generateToken(
   user: User,
+  identity?: Identity | null,
   pod?: string,
   expiresIn: string = "7d",
 ): string {
   const config = getConfig();
   const payload: JWTPayload = {
     user_id: user.id,
-    auth_id: user.auth_id,
-    email: user.email,
-    name: user.name,
-    provider: user.provider,
+    email: identity?.email || null,
+    name: identity?.name || null,
     pod, // Include pod if provided (for pod-specific tokens)
   };
 
