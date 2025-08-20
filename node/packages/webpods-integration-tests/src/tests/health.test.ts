@@ -1,6 +1,6 @@
 // Health check tests for WebPods
 import { expect } from "chai";
-import { TestHttpClient } from "webpods-test-utils";
+import { TestHttpClient, createTestUser } from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 
 describe("WebPods Health Checks", () => {
@@ -25,24 +25,19 @@ describe("WebPods Health Checks", () => {
 
     // Create a test user and authenticate
     const db = testDb.getDb();
-    const [user] = await db("user")
-      .insert({
-        id: crypto.randomUUID(),
-        auth_id: "auth:provider:health-test",
-        email: "health@example.com",
-        name: "Health Test User",
-        provider: "testprovider1",
-      })
-      .returning("*");
+    const user = await createTestUser(db, {
+      provider: "testprovider1",
+      providerId: "health-test",
+      email: "health@example.com",
+      name: "Health Test User",
+    });
 
     // Generate pod-specific token for the unique pod
     const token = client.generatePodToken(
       {
-        user_id: user.id,
-        auth_id: user.auth_id,
+        user_id: user.userId,
         email: user.email,
         name: user.name,
-        provider: "testprovider1",
       },
       uniquePodId,
     );

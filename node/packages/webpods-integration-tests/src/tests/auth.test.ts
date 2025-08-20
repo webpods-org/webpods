@@ -1,7 +1,7 @@
 // Authentication tests for WebPods
 import { expect } from "chai";
 import jwt from "jsonwebtoken";
-import { TestHttpClient } from "webpods-test-utils";
+import { TestHttpClient, createTestUser } from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 
 describe("WebPods Authentication", () => {
@@ -12,16 +12,14 @@ describe("WebPods Authentication", () => {
   // Helper to create a test JWT token
   function createTestToken(
     userId: string,
-    authId: string,
     email: string = "test@example.com",
+    name: string = "Test User",
     pod?: string,
   ) {
     const payload: any = {
       user_id: userId,
-      auth_id: authId,
       email,
-      name: "Test User",
-      provider: "testprovider2",
+      name,
     };
 
     // Add pod claim if provided
@@ -92,20 +90,17 @@ describe("WebPods Authentication", () => {
     let authToken: string;
 
     beforeEach(async () => {
-      // Create a test user
+      // Create a test user and identity
       const db = testDb.getDb();
-      const [user] = await db("user")
-        .insert({
-          id: crypto.randomUUID(),
-          auth_id: "auth:provider:test123",
-          email: "test@example.com",
-          name: "Test User",
-          provider: "testprovider2",
-        })
-        .returning("*");
-
-      userId = user.id;
-      authToken = createTestToken(user.id, user.auth_id, user.email, testPodId);
+      const testUser = await createTestUser(db, {
+        provider: "testprovider2",
+        providerId: "test123",
+        email: "test@example.com",
+        name: "Test User",
+      });
+      
+      userId = testUser.userId;
+      authToken = createTestToken(userId, testUser.email, testUser.name, testPodId);
       client.setBaseUrl(baseUrl);
     });
 
@@ -192,17 +187,14 @@ describe("WebPods Authentication", () => {
 
     beforeEach(async () => {
       const db = testDb.getDb();
-      const [user] = await db("user")
-        .insert({
-          id: crypto.randomUUID(),
-          auth_id: "auth:provider:public-test",
-          email: "public@example.com",
-          name: "Public Test User",
-          provider: "testprovider1",
-        })
-        .returning("*");
+      const testUser = await createTestUser(db, {
+        provider: "testprovider1",
+        providerId: "public-test",
+        email: "public@example.com",
+        name: "Public Test User",
+      });
 
-      authToken = createTestToken(user.id, user.auth_id, user.email, testPodId);
+      authToken = createTestToken(testUser.userId, testUser.email, testUser.name, testPodId);
     });
 
     it("should allow anonymous read on public streams", async () => {
@@ -257,17 +249,14 @@ describe("WebPods Authentication", () => {
 
     beforeEach(async () => {
       const db = testDb.getDb();
-      const [user] = await db("user")
-        .insert({
-          id: crypto.randomUUID(),
-          auth_id: "auth:provider:bearer-test",
-          email: "bearer@example.com",
-          name: "Bearer Test",
-          provider: "testprovider2",
-        })
-        .returning("*");
+      const testUser = await createTestUser(db, {
+        provider: "testprovider2",
+        providerId: "bearer-test",
+        email: "bearer@example.com",
+        name: "Bearer Test",
+      });
 
-      authToken = createTestToken(user.id, user.auth_id, user.email, testPodId);
+      authToken = createTestToken(testUser.userId, testUser.email, testUser.name, testPodId);
     });
 
     it("should accept Bearer token in Authorization header", async () => {
@@ -370,17 +359,14 @@ describe("WebPods Authentication", () => {
       client.setBaseUrl("http://localhost:3099");
       // Create a test user and token
       const db = testDb.getDb();
-      const [user] = await db("user")
-        .insert({
-          id: crypto.randomUUID(),
-          auth_id: "auth:provider:logout-test",
-          email: "logout@example.com",
-          name: "Logout Test",
-          provider: "testprovider2",
-        })
-        .returning("*");
+      const testUser = await createTestUser(db, {
+        provider: "testprovider2",
+        providerId: "logout-test",
+        email: "logout@example.com",
+        name: "Logout Test",
+      });
 
-      authToken = createTestToken(user.id, user.auth_id, user.email, testPodId);
+      authToken = createTestToken(testUser.userId, testUser.email, testUser.name, testPodId);
       client.setAuthToken(authToken);
     });
 
@@ -436,25 +422,22 @@ describe("WebPods Authentication", () => {
 
     beforeEach(async () => {
       const db = testDb.getDb();
-      const [user] = await db("user")
-        .insert({
-          id: crypto.randomUUID(),
-          auth_id: "auth:provider:cross-pod",
-          email: "cross@example.com",
-          name: "Cross Pod User",
-          provider: "testprovider1",
-        })
-        .returning("*");
+      const testUser = await createTestUser(db, {
+        provider: "testprovider1",
+        providerId: "cross-pod",
+        email: "cross@example.com",
+        name: "Cross Pod User",
+      });
 
-      userId = user.id;
+      userId = testUser.userId;
     });
 
     it("should use same user with different pod tokens for different pods", async () => {
       // Create token for first pod
       const token1 = createTestToken(
         userId,
-        "auth:provider:cross-pod",
         "cross@example.com",
+        "Cross Pod User",
         "pod-one",
       );
       client.setBaseUrl(`http://pod-one.localhost:3099`);
@@ -469,8 +452,8 @@ describe("WebPods Authentication", () => {
       // Create token for second pod
       const token2 = createTestToken(
         userId,
-        "auth:provider:cross-pod",
         "cross@example.com",
+        "Cross Pod User",
         "pod-two",
       );
       client.setBaseUrl(`http://pod-two.localhost:3099`);
@@ -515,14 +498,20 @@ describe("WebPods Authentication", () => {
     it("should store user metadata from OAuth", async () => {
       const db = testDb.getDb();
 
-      // Simulate OAuth user creation
-      const [user] = await db("user")
+      // Simulate OAuth user creation with metadata in identity
+      const userId = crypto.randomUUID();
+      const identityId = crypto.randomUUID();
+      
+      await db("user").insert({ id: userId });
+      
+      const [identity] = await db("identity")
         .insert({
-          id: crypto.randomUUID(),
-          auth_id: "auth:provider:12345",
+          id: identityId,
+          user_id: userId,
+          provider: "testprovider1",
+          provider_id: "12345",
           email: "oauth@example.com",
           name: "OAuth User",
-          provider: "testprovider1",
           metadata: {
             avatar_url: "https://example.com/avatar.jpg",
             bio: "Developer",
@@ -531,7 +520,7 @@ describe("WebPods Authentication", () => {
         })
         .returning("*");
 
-      expect(user.metadata).to.deep.equal({
+      expect(identity.metadata).to.deep.equal({
         avatar_url: "https://example.com/avatar.jpg",
         bio: "Developer",
         location: "San Francisco",
@@ -542,32 +531,34 @@ describe("WebPods Authentication", () => {
       const db = testDb.getDb();
 
       // Provider 1 user
-      const [provider1User] = await db("user")
-        .insert({
-          id: crypto.randomUUID(),
-          auth_id: "auth:provider:p1-123",
-          email: "user1@example.com",
-          name: "Provider1 User",
-          provider: "testprovider1",
-        })
-        .returning("*");
+      const user1 = await createTestUser(db, {
+        provider: "testprovider1",
+        providerId: "p1-123",
+        email: "user1@example.com",
+        name: "Provider1 User",
+      });
 
       // Provider 2 user
-      const [provider2User] = await db("user")
-        .insert({
-          id: crypto.randomUUID(),
-          auth_id: "auth:provider:p2-456",
-          email: "user2@example.com",
-          name: "Provider2 User",
-          provider: "testprovider2",
-        })
+      const user2 = await createTestUser(db, {
+        provider: "testprovider2",
+        providerId: "p2-456",
+        email: "user2@example.com",
+        name: "Provider2 User",
+      });
+
+      // Verify identities were created correctly
+      const [identity1] = await db("identity")
+        .where({ user_id: user1.userId })
+        .returning("*");
+      const [identity2] = await db("identity")
+        .where({ user_id: user2.userId })
         .returning("*");
 
-      expect(provider1User.provider).to.equal("testprovider1");
-      expect(provider1User.auth_id).to.match(/^auth:provider:/);
+      expect(identity1.provider).to.equal("testprovider1");
+      expect(identity1.provider_id).to.equal("p1-123");
 
-      expect(provider2User.provider).to.equal("testprovider2");
-      expect(provider2User.auth_id).to.match(/^auth:provider:/);
+      expect(identity2.provider).to.equal("testprovider2");
+      expect(identity2.provider_id).to.equal("p2-456");
     });
   });
 });

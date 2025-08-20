@@ -1,6 +1,6 @@
 // Delete and purge records tests for WebPods
 import { expect } from "chai";
-import { TestHttpClient } from "webpods-test-utils";
+import { TestHttpClient, createTestUser } from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 
 describe("WebPods Record Deletion", () => {
@@ -15,47 +15,37 @@ describe("WebPods Record Deletion", () => {
 
     // Create pod owner
     const db = testDb.getDb();
-    const [owner] = await db("user")
-      .insert({
-        id: crypto.randomUUID(),
-        auth_id: "auth:provider:owner",
-        email: "owner@example.com",
-        name: "Pod Owner",
-        provider: "testprovider1",
-      })
-      .returning("*");
+    const owner = await createTestUser(db, {
+      provider: "testprovider1",
+      providerId: "owner",
+      email: "owner@example.com",
+      name: "Pod Owner",
+    });
 
     // Create non-owner user
-    const [nonOwner] = await db("user")
-      .insert({
-        id: crypto.randomUUID(),
-        auth_id: "auth:provider:other",
-        email: "other@example.com",
-        name: "Other User",
-        provider: "testprovider1",
-      })
-      .returning("*");
+    const nonOwner = await createTestUser(db, {
+      provider: "testprovider1",
+      providerId: "other",
+      email: "other@example.com",
+      name: "Other User",
+    });
 
     // Generate tokens
     client.setBaseUrl(baseUrl);
     ownerToken = client.generatePodToken(
       {
-        user_id: owner.id,
-        auth_id: owner.auth_id,
+        user_id: owner.userId,
         email: owner.email,
         name: owner.name,
-        provider: "testprovider1",
       },
       testPodId,
     );
 
     nonOwnerToken = client.generatePodToken(
       {
-        user_id: nonOwner.id,
-        auth_id: nonOwner.auth_id,
+        user_id: nonOwner.userId,
         email: nonOwner.email,
         name: nonOwner.name,
-        provider: "testprovider1",
       },
       testPodId,
     );

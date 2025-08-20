@@ -13,10 +13,8 @@ export interface FetchResponse {
 
 export interface TokenPayload {
   user_id: string;
-  auth_id: string;
-  email: string;
-  name: string;
-  provider: string;
+  email?: string | null;
+  name?: string | null;
   pod?: string;
 }
 
