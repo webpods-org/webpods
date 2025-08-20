@@ -24,7 +24,7 @@ services:
       - webpods-network
 
   hydra-migrate:
-    image: oryd/hydra:v2.2.0-alpine
+    image: oryd/hydra:v2.3.0
     user: ${RUNAS_UID}:${RUNAS_GID}
     command: migrate sql --yes postgres://postgres:postgres@postgres:5432/hydra?sslmode=disable
     depends_on:
@@ -35,7 +35,7 @@ services:
     restart: on-failure
 
   hydra:
-    image: oryd/hydra:v2.2.0-alpine
+    image: oryd/hydra:v2.3.0
     user: ${RUNAS_UID}:${RUNAS_GID}
     depends_on:
       postgres:
