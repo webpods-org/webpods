@@ -8,6 +8,7 @@ import { getDb } from "../db.js";
 import { createLogger } from "../logger.js";
 import { getConfig } from "../config-loader.js";
 import { findOrCreateUser } from "../domain/users.js";
+import { verifyHydraToken } from "../oauth/jwt-validator.js";
 import type { OAuthProvider as OAuthProviderType } from "../types.js";
 import {
   getAuthorizationUrl,
@@ -257,12 +258,18 @@ router.get("/whoami", async (req: Request, res: Response) => {
   }
 
   try {
-    const config = getConfig();
-    const secret = config.auth.jwtSecret;
-    const payload = jwt.verify(token, secret) as any;
+    const result = await verifyHydraToken(token);
+    
+    if (!result.success) {
+      res.status(401).json({
+        error: result.error,
+      });
+      return;
+    }
 
+    const payload = result.data;
     res.json({
-      user_id: payload.user_id,
+      user_id: payload.sub,
       email: payload.email,
       name: payload.name,
     });
