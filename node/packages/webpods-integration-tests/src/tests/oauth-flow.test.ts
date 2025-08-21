@@ -51,10 +51,7 @@ describe("OAuth Flow Integration", () => {
       podClient.setAuthToken(token);
 
       // Should be able to write to the pod
-      const writeRes = await podClient.post("/test-stream", {
-        content: "OAuth test content",
-        name: "oauth-test.txt",
-      });
+      const writeRes = await podClient.post("/test-stream/oauth-test.txt", "OAuth test content");
 
       if (writeRes.status !== 201) {
         console.log("Write failed with status:", writeRes.status);
@@ -65,12 +62,10 @@ describe("OAuth Flow Integration", () => {
       expect(writeRes.data).to.have.property("index", 0);
       expect(writeRes.data).to.have.property("hash");
 
-      // Should be able to read from the pod
-      const readRes = await podClient.get("/test-stream");
+      // Should be able to read the record we just created
+      const readRes = await podClient.get("/test-stream/oauth-test.txt");
       expect(readRes.status).to.equal(200);
-      expect(readRes.data).to.have.property("records");
-      expect(readRes.data.records).to.have.length(1);
-      expect(readRes.data.records[0].content).to.equal("OAuth test content");
+      expect(readRes.data).to.equal("OAuth test content");
     });
 
     it("should deny access to pods not in token scope", async () => {
