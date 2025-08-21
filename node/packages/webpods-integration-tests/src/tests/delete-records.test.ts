@@ -1,6 +1,6 @@
 // Delete and purge records tests for WebPods
 import { expect } from "chai";
-import { TestHttpClient, createTestUser } from "webpods-test-utils";
+import { TestHttpClient, createTestUser, createTestPod } from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 
 describe("WebPods Record Deletion", () => {
@@ -32,27 +32,16 @@ describe("WebPods Record Deletion", () => {
       name: "Other User",
     });
 
-    // Generate tokens
-    client.setBaseUrl(baseUrl);
-    ownerToken = client.generatePodToken(
-      {
-        user_id: owner.userId,
-        email: owner.email,
-        name: owner.name,
-      },
-      testPodId,
-    );
-
-    nonOwnerToken = client.generatePodToken(
-      {
-        user_id: nonOwner.userId,
-        email: nonOwner.email,
-        name: nonOwner.name,
-      },
-      testPodId,
-    );
-
     // Create pod as owner
+    await createTestPod(db, testPodId, ownerId);
+
+    // Get OAuth tokens
+    ownerToken = await client.authenticateViaOAuth(ownerId, [testPodId]);
+    nonOwnerToken = await client.authenticateViaOAuth(nonOwner.userId, [testPodId]);
+
+    client.setBaseUrl(baseUrl);
+    
+    // Initialize with a first record
     client.setAuthToken(ownerToken);
     await client.post("/init/start", "Initialize pod");
   });

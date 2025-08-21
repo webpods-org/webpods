@@ -4,13 +4,11 @@
  */
 
 import { expect } from "chai";
-import jwt from "jsonwebtoken";
-import { TestHttpClient, createTestUser } from "webpods-test-utils";
+import { TestHttpClient, createTestUser, createTestPod } from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 
 describe("SSO Cookie Management", () => {
   let client: TestHttpClient;
-  const jwtSecret = "test-secret-key"; // Must match test-config.json
 
   beforeEach(async () => {
     client = new TestHttpClient("http://localhost:3000");
@@ -175,22 +173,13 @@ describe("SSO Cookie Management", () => {
       expect(session).to.exist;
       expect(client.getCookie("webpods.sid")).to.equal(sessionId);
 
-      // 5. Generate pod-specific token (what would happen in /auth/authorize)
-      const podToken = jwt.sign(
-        {
-          user_id: user.userId,
-          email: user.email,
-          name: user.name,
-          pod: "test-pod",
-        },
-        jwtSecret,
-        { expiresIn: "1h" },
-      );
+      // 5. Get OAuth token for pod (what would happen via OAuth flow)
+      await createTestPod(db, "test-pod", user.userId);
+      const podToken = await client.authenticateViaOAuth(user.userId, ["test-pod"]);
 
       // Verify token was created correctly
-      const decoded = jwt.decode(podToken) as any;
-      expect(decoded.pod).to.equal("test-pod");
-      expect(decoded.user_id).to.equal(user.userId);
+      expect(podToken).to.be.a("string");
+      expect(podToken.length).to.be.greaterThan(0);
     });
   });
 });

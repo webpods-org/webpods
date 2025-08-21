@@ -1,6 +1,6 @@
 // Permission tests for WebPods
 import { expect } from "chai";
-import { TestHttpClient, createTestUser } from "webpods-test-utils";
+import { TestHttpClient, createTestUser, createTestPod } from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 
 describe("WebPods Permissions", () => {
@@ -34,26 +34,14 @@ describe("WebPods Permissions", () => {
 
     user2Id = user2.userId;
 
+    // Create the test pod (owned by user1)
+    await createTestPod(db, testPodId, user1.userId);
+
+    // Get OAuth tokens for both users
+    user1Token = await client.authenticateViaOAuth(user1.userId, [testPodId]);
+    user2Token = await client.authenticateViaOAuth(user2.userId, [testPodId]);
+
     client.setBaseUrl(baseUrl);
-
-    // Generate pod-specific tokens for perm-test pod
-    user1Token = client.generatePodToken(
-      {
-        user_id: user1.userId,
-        email: user1.email,
-        name: user1.name,
-      },
-      testPodId,
-    );
-
-    user2Token = client.generatePodToken(
-      {
-        user_id: user2.userId,
-        email: user2.email,
-        name: user2.name,
-      },
-      testPodId,
-    );
   });
 
   describe("Private Streams", () => {
@@ -78,6 +66,7 @@ describe("WebPods Permissions", () => {
 
       // Anonymous cannot read
       client.clearAuthToken();
+      client.clearCookies();
       const response3 = await client.get("/private-read?i=0");
       expect(response3.status).to.equal(403);
     });
