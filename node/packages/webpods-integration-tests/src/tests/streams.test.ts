@@ -357,17 +357,9 @@ describe("WebPods Stream Operations", () => {
         name: "Other User",
       });
 
-      const token2 = client.generatePodToken(
-        {
-          user_id: user2.userId,
-          email: user2.email,
-          name: user2.name,
-        },
-        testPodId,
-      );
+      const token2 = await client.authenticateViaOAuth(user2.userId, [testPodId]);
 
-      // Create pod as first user
-      await client.post("/test/init", "Create pod");
+      // Stream already exists from beforeEach
 
       // Try to update .meta/owner as second user
       client.setAuthToken(token2);
@@ -413,14 +405,7 @@ describe("WebPods Stream Operations", () => {
         name: "Other User",
       });
 
-      const token2 = client.generatePodToken(
-        {
-          user_id: user2.userId,
-          email: user2.email,
-          name: user2.name,
-        },
-        testPodId,
-      );
+      const token2 = await client.authenticateViaOAuth(user2.userId, [testPodId]);
 
       client.setAuthToken(token2);
       const response = await client.delete("/my-stream");
