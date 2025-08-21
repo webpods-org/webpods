@@ -5,7 +5,7 @@
  */
 
 import { expect } from "chai";
-import { TestHttpClient, createTestUser } from "webpods-test-utils";
+import { TestHttpClient, createTestUser, createTestPod } from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 
 describe("WebPods Root Pod Main Domain", () => {
@@ -26,17 +26,13 @@ describe("WebPods Root Pod Main Domain", () => {
       name: "Main Root User",
     });
 
-    // Create root pod and add content
+    // Create root pod
+    await createTestPod(db, rootPodId, user.userId);
+    
+    // Get OAuth token and add content
     rootClient = new TestHttpClient(rootPodUrl);
-    authToken = rootClient.generatePodToken(
-      {
-        user_id: user.userId,
-        email: user.email,
-        name: user.name,
-      },
-      rootPodId,
-    );
-
+    authToken = await rootClient.authenticateViaOAuth(user.userId, [rootPodId]);
+    
     rootClient.setAuthToken(authToken);
 
     // Create root pod content

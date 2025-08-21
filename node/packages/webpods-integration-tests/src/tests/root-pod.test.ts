@@ -1,6 +1,6 @@
 // Root pod tests for WebPods
 import { expect } from "chai";
-import { TestHttpClient, createTestUser } from "webpods-test-utils";
+import { TestHttpClient, createTestUser, createTestPod } from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 
 describe("WebPods Root Pod", () => {
@@ -12,14 +12,10 @@ describe("WebPods Root Pod", () => {
 
   // Helper to create the root pod with initial content
   async function setupRootPod() {
-    const podToken = client.generatePodToken(
-      {
-        user_id: userId,
-        email: "roottest@example.com",
-        name: "Root Test User",
-      },
-      rootPodId,
-    );
+    const db = testDb.getDb();
+    await createTestPod(db, rootPodId, userId);
+    
+    const podToken = await client.authenticateViaOAuth(userId, [rootPodId]);
     client.setAuthToken(podToken);
 
     // Create initial content

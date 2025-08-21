@@ -1,6 +1,6 @@
 // Rate limiting tests for WebPods
 import { expect } from "chai";
-import { TestHttpClient, createTestUser } from "webpods-test-utils";
+import { TestHttpClient, createTestUser, createTestPod } from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 import crypto from "crypto";
 
@@ -8,7 +8,6 @@ describe("WebPods Rate Limiting", () => {
   let client: TestHttpClient;
   let userId: string;
   let authToken: string;
-  let testUser: any; // Store user for token generation
   const testPodId = "rate-test";
   const baseUrl = `http://${testPodId}.localhost:3000`;
 
@@ -23,21 +22,15 @@ describe("WebPods Rate Limiting", () => {
       name: "Rate Limit User",
     });
 
-    testUser = user; // Save for later use
     userId = user.userId;
 
+    // Create the test pod
+    await createTestPod(db, testPodId, userId);
+
+    // Get OAuth token
+    authToken = await client.authenticateViaOAuth(userId, [testPodId]);
+    
     client.setBaseUrl(baseUrl);
-
-    // Generate pod-specific token for rate-test pod
-    authToken = client.generatePodToken(
-      {
-        user_id: user.userId,
-        email: user.email,
-        name: user.name,
-      },
-      testPodId,
-    );
-
     client.setAuthToken(authToken);
   });
 
@@ -63,27 +56,17 @@ describe("WebPods Rate Limiting", () => {
 
     it("should track pod creation rate limits separately", async () => {
       // Create multiple pods with proper tokens for each
+      const podDb = testDb.getDb();
+      await createTestPod(podDb, "pod-limit-1", userId);
+      await createTestPod(podDb, "pod-limit-2", userId);
+      
       client.setBaseUrl(`http://pod-limit-1.localhost:3000`);
-      const token1 = client.generatePodToken(
-        {
-          user_id: testUser.userId,
-          email: testUser.email,
-          name: testUser.name,
-        },
-        "pod-limit-1",
-      );
+      const token1 = await client.authenticateViaOAuth(userId, ["pod-limit-1"]);
       client.setAuthToken(token1);
       await client.post("/init/pod1", "Pod 1");
 
       client.setBaseUrl(`http://pod-limit-2.localhost:3000`);
-      const token2 = client.generatePodToken(
-        {
-          user_id: testUser.userId,
-          email: testUser.email,
-          name: testUser.name,
-        },
-        "pod-limit-2",
-      );
+      const token2 = await client.authenticateViaOAuth(userId, ["pod-limit-2"]);
       client.setAuthToken(token2);
       await client.post("/init/pod2", "Pod 2");
 
