@@ -110,15 +110,17 @@ describe("WebPods Root Pod", () => {
     it("should allow POST to root pod streams", async () => {
       client.setBaseUrl(rootPodUrl);
 
-      // Create the pod first with a pod-specific token
-      const podToken = client.generatePodToken(
-        {
-          user_id: userId,
-          email: "roottest@example.com",
-          name: "Root Test User",
-        },
-        rootPodId,
+      // Create the pod first with OAuth authentication
+      const db = testDb.getDb();
+      // Check if pod exists first
+      const existingPod = await db.oneOrNone(
+        `SELECT pod_id FROM pod WHERE pod_id = $(podId)`,
+        { podId: rootPodId }
       );
+      if (!existingPod) {
+        await createTestPod(db, rootPodId, userId);
+      }
+      const podToken = await client.authenticateViaOAuth(userId, [rootPodId]);
       client.setAuthToken(podToken);
 
       // Create initial content to establish the pod
@@ -138,14 +140,16 @@ describe("WebPods Root Pod", () => {
       client.setBaseUrl(rootPodUrl);
 
       // Create the pod and content first
-      const podToken = client.generatePodToken(
-        {
-          user_id: userId,
-          email: "roottest@example.com",
-          name: "Root Test User",
-        },
-        rootPodId,
+      const db = testDb.getDb();
+      // Check if pod exists first
+      const existingPod = await db.oneOrNone(
+        `SELECT pod_id FROM pod WHERE pod_id = $(podId)`,
+        { podId: rootPodId }
       );
+      if (!existingPod) {
+        await createTestPod(db, rootPodId, userId);
+      }
+      const podToken = await client.authenticateViaOAuth(userId, [rootPodId]);
       client.setAuthToken(podToken);
       await client.post("/api/data", JSON.stringify({ version: "1.0" }));
 
@@ -162,14 +166,8 @@ describe("WebPods Root Pod", () => {
       client.setBaseUrl(rootPodUrl);
       await setupRootPod();
 
-      const podToken = client.generatePodToken(
-        {
-          user_id: userId,
-          email: "roottest@example.com",
-          name: "Root Test User",
-        },
-        rootPodId,
-      );
+      // setupRootPod already creates pod and gets token, just retrieve it
+      const podToken = await client.authenticateViaOAuth(userId, [rootPodId]);
       client.setAuthToken(podToken);
       await client.post("/private/secret?access=private", "Secret content");
 
@@ -189,14 +187,8 @@ describe("WebPods Root Pod", () => {
       client.setBaseUrl(rootPodUrl);
       await setupRootPod();
 
-      const podToken = client.generatePodToken(
-        {
-          user_id: userId,
-          email: "roottest@example.com",
-          name: "Root Test User",
-        },
-        rootPodId,
-      );
+      // setupRootPod already creates pod and gets token, just retrieve it
+      const podToken = await client.authenticateViaOAuth(userId, [rootPodId]);
       client.setAuthToken(podToken);
 
       // Create and delete a record
@@ -221,15 +213,10 @@ describe("WebPods Root Pod", () => {
       const alicePodUrl = "http://alice.localhost:3000";
       client.setBaseUrl(alicePodUrl);
 
-      // Use a pod-specific token for alice pod
-      const aliceToken = client.generatePodToken(
-        {
-          user_id: userId,
-          email: "roottest@example.com",
-          name: "Root Test User",
-        },
-        "alice",
-      );
+      // Use OAuth authentication for alice pod
+      const db = testDb.getDb();
+      await createTestPod(db, "alice", userId);
+      const aliceToken = await client.authenticateViaOAuth(userId, ["alice"]);
       client.setAuthToken(aliceToken);
       await client.post("/init/start", "Initialize alice pod");
       await client.post("/blog/post1", "Alice blog post");
@@ -249,14 +236,8 @@ describe("WebPods Root Pod", () => {
       client.setBaseUrl(rootPodUrl);
       await setupRootPod();
 
-      const podToken = client.generatePodToken(
-        {
-          user_id: userId,
-          email: "roottest@example.com",
-          name: "Root Test User",
-        },
-        rootPodId,
-      );
+      // setupRootPod already creates pod and gets token, just retrieve it
+      const podToken = await client.authenticateViaOAuth(userId, [rootPodId]);
       client.setAuthToken(podToken);
 
       // Create nested stream structure

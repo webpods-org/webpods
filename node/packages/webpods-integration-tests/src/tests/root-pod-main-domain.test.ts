@@ -226,14 +226,8 @@ describe("WebPods Root Pod Main Domain", () => {
         name: "Alice Two",
       });
 
-      const aliceToken = aliceClient.generatePodToken(
-        {
-          user_id: user.userId,
-          email: user.email,
-          name: user.name,
-        },
-        "alice",
-      );
+      await createTestPod(db, "alice", user.userId);
+      const aliceToken = await aliceClient.authenticateViaOAuth(user.userId, ["alice"]);
 
       aliceClient.setAuthToken(aliceToken);
       await aliceClient.post("/private/data", "Alice private data");

@@ -437,14 +437,9 @@ describe("WebPods Rate Limiting", () => {
 
       // Can create one more pod
       client.setBaseUrl(`http://pod-limit-final.localhost:3000`);
-      const finalToken = client.generatePodToken(
-        {
-          user_id: uniqueUser.userId,
-          email: uniqueUser.email,
-          name: uniqueUser.name,
-        },
-        "pod-limit-final",
-      );
+      const testPodDb = testDb.getDb();
+      await createTestPod(testPodDb, "pod-limit-final", uniqueUser.userId);
+      const finalToken = await client.authenticateViaOAuth(uniqueUser.userId, ["pod-limit-final"]);
       client.setAuthToken(finalToken);
       const podResponse = await client.post("/init/final", "Final pod");
       if (podResponse.status !== 201) {
@@ -459,14 +454,8 @@ describe("WebPods Rate Limiting", () => {
 
       // But creating another pod would exceed limit
       client.setBaseUrl(`http://pod-limit-exceed.localhost:3000`);
-      const exceedToken = client.generatePodToken(
-        {
-          user_id: uniqueUser.userId,
-          email: uniqueUser.email,
-          name: uniqueUser.name,
-        },
-        "pod-limit-exceed",
-      );
+      await createTestPod(testPodDb, "pod-limit-exceed", uniqueUser.userId);
+      const exceedToken = await client.authenticateViaOAuth(uniqueUser.userId, ["pod-limit-exceed"]);
       client.setAuthToken(exceedToken);
       const exceededResponse = await client.post(
         "/init/toomany",
