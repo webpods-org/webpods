@@ -1,6 +1,6 @@
 // Stream operations tests for WebPods
 import { expect } from "chai";
-import { TestHttpClient, createTestUser } from "webpods-test-utils";
+import { TestHttpClient, createTestUser, createTestPod } from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 
 describe("WebPods Stream Operations", () => {
@@ -23,17 +23,13 @@ describe("WebPods Stream Operations", () => {
 
     userId = user.userId;
 
-    // Generate pod-specific token for test-pod
-    client.setBaseUrl(baseUrl);
-    authToken = client.generatePodToken(
-      {
-        user_id: user.userId,
-        email: user.email,
-        name: user.name,
-      },
-      testPodId,
-    );
+    // Create the test pod
+    await createTestPod(db, testPodId, userId);
 
+    // Get OAuth token via Hydra
+    authToken = await client.authenticateViaOAuth(userId, [testPodId]);
+    
+    client.setBaseUrl(baseUrl);
     client.setAuthToken(authToken);
   });
 
