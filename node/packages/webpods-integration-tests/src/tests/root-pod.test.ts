@@ -13,27 +13,39 @@ describe("WebPods Root Pod", () => {
   // Helper to create the root pod with initial content
   async function setupRootPod() {
     const db = testDb.getDb();
-    await createTestPod(db, rootPodId, userId);
+    
+    // Check if pod already exists
+    const existingPod = await db.oneOrNone(
+      `SELECT pod_id FROM pod WHERE pod_id = $(podId)`,
+      { podId: rootPodId }
+    );
+    
+    if (!existingPod) {
+      await createTestPod(db, rootPodId, userId);
+    }
     
     const podToken = await client.authenticateViaOAuth(userId, [rootPodId]);
     client.setAuthToken(podToken);
 
-    // Create initial content
-    await client.post("/pages/home", "<h1>Welcome to WebPods</h1>");
-    await client.post("/pages/about", "<h1>About WebPods</h1>");
-    await client.post("/api/data", JSON.stringify({ version: "1.0" }));
+    // Only create initial content if pod was just created
+    if (!existingPod) {
+      // Create initial content
+      await client.post("/pages/home", "<h1>Welcome to WebPods</h1>");
+      await client.post("/pages/about", "<h1>About WebPods</h1>");
+      await client.post("/api/data", JSON.stringify({ version: "1.0" }));
 
-    // Configure links
-    await client.post("/.meta/links", {
-      "/": "pages/home",
-      "/about": "pages/about",
-    });
+      // Configure links
+      await client.post("/.meta/links", {
+        "/": "pages/home",
+        "/about": "pages/about",
+      });
+    }
   }
 
-  before(async () => {
+  beforeEach(async () => {
     client = new TestHttpClient(mainUrl);
 
-    // Create test user
+    // Create test user - needs to be in beforeEach since afterEach truncates all tables
     const db = testDb.getDb();
     const user = await createTestUser(db, {
       provider: "testprovider1",
