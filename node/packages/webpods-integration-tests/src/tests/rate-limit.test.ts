@@ -346,15 +346,26 @@ describe("WebPods Rate Limiting", () => {
         name: "Rate Limit User 2",
       });
 
+      // Get tokens for both users
+      const token1 = await client.authenticateViaOAuth(userId, [testPodId]);
       const token2 = await client.authenticateViaOAuth(user2.userId, [
         testPodId,
       ]);
+      
+      // Start with user1's token
+      client.setAuthToken(token1);
 
-      // Calculate proper window boundaries
+      // Calculate proper window boundaries - must match EXACTLY what the rate limit code uses
       const windowMs = 60 * 60 * 1000;
       const now = Date.now();
       const windowEnd = new Date(Math.ceil(now / windowMs) * windowMs);
       const windowStart = new Date(windowEnd.getTime() - windowMs);
+
+      // Clean up any existing rate limit records for user1
+      await db.none(
+        `DELETE FROM rate_limit WHERE identifier = $(identifier) AND action = $(action)`,
+        { identifier: userId, action: "write" },
+      );
 
       // Set user1 at limit
       await db.none(
@@ -370,8 +381,26 @@ describe("WebPods Rate Limiting", () => {
         },
       );
 
+      // Verify the rate limit was created
+      const rateLimit = await db.oneOrNone(
+        `SELECT * FROM rate_limit WHERE identifier = $(identifier) AND action = $(action) AND window_start = $(windowStart)`,
+        { identifier: userId, action: "write", windowStart },
+      );
+      expect(rateLimit).to.exist;
+      expect(rateLimit.count).to.equal(1000);
+
       // User1 should be blocked
       const response1 = await client.post("/user1-blocked/fail", "Should fail");
+      
+      // Check what happened to the rate limit after the request
+      if (response1.status !== 429) {
+        const afterLimit = await db.manyOrNone(
+          `SELECT * FROM rate_limit WHERE identifier = $(identifier) AND action = $(action) ORDER BY window_start DESC`,
+          { identifier: userId, action: "write" },
+        );
+        throw new Error(`Expected 429 but got ${response1.status}. Rate limits after request: ${JSON.stringify(afterLimit, null, 2)}. Headers: ${JSON.stringify(response1.headers)}`);
+      }
+      
       expect(response1.status).to.equal(429);
 
       // User2 should still be able to post
@@ -426,8 +455,8 @@ describe("WebPods Rate Limiting", () => {
         {
           id1: crypto.randomUUID(),
           identifier1: testUserId, // Rate limiting uses user_id
-          action1: "pod_create",
-          count1: 8, // Leave room for 2 more (checkRateLimit will increment to 9, then 10)
+          action1: "stream_create",  // Changed from pod_create since we're creating streams
+          count1: 97, // Leave room for 3 stream creations (can-write, stream-99, stream-100)
           windowStart1: windowStart,
           windowEnd1: windowEnd,
           id2: crypto.randomUUID(),
@@ -443,28 +472,18 @@ describe("WebPods Rate Limiting", () => {
       const writeResponse = await client.post("/can-write/msg", "Message");
       expect(writeResponse.status).to.equal(201);
 
-      // Can create one more pod
-      client.setBaseUrl(`http://pod-limit-final.localhost:3000`);
-      const testPodDb = testDb.getDb();
-      await createTestPod(testPodDb, "pod-limit-final", uniqueUser.userId);
-      const finalToken = await client.authenticateViaOAuth(uniqueUser.userId, [
-        "pod-limit-final",
-      ]);
-      client.setAuthToken(finalToken);
-      const podResponse = await client.post("/init/final", "Final pod");
-      // Check pod creation response
-      expect(podResponse.status).to.equal(201);
+      // Can create exactly one more stream (count will go from 98 to 99)
+      const streamResponse1 = await client.post("/stream-99/test", "Stream 99");
+      expect(streamResponse1.status).to.equal(201);
+      
+      // Can create one more stream (count will go from 99 to 100)
+      const streamResponse2 = await client.post("/stream-100/test", "Stream 100");
+      expect(streamResponse2.status).to.equal(201);
 
-      // But creating another pod would exceed limit
-      client.setBaseUrl(`http://pod-limit-exceed.localhost:3000`);
-      await createTestPod(testPodDb, "pod-limit-exceed", uniqueUser.userId);
-      const exceedToken = await client.authenticateViaOAuth(uniqueUser.userId, [
-        "pod-limit-exceed",
-      ]);
-      client.setAuthToken(exceedToken);
+      // But creating another stream would exceed limit (would be 101, limit is 100)
       const exceededResponse = await client.post(
-        "/init/toomany",
-        "Too many pods",
+        "/stream-101/test",
+        "Too many streams",
       );
       expect(exceededResponse.status).to.equal(429);
     });

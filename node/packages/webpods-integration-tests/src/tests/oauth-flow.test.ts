@@ -46,8 +46,10 @@ describe("OAuth Flow Integration", () => {
         expect(payload).to.have.property("iss");
         expect(payload).to.have.property("aud");
         expect(payload).to.have.property("ext");
-        expect(payload.ext).to.have.property("pods");
-        expect(payload.ext.pods).to.include(podId);
+        // Handle nested ext.ext.pods structure from Hydra
+        const pods = payload.ext?.pods || (payload.ext as any)?.ext?.pods;
+        expect(pods).to.exist;
+        expect(pods).to.include(podId);
       }
 
       // Now use the OAuth token to access the pod
