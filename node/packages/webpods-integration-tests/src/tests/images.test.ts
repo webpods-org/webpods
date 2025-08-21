@@ -8,7 +8,7 @@ describe("WebPods Image Support", () => {
   let userId: string;
   let authToken: string;
   const testPodId = "test-images";
-  const baseUrl = `http://${testPodId}.localhost:3099`;
+  const baseUrl = `http://${testPodId}.localhost:3000`;
 
   // Small test image (1x1 transparent PNG)
   const testPngBase64 =
@@ -20,7 +20,7 @@ describe("WebPods Image Support", () => {
     '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><circle cx="50" cy="50" r="40" fill="red"/></svg>';
 
   beforeEach(async () => {
-    client = new TestHttpClient("http://localhost:3099");
+    client = new TestHttpClient("http://localhost:3000");
     // Create a test user and auth token
     const db = testDb.getDb();
     const user = await createTestUser(db, {

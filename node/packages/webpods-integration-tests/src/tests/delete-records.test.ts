@@ -9,10 +9,10 @@ describe("WebPods Record Deletion", () => {
   let nonOwnerToken: string;
   let ownerId: string;
   const testPodId = "test-delete";
-  const baseUrl = `http://${testPodId}.localhost:3099`;
+  const baseUrl = `http://${testPodId}.localhost:3000`;
 
   beforeEach(async () => {
-    client = new TestHttpClient("http://localhost:3099");
+    client = new TestHttpClient("http://localhost:3000");
 
     // Create pod owner
     const db = testDb.getDb();

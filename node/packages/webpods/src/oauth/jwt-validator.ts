@@ -63,7 +63,11 @@ export async function verifyHydraToken(
       },
       (err, decoded) => {
         if (err) {
-          logger.debug("Token verification failed", { error: err.message });
+          logger.error("Token verification failed", { 
+            error: err.message,
+            name: err.name,
+            issuer: getHydraPublicUrl() + "/",
+          });
 
           if (err.name === "TokenExpiredError") {
             resolve({
@@ -116,11 +120,19 @@ export function isHydraToken(token: string): boolean {
   try {
     // Decode without verification to check issuer
     const decoded = jwt.decode(token, { complete: true }) as any;
-    if (!decoded) return false;
+    if (!decoded) {
+      return false;
+    }
 
     // Check if issuer is Hydra
     const hydraUrl = getHydraPublicUrl();
-    return decoded.payload?.iss?.startsWith(hydraUrl);
+    const iss = decoded.payload?.iss;
+    
+    // The token issuer is "http://localhost:4444/" but hydraUrl is "http://localhost:4444"
+    // We need to check both with and without trailing slash
+    const isHydra = iss?.startsWith(hydraUrl);
+    
+    return isHydra;
   } catch {
     return false;
   }

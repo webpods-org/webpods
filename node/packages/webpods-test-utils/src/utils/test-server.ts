@@ -26,7 +26,7 @@ export class TestServer {
 
   constructor(config: TestServerConfig = {}) {
     this.config = {
-      port: config.port || 3099,
+      port: config.port || 3000,
       dbName: config.dbName || "webpodsdb_test",
       logger: config.logger,
       useMockOAuth: config.useMockOAuth !== false, // Default to true for tests

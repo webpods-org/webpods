@@ -7,7 +7,7 @@ import { testDb } from "../test-setup.js";
 describe("WebPods Authentication", () => {
   let client: TestHttpClient;
   const testPodId = "auth-test";
-  const baseUrl = `http://${testPodId}.localhost:3099`;
+  const baseUrl = `http://${testPodId}.localhost:3000`;
 
   // Helper to create a test JWT token
   function createTestToken(
@@ -35,14 +35,14 @@ describe("WebPods Authentication", () => {
   }
 
   beforeEach(() => {
-    client = new TestHttpClient("http://localhost:3099");
+    client = new TestHttpClient("http://localhost:3000");
     client.setBaseUrl(baseUrl);
   });
 
   describe("OAuth Endpoints", () => {
     it("should redirect to provider 2 OAuth (mock)", async () => {
       // Auth endpoints are on the main domain, not pod subdomains
-      client.setBaseUrl("http://localhost:3099");
+      client.setBaseUrl("http://localhost:3000");
       const response = await client.get("/auth/testprovider2", {
         followRedirect: false,
       });
@@ -55,7 +55,7 @@ describe("WebPods Authentication", () => {
     });
 
     it("should redirect to provider 1 OAuth (mock)", async () => {
-      client.setBaseUrl("http://localhost:3099");
+      client.setBaseUrl("http://localhost:3000");
       const response = await client.get("/auth/testprovider1", {
         followRedirect: false,
       });
@@ -68,14 +68,14 @@ describe("WebPods Authentication", () => {
     });
 
     it("should reject invalid OAuth provider", async () => {
-      client.setBaseUrl("http://localhost:3099");
+      client.setBaseUrl("http://localhost:3000");
       const response = await client.get("/auth/invalid-provider");
 
       expect(response.status).to.equal(400);
     });
 
     it("should handle OAuth callback", async () => {
-      client.setBaseUrl("http://localhost:3099");
+      client.setBaseUrl("http://localhost:3000");
       const response = await client.get(
         "/auth/testprovider2/callback?code=test-code&state=test-state",
       );
@@ -314,7 +314,7 @@ describe("WebPods Authentication", () => {
   describe("Auth Success Page", () => {
     beforeEach(() => {
       // Auth endpoints are on main domain, not pod subdomains
-      client.setBaseUrl("http://localhost:3099");
+      client.setBaseUrl("http://localhost:3000");
     });
 
     it("should display token on success page", async () => {
@@ -377,7 +377,7 @@ describe("WebPods Authentication", () => {
 
     beforeEach(async () => {
       // Auth endpoints are on main domain
-      client.setBaseUrl("http://localhost:3099");
+      client.setBaseUrl("http://localhost:3000");
       // Create a test user and token
       const db = testDb.getDb();
       const testUser = await createTestUser(db, {
@@ -466,7 +466,7 @@ describe("WebPods Authentication", () => {
         "Cross Pod User",
         "pod-one",
       );
-      client.setBaseUrl(`http://pod-one.localhost:3099`);
+      client.setBaseUrl(`http://pod-one.localhost:3000`);
       client.setAuthToken(token1);
 
       const response1 = await client.post(
@@ -482,7 +482,7 @@ describe("WebPods Authentication", () => {
         "Cross Pod User",
         "pod-two",
       );
-      client.setBaseUrl(`http://pod-two.localhost:3099`);
+      client.setBaseUrl(`http://pod-two.localhost:3000`);
       client.setAuthToken(token2);
 
       const response2 = await client.post(

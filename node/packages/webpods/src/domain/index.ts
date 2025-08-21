@@ -1,5 +1,5 @@
 // Export all domain modules
-export * from "./auth.js";
+export * from "./users.js";
 export * from "./permissions.js";
 export * from "./pods.js";
 export * from "./streams.js";

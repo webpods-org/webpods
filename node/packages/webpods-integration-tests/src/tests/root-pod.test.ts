@@ -6,9 +6,9 @@ import { testDb } from "../test-setup.js";
 describe("WebPods Root Pod", () => {
   let client: TestHttpClient;
   let userId: string;
-  const mainUrl = "http://localhost:3099";
+  const mainUrl = "http://localhost:3000";
   const rootPodId = "testroot"; // Must match test-config.json
-  const rootPodUrl = `http://${rootPodId}.localhost:3099`;
+  const rootPodUrl = `http://${rootPodId}.localhost:3000`;
 
   // Helper to create the root pod with initial content
   async function setupRootPod() {
@@ -222,7 +222,7 @@ describe("WebPods Root Pod", () => {
       await setupRootPod();
 
       // Create another pod
-      const alicePodUrl = "http://alice.localhost:3099";
+      const alicePodUrl = "http://alice.localhost:3000";
       client.setBaseUrl(alicePodUrl);
 
       // Use a pod-specific token for alice pod

@@ -2,9 +2,10 @@
  * Session management routes
  */
 
-import { Router, Request, Response } from "express";
+import { Router, Request as ExpressRequest, Response } from "express";
+import type { AuthRequest } from "../types.js";
 import { createLogger } from "../logger.js";
-import { authenticate } from "../middleware/auth.js";
+import { authenticateHybrid as authenticate } from "../middleware/hybrid-auth.js";
 import {
   getUserSessions,
   revokeSession,
@@ -18,7 +19,7 @@ const router = Router();
  * Get current session info
  * GET /auth/session
  */
-router.get("/session", (req: Request, res: Response) => {
+router.get("/session", (req: ExpressRequest, res: Response) => {
   const session = (req as any).session;
 
   if (!session || !session.user) {
@@ -48,7 +49,7 @@ router.get("/session", (req: Request, res: Response) => {
  * List all active sessions for the authenticated user
  * GET /auth/sessions
  */
-router.get("/sessions", authenticate, async (req: Request, res: Response) => {
+router.get("/sessions", authenticate, async (req: AuthRequest, res: Response) => {
   if (!req.auth) {
     res.status(401).json({
       error: {
@@ -87,7 +88,7 @@ router.get("/sessions", authenticate, async (req: Request, res: Response) => {
 router.delete(
   "/sessions/:sessionId",
   authenticate,
-  async (req: Request, res: Response) => {
+  async (req: AuthRequest, res: Response) => {
     if (!req.auth) {
       res.status(401).json({
         error: {
@@ -167,7 +168,7 @@ router.delete(
 router.delete(
   "/sessions",
   authenticate,
-  async (req: Request, res: Response) => {
+  async (req: AuthRequest, res: Response) => {
     if (!req.auth) {
       res.status(401).json({
         error: {
@@ -207,7 +208,7 @@ router.delete(
  * Logout current session
  * POST /auth/logout
  */
-router.post("/logout", (req: Request, res: Response) => {
+router.post("/logout", (req: ExpressRequest, res: Response) => {
   const session = (req as any).session;
 
   if (!session) {
@@ -246,7 +247,7 @@ router.post("/logout", (req: Request, res: Response) => {
  * Logout current session (GET for browser convenience)
  * GET /auth/logout
  */
-router.get("/logout", (req: Request, res: Response) => {
+router.get("/logout", (req: ExpressRequest, res: Response) => {
   const session = (req as any).session;
   const redirect = (req.query.redirect as string) || "/";
 

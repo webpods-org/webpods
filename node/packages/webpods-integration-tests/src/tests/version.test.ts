@@ -9,7 +9,7 @@ describe("Version", () => {
   let client: TestHttpClient;
 
   beforeEach(() => {
-    client = new TestHttpClient("http://localhost:3099");
+    client = new TestHttpClient("http://localhost:3000");
   });
 
   it("should return correct version in health endpoint", async () => {

@@ -13,8 +13,8 @@ describe("WebPods Root Pod Main Domain", () => {
   let rootClient: TestHttpClient;
   let authToken: string;
   const rootPodId = "testroot";
-  const mainUrl = "http://localhost:3099";
-  const rootPodUrl = `http://${rootPodId}.localhost:3099`;
+  const mainUrl = "http://localhost:3000";
+  const rootPodUrl = `http://${rootPodId}.localhost:3000`;
 
   beforeEach(async () => {
     // Create test user
@@ -221,7 +221,7 @@ describe("WebPods Root Pod Main Domain", () => {
   describe("Subdomain isolation with rootPod", () => {
     it("should keep subdomains separate from main domain", async () => {
       // Create content in a different pod
-      const aliceClient = new TestHttpClient("http://alice.localhost:3099");
+      const aliceClient = new TestHttpClient("http://alice.localhost:3000");
       const db = testDb.getDb();
       const user = await createTestUser(db, {
         provider: "testprovider1",

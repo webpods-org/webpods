@@ -7,8 +7,8 @@ describe("WebPods Health Checks", () => {
   let client: TestHttpClient;
 
   beforeEach(() => {
-    client = new TestHttpClient("http://localhost:3099");
-    client.setBaseUrl("http://localhost:3099");
+    client = new TestHttpClient("http://localhost:3000");
+    client.setBaseUrl("http://localhost:3000");
   });
 
   it("should return healthy status", async () => {
@@ -21,7 +21,7 @@ describe("WebPods Health Checks", () => {
 
   it("should verify wildcard subdomain routing works", async () => {
     const uniquePodId = `health-check-${Date.now()}`;
-    client.setBaseUrl(`http://${uniquePodId}.localhost:3099`);
+    client.setBaseUrl(`http://${uniquePodId}.localhost:3000`);
 
     // Create a test user and authenticate
     const db = testDb.getDb();

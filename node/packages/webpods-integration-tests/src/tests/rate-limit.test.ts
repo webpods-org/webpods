@@ -10,11 +10,11 @@ describe("WebPods Rate Limiting", () => {
   let authToken: string;
   let testUser: any; // Store user for token generation
   const testPodId = "rate-test";
-  const baseUrl = `http://${testPodId}.localhost:3099`;
+  const baseUrl = `http://${testPodId}.localhost:3000`;
 
   beforeEach(async () => {
     // Create a new client instance for each test
-    client = new TestHttpClient("http://localhost:3099");
+    client = new TestHttpClient("http://localhost:3000");
     const db = testDb.getDb();
     const user = await createTestUser(db, {
       provider: "testprovider2",
@@ -63,7 +63,7 @@ describe("WebPods Rate Limiting", () => {
 
     it("should track pod creation rate limits separately", async () => {
       // Create multiple pods with proper tokens for each
-      client.setBaseUrl(`http://pod-limit-1.localhost:3099`);
+      client.setBaseUrl(`http://pod-limit-1.localhost:3000`);
       const token1 = client.generatePodToken(
         {
           user_id: testUser.userId,
@@ -75,7 +75,7 @@ describe("WebPods Rate Limiting", () => {
       client.setAuthToken(token1);
       await client.post("/init/pod1", "Pod 1");
 
-      client.setBaseUrl(`http://pod-limit-2.localhost:3099`);
+      client.setBaseUrl(`http://pod-limit-2.localhost:3000`);
       const token2 = client.generatePodToken(
         {
           user_id: testUser.userId,
@@ -467,7 +467,7 @@ describe("WebPods Rate Limiting", () => {
       expect(writeResponse.status).to.equal(201);
 
       // Can create one more pod
-      client.setBaseUrl(`http://pod-limit-final.localhost:3099`);
+      client.setBaseUrl(`http://pod-limit-final.localhost:3000`);
       const finalToken = client.generatePodToken(
         {
           user_id: uniqueUser.userId,
@@ -489,7 +489,7 @@ describe("WebPods Rate Limiting", () => {
       expect(podResponse.status).to.equal(201);
 
       // But creating another pod would exceed limit
-      client.setBaseUrl(`http://pod-limit-exceed.localhost:3099`);
+      client.setBaseUrl(`http://pod-limit-exceed.localhost:3000`);
       const exceedToken = client.generatePodToken(
         {
           user_id: uniqueUser.userId,

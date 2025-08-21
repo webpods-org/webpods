@@ -11,10 +11,10 @@ describe("WebPods Permissions", () => {
   let user2Id: string;
   let user2Token: string;
   const testPodId = "perm-test";
-  const baseUrl = `http://${testPodId}.localhost:3099`;
+  const baseUrl = `http://${testPodId}.localhost:3000`;
 
   beforeEach(async () => {
-    client = new TestHttpClient("http://localhost:3099");
+    client = new TestHttpClient("http://localhost:3000");
     const db = testDb.getDb();
 
     // Create two test users

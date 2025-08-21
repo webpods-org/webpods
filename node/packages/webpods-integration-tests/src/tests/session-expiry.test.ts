@@ -11,17 +11,19 @@ describe("Session Expiry and Cleanup", () => {
 
   // Helper functions for cleanup (these would normally be in the server)
   async function cleanupExpiredSessions(): Promise<number> {
-    const deleted = await db("session")
-      .where("expire", "<", new Date())
-      .delete();
-    return deleted;
+    const result = await db.result(
+      `DELETE FROM session WHERE expire < $(now)`,
+      { now: new Date() }
+    );
+    return result.rowCount;
   }
 
   async function cleanupExpiredStates(): Promise<number> {
-    const deleted = await db("oauth_state")
-      .where("expires_at", "<", new Date())
-      .delete();
-    return deleted;
+    const result = await db.result(
+      `DELETE FROM oauth_state WHERE expires_at < $(now)`,
+      { now: new Date() }
+    );
+    return result.rowCount;
   }
 
   before(() => {
@@ -29,8 +31,8 @@ describe("Session Expiry and Cleanup", () => {
   });
 
   beforeEach(async () => {
-    await db.raw('TRUNCATE TABLE "session" CASCADE');
-    await db.raw('TRUNCATE TABLE "oauth_state" CASCADE');
+    await db.none('TRUNCATE TABLE "session" CASCADE');
+    await db.none('TRUNCATE TABLE "oauth_state" CASCADE');
   });
 
   describe("Session Expiry", () => {
@@ -40,23 +42,30 @@ describe("Session Expiry and Cleanup", () => {
       const future = new Date(now.getTime() + 3600000); // 1 hour from now
 
       // Insert expired session
-      await db("session").insert({
-        sid: "expired-session",
-        sess: { user: { id: "user1" } },
-        expire: expired,
-      });
+      await db.none(
+        `INSERT INTO session (sid, sess, expire) VALUES ($(sid), $(sess), $(expire))`,
+        {
+          sid: "expired-session",
+          sess: JSON.stringify({ user: { id: "user1" } }),
+          expire: expired,
+        }
+      );
 
       // Insert valid session
-      await db("session").insert({
-        sid: "valid-session",
-        sess: { user: { id: "user2" } },
-        expire: future,
-      });
+      await db.none(
+        `INSERT INTO session (sid, sess, expire) VALUES ($(sid), $(sess), $(expire))`,
+        {
+          sid: "valid-session",
+          sess: JSON.stringify({ user: { id: "user2" } }),
+          expire: future,
+        }
+      );
 
       // Check expired sessions
-      const expiredSessions = await db("session")
-        .where("expire", "<", now)
-        .select("*");
+      const expiredSessions = await db.manyOrNone(
+        `SELECT * FROM session WHERE expire < $(now)`,
+        { now }
+      );
 
       expect(expiredSessions).to.have.lengthOf(1);
       expect(expiredSessions[0].sid).to.equal("expired-session");

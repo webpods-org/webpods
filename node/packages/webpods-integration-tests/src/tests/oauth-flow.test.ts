@@ -3,7 +3,7 @@
  */
 
 import { expect } from "chai";
-import { TestHttpClient, createTestUser } from "webpods-test-utils";
+import { TestHttpClient, createTestUser, createTestPod } from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 
 describe("OAuth Flow Integration", () => {
@@ -11,7 +11,7 @@ describe("OAuth Flow Integration", () => {
   let userId: string;
 
   beforeEach(async () => {
-    client = new TestHttpClient("http://localhost:3099");
+    client = new TestHttpClient("http://localhost:3000");
 
     // Create a test user in the database
     const user = await createTestUser(testDb.getDb(), {
@@ -24,24 +24,30 @@ describe("OAuth Flow Integration", () => {
 
   describe("OAuth Authentication Flow", () => {
     it("should authenticate via OAuth and access protected endpoints", async () => {
-      // Create a pod by making an HTTP request with a regular WebPods token first
+      // Create a pod directly in the database
       const podId = "oauthtest";
-
-      // Use the existing WebPods JWT for pod creation
-      const setupToken = TestHttpClient.generateToken({ user_id: userId });
-      client.setAuthToken(setupToken);
-
-      const podRes = await client.post("/pods", { pod_id: podId });
-      expect(podRes.status).to.equal(201);
+      await createTestPod(testDb.getDb(), podId, userId);
 
       // Authenticate via OAuth flow
       const token = await client.authenticateViaOAuth(userId, [podId]);
 
       expect(token).to.be.a("string");
       expect(token.length).to.be.greaterThan(0);
+      
+      // Debug: Check token contents
+      const parts = token.split('.');
+      if (parts.length === 3) {
+        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+        // Verify token has correct structure
+        expect(payload).to.have.property('iss');
+        expect(payload).to.have.property('aud');
+        expect(payload).to.have.property('ext');
+        expect(payload.ext).to.have.property('pods');
+        expect(payload.ext.pods).to.include(podId);
+      }
 
       // Now use the OAuth token to access the pod
-      const podClient = new TestHttpClient(`http://${podId}.localhost:3099`);
+      const podClient = new TestHttpClient(`http://${podId}.localhost:3000`);
       podClient.setAuthToken(token);
 
       // Should be able to write to the pod
@@ -49,6 +55,11 @@ describe("OAuth Flow Integration", () => {
         content: "OAuth test content",
         name: "oauth-test.txt",
       });
+
+      if (writeRes.status !== 201) {
+        console.log("Write failed with status:", writeRes.status);
+        console.log("Response data:", writeRes.data);
+      }
 
       expect(writeRes.status).to.equal(201);
       expect(writeRes.data).to.have.property("index", 0);
@@ -63,21 +74,15 @@ describe("OAuth Flow Integration", () => {
     });
 
     it("should deny access to pods not in token scope", async () => {
-      // Create two pods using HTTP requests
-      const setupToken = TestHttpClient.generateToken({ user_id: userId });
-      client.setAuthToken(setupToken);
-
-      const allowedPodRes = await client.post("/pods", { pod_id: "allowed" });
-      expect(allowedPodRes.status).to.equal(201);
-
-      const deniedPodRes = await client.post("/pods", { pod_id: "denied" });
-      expect(deniedPodRes.status).to.equal(201);
+      // Create two pods directly in the database
+      await createTestPod(testDb.getDb(), "allowed", userId);
+      await createTestPod(testDb.getDb(), "denied", userId);
 
       // Authenticate with access to only "allowed" pod
       const token = await client.authenticateViaOAuth(userId, ["allowed"]);
 
       // Should access "allowed" pod
-      const allowedClient = new TestHttpClient("http://allowed.localhost:3099");
+      const allowedClient = new TestHttpClient("http://allowed.localhost:3000");
       allowedClient.setAuthToken(token);
 
       const allowedRes = await allowedClient.post("/oauth-test", {
@@ -87,7 +92,7 @@ describe("OAuth Flow Integration", () => {
       expect(allowedRes.status).to.equal(201);
 
       // Should NOT access "denied" pod
-      const deniedClient = new TestHttpClient("http://denied.localhost:3099");
+      const deniedClient = new TestHttpClient("http://denied.localhost:3000");
       deniedClient.setAuthToken(token);
 
       const deniedRes = await deniedClient.post("/oauth-test", {
@@ -107,7 +112,7 @@ describe("OAuth Flow Integration", () => {
 
       // Should be able to access main domain endpoints
       client.setAuthToken(token);
-      const res = await client.get("/whoami");
+      const res = await client.get("/auth/whoami");
 
       // This might fail if whoami requires WebPods auth
       // but demonstrates the OAuth flow works
@@ -120,8 +125,8 @@ describe("OAuth Flow Integration", () => {
       // Try OAuth flow without PKCE (should fail in production)
       // Note: Our test helper uses PKCE, so this is more of a conceptual test
 
-      const clientId = "http://localhost:3099/test-client";
-      const redirectUri = "http://localhost:3099/callback";
+      const clientId = "http://localhost:3000/test-client";
+      const redirectUri = "http://localhost:3000/callback";
 
       // Try to start OAuth flow without code_challenge
       const authUrl =

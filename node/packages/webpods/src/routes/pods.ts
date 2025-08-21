@@ -2,9 +2,10 @@
  * Pod and stream routes
  */
 
-import { Router, Request, Response, NextFunction } from "express";
+import { Router, Request as ExpressRequest, Response, NextFunction } from "express";
+import type { AuthRequest } from "../types.js";
 import { z } from "zod";
-import { authenticate, optionalAuth } from "../middleware/auth.js";
+import { authenticateHybrid as authenticate, optionalAuthHybrid as optionalAuth } from "../middleware/hybrid-auth.js";
 import { extractPod } from "../middleware/pod.js";
 import { rateLimit } from "../middleware/ratelimit.js";
 import { getDb } from "../db.js";
@@ -68,7 +69,7 @@ const domainsSchema = z.object({
  * Pod-specific login endpoint
  * GET {pod}.webpods.org/login
  */
-router.get("/login", extractPod, (req: Request, res: Response) => {
+router.get("/login", extractPod, (req: ExpressRequest, res: Response) => {
   if (!req.pod_id) {
     res.status(400).json({
       error: {
@@ -95,7 +96,7 @@ router.get("/login", extractPod, (req: Request, res: Response) => {
  * Pod-specific auth callback
  * GET {pod}.webpods.org/auth/callback
  */
-router.get("/auth/callback", extractPod, (req: Request, res: Response) => {
+router.get("/auth/callback", extractPod, (req: ExpressRequest, res: Response) => {
   const token = req.query.token as string;
   const redirect = (req.query.redirect as string) || "/";
 
@@ -142,7 +143,7 @@ router.get("/auth/callback", extractPod, (req: Request, res: Response) => {
 router.get(
   "/.meta/streams",
   extractPod,
-  async (req: Request, res: Response) => {
+  async (req: AuthRequest, res: Response) => {
     if (!req.pod || !req.pod_id) {
       res.status(404).json({
         error: {
@@ -179,7 +180,7 @@ router.delete(
   extractPod,
   authenticate,
   rateLimit("pod_create"),
-  async (req: Request, res: Response) => {
+  async (req: AuthRequest, res: Response) => {
     if (!req.pod_id || !req.auth) {
       res.status(404).json({
         error: {
@@ -215,7 +216,7 @@ router.post(
   "/.meta/owner",
   extractPod,
   authenticate,
-  async (req: Request, res: Response) => {
+  async (req: AuthRequest, res: Response) => {
     if (!req.pod_id || !req.auth) {
       res.status(404).json({
         error: {
@@ -271,7 +272,7 @@ router.post(
   "/.meta/links",
   extractPod,
   authenticate,
-  async (req: Request, res: Response) => {
+  async (req: AuthRequest, res: Response) => {
     if (!req.pod_id || !req.auth) {
       res.status(404).json({
         error: {
@@ -339,7 +340,7 @@ router.post(
   "/.meta/domains",
   extractPod,
   authenticate,
-  async (req: Request, res: Response) => {
+  async (req: AuthRequest, res: Response) => {
     if (!req.pod_id || !req.auth) {
       res.status(404).json({
         error: {
@@ -413,7 +414,7 @@ router.post(
   extractPod,
   authenticate,
   rateLimit("write"),
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
     // If no pod_id was extracted, this is the main domain - skip to next handler
     if (!req.pod_id) {
       return next();
@@ -583,7 +584,7 @@ router.post(
 
         // Ensure user exists in database before creating pod
         // This handles cases where JWT is valid but user was deleted (e.g., in tests)
-        const { ensureUserExists } = await import("../domain/auth.js");
+        const { ensureUserExists } = await import("../domain/users.js");
         const userResult = await ensureUserExists(
           db,
           req.auth.user_id,
@@ -721,7 +722,7 @@ router.get(
   "/",
   extractPod,
   optionalAuth,
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
     // If no pod_id was extracted, this is the main domain - skip to next handler
     if (!req.pod_id) {
       return next();
@@ -808,7 +809,7 @@ router.get(
   extractPod,
   optionalAuth,
   rateLimit("read"),
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
     // If no pod_id was extracted, this is the main domain - skip to next handler
     if (!req.pod_id) {
       return next();
@@ -1176,7 +1177,7 @@ router.delete(
   "/*",
   extractPod,
   authenticate,
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
     // If no pod_id was extracted, this is the main domain - skip to next handler
     if (!req.pod_id) {
       return next();

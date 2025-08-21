@@ -10,7 +10,7 @@ describe("Hydra OAuth Integration", () => {
   let client: TestHttpClient;
 
   beforeEach(async () => {
-    client = new TestHttpClient("http://localhost:3099");
+    client = new TestHttpClient("http://localhost:3000");
   });
 
   describe("OAuth Client Registration", () => {

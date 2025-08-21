@@ -3,8 +3,7 @@
  */
 
 import { Request, Response, NextFunction } from "express";
-import { verifyToken } from "../domain/auth.js";
-import { verifyHydraToken, isHydraToken } from "../oauth/jwt-validator.js";
+import { verifyHydraToken } from "../oauth/jwt-validator.js";
 import { HydraAuth, AuthRequest } from "../types.js";
 import { createLogger } from "../logger.js";
 import { getIpAddress } from "../utils.js";
@@ -62,78 +61,74 @@ export async function authenticateHybrid(
 
     req.ip_address = getIpAddress(req);
 
-    // Check if it's a Hydra token
-    if (isHydraToken(token)) {
-      logger.debug("Detected Hydra token");
+    // Only support Hydra tokens now
+    logger.debug("Attempting to verify token", { 
+      tokenPrefix: token.substring(0, 50),
+      pod: currentPod,
+    });
+    const hydraResult = await verifyHydraToken(token);
 
-      const hydraResult = await verifyHydraToken(token);
-
-      if (!hydraResult.success) {
-        logger.warn("Invalid Hydra token", { error: hydraResult.error });
-        res.status(401).json({ error: hydraResult.error });
-        return;
-      }
-
-      const payload = hydraResult.data;
-
-      // Check pod permissions if on a pod subdomain
-      if (currentPod) {
-        const allowedPods = payload.ext?.pods || [];
-        if (!allowedPods.includes(currentPod)) {
-          logger.warn("Hydra token not authorized for pod", {
-            currentPod,
-            allowedPods,
-          });
-          res.status(403).json({
-            error: {
-              code: "POD_FORBIDDEN",
-              message: `Token not authorized for pod '${currentPod}'`,
-            },
-          });
-          return;
-        }
-      }
-
-      // Pod-level access means both read and write are allowed
-      // No need to check for specific permissions
-
-      // Attach Hydra auth info
-      req.auth = {
-        user_id: payload.sub,
-        client_id: payload.client_id,
-        pods: payload.ext?.pods,
-        scope: payload.scope,
-      } as HydraAuth;
-      req.auth_type = "hydra";
-
-      logger.debug("Hydra token authenticated", {
-        userId: payload.sub,
-        clientId: payload.client_id,
-        pods: payload.ext?.pods,
-      });
-    } else {
-      // WebPods token
-      logger.debug("Detected WebPods token");
-
-      const result = verifyToken(token, currentPod);
-
-      if (!result.success) {
-        logger.warn("Invalid WebPods token", {
-          error: result.error,
-          pod: currentPod,
-        });
-        res.status(401).json({ error: result.error });
-        return;
-      }
-
-      req.auth = result.data;
-      req.auth_type = "webpods";
-
-      logger.debug("WebPods token authenticated", {
-        userId: result.data.user_id,
-        ip: req.ip_address,
-      });
+    if (!hydraResult.success) {
+      logger.warn("Invalid token", { error: hydraResult.error });
+      res.status(401).json({ error: hydraResult.error });
+      return;
     }
+
+    const payload = hydraResult.data;
+
+    // Check pod permissions if on a pod subdomain
+    if (currentPod) {
+      // Check both audience and ext.pods claims
+      const allowedPods = payload.ext?.pods || [];
+      const audience = payload.aud || [];
+      
+      // For testing/development, accept both localhost and webpods.com audiences
+      const possibleAudiences = [
+        `https://${currentPod}.webpods.com`,
+        `http://${currentPod}.localhost:3000`,
+        `http://${currentPod}.localhost`,
+      ];
+      
+      // Token is valid if either:
+      // 1. The pod is in the ext.pods claim, OR
+      // 2. Any of the expected audiences is in the aud claim
+      const isAuthorized = allowedPods.includes(currentPod) || 
+                          audience.some(aud => possibleAudiences.includes(aud));
+      
+      if (!isAuthorized) {
+        logger.warn("Hydra token not authorized for pod", {
+          currentPod,
+          allowedPods,
+          audience,
+          possibleAudiences,
+        });
+        res.status(403).json({
+          error: {
+            code: "POD_FORBIDDEN",
+            message: `Token not authorized for pod '${currentPod}'`,
+          },
+        });
+        return;
+      }
+    }
+
+    // Pod-level access means both read and write are allowed
+    // No need to check for specific permissions
+
+    // Attach Hydra auth info
+    req.auth = {
+      user_id: payload.sub,
+      client_id: payload.client_id,
+      pods: payload.ext?.pods,
+      scope: payload.scope,
+    } as HydraAuth;
+    req.auth_type = "hydra";
+
+    logger.debug("Hydra token authenticated", {
+      userId: payload.sub,
+      clientId: payload.client_id,
+      pods: payload.ext?.pods,
+    });
 
     next();
   } catch (error) {
@@ -164,26 +159,17 @@ export async function optionalAuthHybrid(
       return;
     }
 
-    // Try Hydra first
-    if (isHydraToken(token)) {
-      const hydraResult = await verifyHydraToken(token);
-      if (hydraResult.success) {
-        const payload = hydraResult.data;
-        req.auth = {
-          user_id: payload.sub,
-          client_id: payload.client_id,
-          pods: payload.ext?.pods,
-          scope: payload.scope,
-        } as HydraAuth;
-        req.auth_type = "hydra";
-      }
-    } else {
-      // Try WebPods token
-      const result = verifyToken(token);
-      if (result.success) {
-        req.auth = result.data;
-        req.auth_type = "webpods";
-      }
+    // Only support Hydra tokens
+    const hydraResult = await verifyHydraToken(token);
+    if (hydraResult.success) {
+      const payload = hydraResult.data;
+      req.auth = {
+        user_id: payload.sub,
+        client_id: payload.client_id,
+        pods: payload.ext?.pods,
+        scope: payload.scope,
+      } as HydraAuth;
+      req.auth_type = "hydra";
     }
 
     next();

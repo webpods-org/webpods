@@ -8,10 +8,10 @@ describe("WebPods Stream Operations", () => {
   let userId: string;
   let authToken: string;
   const testPodId = "test-pod";
-  const baseUrl = `http://${testPodId}.localhost:3099`;
+  const baseUrl = `http://${testPodId}.localhost:3000`;
 
   beforeEach(async () => {
-    client = new TestHttpClient("http://localhost:3099");
+    client = new TestHttpClient("http://localhost:3000");
     // Create a test user and auth token
     const db = testDb.getDb();
     const user = await createTestUser(db, {

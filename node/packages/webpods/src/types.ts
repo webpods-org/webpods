@@ -24,6 +24,9 @@ export function failure(error: DomainError): Result<never> {
 // Database entities
 export interface User {
   id: string;
+  email?: string | null;
+  name?: string | null;
+  avatar_url?: string | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -132,6 +135,17 @@ export interface WhoAmIResponse {
   provider: string;
 }
 
+// OAuth Provider type
+export interface OAuthProvider {
+  provider: string;
+  clientId: string;
+  clientSecret: string;
+  authorizationURL?: string;
+  tokenURL?: string;
+  userInfoURL?: string;
+  scope?: string;
+}
+
 // Permission types
 export type Permission = "public" | "private" | string; // Can be /allow-list or ~/deny-list
 
@@ -167,6 +181,8 @@ export interface JWTPayload {
 // Hydra OAuth token payload
 export interface HydraAuth {
   user_id: string;
+  email?: string | null;
+  name?: string | null;
   client_id?: string;
   pods?: string[]; // List of pods with full access
   scope?: string;

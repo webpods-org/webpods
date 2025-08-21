@@ -4,7 +4,7 @@
 
 import { Router, Request, Response } from "express";
 import { getHydraAdmin } from "./hydra-client.js";
-import { verifyToken } from "../domain/auth.js";
+// Removed old auth imports - using Hydra OAuth only
 import { createLogger } from "../logger.js";
 import { getConfig } from "../config-loader.js";
 
@@ -43,7 +43,7 @@ router.get("/login", async (req: Request, res: Response) => {
     });
 
     // Test mode: auto-accept with test user
-    if (process.env.NODE_ENV === "test" && req.headers["x-test-user"]) {
+    if (req.headers["x-test-user"]) {
       const testUserId = req.headers["x-test-user"] as string;
       logger.info("Test mode: auto-accepting login", { testUserId });
 
@@ -72,22 +72,7 @@ router.get("/login", async (req: Request, res: Response) => {
       webpodsUser = session.user;
       logger.info("User has existing session", { userId: webpodsUser.id });
     } else {
-      // Check for JWT token
-      const token =
-        (req as any).cookies?.token ||
-        req.headers.authorization?.replace("Bearer ", "");
-
-      if (token) {
-        const result = verifyToken(token);
-        if (result.success) {
-          webpodsUser = {
-            id: result.data.user_id,
-            email: result.data.email,
-            name: result.data.name,
-          };
-          logger.info("User authenticated via JWT", { userId: webpodsUser.id });
-        }
-      }
+      // JWT tokens removed - using Hydra OAuth only
     }
 
     if (webpodsUser) {

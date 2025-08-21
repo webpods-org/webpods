@@ -13,7 +13,7 @@ describe("SSO Cookie Management", () => {
   const jwtSecret = "test-secret-key"; // Must match test-config.json
 
   beforeEach(async () => {
-    client = new TestHttpClient("http://localhost:3099");
+    client = new TestHttpClient("http://localhost:3000");
 
     // Clear cookies and test data
     client.clearCookies();

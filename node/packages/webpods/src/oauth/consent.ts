@@ -11,14 +11,39 @@ const logger = createLogger("webpods:oauth:consent");
 const router = Router();
 
 /**
- * Parse pod scopes from requested scopes
- * Simplified: just pod:alice format (no read/write split)
+ * Parse pods from consent request
+ * Supports both legacy pod:alice scopes and new pods parameter
+ * The state parameter from OAuth request is preserved through the flow
  */
-function parsePodScopes(scopes: string[]): Set<string> {
+function parseRequestedPods(
+  _req: Request,
+  consentRequest: any,
+  scopes: string[],
+): Set<string> {
   const pods = new Set<string>();
 
+  // Check state from original OAuth request (preserved through the flow)
+  // Try to get state from various possible locations
+  const possibleState = (consentRequest as any).state || 
+                       (consentRequest as any).request_url?.includes('state=') ? 
+                       new URL((consentRequest as any).request_url, 'http://example.com').searchParams.get('state') : 
+                       null;
+  
+  if (possibleState) {
+    try {
+      const stateData = JSON.parse(Buffer.from(possibleState, 'base64').toString());
+      if (stateData.pods && Array.isArray(stateData.pods)) {
+        stateData.pods.forEach((pod: string) => {
+          if (pod) pods.add(pod);
+        });
+      }
+    } catch {
+      // Invalid state format, ignore
+    }
+  }
+
+  // Legacy support: pod:alice format in scopes
   for (const scope of scopes) {
-    // Format: pod:alice (full pod access)
     if (scope.startsWith("pod:")) {
       const podId = scope.substring(4);
       if (podId) {
@@ -92,20 +117,32 @@ router.get("/consent", async (req: Request, res: Response) => {
       client: consentRequest.client?.client_id,
       subject: consentRequest.subject,
       requestedScope: consentRequest.requested_scope,
+      oidcContext: consentRequest.oidc_context,
     });
 
     // Test mode: auto-accept consent
-    if (process.env.NODE_ENV === "test" && req.headers["x-test-consent"]) {
-      logger.info("Test mode: auto-accepting consent");
+    if (req.headers["x-test-consent"]) {
+      logger.info("Test mode: auto-accepting consent", {
+        query: req.query,
+        requestedScope: consentRequest.requested_scope,
+        oidcContext: consentRequest.oidc_context,
+      });
 
       const pods = Array.from(
-        parsePodScopes(consentRequest.requested_scope || []),
+        parseRequestedPods(req, consentRequest, consentRequest.requested_scope || []),
       );
+      
+      logger.info("Parsed pods:", { pods, fullConsentRequest: JSON.stringify(consentRequest) });
+      
+      // Generate audience URLs for each pod
+      const audience = pods.map(pod => `https://${pod}.webpods.com`);
+      
       const { data: acceptResponse } =
         await hydraAdmin.acceptOAuth2ConsentRequest({
           consentChallenge,
           acceptOAuth2ConsentRequest: {
             grant_scope: consentRequest.requested_scope,
+            grant_access_token_audience: audience,
             session: {
               access_token: {
                 pods,
@@ -123,13 +160,18 @@ router.get("/consent", async (req: Request, res: Response) => {
     // Check if we should skip consent (user already granted)
     if (consentRequest.skip) {
       const pods = Array.from(
-        parsePodScopes(consentRequest.requested_scope || []),
+        parseRequestedPods(req, consentRequest, consentRequest.requested_scope || []),
       );
+      
+      // Generate audience URLs for each pod
+      const audience = pods.map(pod => `https://${pod}.webpods.com`);
+      
       const { data: acceptResponse } =
         await hydraAdmin.acceptOAuth2ConsentRequest({
           consentChallenge,
           acceptOAuth2ConsentRequest: {
             grant_scope: consentRequest.requested_scope,
+            grant_access_token_audience: audience,
             session: {
               access_token: {
                 pods,
@@ -148,7 +190,7 @@ router.get("/consent", async (req: Request, res: Response) => {
     }
 
     // Parse requested pod permissions
-    const requestedPods = parsePodScopes(consentRequest.requested_scope || []);
+    const requestedPods = parseRequestedPods(req, consentRequest, consentRequest.requested_scope || []);
 
     // Get pods owned by the user
     const ownedPods = await getUserOwnedPods(consentRequest.subject!);
@@ -349,7 +391,17 @@ router.post("/consent", async (req: Request, res: Response) => {
     if (action === "accept" && scopes) {
       // Parse approved scopes
       const approvedScopes = scopes.split(",").filter((s: string) => s);
-      const pods = Array.from(parsePodScopes(approvedScopes));
+      // For POST consent, we need to parse from the approved scopes, not consentRequest
+      const pods: string[] = [];
+      for (const scope of approvedScopes) {
+        if (scope.startsWith("pod:")) {
+          const podId = scope.substring(4);
+          if (podId) pods.push(podId);
+        }
+      }
+      
+      // Generate audience URLs for each pod
+      const audience = pods.map(pod => `https://${pod}.webpods.com`);
 
       // Accept consent
       const { data: acceptResponse } =
@@ -357,7 +409,7 @@ router.post("/consent", async (req: Request, res: Response) => {
           consentChallenge: challenge,
           acceptOAuth2ConsentRequest: {
             grant_scope: approvedScopes.concat(["openid", "offline"]),
-            grant_access_token_audience: req.body.audience?.split(" "),
+            grant_access_token_audience: audience,
             session: {
               access_token: {
                 pods,

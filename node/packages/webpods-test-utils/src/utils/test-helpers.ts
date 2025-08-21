@@ -59,3 +59,39 @@ export async function createTestUser(
     name,
   };
 }
+
+/**
+ * Create a test pod with owner in the database
+ */
+export async function createTestPod(
+  db: pgPromise.IDatabase<any>,
+  podId: string,
+  ownerId: string,
+): Promise<void> {
+  const podUuid = crypto.randomUUID();
+  const streamUuid = crypto.randomUUID();
+
+  // Create pod
+  await db.none(
+    `INSERT INTO pod (id, pod_id, created_at, updated_at) 
+     VALUES ($(podUuid), $(podId), NOW(), NOW())`,
+    { podUuid, podId },
+  );
+
+  // Create .meta/owner stream
+  await db.none(
+    `INSERT INTO stream (id, pod_id, stream_id, creator_id, access_permission, created_at, updated_at)
+     VALUES ($(streamUuid), $(podUuid), '.meta/owner', $(ownerId), 'private', NOW(), NOW())`,
+    { streamUuid, podUuid, ownerId },
+  );
+
+  // Add ownership record
+  const content = JSON.stringify({ owner: ownerId });
+  const hash = crypto.createHash("sha256").update(content).digest("hex");
+  
+  await db.none(
+    `INSERT INTO record (stream_id, index, content, content_type, name, hash, previous_hash, author_id, created_at)
+     VALUES ($(streamUuid), 0, $(content), 'application/json', 'owner', $(hash), NULL, $(ownerId), NOW())`,
+    { streamUuid, content, hash, ownerId },
+  );
+}

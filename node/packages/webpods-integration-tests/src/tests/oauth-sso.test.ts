@@ -13,7 +13,7 @@ describe("Full SSO OAuth Flow", () => {
 
   beforeEach(async () => {
     // Create new client for each test
-    client = new TestHttpClient("http://localhost:3099");
+    client = new TestHttpClient("http://localhost:3000");
 
     // Clear any existing sessions and state
     const db = testDb.getDb();

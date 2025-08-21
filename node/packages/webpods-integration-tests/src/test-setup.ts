@@ -7,7 +7,7 @@ export const testDb = new TestDatabase({
   logger: testLogger,
 });
 export const testServer = new TestServer({
-  port: 3099,
+  port: 3000,
   dbName: "webpodsdb_test",
   logger: testLogger,
 });
