@@ -1,48 +1,12 @@
 // Pod-specific authentication tests
 import { expect } from "chai";
-import jwt from "jsonwebtoken";
-import { TestHttpClient, createTestUser } from "webpods-test-utils";
+import { TestHttpClient, createTestUser, createTestPod } from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 
 describe("Pod-Specific Authentication with SSO", () => {
   let client: TestHttpClient;
   const pod1 = "alice";
   const pod2 = "bob";
-  const jwtSecret = "test-secret-key"; // Must match test-config.json
-
-  // Helper to create a test user and pod-specific token
-  function createPodToken(
-    userId: string,
-    pod: string,
-    email: string = "test@example.com",
-  ) {
-    return jwt.sign(
-      {
-        user_id: userId,
-        email,
-        name: "Test User",
-        pod, // Pod-specific claim
-      },
-      jwtSecret,
-      { expiresIn: "1h" },
-    );
-  }
-
-  // Helper to create a global token (no pod claim)
-  function createGlobalToken(
-    userId: string,
-    email: string = "test@example.com",
-  ) {
-    return jwt.sign(
-      {
-        user_id: userId,
-        email,
-        name: "Test User",
-      },
-      jwtSecret,
-      { expiresIn: "1h" },
-    );
-  }
 
   describe("Pod Login Flow", () => {
     beforeEach(() => {
@@ -78,7 +42,7 @@ describe("Pod-Specific Authentication with SSO", () => {
   describe("Pod Token Validation", () => {
     let user: any;
     let aliceToken: string;
-    let globalToken: string;
+    let bothPodsToken: string;
 
     beforeEach(async () => {
       client = new TestHttpClient("http://localhost:3000");
@@ -92,9 +56,13 @@ describe("Pod-Specific Authentication with SSO", () => {
         name: "Pod Test User",
       });
 
-      // Create tokens
-      aliceToken = createPodToken(user.userId, pod1);
-      globalToken = createGlobalToken(user.userId);
+      // Create pods
+      await createTestPod(db, pod1, user.userId);
+      await createTestPod(db, pod2, user.userId);
+
+      // Get OAuth tokens
+      aliceToken = await client.authenticateViaOAuth(user.userId, [pod1]);
+      bothPodsToken = await client.authenticateViaOAuth(user.userId, [pod1, pod2]);
     });
 
     it("should accept pod-specific token on correct pod", async () => {
@@ -113,6 +81,9 @@ describe("Pod-Specific Authentication with SSO", () => {
 
     it("should reject pod-specific token on wrong pod", async () => {
       client.setBaseUrl(`http://${pod2}.localhost:3000`);
+      
+      // Clear cookies to avoid authentication leakage
+      client.clearCookies();
 
       // Try to use alice's token on bob's pod
       const response = await client.post("/test-stream/test", "Test content", {
@@ -122,33 +93,35 @@ describe("Pod-Specific Authentication with SSO", () => {
         },
       });
 
-      expect(response.status).to.equal(401);
-      expect(response.data.error.code).to.equal("POD_MISMATCH");
+      expect(response.status).to.equal(403);
+      expect(response.data.error.code).to.equal("POD_FORBIDDEN");
     });
 
-    it("should reject global token on pod subdomains", async () => {
-      // Global tokens (without pod claim) should not work on pod subdomains
+    it("should reject token without pod scope on pod subdomains", async () => {
+      // Get a token without any pod scopes
+      const noPodToken = await client.authenticateViaOAuth(user.userId, []);
+      
       // Test on pod1
       client.setBaseUrl(`http://${pod1}.localhost:3000`);
       let response = await client.post("/stream1/content1", "Content 1", {
         headers: {
-          Authorization: `Bearer ${globalToken}`,
+          Authorization: `Bearer ${noPodToken}`,
           "Content-Type": "text/plain",
         },
       });
-      expect(response.status).to.equal(401);
-      expect(response.data.error.code).to.equal("POD_MISMATCH");
+      expect(response.status).to.equal(403);
+      expect(response.data.error.code).to.equal("POD_FORBIDDEN");
 
       // Test on pod2
       client.setBaseUrl(`http://${pod2}.localhost:3000`);
       response = await client.post("/stream2/content2", "Content 2", {
         headers: {
-          Authorization: `Bearer ${globalToken}`,
+          Authorization: `Bearer ${noPodToken}`,
           "Content-Type": "text/plain",
         },
       });
-      expect(response.status).to.equal(401);
-      expect(response.data.error.code).to.equal("POD_MISMATCH");
+      expect(response.status).to.equal(403);
+      expect(response.data.error.code).to.equal("POD_FORBIDDEN");
     });
   });
 
@@ -193,8 +166,11 @@ describe("Pod-Specific Authentication with SSO", () => {
         name: "Isolation Test User",
       });
 
-      // Create pod-specific tokens
-      aliceToken = createPodToken(user.userId, pod1);
+      // Create pod
+      await createTestPod(db, pod1, user.userId);
+
+      // Get OAuth token
+      aliceToken = await client.authenticateViaOAuth(user.userId, [pod1]);
     });
 
     it("should isolate data between pods", async () => {
@@ -234,7 +210,19 @@ describe("Pod-Specific Authentication with SSO", () => {
 
   describe("Auth Callback on Pods", () => {
     it("should handle auth callback with token", async () => {
-      const token = createPodToken("user123", pod1);
+      // Create a test user and pod
+      const db = testDb.getDb();
+      const user = await createTestUser(db, {
+        provider: "testprovider2",
+        providerId: "callback-test",
+        email: "callback@example.com",
+        name: "Callback Test User",
+      });
+      
+      await createTestPod(db, pod1, user.userId);
+      
+      // Get OAuth token
+      const token = await client.authenticateViaOAuth(user.userId, [pod1]);
       client.setBaseUrl(`http://${pod1}.localhost:3000`);
 
       const response = await client.get(
