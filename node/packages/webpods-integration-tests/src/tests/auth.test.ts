@@ -22,9 +22,9 @@ describe("WebPods Authentication", () => {
       });
 
       expect(response.status).to.be.oneOf([302, 303]);
-      // In test environment, we use mock OAuth provider
+      // In test environment, we use Hydra OAuth provider
       expect(response.headers.location).to.include(
-        "localhost:4567/oauth/authorize",
+        "localhost:4444/oauth2/auth",
       );
     });
 
@@ -35,9 +35,9 @@ describe("WebPods Authentication", () => {
       });
 
       expect(response.status).to.be.oneOf([302, 303]);
-      // In test environment, we use mock OAuth provider
+      // In test environment, we use Hydra OAuth provider
       expect(response.headers.location).to.include(
-        "localhost:4567/oauth/authorize",
+        "localhost:4444/oauth2/auth",
       );
     });
 

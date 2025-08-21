@@ -145,7 +145,9 @@ router.get("/consent", async (req: Request, res: Response) => {
             grant_access_token_audience: audience,
             session: {
               access_token: {
-                pods,
+                ext: {
+                  pods,
+                },
               },
             },
             remember: true,
@@ -174,7 +176,9 @@ router.get("/consent", async (req: Request, res: Response) => {
             grant_access_token_audience: audience,
             session: {
               access_token: {
-                pods,
+                ext: {
+                  pods,
+                },
               },
             },
           },
@@ -412,10 +416,14 @@ router.post("/consent", async (req: Request, res: Response) => {
             grant_access_token_audience: audience,
             session: {
               access_token: {
-                pods,
+                ext: {
+                  pods,
+                },
               },
               id_token: {
-                pods,
+                ext: {
+                  pods,
+                },
               },
             },
             remember: true,
