@@ -1,6 +1,10 @@
 // Authentication tests for WebPods
 import { expect } from "chai";
-import { TestHttpClient, createTestUser, createTestPod } from "webpods-test-utils";
+import {
+  TestHttpClient,
+  createTestUser,
+  createTestPod,
+} from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 
 describe("WebPods Authentication", () => {
@@ -74,10 +78,10 @@ describe("WebPods Authentication", () => {
       });
 
       userId = testUser.userId;
-      
+
       // Create the test pod
       await createTestPod(db, testPodId, userId);
-      
+
       // Get OAuth token via Hydra
       authToken = await client.authenticateViaOAuth(userId, [testPodId]);
       client.setBaseUrl(baseUrl);
@@ -87,16 +91,13 @@ describe("WebPods Authentication", () => {
       // Make sure to clear any existing auth
       client.clearAuthToken();
       client.clearCookies();
-      
+
       const response = await client.post(
         "/protected-stream/test",
         "test content",
       );
 
-      if (response.status !== 401) {
-        console.log("Unexpected response status:", response.status);
-        console.log("Response data:", JSON.stringify(response.data, null, 2));
-      }
+      // Check response status
 
       expect(response.status).to.equal(401);
       expect(response.data.error.code).to.equal("UNAUTHORIZED");
@@ -111,9 +112,7 @@ describe("WebPods Authentication", () => {
         "authenticated content",
       );
 
-      if (response.status === 500) {
-        console.error("Server error:", response.data);
-      }
+      // Check server response
 
       expect(response.status).to.equal(201);
       expect(response.data).to.have.property("index", 0);
@@ -129,12 +128,17 @@ describe("WebPods Authentication", () => {
       const response = await client.post("/expired-test/content", "content");
 
       expect(response.status).to.equal(401);
-      expect(response.data.error.code).to.be.oneOf(["INVALID_TOKEN", "TOKEN_VERIFICATION_FAILED"]);
+      expect(response.data.error.code).to.be.oneOf([
+        "INVALID_TOKEN",
+        "TOKEN_VERIFICATION_FAILED",
+      ]);
     });
 
     it("should reject token for wrong pod", async () => {
       // Get a token for a different pod
-      const wrongPodToken = await client.authenticateViaOAuth(userId, ["different-pod"]);
+      const wrongPodToken = await client.authenticateViaOAuth(userId, [
+        "different-pod",
+      ]);
 
       client.setAuthToken(wrongPodToken);
 
@@ -150,7 +154,10 @@ describe("WebPods Authentication", () => {
       const response = await client.post("/malformed/content", "content");
 
       expect(response.status).to.equal(401);
-      expect(response.data.error.code).to.be.oneOf(["INVALID_TOKEN", "TOKEN_VERIFICATION_FAILED"]);
+      expect(response.data.error.code).to.be.oneOf([
+        "INVALID_TOKEN",
+        "TOKEN_VERIFICATION_FAILED",
+      ]);
     });
   });
 
@@ -168,10 +175,10 @@ describe("WebPods Authentication", () => {
       });
 
       userId = testUser.userId;
-      
+
       // Create the test pod
       await createTestPod(db, testPodId, userId);
-      
+
       // Get OAuth token via Hydra
       authToken = await client.authenticateViaOAuth(userId, [testPodId]);
     });
@@ -193,7 +200,7 @@ describe("WebPods Authentication", () => {
       // Make sure to clear any existing auth
       client.clearAuthToken();
       client.clearCookies();
-      
+
       // Try to write without auth
       const response = await client.post(
         "/public-writable/anon",
@@ -245,12 +252,12 @@ describe("WebPods Authentication", () => {
         email: "bearer@example.com",
         name: "Bearer Test",
       });
-      
+
       userId = testUser.userId;
-      
+
       // Create the test pod
       await createTestPod(db, testPodId, userId);
-      
+
       // Get OAuth token via Hydra
       authToken = await client.authenticateViaOAuth(userId, [testPodId]);
     });
@@ -279,7 +286,7 @@ describe("WebPods Authentication", () => {
       // Clear any existing auth and cookies
       client.clearAuthToken();
       client.clearCookies();
-      
+
       const response = await client.post("/basic-auth/content", "content", {
         headers: {
           Authorization: `Basic ${Buffer.from("user:pass").toString("base64")}`,
@@ -300,10 +307,7 @@ describe("WebPods Authentication", () => {
       const testToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test.token";
       const response = await client.get(`/auth/success?token=${testToken}`);
 
-      if (response.status !== 200) {
-        console.log("Response status:", response.status);
-        console.log("Response data:", response.data);
-      }
+      // Check response
 
       expect(response.status).to.equal(200);
       expect(response.headers["content-type"]).to.include("text/html");
@@ -366,12 +370,12 @@ describe("WebPods Authentication", () => {
         email: "logout@example.com",
         name: "Logout Test",
       });
-      
+
       userId = testUser.userId;
-      
+
       // Create the test pod
       await createTestPod(db, testPodId, userId);
-      
+
       // Get OAuth token via Hydra
       authToken = await client.authenticateViaOAuth(userId, [testPodId]);
       client.setAuthToken(authToken);
@@ -410,10 +414,7 @@ describe("WebPods Authentication", () => {
     it.skip("should clear authentication after logout", async () => {
       // First verify we're authenticated
       let response = await client.get("/auth/whoami");
-      if (response.status !== 200) {
-        console.log("Whoami failed:", response.status, response.data);
-        console.log("Auth token:", authToken ? "present" : "missing");
-      }
+      // Check whoami response
       expect(response.status).to.equal(200);
 
       // Logout
@@ -448,10 +449,13 @@ describe("WebPods Authentication", () => {
       const db = testDb.getDb();
       await createTestPod(db, "pod-one", userId);
       await createTestPod(db, "pod-two", userId);
-      
+
       // Get token for both pods
-      const token = await client.authenticateViaOAuth(userId, ["pod-one", "pod-two"]);
-      
+      const token = await client.authenticateViaOAuth(userId, [
+        "pod-one",
+        "pod-two",
+      ]);
+
       // Use token on first pod
       client.setBaseUrl(`http://pod-one.localhost:3000`);
       client.setAuthToken(token);

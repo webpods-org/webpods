@@ -62,7 +62,7 @@ export async function authenticateHybrid(
     req.ip_address = getIpAddress(req);
 
     // Only support Hydra tokens now
-    logger.debug("Attempting to verify token", { 
+    logger.debug("Attempting to verify token", {
       tokenPrefix: token.substring(0, 50),
       pod: currentPod,
     });
@@ -79,44 +79,25 @@ export async function authenticateHybrid(
     // Check pod permissions if on a pod subdomain
     if (currentPod) {
       // Check both audience and ext.pods claims
-      const allowedPods = payload.ext?.pods || [];
+      // Handle nested ext structure from Hydra (ext.ext.pods)
+      const allowedPods =
+        payload.ext?.pods || (payload.ext as any)?.ext?.pods || [];
       const audience = payload.aud || [];
-      
-      // Debug for test
-      if (allowedPods.includes('alice') && currentPod === 'bob') {
-        console.log("CRITICAL: Alice token on Bob pod - should reject!", {
-          currentPod,
-          allowedPods,
-          hasExt: !!payload.ext,
-        });
-      }
-      
+
       // For testing/development, accept both localhost and webpods.com audiences
       const possibleAudiences = [
         `https://${currentPod}.webpods.com`,
         `http://${currentPod}.localhost:3000`,
         `http://${currentPod}.localhost`,
       ];
-      
+
       // Token is valid if either:
       // 1. The pod is in the ext.pods claim, OR
       // 2. Any of the expected audiences is in the aud claim
-      const isAuthorized = allowedPods.includes(currentPod) || 
-                          audience.some(aud => possibleAudiences.includes(aud));
-      
-      // Debug logging for test failures
-      if (currentPod === 'bob') {
-        console.log("Bob pod authorization check:", {
-          currentPod,
-          allowedPods,
-          audience,
-          possibleAudiences,
-          isAuthorized,
-          audienceCheck: audience.some(aud => possibleAudiences.includes(aud)),
-          podsCheck: allowedPods.includes(currentPod),
-        });
-      }
-      
+      const isAuthorized =
+        allowedPods.includes(currentPod) ||
+        audience.some((aud) => possibleAudiences.includes(aud));
+
       if (!isAuthorized) {
         logger.warn("Hydra token not authorized for pod", {
           currentPod,

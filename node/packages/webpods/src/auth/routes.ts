@@ -3,7 +3,6 @@
  */
 
 import { Router, Request, Response } from "express";
-import jwt from "jsonwebtoken";
 import { getDb } from "../db.js";
 import { createLogger } from "../logger.js";
 import { getConfig } from "../config-loader.js";
@@ -259,7 +258,7 @@ router.get("/whoami", async (req: Request, res: Response) => {
 
   try {
     const result = await verifyHydraToken(token);
-    
+
     if (!result.success) {
       res.status(401).json({
         error: result.error,
@@ -270,8 +269,9 @@ router.get("/whoami", async (req: Request, res: Response) => {
     const payload = result.data;
     res.json({
       user_id: payload.sub,
-      email: payload.email,
-      name: payload.name,
+      // Hydra tokens don't include email/name - would need userinfo endpoint
+      email: null,
+      name: null,
     });
   } catch {
     res.status(401).json({
@@ -458,7 +458,9 @@ router.get("/:provider/callback", async (req: Request, res: Response) => {
     // Find or create user
     const db = getDb();
     const appConfig = getConfig();
-    const providerConfigData = appConfig.oauth.providers.find(p => p.id === provider);
+    const providerConfigData = appConfig.oauth.providers.find(
+      (p) => p.id === provider,
+    );
     if (!providerConfigData) {
       res.status(500).json({
         error: {
@@ -468,14 +470,14 @@ router.get("/:provider/callback", async (req: Request, res: Response) => {
       });
       return;
     }
-    
+
     // Create provider object for user creation
     const providerConfig: OAuthProviderType = {
       provider: provider,
       clientId: providerConfigData.clientId,
       clientSecret: providerConfigData.clientSecret,
     };
-    
+
     const userResult = await findOrCreateUser(db, providerConfig, userInfo);
 
     if (!userResult.success) {

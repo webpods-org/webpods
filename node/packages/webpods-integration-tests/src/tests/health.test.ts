@@ -1,6 +1,10 @@
 // Health check tests for WebPods
 import { expect } from "chai";
-import { TestHttpClient, createTestUser, createTestPod } from "webpods-test-utils";
+import {
+  TestHttpClient,
+  createTestUser,
+  createTestPod,
+} from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 
 describe("WebPods Health Checks", () => {
@@ -34,10 +38,10 @@ describe("WebPods Health Checks", () => {
 
     // Create the pod
     await createTestPod(db, uniquePodId, user.userId);
-    
+
     // Get OAuth token
     const token = await client.authenticateViaOAuth(user.userId, [uniquePodId]);
-    
+
     client.setAuthToken(token);
 
     // Try to write to a stream on this pod

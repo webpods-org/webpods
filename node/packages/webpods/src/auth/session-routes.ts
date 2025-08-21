@@ -49,37 +49,41 @@ router.get("/session", (req: ExpressRequest, res: Response) => {
  * List all active sessions for the authenticated user
  * GET /auth/sessions
  */
-router.get("/sessions", authenticate, async (req: AuthRequest, res: Response) => {
-  if (!req.auth) {
-    res.status(401).json({
-      error: {
-        code: "UNAUTHORIZED",
-        message: "Authentication required",
-      },
-    });
-    return;
-  }
+router.get(
+  "/sessions",
+  authenticate,
+  async (req: AuthRequest, res: Response) => {
+    if (!req.auth) {
+      res.status(401).json({
+        error: {
+          code: "UNAUTHORIZED",
+          message: "Authentication required",
+        },
+      });
+      return;
+    }
 
-  try {
-    const sessions = await getUserSessions(req.auth!.user_id);
+    try {
+      const sessions = await getUserSessions(req.auth!.user_id);
 
-    res.json({
-      sessions,
-      count: sessions.length,
-    });
-  } catch (error: any) {
-    logger.error("Failed to list sessions", {
-      error,
-      userId: req.auth!.user_id,
-    });
-    res.status(500).json({
-      error: {
-        code: "INTERNAL_ERROR",
-        message: "Failed to retrieve sessions",
-      },
-    });
-  }
-});
+      res.json({
+        sessions,
+        count: sessions.length,
+      });
+    } catch (error: any) {
+      logger.error("Failed to list sessions", {
+        error,
+        userId: req.auth!.user_id,
+      });
+      res.status(500).json({
+        error: {
+          code: "INTERNAL_ERROR",
+          message: "Failed to retrieve sessions",
+        },
+      });
+    }
+  },
+);
 
 /**
  * Revoke a specific session

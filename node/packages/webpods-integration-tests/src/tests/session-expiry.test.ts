@@ -13,7 +13,7 @@ describe("Session Expiry and Cleanup", () => {
   async function cleanupExpiredSessions(): Promise<number> {
     const result = await db.result(
       `DELETE FROM session WHERE expire < $(now)`,
-      { now: new Date() }
+      { now: new Date() },
     );
     return result.rowCount;
   }
@@ -21,7 +21,7 @@ describe("Session Expiry and Cleanup", () => {
   async function cleanupExpiredStates(): Promise<number> {
     const result = await db.result(
       `DELETE FROM oauth_state WHERE expires_at < $(now)`,
-      { now: new Date() }
+      { now: new Date() },
     );
     return result.rowCount;
   }
@@ -48,7 +48,7 @@ describe("Session Expiry and Cleanup", () => {
           sid: "expired-session",
           sess: JSON.stringify({ user: { id: "user1" } }),
           expire: expired,
-        }
+        },
       );
 
       // Insert valid session
@@ -58,13 +58,13 @@ describe("Session Expiry and Cleanup", () => {
           sid: "valid-session",
           sess: JSON.stringify({ user: { id: "user2" } }),
           expire: future,
-        }
+        },
       );
 
       // Check expired sessions
       const expiredSessions = await db.manyOrNone(
         `SELECT * FROM session WHERE expire < $(now)`,
-        { now }
+        { now },
       );
 
       expect(expiredSessions).to.have.lengthOf(1);

@@ -2,10 +2,18 @@
  * Pod and stream routes
  */
 
-import { Router, Request as ExpressRequest, Response, NextFunction } from "express";
+import {
+  Router,
+  Request as ExpressRequest,
+  Response,
+  NextFunction,
+} from "express";
 import type { AuthRequest } from "../types.js";
 import { z } from "zod";
-import { authenticateHybrid as authenticate, optionalAuthHybrid as optionalAuth } from "../middleware/hybrid-auth.js";
+import {
+  authenticateHybrid as authenticate,
+  optionalAuthHybrid as optionalAuth,
+} from "../middleware/hybrid-auth.js";
 import { extractPod } from "../middleware/pod.js";
 import { rateLimit } from "../middleware/ratelimit.js";
 import { getDb } from "../db.js";
@@ -96,45 +104,49 @@ router.get("/login", extractPod, (req: ExpressRequest, res: Response) => {
  * Pod-specific auth callback
  * GET {pod}.webpods.org/auth/callback
  */
-router.get("/auth/callback", extractPod, (req: ExpressRequest, res: Response) => {
-  const token = req.query.token as string;
-  const redirect = (req.query.redirect as string) || "/";
+router.get(
+  "/auth/callback",
+  extractPod,
+  (req: ExpressRequest, res: Response) => {
+    const token = req.query.token as string;
+    const redirect = (req.query.redirect as string) || "/";
 
-  logger.info("Auth callback on pod", {
-    pod: req.pod_id,
-    hasToken: !!token,
-    redirect,
-  });
-
-  if (!token) {
-    res.status(400).json({
-      error: {
-        code: "MISSING_TOKEN",
-        message: "Authorization token is required",
-      },
+    logger.info("Auth callback on pod", {
+      pod: req.pod_id,
+      hasToken: !!token,
+      redirect,
     });
-    return;
-  }
 
-  // Set cookie for this pod subdomain
-  const config = getConfig();
-  const publicConfig = config.server.public;
-  const isSecure = publicConfig?.isSecure || false;
-  res.cookie("pod_token", token, {
-    httpOnly: true,
-    secure: isSecure,
-    sameSite: isSecure ? "strict" : "lax",
-    maxAge: 10 * 365 * 24 * 60 * 60 * 1000, // 10 years (effectively unlimited)
-    path: "/",
-    // Cookie domain cannot have port
-    domain: `.${req.pod_id}.${publicConfig?.hostname || "localhost"}`, // Scoped to pod subdomain
-  });
+    if (!token) {
+      res.status(400).json({
+        error: {
+          code: "MISSING_TOKEN",
+          message: "Authorization token is required",
+        },
+      });
+      return;
+    }
 
-  logger.info("Pod auth callback successful", { pod: req.pod_id });
+    // Set cookie for this pod subdomain
+    const config = getConfig();
+    const publicConfig = config.server.public;
+    const isSecure = publicConfig?.isSecure || false;
+    res.cookie("pod_token", token, {
+      httpOnly: true,
+      secure: isSecure,
+      sameSite: isSecure ? "strict" : "lax",
+      maxAge: 10 * 365 * 24 * 60 * 60 * 1000, // 10 years (effectively unlimited)
+      path: "/",
+      // Cookie domain cannot have port
+      domain: `.${req.pod_id}.${publicConfig?.hostname || "localhost"}`, // Scoped to pod subdomain
+    });
 
-  // Redirect to final destination
-  res.redirect(redirect);
-});
+    logger.info("Pod auth callback successful", { pod: req.pod_id });
+
+    // Redirect to final destination
+    res.redirect(redirect);
+  },
+);
 
 /**
  * List streams in pod

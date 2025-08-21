@@ -1,6 +1,10 @@
 // Image upload and serving tests for WebPods
 import { expect } from "chai";
-import { TestHttpClient, createTestUser, createTestPod } from "webpods-test-utils";
+import {
+  TestHttpClient,
+  createTestUser,
+  createTestPod,
+} from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 
 describe("WebPods Image Support", () => {
@@ -37,7 +41,7 @@ describe("WebPods Image Support", () => {
 
     // Get OAuth token
     authToken = await client.authenticateViaOAuth(userId, [testPodId]);
-    
+
     client.setBaseUrl(baseUrl);
     client.setAuthToken(authToken);
   });

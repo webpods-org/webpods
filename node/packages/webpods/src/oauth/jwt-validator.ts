@@ -63,7 +63,7 @@ export async function verifyHydraToken(
       },
       (err, decoded) => {
         if (err) {
-          logger.error("Token verification failed", { 
+          logger.error("Token verification failed", {
             error: err.message,
             name: err.name,
             issuer: getHydraPublicUrl() + "/",
@@ -127,11 +127,11 @@ export function isHydraToken(token: string): boolean {
     // Check if issuer is Hydra
     const hydraUrl = getHydraPublicUrl();
     const iss = decoded.payload?.iss;
-    
+
     // The token issuer is "http://localhost:4444/" but hydraUrl is "http://localhost:4444"
     // We need to check both with and without trailing slash
     const isHydra = iss?.startsWith(hydraUrl);
-    
+
     return isHydra;
   } catch {
     return false;

@@ -4,7 +4,11 @@
  */
 
 import { expect } from "chai";
-import { TestHttpClient, createTestUser, createTestPod } from "webpods-test-utils";
+import {
+  TestHttpClient,
+  createTestUser,
+  createTestPod,
+} from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 
 describe("SSO Cookie Management", () => {
@@ -175,7 +179,9 @@ describe("SSO Cookie Management", () => {
 
       // 5. Get OAuth token for pod (what would happen via OAuth flow)
       await createTestPod(db, "test-pod", user.userId);
-      const podToken = await client.authenticateViaOAuth(user.userId, ["test-pod"]);
+      const podToken = await client.authenticateViaOAuth(user.userId, [
+        "test-pod",
+      ]);
 
       // Verify token was created correctly
       expect(podToken).to.be.a("string");

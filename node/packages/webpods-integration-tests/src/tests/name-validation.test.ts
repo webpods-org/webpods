@@ -1,6 +1,10 @@
 // Name validation tests for WebPods
 import { expect } from "chai";
-import { TestHttpClient, createTestUser, createTestPod } from "webpods-test-utils";
+import {
+  TestHttpClient,
+  createTestUser,
+  createTestPod,
+} from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 
 describe("WebPods Name Validation", () => {
@@ -22,10 +26,10 @@ describe("WebPods Name Validation", () => {
 
     // Create the test pod
     await createTestPod(db, testPodId, user.userId);
-    
+
     // Get OAuth token
     authToken = await client.authenticateViaOAuth(user.userId, [testPodId]);
-    
+
     client.setBaseUrl(baseUrl);
     client.setAuthToken(authToken);
   });
@@ -39,9 +43,6 @@ describe("WebPods Name Validation", () => {
           `/stream/${name}`,
           `Content for ${name}`,
         );
-        if (response.status !== 201) {
-          console.error("Error for name:", name, response.data);
-        }
         expect(response.status).to.equal(201, `Failed for name: ${name}`);
         expect(response.data).to.have.property("name", name);
       }

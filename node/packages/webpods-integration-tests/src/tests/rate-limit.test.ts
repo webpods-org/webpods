@@ -1,6 +1,10 @@
 // Rate limiting tests for WebPods
 import { expect } from "chai";
-import { TestHttpClient, createTestUser, createTestPod } from "webpods-test-utils";
+import {
+  TestHttpClient,
+  createTestUser,
+  createTestPod,
+} from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 import crypto from "crypto";
 
@@ -29,7 +33,7 @@ describe("WebPods Rate Limiting", () => {
 
     // Get OAuth token
     authToken = await client.authenticateViaOAuth(userId, [testPodId]);
-    
+
     client.setBaseUrl(baseUrl);
     client.setAuthToken(authToken);
   });
@@ -59,7 +63,7 @@ describe("WebPods Rate Limiting", () => {
       const podDb = testDb.getDb();
       await createTestPod(podDb, "pod-limit-1", userId);
       await createTestPod(podDb, "pod-limit-2", userId);
-      
+
       client.setBaseUrl(`http://pod-limit-1.localhost:3000`);
       const token1 = await client.authenticateViaOAuth(userId, ["pod-limit-1"]);
       client.setAuthToken(token1);
@@ -342,7 +346,9 @@ describe("WebPods Rate Limiting", () => {
         name: "Rate Limit User 2",
       });
 
-      const token2 = await client.authenticateViaOAuth(user2.userId, [testPodId]);
+      const token2 = await client.authenticateViaOAuth(user2.userId, [
+        testPodId,
+      ]);
 
       // Calculate proper window boundaries
       const windowMs = 60 * 60 * 1000;
@@ -392,7 +398,9 @@ describe("WebPods Rate Limiting", () => {
         name: "Rate Limit Unique User",
       });
 
-      const uniqueToken = await client.authenticateViaOAuth(uniqueUser.userId, [testPodId]);
+      const uniqueToken = await client.authenticateViaOAuth(uniqueUser.userId, [
+        testPodId,
+      ]);
 
       // Use the unique user for this test
       client.setAuthToken(uniqueToken);
@@ -439,23 +447,20 @@ describe("WebPods Rate Limiting", () => {
       client.setBaseUrl(`http://pod-limit-final.localhost:3000`);
       const testPodDb = testDb.getDb();
       await createTestPod(testPodDb, "pod-limit-final", uniqueUser.userId);
-      const finalToken = await client.authenticateViaOAuth(uniqueUser.userId, ["pod-limit-final"]);
+      const finalToken = await client.authenticateViaOAuth(uniqueUser.userId, [
+        "pod-limit-final",
+      ]);
       client.setAuthToken(finalToken);
       const podResponse = await client.post("/init/final", "Final pod");
-      if (podResponse.status !== 201) {
-        console.log("Pod creation failed:", podResponse.data);
-        const currentLimits = await db.oneOrNone(
-          `SELECT * FROM rate_limit WHERE identifier = $(identifier) AND action = $(action)`,
-          { identifier: testUserId, action: "pod_create" },
-        );
-        console.log("Current pod_create limit:", currentLimits);
-      }
+      // Check pod creation response
       expect(podResponse.status).to.equal(201);
 
       // But creating another pod would exceed limit
       client.setBaseUrl(`http://pod-limit-exceed.localhost:3000`);
       await createTestPod(testPodDb, "pod-limit-exceed", uniqueUser.userId);
-      const exceedToken = await client.authenticateViaOAuth(uniqueUser.userId, ["pod-limit-exceed"]);
+      const exceedToken = await client.authenticateViaOAuth(uniqueUser.userId, [
+        "pod-limit-exceed",
+      ]);
       client.setAuthToken(exceedToken);
       const exceededResponse = await client.post(
         "/init/toomany",

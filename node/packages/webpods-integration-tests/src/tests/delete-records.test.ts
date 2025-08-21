@@ -1,6 +1,10 @@
 // Delete and purge records tests for WebPods
 import { expect } from "chai";
-import { TestHttpClient, createTestUser, createTestPod } from "webpods-test-utils";
+import {
+  TestHttpClient,
+  createTestUser,
+  createTestPod,
+} from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 
 describe("WebPods Record Deletion", () => {
@@ -37,10 +41,12 @@ describe("WebPods Record Deletion", () => {
 
     // Get OAuth tokens
     ownerToken = await client.authenticateViaOAuth(ownerId, [testPodId]);
-    nonOwnerToken = await client.authenticateViaOAuth(nonOwner.userId, [testPodId]);
+    nonOwnerToken = await client.authenticateViaOAuth(nonOwner.userId, [
+      testPodId,
+    ]);
 
     client.setBaseUrl(baseUrl);
-    
+
     // Initialize with a first record
     client.setAuthToken(ownerToken);
     await client.post("/init/start", "Initialize pod");
@@ -59,9 +65,7 @@ describe("WebPods Record Deletion", () => {
 
       // Soft delete it
       response = await client.delete("/documents/report");
-      if (response.status !== 204) {
-        console.log("Delete error:", response.data);
-      }
+      // Check delete response
       expect(response.status).to.equal(204);
 
       // Verify it returns 404
@@ -214,15 +218,11 @@ describe("WebPods Record Deletion", () => {
 
       // Create another with same name (should work since old one is deleted)
       const postResponse = await client.post("/logs/event", "Event 2");
-      if (postResponse.status !== 201) {
-        console.log("POST failed:", postResponse.status, postResponse.data);
-      }
+      // Check post response
 
       // Should be accessible again
       response = await client.get("/logs/event");
-      if (response.status !== 200) {
-        console.log("GET failed:", response.status, response.data);
-      }
+      // Check get response
       expect(response.status).to.equal(200);
       expect(response.data).to.equal("Event 2");
 

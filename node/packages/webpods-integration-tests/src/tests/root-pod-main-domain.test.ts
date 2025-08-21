@@ -5,7 +5,11 @@
  */
 
 import { expect } from "chai";
-import { TestHttpClient, createTestUser, createTestPod } from "webpods-test-utils";
+import {
+  TestHttpClient,
+  createTestUser,
+  createTestPod,
+} from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 
 describe("WebPods Root Pod Main Domain", () => {
@@ -28,11 +32,11 @@ describe("WebPods Root Pod Main Domain", () => {
 
     // Create root pod
     await createTestPod(db, rootPodId, user.userId);
-    
+
     // Get OAuth token and add content
     rootClient = new TestHttpClient(rootPodUrl);
     authToken = await rootClient.authenticateViaOAuth(user.userId, [rootPodId]);
-    
+
     rootClient.setAuthToken(authToken);
 
     // Create root pod content
@@ -102,12 +106,10 @@ describe("WebPods Root Pod Main Domain", () => {
     it("should serve root pod linked paths on main domain", async () => {
       // First test that the linked path works via the subdomain
       const subResponse = await rootClient.get("/about");
-      console.log("Subdomain /about status:", subResponse.status);
+      // Verify subdomain /about works
 
       const response = await mainClient.get("/about");
-      if (response.status !== 200) {
-        console.log("About page error:", response.status, response.data);
-      }
+      // Check about page on main domain
       expect(response.status).to.equal(200);
       expect(response.data).to.equal("<h1>About Page</h1>");
     });
@@ -227,7 +229,9 @@ describe("WebPods Root Pod Main Domain", () => {
       });
 
       await createTestPod(db, "alice", user.userId);
-      const aliceToken = await aliceClient.authenticateViaOAuth(user.userId, ["alice"]);
+      const aliceToken = await aliceClient.authenticateViaOAuth(user.userId, [
+        "alice",
+      ]);
 
       aliceClient.setAuthToken(aliceToken);
       await aliceClient.post("/private/data", "Alice private data");

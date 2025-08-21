@@ -24,14 +24,20 @@ function parseRequestedPods(
 
   // Check state from original OAuth request (preserved through the flow)
   // Try to get state from various possible locations
-  const possibleState = (consentRequest as any).state || 
-                       (consentRequest as any).request_url?.includes('state=') ? 
-                       new URL((consentRequest as any).request_url, 'http://example.com').searchParams.get('state') : 
-                       null;
-  
+  const possibleState =
+    (consentRequest as any).state ||
+    (consentRequest as any).request_url?.includes("state=")
+      ? new URL(
+          (consentRequest as any).request_url,
+          "http://example.com",
+        ).searchParams.get("state")
+      : null;
+
   if (possibleState) {
     try {
-      const stateData = JSON.parse(Buffer.from(possibleState, 'base64').toString());
+      const stateData = JSON.parse(
+        Buffer.from(possibleState, "base64").toString(),
+      );
       if (stateData.pods && Array.isArray(stateData.pods)) {
         stateData.pods.forEach((pod: string) => {
           if (pod) pods.add(pod);
@@ -129,14 +135,21 @@ router.get("/consent", async (req: Request, res: Response) => {
       });
 
       const pods = Array.from(
-        parseRequestedPods(req, consentRequest, consentRequest.requested_scope || []),
+        parseRequestedPods(
+          req,
+          consentRequest,
+          consentRequest.requested_scope || [],
+        ),
       );
-      
-      logger.info("Parsed pods:", { pods, fullConsentRequest: JSON.stringify(consentRequest) });
-      
+
+      logger.info("Parsed pods:", {
+        pods,
+        fullConsentRequest: JSON.stringify(consentRequest),
+      });
+
       // Generate audience URLs for each pod
-      const audience = pods.map(pod => `https://${pod}.webpods.com`);
-      
+      const audience = pods.map((pod) => `https://${pod}.webpods.com`);
+
       const { data: acceptResponse } =
         await hydraAdmin.acceptOAuth2ConsentRequest({
           consentChallenge,
@@ -162,12 +175,16 @@ router.get("/consent", async (req: Request, res: Response) => {
     // Check if we should skip consent (user already granted)
     if (consentRequest.skip) {
       const pods = Array.from(
-        parseRequestedPods(req, consentRequest, consentRequest.requested_scope || []),
+        parseRequestedPods(
+          req,
+          consentRequest,
+          consentRequest.requested_scope || [],
+        ),
       );
-      
+
       // Generate audience URLs for each pod
-      const audience = pods.map(pod => `https://${pod}.webpods.com`);
-      
+      const audience = pods.map((pod) => `https://${pod}.webpods.com`);
+
       const { data: acceptResponse } =
         await hydraAdmin.acceptOAuth2ConsentRequest({
           consentChallenge,
@@ -194,7 +211,11 @@ router.get("/consent", async (req: Request, res: Response) => {
     }
 
     // Parse requested pod permissions
-    const requestedPods = parseRequestedPods(req, consentRequest, consentRequest.requested_scope || []);
+    const requestedPods = parseRequestedPods(
+      req,
+      consentRequest,
+      consentRequest.requested_scope || [],
+    );
 
     // Get pods owned by the user
     const ownedPods = await getUserOwnedPods(consentRequest.subject!);
@@ -403,9 +424,9 @@ router.post("/consent", async (req: Request, res: Response) => {
           if (podId) pods.push(podId);
         }
       }
-      
+
       // Generate audience URLs for each pod
-      const audience = pods.map(pod => `https://${pod}.webpods.com`);
+      const audience = pods.map((pod) => `https://${pod}.webpods.com`);
 
       // Accept consent
       const { data: acceptResponse } =

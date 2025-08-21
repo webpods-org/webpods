@@ -1,6 +1,10 @@
 // Stream operations tests for WebPods
 import { expect } from "chai";
-import { TestHttpClient, createTestUser, createTestPod } from "webpods-test-utils";
+import {
+  TestHttpClient,
+  createTestUser,
+  createTestPod,
+} from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 
 describe("WebPods Stream Operations", () => {
@@ -28,7 +32,7 @@ describe("WebPods Stream Operations", () => {
 
     // Get OAuth token via Hydra
     authToken = await client.authenticateViaOAuth(userId, [testPodId]);
-    
+
     client.setBaseUrl(baseUrl);
     client.setAuthToken(authToken);
   });
@@ -357,7 +361,9 @@ describe("WebPods Stream Operations", () => {
         name: "Other User",
       });
 
-      const token2 = await client.authenticateViaOAuth(user2.userId, [testPodId]);
+      const token2 = await client.authenticateViaOAuth(user2.userId, [
+        testPodId,
+      ]);
 
       // Stream already exists from beforeEach
 
@@ -405,7 +411,9 @@ describe("WebPods Stream Operations", () => {
         name: "Other User",
       });
 
-      const token2 = await client.authenticateViaOAuth(user2.userId, [testPodId]);
+      const token2 = await client.authenticateViaOAuth(user2.userId, [
+        testPodId,
+      ]);
 
       client.setAuthToken(token2);
       const response = await client.delete("/my-stream");

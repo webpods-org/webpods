@@ -1,6 +1,10 @@
 // Root pod tests for WebPods
 import { expect } from "chai";
-import { TestHttpClient, createTestUser, createTestPod } from "webpods-test-utils";
+import {
+  TestHttpClient,
+  createTestUser,
+  createTestPod,
+} from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 
 describe("WebPods Root Pod", () => {
@@ -13,17 +17,17 @@ describe("WebPods Root Pod", () => {
   // Helper to create the root pod with initial content
   async function setupRootPod() {
     const db = testDb.getDb();
-    
+
     // Check if pod already exists
     const existingPod = await db.oneOrNone(
       `SELECT pod_id FROM pod WHERE pod_id = $(podId)`,
-      { podId: rootPodId }
+      { podId: rootPodId },
     );
-    
+
     if (!existingPod) {
       await createTestPod(db, rootPodId, userId);
     }
-    
+
     const podToken = await client.authenticateViaOAuth(userId, [rootPodId]);
     client.setAuthToken(podToken);
 
@@ -127,7 +131,7 @@ describe("WebPods Root Pod", () => {
       // Check if pod exists first
       const existingPod = await db.oneOrNone(
         `SELECT pod_id FROM pod WHERE pod_id = $(podId)`,
-        { podId: rootPodId }
+        { podId: rootPodId },
       );
       if (!existingPod) {
         await createTestPod(db, rootPodId, userId);
@@ -156,7 +160,7 @@ describe("WebPods Root Pod", () => {
       // Check if pod exists first
       const existingPod = await db.oneOrNone(
         `SELECT pod_id FROM pod WHERE pod_id = $(podId)`,
-        { podId: rootPodId }
+        { podId: rootPodId },
       );
       if (!existingPod) {
         await createTestPod(db, rootPodId, userId);

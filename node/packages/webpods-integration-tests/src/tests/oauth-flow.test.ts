@@ -3,7 +3,11 @@
  */
 
 import { expect } from "chai";
-import { TestHttpClient, createTestUser, createTestPod } from "webpods-test-utils";
+import {
+  TestHttpClient,
+  createTestUser,
+  createTestPod,
+} from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 
 describe("OAuth Flow Integration", () => {
@@ -33,16 +37,16 @@ describe("OAuth Flow Integration", () => {
 
       expect(token).to.be.a("string");
       expect(token.length).to.be.greaterThan(0);
-      
+
       // Debug: Check token contents
-      const parts = token.split('.');
+      const parts = token.split(".");
       if (parts.length === 3) {
-        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+        const payload = JSON.parse(Buffer.from(parts[1], "base64").toString());
         // Verify token has correct structure
-        expect(payload).to.have.property('iss');
-        expect(payload).to.have.property('aud');
-        expect(payload).to.have.property('ext');
-        expect(payload.ext).to.have.property('pods');
+        expect(payload).to.have.property("iss");
+        expect(payload).to.have.property("aud");
+        expect(payload).to.have.property("ext");
+        expect(payload.ext).to.have.property("pods");
         expect(payload.ext.pods).to.include(podId);
       }
 
@@ -51,12 +55,10 @@ describe("OAuth Flow Integration", () => {
       podClient.setAuthToken(token);
 
       // Should be able to write to the pod
-      const writeRes = await podClient.post("/test-stream/oauth-test.txt", "OAuth test content");
-
-      if (writeRes.status !== 201) {
-        console.log("Write failed with status:", writeRes.status);
-        console.log("Response data:", writeRes.data);
-      }
+      const writeRes = await podClient.post(
+        "/test-stream/oauth-test.txt",
+        "OAuth test content",
+      );
 
       expect(writeRes.status).to.equal(201);
       expect(writeRes.data).to.have.property("index", 0);

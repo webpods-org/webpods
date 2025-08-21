@@ -1,6 +1,10 @@
 // Pod-specific authentication tests
 import { expect } from "chai";
-import { TestHttpClient, createTestUser, createTestPod } from "webpods-test-utils";
+import {
+  TestHttpClient,
+  createTestUser,
+  createTestPod,
+} from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 
 describe("Pod-Specific Authentication with SSO", () => {
@@ -60,9 +64,12 @@ describe("Pod-Specific Authentication with SSO", () => {
       await createTestPod(db, pod1, user.userId);
       await createTestPod(db, pod2, user.userId);
 
-      // Get OAuth tokens
+      // Get OAuth tokens - create bothPodsToken first to avoid consent caching issues
+      bothPodsToken = await client.authenticateViaOAuth(user.userId, [
+        pod1,
+        pod2,
+      ]);
       aliceToken = await client.authenticateViaOAuth(user.userId, [pod1]);
-      bothPodsToken = await client.authenticateViaOAuth(user.userId, [pod1, pod2]);
     });
 
     it("should accept pod-specific token on correct pod", async () => {
@@ -81,30 +88,17 @@ describe("Pod-Specific Authentication with SSO", () => {
 
     it("should reject pod-specific token on wrong pod", async () => {
       client.setBaseUrl(`http://${pod2}.localhost:3000`);
-      
+
       // Clear cookies to avoid authentication leakage
       client.clearCookies();
 
-      // Debug: decode the token to see what pods it has
-      const tokenParts = aliceToken.split('.');
-      if (tokenParts.length === 3) {
-        const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64').toString());
-        console.log("Alice token payload:", JSON.stringify(payload, null, 2));
-      }
-
       // Try to use alice's token on bob's pod
-      console.log("Testing on pod2 URL:", `http://${pod2}.localhost:3000`, "pod2 is:", pod2);
       const response = await client.post("/test-stream/test", "Test content", {
         headers: {
           Authorization: `Bearer ${aliceToken}`,
           "Content-Type": "text/plain",
         },
       });
-
-      if (response.status !== 403) {
-        console.log("Unexpected response:", response.status, response.data);
-        console.log("Used token for pod:", pod1, "on pod:", pod2);
-      }
 
       expect(response.status).to.equal(403);
       expect(response.data.error.code).to.equal("POD_FORBIDDEN");
@@ -113,7 +107,7 @@ describe("Pod-Specific Authentication with SSO", () => {
     it("should reject token without pod scope on pod subdomains", async () => {
       // Get a token without any pod scopes
       const noPodToken = await client.authenticateViaOAuth(user.userId, []);
-      
+
       // Test on pod1
       client.setBaseUrl(`http://${pod1}.localhost:3000`);
       let response = await client.post("/stream1/content1", "Content 1", {
@@ -216,8 +210,8 @@ describe("Pod-Specific Authentication with SSO", () => {
         },
       });
 
-      expect(response.status).to.equal(401);
-      expect(response.data.error.code).to.equal("POD_MISMATCH");
+      expect(response.status).to.equal(403);
+      expect(response.data.error.code).to.equal("POD_FORBIDDEN");
     });
   });
 
@@ -231,9 +225,9 @@ describe("Pod-Specific Authentication with SSO", () => {
         email: "callback@example.com",
         name: "Callback Test User",
       });
-      
+
       await createTestPod(db, pod1, user.userId);
-      
+
       // Get OAuth token
       const token = await client.authenticateViaOAuth(user.userId, [pod1]);
       client.setBaseUrl(`http://${pod1}.localhost:3000`);
