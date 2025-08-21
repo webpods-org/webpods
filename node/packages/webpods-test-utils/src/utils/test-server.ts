@@ -76,10 +76,7 @@ export class TestServer {
 
       this.process.stdout?.on("data", (data) => {
         const message = data.toString();
-        // Only log server output when LOG_LEVEL is debug
-        if (process.env.LOG_LEVEL === "debug") {
-          console.log("[Server]", message.trim());
-        }
+        // Server output is handled silently
         if (
           message.includes("WebPods server started") ||
           message.includes("Server listening")
@@ -90,10 +87,7 @@ export class TestServer {
 
       this.process.stderr?.on("data", (data) => {
         const message = data.toString();
-        // Only log server errors when LOG_LEVEL is debug
-        if (process.env.LOG_LEVEL === "debug") {
-          console.error("[Server Error]", message.trim());
-        }
+        // Server errors are handled silently
         // Sometimes the server logs to stderr
         if (
           message.includes("WebPods server started") ||
