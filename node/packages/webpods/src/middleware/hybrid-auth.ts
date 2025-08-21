@@ -82,6 +82,15 @@ export async function authenticateHybrid(
       const allowedPods = payload.ext?.pods || [];
       const audience = payload.aud || [];
       
+      // Debug for test
+      if (allowedPods.includes('alice') && currentPod === 'bob') {
+        console.log("CRITICAL: Alice token on Bob pod - should reject!", {
+          currentPod,
+          allowedPods,
+          hasExt: !!payload.ext,
+        });
+      }
+      
       // For testing/development, accept both localhost and webpods.com audiences
       const possibleAudiences = [
         `https://${currentPod}.webpods.com`,
@@ -94,6 +103,19 @@ export async function authenticateHybrid(
       // 2. Any of the expected audiences is in the aud claim
       const isAuthorized = allowedPods.includes(currentPod) || 
                           audience.some(aud => possibleAudiences.includes(aud));
+      
+      // Debug logging for test failures
+      if (currentPod === 'bob') {
+        console.log("Bob pod authorization check:", {
+          currentPod,
+          allowedPods,
+          audience,
+          possibleAudiences,
+          isAuthorized,
+          audienceCheck: audience.some(aud => possibleAudiences.includes(aud)),
+          podsCheck: allowedPods.includes(currentPod),
+        });
+      }
       
       if (!isAuthorized) {
         logger.warn("Hydra token not authorized for pod", {

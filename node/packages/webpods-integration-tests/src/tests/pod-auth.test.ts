@@ -85,13 +85,26 @@ describe("Pod-Specific Authentication with SSO", () => {
       // Clear cookies to avoid authentication leakage
       client.clearCookies();
 
+      // Debug: decode the token to see what pods it has
+      const tokenParts = aliceToken.split('.');
+      if (tokenParts.length === 3) {
+        const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64').toString());
+        console.log("Alice token payload:", JSON.stringify(payload, null, 2));
+      }
+
       // Try to use alice's token on bob's pod
+      console.log("Testing on pod2 URL:", `http://${pod2}.localhost:3000`, "pod2 is:", pod2);
       const response = await client.post("/test-stream/test", "Test content", {
         headers: {
           Authorization: `Bearer ${aliceToken}`,
           "Content-Type": "text/plain",
         },
       });
+
+      if (response.status !== 403) {
+        console.log("Unexpected response:", response.status, response.data);
+        console.log("Used token for pod:", pod1, "on pod:", pod2);
+      }
 
       expect(response.status).to.equal(403);
       expect(response.data.error.code).to.equal("POD_FORBIDDEN");
