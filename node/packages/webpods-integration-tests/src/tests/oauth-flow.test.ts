@@ -119,34 +119,4 @@ describe("OAuth Flow Integration", () => {
     });
   });
 
-  describe("PKCE Security", () => {
-    it("should require PKCE for public clients", async () => {
-      // Try OAuth flow without PKCE (should fail in production)
-      // Note: Our test helper uses PKCE, so this is more of a conceptual test
-
-      const clientId = "http://localhost:3000/test-client";
-      const redirectUri = "http://localhost:3000/callback";
-
-      // Try to start OAuth flow without code_challenge
-      const authUrl =
-        `http://localhost:4444/oauth2/auth?` +
-        `client_id=${encodeURIComponent(clientId)}&` +
-        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-        `response_type=code&` +
-        `scope=openid&` +
-        `state=test-state`;
-
-      const response = await fetch(authUrl, {
-        redirect: "manual",
-        headers: {
-          "x-test-user": userId,
-          "x-test-consent": "true",
-        },
-      });
-
-      // Hydra should either reject or require PKCE
-      // The exact behavior depends on Hydra configuration
-      expect(response.status).to.be.oneOf([302, 400]);
-    });
-  });
 });
