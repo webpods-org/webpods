@@ -1,9 +1,9 @@
 /**
  * Simplified OAuth connection endpoint for third-party apps
- * 
+ *
  * Instead of constructing complex OAuth URLs, apps can simply redirect to:
  * /connect?client_id=example-app-123
- * 
+ *
  * This endpoint looks up the client, gets its registered pods and redirect URI,
  * and constructs the proper Hydra OAuth URL with all necessary parameters.
  */
@@ -38,12 +38,12 @@ interface OAuthClientDbRow {
 /**
  * Simplified OAuth connection endpoint
  * GET /connect?client_id=example-app-123
- * 
+ *
  * Redirects to Hydra OAuth with all necessary parameters
  */
 router.get("/", async (req: Request, res: Response) => {
   const clientId = req.query.client_id as string;
-  
+
   if (!clientId) {
     res.status(400).json({
       error: {
@@ -56,11 +56,11 @@ router.get("/", async (req: Request, res: Response) => {
 
   try {
     const db = getDb();
-    
+
     // Look up client in database
     const client = await db.oneOrNone<OAuthClientDbRow>(
       `SELECT * FROM oauth_client WHERE client_id = $(clientId)`,
-      { clientId }
+      { clientId },
     );
 
     if (!client) {
@@ -85,13 +85,16 @@ router.get("/", async (req: Request, res: Response) => {
 
     // Get Hydra URL
     const hydraPublicUrl = getHydraPublicUrl();
-    
+
     // Construct Hydra OAuth authorization URL
     const hydraUrl = new URL(`${hydraPublicUrl}/oauth2/auth`);
     hydraUrl.searchParams.set("client_id", clientId);
     hydraUrl.searchParams.set("redirect_uri", client.redirect_uris[0] || ""); // Use first redirect URI
     hydraUrl.searchParams.set("response_type", "code");
-    hydraUrl.searchParams.set("scope", client.scope || "openid offline pod:read pod:write");
+    hydraUrl.searchParams.set(
+      "scope",
+      client.scope || "openid offline pod:read pod:write",
+    );
     hydraUrl.searchParams.set("state", state);
 
     logger.info("Redirecting to Hydra OAuth", {

@@ -79,22 +79,22 @@ WebPods uses `config.json` for configuration with environment variable support f
 
 ### Provider Fields
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `id` | Yes | Unique identifier |
-| `clientId` | Yes | OAuth application ID |
-| `clientSecret` | Yes | OAuth application secret |
-| `issuer` | No* | OIDC discovery URL |
-| `authUrl` | No* | Authorization endpoint |
-| `tokenUrl` | No* | Token endpoint |
-| `userinfoUrl` | No* | User info endpoint |
-| `emailUrl` | No | Separate email endpoint |
-| `scope` | Yes | OAuth scopes |
-| `userIdField` | Yes | User ID field in response |
-| `emailField` | Yes | Email field in response |
-| `nameField` | Yes | Name field in response |
+| Field          | Required | Description               |
+| -------------- | -------- | ------------------------- |
+| `id`           | Yes      | Unique identifier         |
+| `clientId`     | Yes      | OAuth application ID      |
+| `clientSecret` | Yes      | OAuth application secret  |
+| `issuer`       | No\*     | OIDC discovery URL        |
+| `authUrl`      | No\*     | Authorization endpoint    |
+| `tokenUrl`     | No\*     | Token endpoint            |
+| `userinfoUrl`  | No\*     | User info endpoint        |
+| `emailUrl`     | No       | Separate email endpoint   |
+| `scope`        | Yes      | OAuth scopes              |
+| `userIdField`  | Yes      | User ID field in response |
+| `emailField`   | Yes      | Email field in response   |
+| `nameField`    | Yes      | Name field in response    |
 
-*Either `issuer` OR all three URLs required
+\*Either `issuer` OR all three URLs required
 
 ## Environment Variables
 
@@ -169,8 +169,8 @@ hydra:
     URLS_CONSENT: https://webpods.org/oauth/consent
     URLS_LOGIN: https://webpods.org/oauth/login
   ports:
-    - "4444:4444"  # Public API
-    - "4445:4445"  # Admin API
+    - "4444:4444" # Public API
+    - "4445:4445" # Admin API
 ```
 
 ## Complete Example

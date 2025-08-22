@@ -346,6 +346,94 @@ export async function listRecords(
 }
 
 /**
+ * List unique named records (latest version per name, excluding deleted)
+ */
+export async function listUniqueRecords(
+  db: Database,
+  streamId: string,
+  limit: number = 100,
+  after?: number,
+): Promise<
+  Result<{ records: StreamRecord[]; total: number; hasMore: boolean }>
+> {
+  try {
+    // Get all records with names, ordered by index
+    const allRecords = await db.manyOrNone<RecordDbRow>(
+      `SELECT * FROM record 
+       WHERE stream_id = $(streamId) 
+       AND name IS NOT NULL
+       ORDER BY index ASC`,
+      { streamId },
+    );
+
+    // Build map of latest record per name, excluding deleted
+    const latestByName = new Map<string, RecordDbRow>();
+
+    for (const record of allRecords) {
+      // Check if record is deleted/purged
+      let isDeleted = false;
+      if (record.content_type === "application/json") {
+        try {
+          const content = JSON.parse(record.content);
+          if (
+            content &&
+            typeof content === "object" &&
+            (content.deleted === true || content.purged === true)
+          ) {
+            isDeleted = true;
+          }
+        } catch {
+          // Not valid JSON, treat as normal record
+        }
+      }
+
+      if (isDeleted) {
+        // Remove this name from the map if it exists
+        latestByName.delete(record.name!);
+      } else {
+        // Update with this record (latest wins)
+        latestByName.set(record.name!, record);
+      }
+    }
+
+    // Convert map to array and sort by index ascending (same as regular list)
+    let uniqueRecords = Array.from(latestByName.values()).sort(
+      (a, b) => a.index - b.index,
+    );
+
+    // Apply pagination
+    if (after !== undefined) {
+      uniqueRecords = uniqueRecords.filter((r) => r.index > after);
+    }
+
+    const total = latestByName.size;
+    const hasMore = uniqueRecords.length > limit;
+
+    if (hasMore) {
+      uniqueRecords = uniqueRecords.slice(0, limit);
+    }
+
+    return {
+      success: true,
+      data: {
+        records: uniqueRecords.map(mapRecordFromDb),
+        total,
+        hasMore,
+      },
+    };
+  } catch (error: any) {
+    logger.error("Failed to list unique records", { error, streamId });
+    return {
+      success: false,
+      error: {
+        code: "DATABASE_ERROR",
+        message: "Failed to list unique records",
+      },
+    };
+  }
+}
+
+/**
  * Convert record to API response format
  */
 export function recordToResponse(record: StreamRecord): StreamRecordResponse {

@@ -34,6 +34,7 @@ npm run migrate:latest
 ### 2. Configuration
 
 Create `config.json`:
+
 ```json
 {
   "oauth": {
@@ -41,7 +42,7 @@ Create `config.json`:
       {
         "id": "github",
         "clientId": "your-client-id",
-        "clientSecret": "$GITHUB_OAUTH_SECRET",
+        "clientSecret": "$GITHUB_OAUTH_SECRET"
         // ... other fields
       }
     ]
@@ -53,6 +54,7 @@ Create `config.json`:
 ```
 
 Set environment variables:
+
 ```bash
 export JWT_SECRET=$(openssl rand -hex 32)
 export SESSION_SECRET=$(openssl rand -hex 32)
@@ -65,7 +67,7 @@ export GITHUB_OAUTH_SECRET=your-github-secret
 ```nginx
 server {
   server_name webpods.org *.webpods.org;
-  
+
   listen 443 ssl http2;
   ssl_certificate /path/to/cert.pem;
   ssl_certificate_key /path/to/key.pem;
@@ -110,6 +112,7 @@ WantedBy=multi-user.target
 ```
 
 Enable and start:
+
 ```bash
 systemctl enable webpods
 systemctl start webpods
@@ -120,7 +123,7 @@ systemctl start webpods
 Complete setup with PostgreSQL and Hydra:
 
 ```yaml
-version: '3.8'
+version: "3.8"
 
 services:
   postgres:
@@ -175,6 +178,7 @@ A     *.webpods.org     -> your-server-ip
 ```
 
 Or using CNAME:
+
 ```
 CNAME webpods.org       -> your-server.example.com
 CNAME *.webpods.org     -> your-server.example.com
@@ -183,11 +187,13 @@ CNAME *.webpods.org     -> your-server.example.com
 ## Health Checks
 
 Monitor endpoint:
+
 ```bash
 curl https://webpods.org/health
 ```
 
 Expected response:
+
 ```json
 {
   "status": "healthy",

@@ -42,12 +42,14 @@ User
 WebPods implements two distinct OAuth flows:
 
 #### 1. User Authentication (Direct OAuth)
+
 - **Purpose**: Users logging into WebPods
 - **Flow**: User → WebPods → OAuth Provider → WebPods
 - **Result**: WebPods JWT token + session cookie
 - **Providers**: Any OAuth 2.0 provider (GitHub, Google, etc.)
 
 #### 2. Third-Party OAuth (via Hydra)
+
 - **Purpose**: External apps accessing WebPods
 - **Flow**: App → Hydra → WebPods → User Login → Consent → App
 - **Result**: Hydra-issued OAuth tokens with pod scopes
@@ -75,11 +77,13 @@ WebPods implements two distinct OAuth flows:
 ### Core Tables
 
 #### user
+
 - `id` (UUID): Primary key
 - `created_at`: Registration time
 - `updated_at`: Last modification
 
 #### identity
+
 - `id` (UUID): Primary key
 - `user_id` → user: Owner
 - `provider`: OAuth provider ID
@@ -88,11 +92,13 @@ WebPods implements two distinct OAuth flows:
 - `metadata` (JSONB): Provider data
 
 #### pod
+
 - `id` (UUID): Primary key
 - `pod_id`: Subdomain identifier
 - `user_id` → user: Owner
 
 #### stream
+
 - `id` (UUID): Primary key
 - `pod_id` → pod: Parent pod
 - `stream_id`: Path (e.g., `/blog/2024`)
@@ -100,6 +106,7 @@ WebPods implements two distinct OAuth flows:
 - `access_permission`: Access mode
 
 #### record
+
 - `id` (UUID): Primary key
 - `stream_id` → stream: Parent stream
 - `index`: Position (0-based)
@@ -111,6 +118,7 @@ WebPods implements two distinct OAuth flows:
 - `name`: Optional identifier
 
 #### oauth_client
+
 - `id` (UUID): Primary key
 - `user_id` → user: Owner
 - `client_id`: OAuth client ID
@@ -148,6 +156,7 @@ Record N:
 ## Rate Limiting
 
 Per-user hourly limits:
+
 - Writes: 1000
 - Reads: 10000
 - Pod creation: 10
@@ -158,13 +167,17 @@ Anonymous reads limited by IP address.
 ## Content Serving
 
 ### Direct Serving
+
 HTML, CSS, JavaScript served with appropriate MIME types.
 
 ### Binary Content
+
 Images stored as base64, decoded on retrieval.
 
 ### URL Routing
+
 `.meta/links` stream maps URLs to content:
+
 ```json
 {
   "/": "homepage?i=-1",
@@ -175,6 +188,7 @@ Images stored as base64, decoded on retrieval.
 ## Root Pod
 
 Optional main domain serving:
+
 - Configure `rootPod` in config.json
 - Main domain serves from specified pod
 - System endpoints take precedence
@@ -182,19 +196,23 @@ Optional main domain serving:
 ## Security
 
 ### HTTPS
+
 TLS termination at load balancer or reverse proxy.
 
 ### Authentication
+
 - PKCE for OAuth flows
 - JWT with RS256 signing
 - Secure session cookies
 
 ### Input Validation
+
 - Zod schemas for all inputs
 - SQL injection prevention via parameterized queries
 - Path traversal protection
 
 ### Rate Limiting
+
 - Per-user and per-IP limits
 - Hourly windows
 - Automatic cleanup of expired windows

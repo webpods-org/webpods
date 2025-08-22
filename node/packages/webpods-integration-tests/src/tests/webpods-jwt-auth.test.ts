@@ -3,7 +3,11 @@
  */
 
 import { expect } from "chai";
-import { TestHttpClient, createTestUser, createTestPod } from "webpods-test-utils";
+import {
+  TestHttpClient,
+  createTestUser,
+  createTestPod,
+} from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 import jwt from "jsonwebtoken";
 
@@ -14,7 +18,7 @@ function generateWebPodsToken(userId: string): string {
     iat: Math.floor(Date.now() / 1000),
     type: "webpods", // This identifies it as a WebPods token
   };
-  
+
   // Use the test JWT secret from test-config.json
   const secret = "test-secret-key";
   return jwt.sign(payload, secret, { expiresIn: "7d" });
@@ -33,7 +37,7 @@ describe("WebPods JWT Authentication", () => {
     it("should display login page", async () => {
       const response = await client.get("/login");
       expect(response.status).to.equal(200);
-      
+
       const html = response.data as string;
       expect(html).to.include("Welcome to WebPods");
       expect(html).to.include("Sign in to access your pods and API");
@@ -42,7 +46,7 @@ describe("WebPods JWT Authentication", () => {
     it("should show configured OAuth providers on login page", async () => {
       const response = await client.get("/login");
       expect(response.status).to.equal(200);
-      
+
       const html = response.data as string;
       // Check for test providers from test-config.json
       expect(html).to.include("/auth/test-auth-provider-1");
@@ -53,17 +57,19 @@ describe("WebPods JWT Authentication", () => {
     it("should preserve redirect parameter in login page", async () => {
       const response = await client.get("/login?redirect=/dashboard");
       expect(response.status).to.equal(200);
-      
+
       const html = response.data as string;
-      expect(html).to.include("/auth/test-auth-provider-1?redirect=%2Fdashboard");
+      expect(html).to.include(
+        "/auth/test-auth-provider-1?redirect=%2Fdashboard",
+      );
     });
 
     it("should redirect pod login to main domain", async () => {
       // Pod login should redirect to main domain for SSO
       const podClient = new TestHttpClient("http://alice.localhost:3000");
       const response = await podClient.get("/login", { followRedirect: false });
-      
-      expect(response.status).to.be.oneOf([302, 303]); 
+
+      expect(response.status).to.be.oneOf([302, 303]);
       const location = response.headers.location;
       expect(location).to.include("http://localhost:3000/auth/authorize");
       expect(location).to.include("pod=alice");
@@ -72,10 +78,12 @@ describe("WebPods JWT Authentication", () => {
     it("should display JWT on success page", async () => {
       // Create a mock token for testing the success page
       const mockToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test.signature";
-      
-      const response = await client.get(`/auth/success?token=${mockToken}&redirect=/`);
+
+      const response = await client.get(
+        `/auth/success?token=${mockToken}&redirect=/`,
+      );
       expect(response.status).to.equal(200);
-      
+
       const html = response.data as string;
       expect(html).to.include("Authentication Successful");
       expect(html).to.include("Your Access Token");
@@ -132,13 +140,14 @@ describe("WebPods JWT Authentication", () => {
 
       // Access pod with WebPods JWT
       const podClient = new TestHttpClient(`http://${podId}.localhost:3000`);
-      const response = await podClient.post("/test-stream", 
+      const response = await podClient.post(
+        "/test-stream",
         { content: "test data" },
         {
           headers: {
             Authorization: `Bearer ${webpodsToken}`,
           },
-        }
+        },
       );
 
       expect(response.status).to.equal(201);
@@ -153,9 +162,9 @@ describe("WebPods JWT Authentication", () => {
       const authResponse = await client.get("/auth/test-auth-provider-1", {
         followRedirect: false,
       });
-      
+
       expect(authResponse.status).to.be.oneOf([302, 303]);
-      
+
       // Check for PKCE state in redirect
       const location = authResponse.headers.location as string;
       expect(location).to.include("code_challenge");

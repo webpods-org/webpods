@@ -108,7 +108,6 @@ router.post(
         clientData.token_endpoint_auth_method === "none"
           ? null
           : generateClientSecret();
-      
 
       // Create client in Hydra
       const hydraAdmin = getHydraAdmin();

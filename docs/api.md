@@ -10,11 +10,13 @@ WebPods uses two authentication systems:
 ### User Authentication Endpoints
 
 #### List OAuth Providers
+
 ```
 GET /auth/providers
 ```
 
 Returns configured OAuth providers:
+
 ```json
 {
   "providers": [
@@ -28,6 +30,7 @@ Returns configured OAuth providers:
 ```
 
 #### OAuth Login
+
 ```
 GET /auth/{provider}
 ```
@@ -35,10 +38,12 @@ GET /auth/{provider}
 Initiates OAuth flow. Redirects to provider for authentication.
 
 Query parameters:
+
 - `redirect` - URL to redirect after auth (optional)
 - `no_redirect=1` - Return token instead of redirecting (for CLI)
 
 #### OAuth Callback
+
 ```
 GET /auth/{provider}/callback
 ```
@@ -46,12 +51,14 @@ GET /auth/{provider}/callback
 Handles OAuth provider callback. Creates session and returns JWT token.
 
 #### User Info
+
 ```
 GET /auth/whoami
 Authorization: Bearer {token}
 ```
 
 Returns authenticated user information:
+
 ```json
 {
   "user_id": "uuid",
@@ -61,6 +68,7 @@ Returns authenticated user information:
 ```
 
 #### Logout
+
 ```
 POST /auth/logout  # Returns JSON
 GET /auth/logout   # Browser redirect
@@ -71,6 +79,7 @@ Clears session and invalidates tokens.
 ### Third-Party OAuth Client Management
 
 #### Register OAuth Client
+
 ```
 POST /api/oauth/clients
 Authorization: Bearer {webpods-jwt}
@@ -78,6 +87,7 @@ Content-Type: application/json
 ```
 
 Request:
+
 ```json
 {
   "client_name": "My Application",
@@ -91,11 +101,13 @@ Request:
 ```
 
 Required fields:
+
 - `client_name` - Display name
 - `redirect_uris` - OAuth callback URLs
 - `requested_pods` - Pods your app needs access to
 
 Response:
+
 ```json
 {
   "client_id": "my-application-a1b2c3d4",
@@ -107,6 +119,7 @@ Response:
 ```
 
 #### List OAuth Clients
+
 ```
 GET /api/oauth/clients
 Authorization: Bearer {webpods-jwt}
@@ -115,18 +128,21 @@ Authorization: Bearer {webpods-jwt}
 Returns user's registered OAuth clients.
 
 #### Get OAuth Client
+
 ```
 GET /api/oauth/clients/{client-id}
 Authorization: Bearer {webpods-jwt}
 ```
 
 #### Delete OAuth Client
+
 ```
 DELETE /api/oauth/clients/{client-id}
 Authorization: Bearer {webpods-jwt}
 ```
 
 #### Simplified OAuth Authorization
+
 ```
 GET /connect?client_id={your-client-id}
 ```
@@ -136,29 +152,35 @@ Redirects to Hydra with proper OAuth parameters. Users authorize and are redirec
 ## Stream Operations
 
 ### Write Record
+
 ```
 POST {pod}.webpods.org/{stream}/{name}
 Authorization: Bearer {token}
 ```
 
 Parameters:
+
 - `{pod}` - Subdomain (created if doesn't exist)
 - `{stream}` - Path, can be nested (e.g., `/blog/2024/posts`)
 - `{name}` - Record name (required, last path segment)
 
 Query parameters:
+
 - `access` - Permission mode (`public`, `private`, `/{stream}`)
 
 Headers:
+
 - `X-Content-Type` - Explicit content type (highest priority)
 - `Content-Type` - Standard content type
 
 Name restrictions:
+
 - Allowed: `a-z`, `A-Z`, `0-9`, `-`, `_`, `.`
 - Cannot start or end with periods
 - Maximum 256 characters
 
 Response (201 Created):
+
 ```json
 {
   "index": 0,
@@ -175,11 +197,13 @@ Response (201 Created):
 ### Read Records
 
 #### By Name
+
 ```
 GET {pod}.webpods.org/{stream}/{name}
 ```
 
 Returns raw content with metadata in headers:
+
 - `Content-Type` - Content MIME type
 - `X-Hash` - Record SHA-256 hash
 - `X-Previous-Hash` - Previous record hash
@@ -188,21 +212,31 @@ Returns raw content with metadata in headers:
 - `X-Index` - Record index
 
 #### By Index
+
 ```
 GET {pod}.webpods.org/{stream}?i={index}
 ```
 
 Index formats:
+
 - Positive: `0` (first), `5` (sixth)
 - Negative: `-1` (latest), `-2` (second to last)
 - Range: `0:10` (records 0-9), `-10:-1` (last 10)
 
 #### List Records
+
 ```
-GET {pod}.webpods.org/{stream}?limit={n}&after={index}
+GET {pod}.webpods.org/{stream}?limit={n}&after={index}&unique={boolean}
 ```
 
+Query parameters:
+
+- `limit` - Maximum records to return (default: 100)
+- `after` - Start after this index (for pagination)
+- `unique` - When `true`, returns only latest version of each named record, excluding deleted/purged records
+
 Response:
+
 ```json
 {
   "records": [...],
@@ -212,7 +246,16 @@ Response:
 }
 ```
 
+When `unique=true`:
+
+- Returns only the most recent record for each unique name
+- Excludes records marked as deleted (`{"deleted": true}`)
+- Excludes records marked as purged (`{"purged": true}`)
+- Records without names are excluded
+- Useful for treating streams as key-value stores
+
 ### Delete Stream
+
 ```
 DELETE {pod}.webpods.org/{stream}
 Authorization: Bearer {token}
@@ -223,13 +266,17 @@ Only stream creator can delete. System streams (`.meta/*`) cannot be deleted.
 ## System Streams
 
 ### .meta/owner
+
 Pod ownership tracking. Write to transfer ownership:
+
 ```json
 { "owner": "new-user-id" }
 ```
 
 ### .meta/links
+
 URL routing configuration:
+
 ```json
 {
   "/": "homepage?i=-1",
@@ -238,6 +285,7 @@ URL routing configuration:
 ```
 
 ### .meta/streams
+
 ```
 GET {pod}.webpods.org/.meta/streams
 ```
@@ -257,6 +305,7 @@ Set via `?access` parameter on first write:
 ### Permission Stream Format
 
 Write to permission stream to grant access:
+
 ```json
 {
   "id": "user-id",
@@ -270,12 +319,14 @@ Latest record for a user determines their permissions.
 ## Rate Limits
 
 Default limits per hour:
+
 - Write: 1000
 - Read: 10000
 - Pod creation: 10
 - Stream creation: 100
 
 Headers in responses:
+
 - `X-RateLimit-Limit` - Requests per hour
 - `X-RateLimit-Remaining` - Requests left
 - `X-RateLimit-Reset` - Unix timestamp
@@ -292,6 +343,7 @@ Headers in responses:
 ```
 
 Common error codes:
+
 - `UNAUTHORIZED` - Missing/invalid authentication
 - `FORBIDDEN` - Insufficient permissions
 - `NOT_FOUND` - Resource not found
@@ -303,6 +355,7 @@ Common error codes:
 ## Content Types
 
 Supported for direct serving:
+
 - `text/html` - HTML pages
 - `text/css` - Stylesheets
 - `application/javascript` - Scripts

@@ -47,6 +47,7 @@ import {
   getRecord,
   getRecordRange,
   listRecords,
+  listUniqueRecords,
   recordToResponse,
 } from "../domain/records.js";
 import { canRead, canWrite } from "../domain/permissions.js";
@@ -1157,8 +1158,12 @@ router.get(
       const after = req.query.after
         ? parseInt(req.query.after as string)
         : undefined;
+      const unique = req.query.unique === "true";
 
-      const result = await listRecords(db, streamResult.data.id, limit, after);
+      // Use appropriate listing function based on unique parameter
+      const result = unique
+        ? await listUniqueRecords(db, streamResult.data.id, limit, after)
+        : await listRecords(db, streamResult.data.id, limit, after);
 
       if (!result.success) {
         res.status(500).json({

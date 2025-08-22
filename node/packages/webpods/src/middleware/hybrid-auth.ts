@@ -86,7 +86,7 @@ export async function authenticateHybrid(
         scope: "full_access",
       } as HydraAuth;
       req.auth_type = "webpods";
-      
+
       // Also set req.user for compatibility with WebPods JWT middleware
       req.user = {
         id: webpodsResult.data.sub,

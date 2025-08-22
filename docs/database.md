@@ -5,90 +5,98 @@ WebPods uses PostgreSQL with pg-promise for queries and Knex.js for migrations.
 ## Tables
 
 ### user
-| Column | Type | Description |
-|--------|------|-------------|
-| id | UUID | Primary key |
+
+| Column     | Type      | Description   |
+| ---------- | --------- | ------------- |
+| id         | UUID      | Primary key   |
 | created_at | TIMESTAMP | Creation time |
-| updated_at | TIMESTAMP | Last update |
+| updated_at | TIMESTAMP | Last update   |
 
 ### identity
-| Column | Type | Description |
-|--------|------|-------------|
-| id | UUID | Primary key |
-| user_id | UUID | References user.id |
-| provider | VARCHAR(50) | OAuth provider ID |
-| provider_id | VARCHAR(255) | External user ID |
-| email | VARCHAR(255) | User email |
-| name | VARCHAR(255) | Display name |
-| metadata | JSONB | Provider data |
-| created_at | TIMESTAMP | Creation time |
-| updated_at | TIMESTAMP | Last update |
+
+| Column      | Type         | Description        |
+| ----------- | ------------ | ------------------ |
+| id          | UUID         | Primary key        |
+| user_id     | UUID         | References user.id |
+| provider    | VARCHAR(50)  | OAuth provider ID  |
+| provider_id | VARCHAR(255) | External user ID   |
+| email       | VARCHAR(255) | User email         |
+| name        | VARCHAR(255) | Display name       |
+| metadata    | JSONB        | Provider data      |
+| created_at  | TIMESTAMP    | Creation time      |
+| updated_at  | TIMESTAMP    | Last update        |
 
 ### pod
-| Column | Type | Description |
-|--------|------|-------------|
-| id | UUID | Primary key |
-| pod_id | VARCHAR(100) | Subdomain identifier |
-| user_id | UUID | Owner (references user.id) |
-| created_at | TIMESTAMP | Creation time |
+
+| Column     | Type         | Description                |
+| ---------- | ------------ | -------------------------- |
+| id         | UUID         | Primary key                |
+| pod_id     | VARCHAR(100) | Subdomain identifier       |
+| user_id    | UUID         | Owner (references user.id) |
+| created_at | TIMESTAMP    | Creation time              |
 
 ### stream
-| Column | Type | Description |
-|--------|------|-------------|
-| id | UUID | Primary key |
-| pod_id | UUID | Parent pod (references pod.id) |
-| stream_id | VARCHAR(500) | Stream path |
-| user_id | UUID | Creator (references user.id) |
-| access_permission | VARCHAR(50) | Access mode |
-| created_at | TIMESTAMP | Creation time |
+
+| Column            | Type         | Description                    |
+| ----------------- | ------------ | ------------------------------ |
+| id                | UUID         | Primary key                    |
+| pod_id            | UUID         | Parent pod (references pod.id) |
+| stream_id         | VARCHAR(500) | Stream path                    |
+| user_id           | UUID         | Creator (references user.id)   |
+| access_permission | VARCHAR(50)  | Access mode                    |
+| created_at        | TIMESTAMP    | Creation time                  |
 
 ### record
-| Column | Type | Description |
-|--------|------|-------------|
-| id | UUID | Primary key |
-| stream_id | UUID | Parent stream (references stream.id) |
-| index | INTEGER | Position (0-based) |
-| content | TEXT | Record data |
-| content_type | VARCHAR(100) | MIME type |
-| hash | VARCHAR(100) | SHA-256 hash |
-| previous_hash | VARCHAR(100) | Previous record hash |
-| author_id | UUID | Author (references user.id) |
-| name | VARCHAR(255) | Optional identifier |
-| created_at | TIMESTAMP | Creation time |
+
+| Column        | Type         | Description                          |
+| ------------- | ------------ | ------------------------------------ |
+| id            | UUID         | Primary key                          |
+| stream_id     | UUID         | Parent stream (references stream.id) |
+| index         | INTEGER      | Position (0-based)                   |
+| content       | TEXT         | Record data                          |
+| content_type  | VARCHAR(100) | MIME type                            |
+| hash          | VARCHAR(100) | SHA-256 hash                         |
+| previous_hash | VARCHAR(100) | Previous record hash                 |
+| author_id     | UUID         | Author (references user.id)          |
+| name          | VARCHAR(255) | Optional identifier                  |
+| created_at    | TIMESTAMP    | Creation time                        |
 
 ### oauth_client
-| Column | Type | Description |
-|--------|------|-------------|
-| id | UUID | Primary key |
-| user_id | UUID | Owner (references user.id) |
-| client_id | VARCHAR(255) | OAuth client ID |
-| client_name | VARCHAR(255) | Display name |
-| client_secret | VARCHAR(255) | OAuth secret |
-| redirect_uris | TEXT[] | Callback URLs |
-| requested_pods | TEXT[] | Required pods |
-| grant_types | TEXT[] | OAuth grant types |
-| response_types | TEXT[] | OAuth response types |
-| token_endpoint_auth_method | VARCHAR(50) | Auth method |
-| scope | VARCHAR(500) | OAuth scopes |
-| metadata | JSONB | Additional data |
-| created_at | TIMESTAMP | Creation time |
-| updated_at | TIMESTAMP | Last update |
+
+| Column                     | Type         | Description                |
+| -------------------------- | ------------ | -------------------------- |
+| id                         | UUID         | Primary key                |
+| user_id                    | UUID         | Owner (references user.id) |
+| client_id                  | VARCHAR(255) | OAuth client ID            |
+| client_name                | VARCHAR(255) | Display name               |
+| client_secret              | VARCHAR(255) | OAuth secret               |
+| redirect_uris              | TEXT[]       | Callback URLs              |
+| requested_pods             | TEXT[]       | Required pods              |
+| grant_types                | TEXT[]       | OAuth grant types          |
+| response_types             | TEXT[]       | OAuth response types       |
+| token_endpoint_auth_method | VARCHAR(50)  | Auth method                |
+| scope                      | VARCHAR(500) | OAuth scopes               |
+| metadata                   | JSONB        | Additional data            |
+| created_at                 | TIMESTAMP    | Creation time              |
+| updated_at                 | TIMESTAMP    | Last update                |
 
 ### session
-| Column | Type | Description |
-|--------|------|-------------|
-| sid | VARCHAR | Session ID (primary key) |
-| sess | JSON | Session data |
-| expire | TIMESTAMP | Expiration time |
+
+| Column | Type      | Description              |
+| ------ | --------- | ------------------------ |
+| sid    | VARCHAR   | Session ID (primary key) |
+| sess   | JSON      | Session data             |
+| expire | TIMESTAMP | Expiration time          |
 
 ### oauth_state
-| Column | Type | Description |
-|--------|------|-------------|
-| state | VARCHAR(255) | OAuth state (primary key) |
-| code_verifier | VARCHAR(255) | PKCE verifier |
-| pod | VARCHAR(100) | Target pod |
-| redirect_uri | TEXT | Redirect URL |
-| expires_at | TIMESTAMP | Expiration (10 minutes) |
+
+| Column        | Type         | Description               |
+| ------------- | ------------ | ------------------------- |
+| state         | VARCHAR(255) | OAuth state (primary key) |
+| code_verifier | VARCHAR(255) | PKCE verifier             |
+| pod           | VARCHAR(100) | Target pod                |
+| redirect_uri  | TEXT         | Redirect URL              |
+| expires_at    | TIMESTAMP    | Expiration (10 minutes)   |
 
 ## Indexes
 
@@ -127,7 +135,7 @@ const stream = await db.oneOrNone<StreamDbRow>(
   `SELECT * FROM stream 
    WHERE stream_id = $(streamId) 
    AND pod_id = $(podId)`,
-  { streamId, podId }
+  { streamId, podId },
 );
 
 // Insert with RETURNING
@@ -135,13 +143,13 @@ const record = await db.one<RecordDbRow>(
   `INSERT INTO record (stream_id, content, author_id)
    VALUES ($(streamId), $(content), $(authorId))
    RETURNING *`,
-  { streamId, content, authorId }
+  { streamId, content, authorId },
 );
 
 // Handle reserved words
 const user = await db.oneOrNone<UserDbRow>(
   `SELECT * FROM "user" WHERE id = $(userId)`,
-  { userId }
+  { userId },
 );
 ```
 

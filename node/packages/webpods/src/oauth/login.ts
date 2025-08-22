@@ -54,7 +54,9 @@ router.get("/login", async (req: Request, res: Response) => {
           const stateData = JSON.parse(Buffer.from(state, "base64").toString());
           if (stateData.pods && Array.isArray(stateData.pods)) {
             requestedPods = stateData.pods;
-            logger.debug("Extracted pods from OAuth state", { pods: requestedPods });
+            logger.debug("Extracted pods from OAuth state", {
+              pods: requestedPods,
+            });
           }
         }
       } catch (e) {
@@ -154,10 +156,12 @@ router.get("/login", async (req: Request, res: Response) => {
       });
 
       // Redirect to OAuth provider (using default or configured)
-      const defaultProvider = config.oauth.defaultProvider || 
-        config.oauth.providers[0]?.id || "github";
+      const defaultProvider =
+        config.oauth.defaultProvider ||
+        config.oauth.providers[0]?.id ||
+        "github";
       const returnUrl = `${publicUrl}/oauth/login?login_challenge=${loginChallenge}`;
-      
+
       // Pass pods through the auth flow via query parameter
       let authUrl = `${publicUrl}/auth/${defaultProvider}?redirect=${encodeURIComponent(returnUrl)}`;
       if (requestedPods.length > 0) {

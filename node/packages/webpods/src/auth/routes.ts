@@ -391,16 +391,23 @@ router.get("/:provider", async (req: Request, res: Response) => {
   try {
     // Get redirect URL from query or default to root
     const redirect = req.query.redirect ? String(req.query.redirect) : "/";
-    
+
     // Get requested pods from query parameter
     const podsParam = req.query.pods as string | undefined;
-    const requestedPods = podsParam ? podsParam.split(",").filter(p => p) : undefined;
+    const requestedPods = podsParam
+      ? podsParam.split(",").filter((p) => p)
+      : undefined;
 
     // Generate PKCE and state
     const { codeVerifier, codeChallenge, state } = generatePKCE();
 
     // Store state with codeVerifier, pods (as comma-separated), and redirect in database
-    await storePKCEState(state, codeVerifier, requestedPods?.join(","), redirect);
+    await storePKCEState(
+      state,
+      codeVerifier,
+      requestedPods?.join(","),
+      redirect,
+    );
 
     // Get authorization URL
     const authUrl = await getAuthorizationUrl(provider, state, codeChallenge);

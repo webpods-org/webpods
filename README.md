@@ -5,6 +5,7 @@ HTTP-based append-only logs using subdomains (pods) and paths (streams).
 ## What is WebPods?
 
 WebPods organizes data into:
+
 - **Pods**: Subdomains that act as namespaces (e.g., `alice.webpods.org`)
 - **Streams**: Append-only logs within pods (e.g., `/blog`, `/data/2024`)
 - **Records**: Immutable entries with SHA-256 hash chains
@@ -69,6 +70,7 @@ GET {pod}.webpods.org/{stream}?limit=100&after=50
 ### Permissions
 
 Set on first write with `?access={mode}`:
+
 - `public` - Anyone can read, authenticated users can write (default)
 - `private` - Only creator can read/write
 - `/{stream}` - Users listed in that stream can access
@@ -137,20 +139,23 @@ WebPods requires OAuth providers for user authentication. Edit `config.json`:
 ```json
 {
   "oauth": {
-    "providers": [{
-      "id": "github",
-      "clientId": "your-client-id",
-      "clientSecret": "$GITHUB_SECRET",  // Reference env variable
-      "authUrl": "https://github.com/login/oauth/authorize",
-      "tokenUrl": "https://github.com/login/oauth/access_token",
-      "userinfoUrl": "https://api.github.com/user",
-      "scope": "read:user user:email"
-    }]
+    "providers": [
+      {
+        "id": "github",
+        "clientId": "your-client-id",
+        "clientSecret": "$GITHUB_SECRET", // Reference env variable
+        "authUrl": "https://github.com/login/oauth/authorize",
+        "tokenUrl": "https://github.com/login/oauth/access_token",
+        "userinfoUrl": "https://api.github.com/user",
+        "scope": "read:user user:email"
+      }
+    ]
   }
 }
 ```
 
 Environment variables:
+
 - `JWT_SECRET` - Required for token signing
 - `SESSION_SECRET` - Required for session management
 - `DATABASE_URL` - PostgreSQL connection string
