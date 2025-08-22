@@ -33,14 +33,14 @@ export interface User {
 
 export interface Identity {
   id: string;
-  user_id: string;
+  userId: string;
   provider: string; // OAuth provider ID from config.json
-  provider_id: string; // ID from the provider
+  providerId: string; // ID from the provider
   email: string | null;
   name: string | null;
   metadata?: any;
-  created_at: Date;
-  updated_at: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface Pod {

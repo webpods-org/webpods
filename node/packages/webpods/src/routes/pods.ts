@@ -598,12 +598,7 @@ router.post(
 
         // Ensure user exists in database before creating pod
         // This handles cases where JWT is valid but user was deleted (e.g., in tests)
-        const userResult = await ensureUserExists(
-          db,
-          req.auth.user_id,
-          req.auth.email,
-          req.auth.name,
-        );
+        const userResult = await ensureUserExists(db, req.auth.user_id);
 
         if (!userResult.success) {
           res.status(500).json({
