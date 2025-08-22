@@ -16,6 +16,7 @@ import {
   validateProvider,
 } from "./oauth-handlers.js";
 import { getConfiguredProviders, getDefaultProvider } from "./oauth-config.js";
+import { generateWebPodsToken } from "./jwt-generator.js";
 
 type OAuthProvider = string;
 import {
@@ -390,12 +391,16 @@ router.get("/:provider", async (req: Request, res: Response) => {
   try {
     // Get redirect URL from query or default to root
     const redirect = req.query.redirect ? String(req.query.redirect) : "/";
+    
+    // Get requested pods from query parameter
+    const podsParam = req.query.pods as string | undefined;
+    const requestedPods = podsParam ? podsParam.split(",").filter(p => p) : undefined;
 
     // Generate PKCE and state
     const { codeVerifier, codeChallenge, state } = generatePKCE();
 
-    // Store state with codeVerifier and redirect in database
-    await storePKCEState(state, codeVerifier, undefined, redirect);
+    // Store state with codeVerifier, pods (as comma-separated), and redirect in database
+    await storePKCEState(state, codeVerifier, requestedPods?.join(","), redirect);
 
     // Get authorization URL
     const authUrl = await getAuthorizationUrl(provider, state, codeChallenge);
@@ -512,17 +517,34 @@ router.get("/:provider/callback", async (req: Request, res: Response) => {
     // Get config for redirect URLs
     const config = getConfig();
 
+    // Generate WebPods JWT for API access
+    const tokenResult = generateWebPodsToken(userResult.data.user.id);
+
+    if (!tokenResult.success) {
+      logger.error("Failed to generate WebPods JWT", {
+        error: tokenResult.error,
+        userId: userResult.data.user.id,
+      });
+      res.status(500).json({
+        error: {
+          code: "TOKEN_GENERATION_ERROR",
+          message: "Failed to generate authentication token",
+        },
+      });
+      return;
+    }
+
+    const webpodsToken = tokenResult.data;
+
     // Check if this is pod-specific auth
     if (stateData.pod) {
-      // WebPods JWT tokens removed - using Hydra OAuth
-      const podToken = "session"; // Placeholder for session-based auth
       // Build callback URL for pod subdomain
       const publicConfig = config.server.public!;
       const podHost =
         publicConfig.port === 80 || publicConfig.port === 443
           ? `${stateData.pod}.${publicConfig.hostname}`
           : `${stateData.pod}.${publicConfig.hostname}:${publicConfig.port}`;
-      const callbackUrl = `${publicConfig.protocol}://${podHost}/auth/callback?token=${encodeURIComponent(podToken)}&redirect=${encodeURIComponent(stateData.redirect || "/")}`;
+      const callbackUrl = `${publicConfig.protocol}://${podHost}/auth/callback?token=${encodeURIComponent(webpodsToken)}&redirect=${encodeURIComponent(stateData.redirect || "/")}`;
 
       logger.info("Pod authentication successful", {
         userId: userResult.data.user.id,
@@ -533,28 +555,34 @@ router.get("/:provider/callback", async (req: Request, res: Response) => {
 
       res.redirect(callbackUrl);
     } else {
-      // WebPods JWT tokens removed - using Hydra OAuth
-      const token = "session"; // Placeholder for session-based auth
-
-      // Set cookie for web apps
+      // Set session cookie for SSO (domain cookie for all subdomains)
       const isSecure = config.server.public?.isSecure || false;
-      res.cookie("token", token, {
+      const cookieDomain = config.server.public?.hostname?.startsWith(
+        "localhost",
+      )
+        ? undefined // Don't set domain for localhost
+        : `.${config.server.public?.hostname}`; // Set to .webpods.org for SSO
+
+      res.cookie("webpods_session", (req as any).session.id, {
         httpOnly: true,
         secure: isSecure,
         sameSite: isSecure ? "strict" : "lax",
         maxAge: 10 * 365 * 24 * 60 * 60 * 1000, // 10 years (effectively unlimited)
         path: "/",
+        domain: cookieDomain,
       });
 
       logger.info("User authenticated", {
         userId: userResult.data.user.id,
         provider,
         redirect: stateData.redirect,
+        tokenGenerated: true,
+        sessionCreated: true,
       });
 
-      // Redirect to success page with token
+      // Redirect to success page with WebPods JWT
       const redirectUrl = stateData.redirect || "/";
-      const successUrl = `/auth/success?token=${encodeURIComponent(token)}&redirect=${encodeURIComponent(redirectUrl)}`;
+      const successUrl = `/auth/success?token=${encodeURIComponent(webpodsToken)}&redirect=${encodeURIComponent(redirectUrl)}`;
       res.redirect(successUrl);
     }
   } catch (error: any) {

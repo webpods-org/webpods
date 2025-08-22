@@ -43,6 +43,26 @@ router.get("/login", async (req: Request, res: Response) => {
       requestedScope: loginRequest.requested_scope,
     });
 
+    // Extract pods from the original OAuth request if present
+    let requestedPods: string[] = [];
+    const requestUrl = (loginRequest as any).request_url;
+    if (requestUrl) {
+      try {
+        const url = new URL(requestUrl, "http://example.com");
+        const state = url.searchParams.get("state");
+        if (state) {
+          const stateData = JSON.parse(Buffer.from(state, "base64").toString());
+          if (stateData.pods && Array.isArray(stateData.pods)) {
+            requestedPods = stateData.pods;
+            logger.debug("Extracted pods from OAuth state", { pods: requestedPods });
+          }
+        }
+      } catch (e) {
+        // Invalid state format, ignore
+        logger.debug("Could not parse pods from state", { error: e });
+      }
+    }
+
     // Test mode: auto-accept with test user (only in controlled environments)
     if (req.headers["x-test-user"]) {
       if (!isTestModeAllowed(req)) {
@@ -116,11 +136,14 @@ router.get("/login", async (req: Request, res: Response) => {
       const config = getConfig();
       const publicUrl = config.server.publicUrl || "http://localhost:3000";
 
-      // Store challenge in session to return after auth
+      // Store challenge and pods in session to return after auth
       if (!session) {
         (req as any).session = {};
       }
       (req as any).session.loginChallenge = loginChallenge;
+      if (requestedPods.length > 0) {
+        (req as any).session.requestedPods = requestedPods;
+      }
 
       // Save session
       await new Promise<void>((resolve, reject) => {
@@ -130,9 +153,16 @@ router.get("/login", async (req: Request, res: Response) => {
         });
       });
 
-      // Redirect to OAuth provider (using default)
+      // Redirect to OAuth provider (using default or configured)
+      const defaultProvider = config.oauth.defaultProvider || 
+        config.oauth.providers[0]?.id || "github";
       const returnUrl = `${publicUrl}/oauth/login?login_challenge=${loginChallenge}`;
-      const authUrl = `${publicUrl}/auth/github?redirect=${encodeURIComponent(returnUrl)}`;
+      
+      // Pass pods through the auth flow via query parameter
+      let authUrl = `${publicUrl}/auth/${defaultProvider}?redirect=${encodeURIComponent(returnUrl)}`;
+      if (requestedPods.length > 0) {
+        authUrl += `&pods=${encodeURIComponent(requestedPods.join(","))}`;
+      }
 
       logger.info("Redirecting to authentication", { authUrl });
       res.redirect(authUrl);

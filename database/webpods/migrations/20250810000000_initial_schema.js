@@ -130,6 +130,27 @@ export async function up(knex) {
     table.index('expires_at'); // For cleanup of expired states
   });
 
+  // OAuth client storage for registered applications
+  await knex.schema.createTable('oauth_client', (table) => {
+    table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
+    table.uuid('user_id').references('id').inTable('user').onDelete('CASCADE');
+    table.string('client_id', 255).unique().notNullable(); // Unique client identifier
+    table.string('client_name', 255).notNullable(); // Display name
+    table.string('client_secret', 255); // NULL for public clients (SPAs)
+    table.specificType('redirect_uris', 'text[]').notNullable(); // Array of allowed redirect URIs
+    table.specificType('requested_pods', 'text[]').notNullable(); // Array of pods the client needs access to
+    table.specificType('grant_types', 'text[]').defaultTo(knex.raw("ARRAY['authorization_code','refresh_token']::text[]"));
+    table.specificType('response_types', 'text[]').defaultTo(knex.raw("ARRAY['code']::text[]"));
+    table.string('token_endpoint_auth_method', 50).defaultTo('client_secret_basic');
+    table.string('scope', 500).defaultTo('openid offline pod:read pod:write');
+    table.jsonb('metadata').defaultTo('{}'); // Additional client metadata
+    table.timestamp('created_at').defaultTo(knex.fn.now());
+    table.timestamp('updated_at').defaultTo(knex.fn.now());
+    
+    table.index('user_id');
+    table.index('client_id');
+  });
+
   // Update triggers for updated_at columns
   await knex.raw(`
     CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -165,10 +186,16 @@ export async function up(knex) {
     CREATE TRIGGER update_custom_domain_updated_at BEFORE UPDATE ON custom_domain
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
   `);
+
+  await knex.raw(`
+    CREATE TRIGGER update_oauth_client_updated_at BEFORE UPDATE ON oauth_client
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  `);
 }
 
 export async function down(knex) {
   // Drop triggers
+  await knex.raw('DROP TRIGGER IF EXISTS update_oauth_client_updated_at ON oauth_client');
   await knex.raw('DROP TRIGGER IF EXISTS update_custom_domain_updated_at ON custom_domain');
   await knex.raw('DROP TRIGGER IF EXISTS update_stream_updated_at ON stream');
   await knex.raw('DROP TRIGGER IF EXISTS update_pod_updated_at ON pod');
@@ -177,6 +204,7 @@ export async function down(knex) {
   await knex.raw('DROP FUNCTION IF EXISTS update_updated_at_column');
   
   // Drop tables in reverse order
+  await knex.schema.dropTableIfExists('oauth_client');
   await knex.schema.dropTableIfExists('oauth_state');
   await knex.schema.dropTableIfExists('session');
   await knex.schema.dropTableIfExists('rate_limit');

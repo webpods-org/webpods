@@ -78,12 +78,18 @@ export interface RateLimitsConfig {
   streamCreate: number;
 }
 
+export interface HydraConfig {
+  adminUrl: string;
+  publicUrl: string;
+}
+
 export interface AppConfig {
   oauth: OAuthConfig;
   server: ServerConfig;
   database: DatabaseConfig;
   auth: AuthConfig;
   rateLimits: RateLimitsConfig;
+  hydra: HydraConfig;
   rootPod?: string; // Optional pod to serve on main domain
 }
 
@@ -188,6 +194,12 @@ function resolveEnvVars(obj: any, path: string[] = []): any {
         case "rateLimits.streamCreate":
           defaultValue = 100;
           break;
+        case "hydra.adminUrl":
+          defaultValue = "http://localhost:4445";
+          break;
+        case "hydra.publicUrl":
+          defaultValue = "http://localhost:4444";
+          break;
       }
 
       if (Array.isArray(value)) {
@@ -219,6 +231,7 @@ function applyDefaults(config: any): any {
   config.database = config.database || {};
   config.auth = config.auth || {};
   config.rateLimits = config.rateLimits || {};
+  config.hydra = config.hydra || {};
 
   // Apply defaults for server (using env var references)
   config.server.host = config.server.host ?? "$HOST";
@@ -247,6 +260,10 @@ function applyDefaults(config: any): any {
     config.rateLimits.podCreate ?? "$RATE_LIMIT_POD_CREATE";
   config.rateLimits.streamCreate =
     config.rateLimits.streamCreate ?? "$RATE_LIMIT_STREAM_CREATE";
+
+  // Apply defaults for Hydra
+  config.hydra.adminUrl = config.hydra.adminUrl ?? "$HYDRA_ADMIN_URL";
+  config.hydra.publicUrl = config.hydra.publicUrl ?? "$HYDRA_PUBLIC_URL";
 
   return config;
 }

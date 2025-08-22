@@ -4,6 +4,7 @@
 
 import { Configuration, OAuth2Api } from "@ory/hydra-client";
 import { createLogger } from "../logger.js";
+import { getConfig } from "../config-loader.js";
 
 const logger = createLogger("webpods:oauth:hydra");
 
@@ -14,8 +15,8 @@ let hydraAdmin: OAuth2Api | null = null;
  */
 export function getHydraAdmin(): OAuth2Api {
   if (!hydraAdmin) {
-    const hydraAdminUrl =
-      process.env.HYDRA_ADMIN_URL || "http://localhost:4445";
+    const config = getConfig();
+    const hydraAdminUrl = config.hydra.adminUrl;
 
     const configuration = new Configuration({
       basePath: hydraAdminUrl,
@@ -32,7 +33,8 @@ export function getHydraAdmin(): OAuth2Api {
  * Get Hydra public URL for JWKS
  */
 export function getHydraPublicUrl(): string {
-  return process.env.HYDRA_PUBLIC_URL || "http://localhost:4444";
+  const config = getConfig();
+  return config.hydra.publicUrl;
 }
 
 /**

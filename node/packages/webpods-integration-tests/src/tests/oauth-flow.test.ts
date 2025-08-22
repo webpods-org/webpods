@@ -118,5 +118,4 @@ describe("OAuth Flow Integration", () => {
       expect(res.status).to.be.oneOf([200, 401]);
     });
   });
-
 });

@@ -4,6 +4,7 @@
 
 import { Request, Response, NextFunction } from "express";
 import { verifyHydraToken } from "../oauth/jwt-validator.js";
+import { verifyWebPodsToken, isWebPodsToken } from "../auth/jwt-generator.js";
 import { HydraAuth, AuthRequest } from "../types.js";
 import { createLogger } from "../logger.js";
 import { getIpAddress } from "../utils.js";
@@ -61,11 +62,46 @@ export async function authenticateHybrid(
 
     req.ip_address = getIpAddress(req);
 
-    // Only support Hydra tokens now
+    // Determine token type and verify accordingly
     logger.debug("Attempting to verify token", {
       tokenPrefix: token.substring(0, 50),
       pod: currentPod,
     });
+
+    // Check if it's a WebPods token
+    if (isWebPodsToken(token)) {
+      const webpodsResult = verifyWebPodsToken(token);
+
+      if (!webpodsResult.success) {
+        logger.warn("Invalid WebPods token", { error: webpodsResult.error });
+        res.status(401).json({ error: webpodsResult.error });
+        return;
+      }
+
+      // WebPods tokens have full access to all pods for the user
+      req.auth = {
+        user_id: webpodsResult.data.sub,
+        client_id: "webpods",
+        pods: [], // Empty means all pods
+        scope: "full_access",
+      } as HydraAuth;
+      req.auth_type = "webpods";
+      
+      // Also set req.user for compatibility with WebPods JWT middleware
+      req.user = {
+        id: webpodsResult.data.sub,
+        type: "webpods",
+      };
+
+      logger.debug("WebPods token authenticated", {
+        userId: webpodsResult.data.sub,
+      });
+
+      next();
+      return;
+    }
+
+    // Otherwise, try Hydra token
     const hydraResult = await verifyHydraToken(token);
 
     if (!hydraResult.success) {
@@ -162,17 +198,31 @@ export async function optionalAuthHybrid(
       return;
     }
 
-    // Only support Hydra tokens
-    const hydraResult = await verifyHydraToken(token);
-    if (hydraResult.success) {
-      const payload = hydraResult.data;
-      req.auth = {
-        user_id: payload.sub,
-        client_id: payload.client_id,
-        pods: payload.ext?.pods,
-        scope: payload.scope,
-      } as HydraAuth;
-      req.auth_type = "hydra";
+    // Check if it's a WebPods token
+    if (isWebPodsToken(token)) {
+      const webpodsResult = verifyWebPodsToken(token);
+      if (webpodsResult.success) {
+        req.auth = {
+          user_id: webpodsResult.data.sub,
+          client_id: "webpods",
+          pods: [], // Empty means all pods
+          scope: "full_access",
+        } as HydraAuth;
+        req.auth_type = "webpods";
+      }
+    } else {
+      // Try Hydra token
+      const hydraResult = await verifyHydraToken(token);
+      if (hydraResult.success) {
+        const payload = hydraResult.data;
+        req.auth = {
+          user_id: payload.sub,
+          client_id: payload.client_id,
+          pods: payload.ext?.pods,
+          scope: payload.scope,
+        } as HydraAuth;
+        req.auth_type = "hydra";
+      }
     }
 
     next();

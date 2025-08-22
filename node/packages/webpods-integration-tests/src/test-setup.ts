@@ -1,9 +1,16 @@
 // Test setup for WebPods integration tests
 import { TestDatabase, TestServer, testLogger } from "webpods-test-utils";
+import * as path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Ensure test mode is enabled for this process
 process.env.NODE_ENV = "test";
 process.env.WEBPODS_TEST_MODE = "enabled";
+
+// Set config path for the test process itself (not just the server)
+process.env.WEBPODS_CONFIG_PATH = path.join(__dirname, "../test-config.json");
 
 // Test configuration
 export const testDb = new TestDatabase({

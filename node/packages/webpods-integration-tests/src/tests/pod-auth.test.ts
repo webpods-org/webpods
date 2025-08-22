@@ -145,10 +145,10 @@ describe("Pod-Specific Authentication with SSO", () => {
         followRedirect: false,
       });
 
-      // Without session, should redirect to OAuth (Hydra provider in test)
+      // Without session, should redirect to OAuth (mock provider in test)
       expect(response.status).to.equal(302);
       expect(response.headers.location).to.include(
-        "localhost:4444/oauth2/auth",
+        "localhost:4567/oauth2/auth",
       );
     });
   });

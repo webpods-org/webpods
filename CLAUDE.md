@@ -69,6 +69,7 @@ The codebase follows a functional programming approach with these key directorie
 - **Reserved words**: Use double quotes for PostgreSQL reserved words (e.g., `"user"`)
 - **Always use named parameters**: `$(paramName)` not `$1`
 - **Always specify type parameters**: `db.one<UserDbRow>(...)`
+- **MIGRATION POLICY**: Never create new migration files. All schema changes go in `/database/webpods/migrations/20250810000000_initial_schema.js`
 
 For detailed schema information, see `/docs/database.md`
 
