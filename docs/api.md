@@ -2,94 +2,163 @@
 
 ## Authentication
 
-### List OAuth Providers
+WebPods uses two authentication systems:
 
+1. **User Authentication**: Direct OAuth for users managing their pods
+2. **Third-Party OAuth**: Apps accessing WebPods on behalf of users (via Ory Hydra)
+
+### User Authentication Endpoints
+
+#### List OAuth Providers
 ```
-GET https://webpods.org/auth/providers
-```
-
-Returns configured OAuth providers with their login URLs.
-
-### OAuth Login
-
-```
-GET https://webpods.org/auth/{provider}
+GET /auth/providers
 ```
 
-Examples:
-
-```bash
-GET https://webpods.org/auth/github
-GET https://webpods.org/auth/google
-GET https://webpods.org/auth/gitlab
+Returns configured OAuth providers:
+```json
+{
+  "providers": [
+    {
+      "id": "github",
+      "name": "GitHub",
+      "loginUrl": "/auth/github"
+    }
+  ]
+}
 ```
 
-- Providers: Any configured OAuth provider from config.json
-- Optional: `?redirect={path}` for post-auth redirect
-- Optional: `?no_redirect=1` to prevent auto-redirect (CLI usage)
-
-### SSO Authorization
-
+#### OAuth Login
 ```
-GET https://webpods.org/auth/authorize?pod={pod_id}
+GET /auth/{provider}
 ```
 
-Generates pod-specific token if session exists, otherwise redirects to OAuth.
+Initiates OAuth flow. Redirects to provider for authentication.
 
-### User Info
+Query parameters:
+- `redirect` - URL to redirect after auth (optional)
+- `no_redirect=1` - Return token instead of redirecting (for CLI)
 
+#### OAuth Callback
 ```
-GET https://webpods.org/auth/whoami
+GET /auth/{provider}/callback
+```
+
+Handles OAuth provider callback. Creates session and returns JWT token.
+
+#### User Info
+```
+GET /auth/whoami
 Authorization: Bearer {token}
 ```
 
-Returns:
-
+Returns authenticated user information:
 ```json
 {
-  "user_id": "uuid-here",
+  "user_id": "uuid",
   "email": "user@example.com",
   "name": "User Name"
 }
 ```
 
-### Logout
+#### Logout
+```
+POST /auth/logout  # Returns JSON
+GET /auth/logout   # Browser redirect
+```
 
+Clears session and invalidates tokens.
+
+### Third-Party OAuth Client Management
+
+#### Register OAuth Client
 ```
-POST https://webpods.org/auth/logout  # Returns JSON
-GET https://webpods.org/auth/logout   # Browser redirect
+POST /api/oauth/clients
+Authorization: Bearer {webpods-jwt}
+Content-Type: application/json
 ```
+
+Request:
+```json
+{
+  "client_name": "My Application",
+  "redirect_uris": ["https://myapp.com/callback"],
+  "requested_pods": ["alice", "bob"],
+  "grant_types": ["authorization_code", "refresh_token"],
+  "response_types": ["code"],
+  "token_endpoint_auth_method": "client_secret_basic",
+  "scope": "openid offline pod:read pod:write"
+}
+```
+
+Required fields:
+- `client_name` - Display name
+- `redirect_uris` - OAuth callback URLs
+- `requested_pods` - Pods your app needs access to
+
+Response:
+```json
+{
+  "client_id": "my-application-a1b2c3d4",
+  "client_secret": "secret-only-shown-once",
+  "client_name": "My Application",
+  "redirect_uris": ["https://myapp.com/callback"],
+  "requested_pods": ["alice", "bob"]
+}
+```
+
+#### List OAuth Clients
+```
+GET /api/oauth/clients
+Authorization: Bearer {webpods-jwt}
+```
+
+Returns user's registered OAuth clients.
+
+#### Get OAuth Client
+```
+GET /api/oauth/clients/{client-id}
+Authorization: Bearer {webpods-jwt}
+```
+
+#### Delete OAuth Client
+```
+DELETE /api/oauth/clients/{client-id}
+Authorization: Bearer {webpods-jwt}
+```
+
+#### Simplified OAuth Authorization
+```
+GET /connect?client_id={your-client-id}
+```
+
+Redirects to Hydra with proper OAuth parameters. Users authorize and are redirected to your callback URL.
 
 ## Stream Operations
 
 ### Write Record
-
 ```
-POST {pod}.webpods.org/{stream}
+POST {pod}.webpods.org/{stream}/{name}
 Authorization: Bearer {token}
 ```
 
+Parameters:
+- `{pod}` - Subdomain (created if doesn't exist)
+- `{stream}` - Path, can be nested (e.g., `/blog/2024/posts`)
+- `{name}` - Record name (required, last path segment)
+
 Query parameters:
-
-- `name`: String identifier for this record (see restrictions below)
-- `access`: Permission mode (`public`, `private`, `/{stream}`)
-
-**Name Restrictions:**
-
-- Allowed characters: `a-z`, `A-Z`, `0-9`, `-` (hyphen), `_` (underscore), `.` (period)
-- Cannot start or end with a period
-- Cannot contain slashes or other special characters
-- Maximum length: 256 characters
-- Valid examples: `index.html`, `my-post`, `IMG_1234`, `v2.0.1`
-- Invalid examples: `path/to/file`, `.hidden`, `hello world`, `file@name`
+- `access` - Permission mode (`public`, `private`, `/{stream}`)
 
 Headers:
+- `X-Content-Type` - Explicit content type (highest priority)
+- `Content-Type` - Standard content type
 
-- `X-Content-Type`: Explicit content type (highest priority)
-- `Content-Type`: Standard content type
+Name restrictions:
+- Allowed: `a-z`, `A-Z`, `0-9`, `-`, `_`, `.`
+- Cannot start or end with periods
+- Maximum 256 characters
 
-Response:
-
+Response (201 Created):
 ```json
 {
   "index": 0,
@@ -98,37 +167,42 @@ Response:
   "name": "my-name",
   "hash": "sha256:...",
   "previous_hash": null,
-  "author": "user-uuid-here",
+  "author": "user-uuid",
   "timestamp": "2024-01-01T00:00:00Z"
 }
 ```
 
 ### Read Records
 
-#### By Index
-
-```
-GET {pod}.webpods.org/{stream}?i={index}
-```
-
-- Positive: `0` (first), `5` (sixth)
-- Negative: `-1` (latest), `-2` (second to last)
-- Range: `0:10` (items 0-9), `-10:-1` (last 10)
-
 #### By Name
-
 ```
 GET {pod}.webpods.org/{stream}/{name}
 ```
 
-#### List Records
+Returns raw content with metadata in headers:
+- `Content-Type` - Content MIME type
+- `X-Hash` - Record SHA-256 hash
+- `X-Previous-Hash` - Previous record hash
+- `X-Author` - Author ID
+- `X-Timestamp` - Creation timestamp
+- `X-Index` - Record index
 
+#### By Index
+```
+GET {pod}.webpods.org/{stream}?i={index}
+```
+
+Index formats:
+- Positive: `0` (first), `5` (sixth)
+- Negative: `-1` (latest), `-2` (second to last)
+- Range: `0:10` (records 0-9), `-10:-1` (last 10)
+
+#### List Records
 ```
 GET {pod}.webpods.org/{stream}?limit={n}&after={index}
 ```
 
-Returns:
-
+Response:
 ```json
 {
   "records": [...],
@@ -139,26 +213,23 @@ Returns:
 ```
 
 ### Delete Stream
-
 ```
 DELETE {pod}.webpods.org/{stream}
 Authorization: Bearer {token}
 ```
 
+Only stream creator can delete. System streams (`.meta/*`) cannot be deleted.
+
 ## System Streams
 
 ### .meta/owner
-
-Pod ownership tracking.
-
+Pod ownership tracking. Write to transfer ownership:
 ```json
-{ "owner": "user_id" }
+{ "owner": "new-user-id" }
 ```
 
 ### .meta/links
-
-URL routing configuration.
-
+URL routing configuration:
 ```json
 {
   "/": "homepage?i=-1",
@@ -167,7 +238,6 @@ URL routing configuration.
 ```
 
 ### .meta/streams
-
 ```
 GET {pod}.webpods.org/.meta/streams
 ```
@@ -178,108 +248,92 @@ Lists all streams in pod.
 
 ### Access Modes
 
-- `public`: Anyone reads, authenticated write
-- `private`: Creator only
-- `/{stream}`: Allow list from permission stream
+Set via `?access` parameter on first write:
 
-### Permission Stream Records
+- **public** - Anyone can read, authenticated users can write
+- **private** - Only creator can read/write
+- **/{stream}** - Users listed in permission stream
 
+### Permission Stream Format
+
+Write to permission stream to grant access:
 ```json
 {
-  "id": "auth:github:123",
+  "id": "user-id",
   "read": true,
   "write": false
 }
 ```
 
-## Response Headers
-
-### Single Record
-
-- `Content-Type`: Content MIME type
-- `X-Hash`: Record SHA-256 hash
-- `X-Previous-Hash`: Previous record hash
-- `X-Author`: Author ID
-- `X-Timestamp`: Creation timestamp
-- `X-Index`: Record index
-
-### Rate Limits
-
-- `X-RateLimit-Limit`: Requests per hour
-- `X-RateLimit-Remaining`: Requests left
-- `X-RateLimit-Reset`: Unix timestamp
-
-## Error Codes
-
-| Code                  | Description              |
-| --------------------- | ------------------------ |
-| `UNAUTHORIZED`        | Missing/invalid auth     |
-| `FORBIDDEN`           | Insufficient permissions |
-| `NOT_FOUND`           | Resource not found       |
-| `ALIAS_EXISTS`        | Name already used        |
-| `RATE_LIMIT_EXCEEDED` | Too many requests        |
-| `POD_EXISTS`          | Pod ID taken             |
-| `INVALID_POD_ID`      | Invalid pod format       |
-| `INVALID_STREAM_ID`   | Invalid stream format    |
-| `TOKEN_EXPIRED`       | JWT expired              |
-| `POD_MISMATCH`        | Token not valid for pod  |
+Latest record for a user determines their permissions.
 
 ## Rate Limits
 
-- Write: 1000/hour
-- Read: 10000/hour
-- Pod creation: 10/hour
-- Stream creation: 100/hour
+Default limits per hour:
+- Write: 1000
+- Read: 10000
+- Pod creation: 10
+- Stream creation: 100
+
+Headers in responses:
+- `X-RateLimit-Limit` - Requests per hour
+- `X-RateLimit-Remaining` - Requests left
+- `X-RateLimit-Reset` - Unix timestamp
+
+## Error Responses
+
+```json
+{
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human readable message"
+  }
+}
+```
+
+Common error codes:
+- `UNAUTHORIZED` - Missing/invalid authentication
+- `FORBIDDEN` - Insufficient permissions
+- `NOT_FOUND` - Resource not found
+- `INVALID_INPUT` - Invalid request data
+- `RATE_LIMIT_EXCEEDED` - Too many requests
+- `POD_EXISTS` - Pod ID already taken
+- `NAME_EXISTS` - Record name already used
 
 ## Content Types
 
 Supported for direct serving:
+- `text/html` - HTML pages
+- `text/css` - Stylesheets
+- `application/javascript` - Scripts
+- `application/json` - JSON data
+- `text/plain` - Plain text (default)
+- `image/*` - Images (stored as base64)
 
-- `text/html`
-- `text/css`
-- `application/javascript`
-- `application/json`
-- `text/plain` (default)
+## Binary Content
 
-## Examples
-
-### Blog with posts
-
-```bash
-# Create post with name
-curl -X POST alice.webpods.org/blog/welcome \
-  -H "Authorization: Bearer $TOKEN" \
-  -d "Welcome post"
-
-# Read by name
-curl alice.webpods.org/blog/welcome
-```
-
-### Static website
+Images and binary files are stored as base64:
 
 ```bash
-# Write HTML
-curl -X POST alice.webpods.org/page/index \
+# Upload image
+IMAGE_BASE64=$(base64 -w 0 < image.png)
+curl -X POST alice.webpods.org/images/logo \
   -H "Authorization: Bearer $TOKEN" \
-  -H "X-Content-Type: text/html" \
-  -d "<h1>Hello</h1>"
+  -H "X-Content-Type: image/png" \
+  -d "$IMAGE_BASE64"
 
-# Configure routing
-curl -X POST alice.webpods.org/.meta/links \
-  -H "Authorization: Bearer $TOKEN" \
-  -d "{"/":" page/index"}"
+# Serve image (automatically decoded)
+curl alice.webpods.org/images/logo
 ```
 
-### Private stream
+Supported formats: PNG, JPEG, GIF, WebP, SVG, ICO
 
-```bash
-# Create permission stream
-curl -X POST alice.webpods.org/members \
-  -H "Authorization: Bearer $TOKEN" \
-  -d "{"id":"auth:github:456","read":true,"write":true}"
+## SSO (Single Sign-On)
 
-# Create restricted stream
-curl -X POST alice.webpods.org/private?access=/members \
-  -H "Authorization: Bearer $TOKEN" \
-  -d "Members only"
+Sessions persist across pods:
+
 ```
+GET /auth/authorize?pod={pod-id}
+```
+
+If logged in, returns pod-specific token. Otherwise redirects to OAuth.

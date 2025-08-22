@@ -28,8 +28,10 @@ describe("OAuth Client Management API", () => {
   let userId: string;
   let createdClientId: string;
 
-  before(async () => {
-    // Create test user for all tests
+  beforeEach(async () => {
+    client = new TestHttpClient("http://localhost:3000");
+    
+    // Create test user for each test (since DB is truncated after each test)
     const user = await createTestUser(testDb.getDb(), {
       email: "oauth-api-test@example.com", 
       name: "OAuth API Test User",
@@ -38,12 +40,8 @@ describe("OAuth Client Management API", () => {
 
     // Generate WebPods JWT for API access
     webpodsToken = generateWebPodsToken(userId);
-  });
-
-  beforeEach(async () => {
-    client = new TestHttpClient("http://localhost:3000");
     // Clean up any existing OAuth clients for this user
-    if (webpodsToken) {
+    if (webpodsToken && userId) {
       const db = testDb.getDb();
       
       // Get all client IDs for this user before deleting
@@ -52,18 +50,46 @@ describe("OAuth Client Management API", () => {
         [userId]
       );
       
-      // Delete from database
+      // Delete from database first
       await db.none(`DELETE FROM oauth_client WHERE user_id = $1`, [userId]);
       
-      // Also delete from Hydra
+      // Also delete from Hydra - wait for each deletion to complete
       for (const client of existingClients) {
         try {
-          await fetch(`http://localhost:4445/admin/clients/${client.client_id}`, {
+          const response = await fetch(`http://localhost:4445/admin/clients/${client.client_id}`, {
             method: "DELETE"
           });
+          // Ignore if not successful (404 is expected if client doesn't exist)
         } catch {
           // Ignore errors - client might not exist in Hydra
         }
+      }
+      
+      // Also cleanup any orphaned clients in Hydra that match our test pattern
+      // This helps when tests were interrupted and left clients behind
+      try {
+        const response = await fetch("http://localhost:4445/admin/clients?limit=500");
+        if (response.ok) {
+          const clients = await response.json();
+          for (const client of clients) {
+            // Delete test clients that match our patterns
+            if (client.client_id && (
+              client.client_id.includes("my-test-application") ||
+              client.client_id.includes("my-spa-application") ||
+              client.client_id.includes("test-app-")
+            )) {
+              try {
+                await fetch(`http://localhost:4445/admin/clients/${client.client_id}`, {
+                  method: "DELETE"
+                });
+              } catch {
+                // Ignore errors
+              }
+            }
+          }
+        }
+      } catch {
+        // Ignore errors in cleanup
       }
     }
   });
@@ -96,9 +122,6 @@ describe("OAuth Client Management API", () => {
         }
       );
 
-      if (response.status !== 201) {
-        console.error("Create client error:", response.data);
-      }
       expect(response.status).to.equal(201);
       expect(response.data).to.have.property("client_id");
       expect(response.data).to.have.property("client_secret");

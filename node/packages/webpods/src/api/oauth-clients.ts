@@ -108,6 +108,7 @@ router.post(
         clientData.token_endpoint_auth_method === "none"
           ? null
           : generateClientSecret();
+      
 
       // Create client in Hydra
       const hydraAdmin = getHydraAdmin();
@@ -193,13 +194,15 @@ router.post(
           created_at: clientRecord.created_at,
         });
       } catch (error: any) {
-        logger.error("Failed to create OAuth client", {
+        logger.error("Failed to create OAuth client in Hydra", {
           error: error.message,
           details: error.response?.data,
           status: error.response?.status,
           statusText: error.response?.statusText,
           userId,
           clientId,
+          clientName: clientData.client_name,
+          hydraError: error.response?.data || error.message,
         });
 
         // If Hydra creation fails, don't create in our DB

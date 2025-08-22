@@ -1,271 +1,181 @@
 # WebPods
 
-HTTP-based append-only logs organized as pods (subdomains) and streams.
+HTTP-based append-only logs using subdomains (pods) and paths (streams).
+
+## What is WebPods?
+
+WebPods organizes data into:
+- **Pods**: Subdomains that act as namespaces (e.g., `alice.webpods.org`)
+- **Streams**: Append-only logs within pods (e.g., `/blog`, `/data/2024`)
+- **Records**: Immutable entries with SHA-256 hash chains
 
 ## Quick Start
 
 ```bash
-# Get auth token (e.g., using GitHub or Google)
-curl https://webpods.org/auth/github
-# or
-curl https://webpods.org/auth/google
+# 1. Get an auth token
+curl https://webpods.org/auth/github  # Returns JWT token
 
-# Write to stream (creates pod and stream automatically)
-# Name is required - last segment of path
+# 2. Write data (creates pod and stream automatically)
 curl -X POST https://alice.webpods.org/blog/first-post \
   -H "Authorization: Bearer $TOKEN" \
   -d "My first blog post"
 
-# Read latest
-curl https://alice.webpods.org/blog?i=-1
+# 3. Read data
+curl https://alice.webpods.org/blog/first-post
 ```
 
-## Core Concepts
-
-**Pod**: Subdomain namespace (`alice.webpods.org`)  
-**Stream**: Append-only log (`/blog`, `/blog/2024/posts`)  
-**Record**: Immutable entry with SHA-256 hash chain
-
-## API
+## API Overview
 
 ### Authentication
 
 ```bash
-# List available providers
+# List available OAuth providers
 GET https://webpods.org/auth/providers
 
-# Login with OAuth (GitHub, Google, or any configured provider)
-GET https://webpods.org/auth/github
-GET https://webpods.org/auth/google
-GET https://webpods.org/auth/{provider}  # Any provider from config.json
+# Login via OAuth
+GET https://webpods.org/auth/{provider}
 
-# Get user info
+# Get current user info
 GET https://webpods.org/auth/whoami
 Authorization: Bearer {token}
 ```
 
-### Write
+### Writing Data
 
 ```bash
 POST {pod}.webpods.org/{stream}/{name}
 Authorization: Bearer {token}
 
-# Name is REQUIRED - last path segment
-# Examples:
-#   POST alice.webpods.org/blog/my-post
-#   POST alice.webpods.org/images/logo.png
-#   POST alice.webpods.org/data/2024/report.json
-
-# Optional parameters
-?access={mode}      # Set on first write only
+# The last path segment is the record name (required)
+# Names can contain: a-z, A-Z, 0-9, -, _, .
+# Cannot start/end with periods
 ```
 
-**Name restrictions:**
-
-- Can only contain: `a-z`, `A-Z`, `0-9`, `-`, `_`, `.`
-- Cannot start or end with `.`
-- Maximum 256 characters
-- Examples: `index.html`, `logo.png`, `post-2024-01-15`
-
-Content type priority:
-
-1. `X-Content-Type` header
-2. `Content-Type` header
-3. Auto-detect
-
-### Read
+### Reading Data
 
 ```bash
-# By index
-GET {pod}.webpods.org/{stream}?i=0      # First
-GET {pod}.webpods.org/{stream}?i=-1     # Latest
-GET {pod}.webpods.org/{stream}?i=0:10   # Range
-
 # By name
 GET {pod}.webpods.org/{stream}/{name}
+
+# By index
+GET {pod}.webpods.org/{stream}?i=0      # First record
+GET {pod}.webpods.org/{stream}?i=-1     # Latest record
+GET {pod}.webpods.org/{stream}?i=0:10   # Range (0-9)
 
 # List all
 GET {pod}.webpods.org/{stream}?limit=100&after=50
 ```
 
-Single records return raw content with metadata in headers:
+### Permissions
 
-- `X-Hash`: Record hash
-- `X-Author`: Creator user ID
-- `X-Timestamp`: Creation time
+Set on first write with `?access={mode}`:
+- `public` - Anyone can read, authenticated users can write (default)
+- `private` - Only creator can read/write
+- `/{stream}` - Users listed in that stream can access
 
-### Delete
+## For Third-Party Developers
+
+If you're building an app that needs to access WebPods on behalf of users:
+
+### 1. Register Your OAuth Client
 
 ```bash
-DELETE {pod}.webpods.org/{stream}
-Authorization: Bearer {token}
-```
+POST https://webpods.org/api/oauth/clients
+Authorization: Bearer {your-webpods-token}
+Content-Type: application/json
 
-Only stream creator can delete. System streams cannot be deleted.
-
-## Permissions
-
-**Access modes:**
-
-- `public`: Anyone reads, authenticated write (default)
-- `private`: Creator only
-- `/{stream}`: Users listed in that stream
-
-**Permission stream format:**
-
-```json
 {
-  "id": "user-uuid-here",
-  "read": true,
-  "write": false
+  "client_name": "My App",
+  "redirect_uris": ["https://myapp.com/callback"],
+  "requested_pods": ["alice", "bob"]  # Pods you need access to
 }
+
+# Returns: client_id and client_secret
 ```
 
-## System Streams
+### 2. Direct Users to Authorize
 
-### .meta/owner
-
-Pod ownership. Last record wins.
-
-### .meta/links
-
-URL routing:
-
-```json
-{
-  "/": "homepage?i=-1",
-  "/about": "pages/about?i=-1"
-}
+```
+https://webpods.org/connect?client_id={your-client-id}
 ```
 
-### .meta/streams
+### 3. Handle the OAuth Callback
 
-Lists all pod streams.
+Users will be redirected to your callback URL with an authorization code. Exchange it for an access token using standard OAuth 2.0 flow.
 
-## Content Serving
+## Installation
 
-Write HTML/CSS/JS with proper content type:
+### Using Docker
 
 ```bash
-curl -X POST alice.webpods.org/page/home.html \
-  -H "X-Content-Type: text/html" \
-  -d "<h1>Welcome</h1>"
-
-# Access: alice.webpods.org/page/home.html
+docker run -p 3000:3000 \
+  -e DATABASE_URL=postgresql://... \
+  -e JWT_SECRET=... \
+  -v ./config.json:/app/config.json \
+  webpods/webpods
 ```
 
-## Hash Chain
-
-Each record contains:
-
-- `hash`: SHA-256 of content + metadata
-- `previous_hash`: Link to previous (null for first)
-
-## SSO (Single Sign-On)
-
-Sessions persist across pods. One login for all your pods.
+### From Source
 
 ```bash
-# Authorize pod access (if already logged in, skips OAuth)
-GET https://webpods.org/auth/authorize?pod=alice
+# Clone and setup
+git clone https://github.com/webpods-org/webpods
+cd webpods
+cp config.example.json config.json
+# Edit config.json with your OAuth providers
 
-# Returns pod-specific token
+# Build and run
+./build.sh
+npm run migrate:latest
+./start.sh
 ```
 
 ## Configuration
 
-WebPods supports any OAuth 2.0 provider. Here are examples for popular providers:
-
-### GitHub
+WebPods requires OAuth providers for user authentication. Edit `config.json`:
 
 ```json
 {
   "oauth": {
-    "providers": [
-      {
-        "id": "github",
-        "clientId": "your-github-client-id",
-        "clientSecret": "$GITHUB_SECRET",
-        "authUrl": "https://github.com/login/oauth/authorize",
-        "tokenUrl": "https://github.com/login/oauth/access_token",
-        "userinfoUrl": "https://api.github.com/user",
-        "scope": "read:user user:email",
-        "userIdField": "id",
-        "emailField": "email",
-        "nameField": "name"
-      }
-    ]
+    "providers": [{
+      "id": "github",
+      "clientId": "your-client-id",
+      "clientSecret": "$GITHUB_SECRET",  // Reference env variable
+      "authUrl": "https://github.com/login/oauth/authorize",
+      "tokenUrl": "https://github.com/login/oauth/access_token",
+      "userinfoUrl": "https://api.github.com/user",
+      "scope": "read:user user:email"
+    }]
   }
 }
 ```
 
-### Google
+Environment variables:
+- `JWT_SECRET` - Required for token signing
+- `SESSION_SECRET` - Required for session management
+- `DATABASE_URL` - PostgreSQL connection string
+- OAuth secrets referenced in config.json
 
-```json
-{
-  "oauth": {
-    "providers": [
-      {
-        "id": "google",
-        "clientId": "your-google-client-id",
-        "clientSecret": "$GOOGLE_SECRET",
-        "issuer": "https://accounts.google.com",
-        "scope": "openid email profile",
-        "userIdField": "sub",
-        "emailField": "email",
-        "nameField": "name"
-      }
-    ]
-  }
-}
-```
+## Documentation
+
+- [API Reference](docs/api.md) - Complete API documentation
+- [Configuration Guide](docs/configuration.md) - OAuth and server setup
+- [Architecture](docs/architecture.md) - System design and data model
+- [Deployment](docs/deployment.md) - Production deployment guide
 
 ## Development
 
 ```bash
-# Setup
-git clone https://github.com/webpods-org/webpods
-cd webpods
-cp config.example.json config.json
-cp .env.example .env
-# Edit config.json with your OAuth providers
-
-# Database
-npm run migrate:latest
-
-# Build & run
-./build.sh
-./start.sh
-
-# Test
+# Run tests
 npm test
+
+# Run specific tests
+npm run test:grep -- "pattern"
+
+# Database migrations
+npm run migrate:latest   # Run migrations
+npm run migrate:rollback # Rollback last migration
 ```
-
-## Configuration
-
-WebPods uses `config.json` for configuration with environment variables for secrets:
-
-1. Copy `config.example.json` to `config.json`
-2. Configure OAuth providers in the JSON file
-3. Set secrets in `.env` file
-
-Key settings:
-
-- OAuth providers and endpoints
-- Server configuration (port, domain)
-- Database connection
-- Authentication secrets (JWT, session)
-- Rate limits
-
-See [Configuration Guide](docs/configuration.md) for details.
-
-## Documentation
-
-- [API Reference](docs/api.md) - Complete API details
-- [Architecture](docs/architecture.md) - System design
-- [Configuration](docs/configuration.md) - OAuth and server setup
-- [Database](docs/database.md) - Schema and migrations
-- [Deployment](docs/deployment.md) - Production setup
 
 ## License
 

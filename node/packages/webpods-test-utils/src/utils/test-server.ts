@@ -77,7 +77,7 @@ export class TestServer {
 
       this.process.stdout?.on("data", (data) => {
         const message = data.toString();
-        // Server output is handled silently
+        // Server output is handled silently during tests
         if (
           message.includes("WebPods server started") ||
           message.includes("Server listening")
@@ -88,7 +88,7 @@ export class TestServer {
 
       this.process.stderr?.on("data", (data) => {
         const message = data.toString();
-        // Server errors are handled silently
+        // Server errors are handled silently during tests
         // Sometimes the server logs to stderr
         if (
           message.includes("WebPods server started") ||

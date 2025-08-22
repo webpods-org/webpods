@@ -84,8 +84,8 @@ describe("WebPods JWT Authentication", () => {
   });
 
   describe("API Access with WebPods JWT", () => {
-    before(async () => {
-      // Create test user and generate WebPods JWT
+    beforeEach(async () => {
+      // Create test user and generate WebPods JWT (recreate for each test since DB is truncated)
       const db = testDb.getDb();
       const user = await createTestUser(db, {
         email: "jwt-test@example.com",

@@ -1,141 +1,175 @@
 # Database Schema
 
-WebPods uses PostgreSQL with pg-promise for queries. Knex.js is used only for migrations.
+WebPods uses PostgreSQL with pg-promise for queries and Knex.js for migrations.
 
-## Core Tables
+## Tables
 
 ### user
-
-Container for multiple identities.
-
-| Column     | Type      | Description        |
-| ---------- | --------- | ------------------ |
-| id         | UUID      | Primary key        |
-| created_at | TIMESTAMP | User creation time |
-| updated_at | TIMESTAMP | Last update time   |
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| created_at | TIMESTAMP | Creation time |
+| updated_at | TIMESTAMP | Last update |
 
 ### identity
-
-Stores OAuth provider identities.
-
-| Column      | Type         | Description                                  |
-| ----------- | ------------ | -------------------------------------------- |
-| id          | UUID         | Primary key                                  |
-| user_id     | UUID         | User (references user.id)                    |
-| provider    | VARCHAR(50)  | OAuth provider ID (e.g., `github`, `google`) |
-| provider_id | VARCHAR(255) | ID from the provider                         |
-| email       | VARCHAR(255) | User email from OAuth provider               |
-| name        | VARCHAR(255) | Display name                                 |
-| metadata    | JSONB        | Additional user data from OAuth              |
-| created_at  | TIMESTAMP    | Identity creation time                       |
-| updated_at  | TIMESTAMP    | Last update time                             |
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| user_id | UUID | References user.id |
+| provider | VARCHAR(50) | OAuth provider ID |
+| provider_id | VARCHAR(255) | External user ID |
+| email | VARCHAR(255) | User email |
+| name | VARCHAR(255) | Display name |
+| metadata | JSONB | Provider data |
+| created_at | TIMESTAMP | Creation time |
+| updated_at | TIMESTAMP | Last update |
 
 ### pod
-
-Represents subdomains (namespaces).
-
-| Column     | Type         | Description                 |
-| ---------- | ------------ | --------------------------- |
-| id         | UUID         | Primary key                 |
-| pod_id     | VARCHAR(100) | Unique subdomain identifier |
-| user_id    | UUID         | Owner (references user.id)  |
-| created_at | TIMESTAMP    | Pod creation time           |
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| pod_id | VARCHAR(100) | Subdomain identifier |
+| user_id | UUID | Owner (references user.id) |
+| created_at | TIMESTAMP | Creation time |
 
 ### stream
-
-Append-only logs within pods.
-
-| Column            | Type         | Description                                    |
-| ----------------- | ------------ | ---------------------------------------------- |
-| id                | UUID         | Primary key                                    |
-| pod_id            | UUID         | Parent pod (references pod.id)                 |
-| stream_id         | VARCHAR(500) | Stream path (e.g., `blog/2024`)                |
-| user_id           | UUID         | Creator (references user.id)                   |
-| access_permission | VARCHAR(50)  | Access mode (`public`, `private`, stream path) |
-| created_at        | TIMESTAMP    | Stream creation time                           |
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| pod_id | UUID | Parent pod (references pod.id) |
+| stream_id | VARCHAR(500) | Stream path |
+| user_id | UUID | Creator (references user.id) |
+| access_permission | VARCHAR(50) | Access mode |
+| created_at | TIMESTAMP | Creation time |
 
 ### record
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| stream_id | UUID | Parent stream (references stream.id) |
+| index | INTEGER | Position (0-based) |
+| content | TEXT | Record data |
+| content_type | VARCHAR(100) | MIME type |
+| hash | VARCHAR(100) | SHA-256 hash |
+| previous_hash | VARCHAR(100) | Previous record hash |
+| author_id | UUID | Author (references user.id) |
+| name | VARCHAR(255) | Optional identifier |
+| created_at | TIMESTAMP | Creation time |
 
-Immutable entries in streams.
-
-| Column        | Type         | Description                          |
-| ------------- | ------------ | ------------------------------------ |
-| id            | UUID         | Primary key                          |
-| stream_id     | UUID         | Parent stream (references stream.id) |
-| index         | INTEGER      | Position in stream (0-based)         |
-| content       | TEXT         | Record content                       |
-| content_type  | VARCHAR(100) | MIME type                            |
-| hash          | VARCHAR(100) | SHA-256 hash of content              |
-| previous_hash | VARCHAR(100) | Hash of previous record (chain)      |
-| author_id     | UUID         | Author (references user.id)          |
-| name          | VARCHAR(255) | Optional named reference             |
-| created_at    | TIMESTAMP    | Record creation time                 |
+### oauth_client
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| user_id | UUID | Owner (references user.id) |
+| client_id | VARCHAR(255) | OAuth client ID |
+| client_name | VARCHAR(255) | Display name |
+| client_secret | VARCHAR(255) | OAuth secret |
+| redirect_uris | TEXT[] | Callback URLs |
+| requested_pods | TEXT[] | Required pods |
+| grant_types | TEXT[] | OAuth grant types |
+| response_types | TEXT[] | OAuth response types |
+| token_endpoint_auth_method | VARCHAR(50) | Auth method |
+| scope | VARCHAR(500) | OAuth scopes |
+| metadata | JSONB | Additional data |
+| created_at | TIMESTAMP | Creation time |
+| updated_at | TIMESTAMP | Last update |
 
 ### session
+| Column | Type | Description |
+|--------|------|-------------|
+| sid | VARCHAR | Session ID (primary key) |
+| sess | JSON | Session data |
+| expire | TIMESTAMP | Expiration time |
 
-Active user sessions for SSO.
-
-| Column | Type      | Description              |
-| ------ | --------- | ------------------------ |
-| sid    | VARCHAR   | Session ID (primary key) |
-| sess   | JSON      | Session data             |
-| expire | TIMESTAMP | Expiration time          |
+### oauth_state
+| Column | Type | Description |
+|--------|------|-------------|
+| state | VARCHAR(255) | OAuth state (primary key) |
+| code_verifier | VARCHAR(255) | PKCE verifier |
+| pod | VARCHAR(100) | Target pod |
+| redirect_uri | TEXT | Redirect URL |
+| expires_at | TIMESTAMP | Expiration (10 minutes) |
 
 ## Indexes
 
-- `identity.provider, identity.provider_id` - Composite unique index for OAuth lookups
-- `identity.user_id` - Index for user's identities
-- `identity.email` - Index for email searches
-- `pod.pod_id` - Unique index for subdomain routing
-- `stream.pod_id, stream.stream_id` - Composite unique index
-- `record.stream_id, record.index` - Composite unique index
-- `record.name` - Index for name lookups
+- `identity(provider, provider_id)` - Unique composite
+- `pod(pod_id)` - Unique
+- `stream(pod_id, stream_id)` - Unique composite
+- `record(stream_id, index)` - Unique composite
+- `record(name)` - For name lookups
+- `oauth_client(client_id)` - Unique
 
 ## Migrations
 
-Run migrations:
-
 ```bash
+# Run migrations
 npm run migrate:latest
-```
 
-Create new migration:
+# Rollback
+npm run migrate:rollback
 
-```bash
+# Create new migration
 npm run migrate:make migration_name
-```
 
-Check migration status:
-
-```bash
+# Check status
 npm run migrate:status
 ```
 
-Rollback last migration:
+**Important**: All schema changes go in `/database/webpods/migrations/20250810000000_initial_schema.js`. Never create new migration files.
 
-```bash
-npm run migrate:rollback
+## Query Patterns
+
+### Using pg-promise
+
+```typescript
+// Always use named parameters
+const stream = await db.oneOrNone<StreamDbRow>(
+  `SELECT * FROM stream 
+   WHERE stream_id = $(streamId) 
+   AND pod_id = $(podId)`,
+  { streamId, podId }
+);
+
+// Insert with RETURNING
+const record = await db.one<RecordDbRow>(
+  `INSERT INTO record (stream_id, content, author_id)
+   VALUES ($(streamId), $(content), $(authorId))
+   RETURNING *`,
+  { streamId, content, authorId }
+);
+
+// Handle reserved words
+const user = await db.oneOrNone<UserDbRow>(
+  `SELECT * FROM "user" WHERE id = $(userId)`,
+  { userId }
+);
+```
+
+### Type Safety
+
+All database types use `*DbRow` suffix:
+
+```typescript
+type UserDbRow = {
+  id: string;
+  created_at: Date;
+  updated_at: Date | null;
+};
+
+type StreamDbRow = {
+  id: string;
+  pod_id: string;
+  stream_id: string;
+  user_id: string;
+  access_permission: string;
+  created_at: Date;
+};
 ```
 
 ## Conventions
 
-- **Table names**: Singular, lowercase (e.g., `pod`, `stream`, `record`)
-- **Column names**: Snake_case (e.g., `stream_id`, `created_at`)
-- **Primary keys**: UUID with auto-generation
-- **Timestamps**: Always include `created_at`, add `updated_at` where needed
-- **Foreign keys**: Named as `{table}_id` (e.g., `user_id`, `pod_id`)
-
-## Permission Model
-
-Permissions are stored as records in permission streams (`/{stream}`) with this format:
-
-```json
-{
-  "id": "{user_id}",
-  "read": true,
-  "write": false,
-  "admin": false
-}
-```
-
-The latest record for a user determines their current permissions.
+- Table names: Singular, lowercase (`user`, `stream`, `record`)
+- Column names: snake_case (`stream_id`, `created_at`)
+- Foreign keys: `{table}_id` (`user_id`, `pod_id`)
+- Timestamps: Always include `created_at`, optional `updated_at`
+- UUIDs: Auto-generated primary keys
