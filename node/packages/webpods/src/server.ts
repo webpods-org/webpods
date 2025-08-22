@@ -13,6 +13,7 @@ import { getSessionConfig } from "./auth/session-store.js";
 import { getConfig } from "./config-loader.js";
 import { getVersion } from "./version.js";
 import { isMainDomain, isSubdomainOf } from "./utils.js";
+import { getDb } from "./db.js";
 import authRouter from "./auth/routes.js";
 import loginRouter from "./auth/login-page.js";
 import oauthRouter from "./oauth/routes.js";
@@ -88,7 +89,6 @@ export function createApp(): Express {
     // Check database connection
     let dbStatus = "disconnected";
     try {
-      const { getDb } = await import("./db.js");
       const db = getDb();
       await db.one("SELECT 1 as result");
       dbStatus = "connected";

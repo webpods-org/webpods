@@ -6,6 +6,7 @@ import { expect } from "chai";
 import { TestHttpClient, createTestUser } from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 import jwt from "jsonwebtoken";
+import { generateWebPodsToken as generateWebPodsTokenFromModule } from "../../../webpods/dist/auth/jwt-generator.js";
 
 // Helper to generate WebPods JWT tokens for testing
 // This is a local implementation to avoid loading config in test process
@@ -327,10 +328,7 @@ describe("OAuth Client Management API", () => {
       });
 
       // Generate token for other user
-      const jwtModule = await import(
-        "../../../webpods/dist/auth/jwt-generator.js"
-      );
-      const otherTokenResult = jwtModule.generateWebPodsToken(otherUser.userId);
+      const otherTokenResult = generateWebPodsTokenFromModule(otherUser.userId);
       const otherToken = otherTokenResult.success ? otherTokenResult.data : "";
 
       // Create a client for the other user

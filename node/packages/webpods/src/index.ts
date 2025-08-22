@@ -9,6 +9,7 @@ import { cleanupExpiredStates } from "./auth/pkce-store.js";
 import { createApp } from "./server.js";
 import { getConfig } from "./config-loader.js";
 import { getVersion } from "./version.js";
+import { getConfiguredProviders } from "./auth/oauth-config.js";
 
 // Load environment variables (for secrets referenced in config.json)
 config();
@@ -21,7 +22,6 @@ export async function start() {
     const appConfig = getConfig();
 
     // Check OAuth configuration
-    const { getConfiguredProviders } = await import("./auth/oauth-config.js");
     const configuredProviders = getConfiguredProviders();
 
     if (configuredProviders.length === 0) {

@@ -9,6 +9,7 @@ import { getPod } from "../domain/pods.js";
 import { getDb } from "../db.js";
 import { createLogger } from "../logger.js";
 import { Pod } from "../types.js";
+import { getConfig } from "../config-loader.js";
 
 const logger = createLogger("webpods:pod");
 
@@ -39,7 +40,6 @@ export async function extractPod(
     const db = getDb();
 
     // Get config to determine main domain
-    const { getConfig } = await import("../config-loader.js");
     const config = getConfig();
     const mainDomain = config.server.public?.hostname || "localhost";
 
@@ -102,7 +102,6 @@ export async function optionalExtractPod(
     const db = getDb();
 
     // Get config to determine main domain
-    const { getConfig } = await import("../config-loader.js");
     const config = getConfig();
     const mainDomain = config.server.public?.hostname || "localhost";
 

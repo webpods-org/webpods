@@ -28,6 +28,7 @@ import {
   parseDataUrl,
   isValidName,
 } from "../utils.js";
+import { ensureUserExists } from "../domain/users.js";
 
 // Import domain functions
 import {
@@ -597,7 +598,6 @@ router.post(
 
         // Ensure user exists in database before creating pod
         // This handles cases where JWT is valid but user was deleted (e.g., in tests)
-        const { ensureUserExists } = await import("../domain/users.js");
         const userResult = await ensureUserExists(
           db,
           req.auth.user_id,
