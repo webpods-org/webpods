@@ -72,13 +72,13 @@ export async function up(knex) {
     table.string('name', 256).notNullable(); // Required name (like a filename)
     table.string('hash', 100).notNullable(); // SHA-256 hash with prefix
     table.string('previous_hash', 100); // NULL for first record
-    table.uuid('author_id').references('id').inTable('user').onDelete('RESTRICT'); // User who created the record
+    table.uuid('user_id').references('id').inTable('user').onDelete('RESTRICT'); // User who created the record
     table.timestamp('created_at').defaultTo(knex.fn.now());
     
     table.unique(['stream_id', 'index']);
     table.index(['stream_id', 'index']);
     table.index(['stream_id', 'name']);
-    table.index('author_id');
+    table.index('user_id');
     table.index('hash');
   });
 
@@ -123,7 +123,7 @@ export async function up(knex) {
     table.string('state').primary(); // State parameter
     table.string('code_verifier', 128).notNullable(); // PKCE code verifier
     table.string('pod', 63); // Optional pod for pod-specific auth
-    table.text('redirect_url'); // Where to redirect after auth
+    table.text('redirect_uri'); // Where to redirect after auth
     table.timestamp('created_at').defaultTo(knex.fn.now());
     table.timestamp('expires_at').notNullable(); // TTL for state
     

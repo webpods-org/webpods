@@ -99,13 +99,13 @@ export async function createPod(
       const hash = calculateRecordHash(null, timestamp, ownerContent);
 
       await t.none(
-        `INSERT INTO record (stream_id, index, content, content_type, name, hash, previous_hash, author_id, created_at)
-         VALUES ($(streamId), 0, $(content), 'application/json', 'owner', $(hash), NULL, $(authorId), $(timestamp))`,
+        `INSERT INTO record (stream_id, index, content, content_type, name, hash, previous_hash, user_id, created_at)
+         VALUES ($(streamId), 0, $(content), 'application/json', 'owner', $(hash), NULL, $(userId), $(timestamp))`,
         {
           streamId: ownerStream.id,
           content: JSON.stringify(ownerContent),
           hash,
-          authorId: userId,
+          userId: userId,
           timestamp,
         },
       );
@@ -281,8 +281,8 @@ export async function transferPodOwnership(
       );
 
       await t.none(
-        `INSERT INTO record (stream_id, index, content, content_type, name, hash, previous_hash, author_id, created_at)
-         VALUES ($(streamId), $(index), $(content), 'application/json', $(name), $(hash), $(previousHash), $(authorId), $(timestamp))`,
+        `INSERT INTO record (stream_id, index, content, content_type, name, hash, previous_hash, user_id, created_at)
+         VALUES ($(streamId), $(index), $(content), 'application/json', $(name), $(hash), $(previousHash), $(userId), $(timestamp))`,
         {
           streamId: ownerStream.id,
           index: (lastRecord?.index || 0) + 1,
@@ -290,7 +290,7 @@ export async function transferPodOwnership(
           name: `owner-${(lastRecord?.index || 0) + 1}`,
           hash,
           previousHash: lastRecord?.hash || null,
-          authorId: currentUserId,
+          userId: currentUserId,
           timestamp,
         },
       );

@@ -23,7 +23,7 @@ function mapRecordFromDb(row: RecordDbRow): StreamRecord {
     name: row.name || "",
     hash: row.hash,
     previous_hash: row.previous_hash || null,
-    author_id: row.author_id,
+    user_id: row.user_id,
     metadata: undefined,
     created_at:
       typeof row.created_at === "string"
@@ -81,7 +81,7 @@ export async function writeRecord(
 
       // Insert new record
       const record = await t.one<RecordDbRow>(
-        `INSERT INTO record (stream_id, index, content, content_type, name, hash, previous_hash, author_id, created_at)
+        `INSERT INTO record (stream_id, index, content, content_type, name, hash, previous_hash, user_id, created_at)
          VALUES ($(streamId), $(index), $(content), $(contentType), $(name), $(hash), $(previousHash), $(authorId), $(timestamp))
          RETURNING *`,
         {
@@ -458,7 +458,7 @@ export function recordToResponse(record: StreamRecord): StreamRecordResponse {
     name: record.name,
     hash: record.hash,
     previous_hash: record.previous_hash,
-    author: record.author_id,
+    author: record.user_id,
     timestamp: record.created_at.toISOString(),
   };
 }

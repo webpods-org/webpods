@@ -72,7 +72,7 @@ export interface StreamRecord {
   name: string; // Required name (like a filename)
   hash: string;
   previous_hash: string | null;
-  author_id: string; // User ID who created the record
+  user_id: string; // User ID who created the record
   metadata?: any;
   created_at: Date;
 }

@@ -57,7 +57,7 @@ WebPods uses PostgreSQL with pg-promise for queries and Knex.js for migrations.
 | content_type  | VARCHAR(100) | MIME type                            |
 | hash          | VARCHAR(100) | SHA-256 hash                         |
 | previous_hash | VARCHAR(100) | Previous record hash                 |
-| author_id     | UUID         | Author (references user.id)          |
+| user_id       | UUID         | Author (references user.id)          |
 | name          | VARCHAR(255) | Optional identifier                  |
 | created_at    | TIMESTAMP    | Creation time                        |
 
@@ -140,7 +140,7 @@ const stream = await db.oneOrNone<StreamDbRow>(
 
 // Insert with RETURNING
 const record = await db.one<RecordDbRow>(
-  `INSERT INTO record (stream_id, content, author_id)
+  `INSERT INTO record (stream_id, content, user_id)
    VALUES ($(streamId), $(content), $(authorId))
    RETURNING *`,
   { streamId, content, authorId },

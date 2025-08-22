@@ -236,7 +236,7 @@ describe("WebPods Authentication", () => {
         { streamId: stream.id },
       );
 
-      expect(record.author_id).to.equal(userId);
+      expect(record.user_id).to.equal(userId);
     });
   });
 

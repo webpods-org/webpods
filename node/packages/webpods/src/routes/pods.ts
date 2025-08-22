@@ -1014,7 +1014,7 @@ router.get(
         // Set headers
         res.setHeader("X-Hash", record.hash);
         res.setHeader("X-Previous-Hash", record.previous_hash || "");
-        res.setHeader("X-Author", record.author_id);
+        res.setHeader("X-Author", record.user_id);
         res.setHeader("X-Timestamp", record.created_at.toISOString());
 
         // Set content type and send response
@@ -1128,7 +1128,7 @@ router.get(
       // Set headers
       res.setHeader("X-Hash", record.hash);
       res.setHeader("X-Previous-Hash", record.previous_hash || "");
-      res.setHeader("X-Author", record.author_id);
+      res.setHeader("X-Author", record.user_id);
       res.setHeader("X-Timestamp", record.created_at.toISOString());
 
       // Set content type and send response

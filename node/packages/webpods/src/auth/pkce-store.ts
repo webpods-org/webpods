@@ -33,13 +33,13 @@ export async function storePKCEState(
   expiresAt.setMinutes(expiresAt.getMinutes() + STATE_TTL_MINUTES);
 
   await db.none(
-    `INSERT INTO oauth_state (state, code_verifier, pod, redirect_url, expires_at)
-     VALUES ($(state), $(codeVerifier), $(pod), $(redirectUrl), $(expiresAt))`,
+    `INSERT INTO oauth_state (state, code_verifier, pod, redirect_uri, expires_at)
+     VALUES ($(state), $(codeVerifier), $(pod), $(redirectUri), $(expiresAt))`,
     {
       state,
       codeVerifier,
       pod: pod || null,
-      redirectUrl: redirect || null,
+      redirectUri: redirect || null,
       expiresAt,
     },
   );
@@ -59,9 +59,9 @@ export async function retrievePKCEState(
     state: string;
     code_verifier: string;
     pod: string | null;
-    redirect_url: string | null;
+    redirect_uri: string | null;
   }>(
-    `SELECT state, code_verifier, pod, redirect_url 
+    `SELECT state, code_verifier, pod, redirect_uri 
      FROM oauth_state 
      WHERE state = $(state) 
        AND expires_at > NOW()`,
@@ -82,7 +82,7 @@ export async function retrievePKCEState(
     state: row.state,
     codeVerifier: row.code_verifier,
     pod: row.pod || undefined,
-    redirect: row.redirect_url || undefined,
+    redirect: row.redirect_uri || undefined,
   };
 }
 

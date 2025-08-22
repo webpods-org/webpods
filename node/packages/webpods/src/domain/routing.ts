@@ -165,7 +165,7 @@ export async function updateLinks(
 
       // Write new links record
       await t.none(
-        `INSERT INTO record (stream_id, index, content, content_type, name, hash, previous_hash, author_id, created_at)
+        `INSERT INTO record (stream_id, index, content, content_type, name, hash, previous_hash, user_id, created_at)
          VALUES ($(streamId), $(index), $(content), 'application/json', $(name), $(hash), $(previousHash), $(authorId), $(timestamp))`,
         {
           streamId: linksStream.id,
@@ -298,7 +298,7 @@ export async function updateCustomDomains(
 
       // Write new domains record
       await t.none(
-        `INSERT INTO record (stream_id, index, content, content_type, name, hash, previous_hash, author_id, created_at)
+        `INSERT INTO record (stream_id, index, content, content_type, name, hash, previous_hash, user_id, created_at)
          VALUES ($(streamId), $(index), $(content), 'application/json', $(name), $(hash), $(previousHash), $(authorId), $(timestamp))`,
         {
           streamId: domainsStream.id,

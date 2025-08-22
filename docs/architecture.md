@@ -114,7 +114,7 @@ WebPods implements two distinct OAuth flows:
 - `content_type`: MIME type
 - `hash`: SHA-256 hash
 - `previous_hash`: Chain link
-- `author_id` → user: Writer
+- `user_id` → user: Writer
 - `name`: Optional identifier
 
 #### oauth_client

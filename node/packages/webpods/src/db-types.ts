@@ -49,7 +49,7 @@ export type RecordDbRow = {
   content_type: string;
   hash: string;
   previous_hash?: string | null;
-  author_id: string; // Now references user.id
+  user_id: string; // References user.id
   name?: string | null;
   created_at: Date | string; // Can be string when inserting
 };
@@ -66,7 +66,7 @@ export type OAuthStateDbRow = {
   state: string;
   code_verifier: string;
   pod?: string | null;
-  redirect_url?: string | null;
+  redirect_uri?: string | null;
   expires_at: Date;
 };
 
