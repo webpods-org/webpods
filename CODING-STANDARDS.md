@@ -133,7 +133,7 @@ type StreamDbRow = {
   id: string;
   pod_id: string;
   stream_id: string;
-  user_id: string;  // Creator user ID
+  user_id: string; // Creator user ID
   access_permission: string;
   created_at: Date;
 };

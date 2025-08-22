@@ -1,56 +1,24 @@
 // Pod-specific authentication tests
 import { expect } from "chai";
-import jwt from "jsonwebtoken";
-import { TestHttpClient, createTestUser } from "webpods-test-utils";
+import {
+  TestHttpClient,
+  createTestUser,
+  createTestPod,
+} from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 
 describe("Pod-Specific Authentication with SSO", () => {
   let client: TestHttpClient;
   const pod1 = "alice";
   const pod2 = "bob";
-  const jwtSecret = "test-secret-key"; // Must match test-config.json
-
-  // Helper to create a test user and pod-specific token
-  function createPodToken(
-    userId: string,
-    pod: string,
-    email: string = "test@example.com",
-  ) {
-    return jwt.sign(
-      {
-        user_id: userId,
-        email,
-        name: "Test User",
-        pod, // Pod-specific claim
-      },
-      jwtSecret,
-      { expiresIn: "1h" },
-    );
-  }
-
-  // Helper to create a global token (no pod claim)
-  function createGlobalToken(
-    userId: string,
-    email: string = "test@example.com",
-  ) {
-    return jwt.sign(
-      {
-        user_id: userId,
-        email,
-        name: "Test User",
-      },
-      jwtSecret,
-      { expiresIn: "1h" },
-    );
-  }
 
   describe("Pod Login Flow", () => {
     beforeEach(() => {
-      client = new TestHttpClient("http://localhost:3099");
+      client = new TestHttpClient("http://localhost:3000");
     });
 
     it("should redirect from pod login to main domain authorize", async () => {
-      client.setBaseUrl(`http://${pod1}.localhost:3099`);
+      client.setBaseUrl(`http://${pod1}.localhost:3000`);
 
       const response = await client.get("/login", {
         followRedirect: false,
@@ -62,7 +30,7 @@ describe("Pod-Specific Authentication with SSO", () => {
     });
 
     it("should include redirect parameter in login flow", async () => {
-      client.setBaseUrl(`http://${pod1}.localhost:3099`);
+      client.setBaseUrl(`http://${pod1}.localhost:3000`);
 
       const response = await client.get("/login?redirect=/dashboard", {
         followRedirect: false,
@@ -78,10 +46,9 @@ describe("Pod-Specific Authentication with SSO", () => {
   describe("Pod Token Validation", () => {
     let user: any;
     let aliceToken: string;
-    let globalToken: string;
 
     beforeEach(async () => {
-      client = new TestHttpClient("http://localhost:3099");
+      client = new TestHttpClient("http://localhost:3000");
       const db = testDb.getDb();
 
       // Create test user
@@ -92,13 +59,20 @@ describe("Pod-Specific Authentication with SSO", () => {
         name: "Pod Test User",
       });
 
-      // Create tokens
-      aliceToken = createPodToken(user.userId, pod1);
-      globalToken = createGlobalToken(user.userId);
+      // Create pods
+      await createTestPod(db, pod1, user.userId);
+      await createTestPod(db, pod2, user.userId);
+
+      // Get OAuth tokens - create bothPodsToken first to avoid consent caching issues
+      await client.authenticateViaOAuth(user.userId, [
+        pod1,
+        pod2,
+      ]);
+      aliceToken = await client.authenticateViaOAuth(user.userId, [pod1]);
     });
 
     it("should accept pod-specific token on correct pod", async () => {
-      client.setBaseUrl(`http://${pod1}.localhost:3099`);
+      client.setBaseUrl(`http://${pod1}.localhost:3000`);
 
       // Create a stream with alice's token
       const response = await client.post("/test-stream/test", "Test content", {
@@ -112,7 +86,10 @@ describe("Pod-Specific Authentication with SSO", () => {
     });
 
     it("should reject pod-specific token on wrong pod", async () => {
-      client.setBaseUrl(`http://${pod2}.localhost:3099`);
+      client.setBaseUrl(`http://${pod2}.localhost:3000`);
+
+      // Clear cookies to avoid authentication leakage
+      client.clearCookies();
 
       // Try to use alice's token on bob's pod
       const response = await client.post("/test-stream/test", "Test content", {
@@ -122,33 +99,35 @@ describe("Pod-Specific Authentication with SSO", () => {
         },
       });
 
-      expect(response.status).to.equal(401);
-      expect(response.data.error.code).to.equal("POD_MISMATCH");
+      expect(response.status).to.equal(403);
+      expect(response.data.error.code).to.equal("POD_FORBIDDEN");
     });
 
-    it("should reject global token on pod subdomains", async () => {
-      // Global tokens (without pod claim) should not work on pod subdomains
+    it("should reject token without pod scope on pod subdomains", async () => {
+      // Get a token without any pod scopes
+      const noPodToken = await client.authenticateViaOAuth(user.userId, []);
+
       // Test on pod1
-      client.setBaseUrl(`http://${pod1}.localhost:3099`);
+      client.setBaseUrl(`http://${pod1}.localhost:3000`);
       let response = await client.post("/stream1/content1", "Content 1", {
         headers: {
-          Authorization: `Bearer ${globalToken}`,
+          Authorization: `Bearer ${noPodToken}`,
           "Content-Type": "text/plain",
         },
       });
-      expect(response.status).to.equal(401);
-      expect(response.data.error.code).to.equal("POD_MISMATCH");
+      expect(response.status).to.equal(403);
+      expect(response.data.error.code).to.equal("POD_FORBIDDEN");
 
       // Test on pod2
-      client.setBaseUrl(`http://${pod2}.localhost:3099`);
+      client.setBaseUrl(`http://${pod2}.localhost:3000`);
       response = await client.post("/stream2/content2", "Content 2", {
         headers: {
-          Authorization: `Bearer ${globalToken}`,
+          Authorization: `Bearer ${noPodToken}`,
           "Content-Type": "text/plain",
         },
       });
-      expect(response.status).to.equal(401);
-      expect(response.data.error.code).to.equal("POD_MISMATCH");
+      expect(response.status).to.equal(403);
+      expect(response.data.error.code).to.equal("POD_FORBIDDEN");
     });
   });
 
@@ -156,23 +135,23 @@ describe("Pod-Specific Authentication with SSO", () => {
     let client: TestHttpClient;
 
     beforeEach(() => {
-      client = new TestHttpClient("http://localhost:3099");
+      client = new TestHttpClient("http://localhost:3000");
     });
 
     it("should share session across OAuth flow", async () => {
       // This would require mocking OAuth flow or using a test OAuth provider
       // For now, we verify the authorize endpoint exists and behaves correctly
 
-      client.setBaseUrl("http://localhost:3099");
+      client.setBaseUrl("http://localhost:3000");
 
       const response = await client.get("/auth/authorize?pod=alice", {
         followRedirect: false,
       });
 
-      // Without session, should redirect to OAuth (mock provider in test)
+      // Without session, should redirect to OAuth (Hydra provider in test)
       expect(response.status).to.equal(302);
       expect(response.headers.location).to.include(
-        "localhost:4567/oauth/authorize",
+        "localhost:4444/oauth2/auth",
       );
     });
   });
@@ -182,7 +161,7 @@ describe("Pod-Specific Authentication with SSO", () => {
     let aliceToken: string;
 
     beforeEach(async () => {
-      client = new TestHttpClient("http://localhost:3099");
+      client = new TestHttpClient("http://localhost:3000");
       const db = testDb.getDb();
 
       // Create test user
@@ -193,13 +172,16 @@ describe("Pod-Specific Authentication with SSO", () => {
         name: "Isolation Test User",
       });
 
-      // Create pod-specific tokens
-      aliceToken = createPodToken(user.userId, pod1);
+      // Create pod
+      await createTestPod(db, pod1, user.userId);
+
+      // Get OAuth token
+      aliceToken = await client.authenticateViaOAuth(user.userId, [pod1]);
     });
 
     it("should isolate data between pods", async () => {
       // Write to alice's pod
-      client.setBaseUrl(`http://${pod1}.localhost:3099`);
+      client.setBaseUrl(`http://${pod1}.localhost:3000`);
       await client.post("/secret-data/secret", "Alice secret", {
         headers: {
           Authorization: `Bearer ${aliceToken}`,
@@ -208,7 +190,7 @@ describe("Pod-Specific Authentication with SSO", () => {
       });
 
       // Try to read from bob's pod with bob's token
-      client.setBaseUrl(`http://${pod2}.localhost:3099`);
+      client.setBaseUrl(`http://${pod2}.localhost:3000`);
       const response = await client.get("/secret-data", {
         validateStatus: () => true,
       });
@@ -219,7 +201,7 @@ describe("Pod-Specific Authentication with SSO", () => {
 
     it("should prevent cross-pod token usage for writes", async () => {
       // Try to write to bob's pod with alice's token
-      client.setBaseUrl(`http://${pod2}.localhost:3099`);
+      client.setBaseUrl(`http://${pod2}.localhost:3000`);
       const response = await client.post("/malicious-write/evil", "Evil data", {
         headers: {
           Authorization: `Bearer ${aliceToken}`,
@@ -227,15 +209,27 @@ describe("Pod-Specific Authentication with SSO", () => {
         },
       });
 
-      expect(response.status).to.equal(401);
-      expect(response.data.error.code).to.equal("POD_MISMATCH");
+      expect(response.status).to.equal(403);
+      expect(response.data.error.code).to.equal("POD_FORBIDDEN");
     });
   });
 
   describe("Auth Callback on Pods", () => {
     it("should handle auth callback with token", async () => {
-      const token = createPodToken("user123", pod1);
-      client.setBaseUrl(`http://${pod1}.localhost:3099`);
+      // Create a test user and pod
+      const db = testDb.getDb();
+      const user = await createTestUser(db, {
+        provider: "testprovider2",
+        providerId: "callback-test",
+        email: "callback@example.com",
+        name: "Callback Test User",
+      });
+
+      await createTestPod(db, pod1, user.userId);
+
+      // Get OAuth token
+      const token = await client.authenticateViaOAuth(user.userId, [pod1]);
+      client.setBaseUrl(`http://${pod1}.localhost:3000`);
 
       const response = await client.get(
         `/auth/callback?token=${token}&redirect=/dashboard`,
@@ -252,7 +246,7 @@ describe("Pod-Specific Authentication with SSO", () => {
     });
 
     it("should reject callback without token", async () => {
-      client.setBaseUrl(`http://${pod1}.localhost:3099`);
+      client.setBaseUrl(`http://${pod1}.localhost:3000`);
 
       const response = await client.get("/auth/callback", {
         validateStatus: () => true,

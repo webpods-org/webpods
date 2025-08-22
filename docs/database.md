@@ -18,17 +18,17 @@ Container for multiple identities.
 
 Stores OAuth provider identities.
 
-| Column      | Type         | Description                                   |
-| ----------- | ------------ | --------------------------------------------- |
-| id          | UUID         | Primary key                                   |
-| user_id     | UUID         | User (references user.id)                     |
-| provider    | VARCHAR(50)  | OAuth provider ID (e.g., `github`, `google`)  |
-| provider_id | VARCHAR(255) | ID from the provider                          |
-| email       | VARCHAR(255) | User email from OAuth provider                |
-| name        | VARCHAR(255) | Display name                                  |
-| metadata    | JSONB        | Additional user data from OAuth               |
-| created_at  | TIMESTAMP    | Identity creation time                        |
-| updated_at  | TIMESTAMP    | Last update time                              |
+| Column      | Type         | Description                                  |
+| ----------- | ------------ | -------------------------------------------- |
+| id          | UUID         | Primary key                                  |
+| user_id     | UUID         | User (references user.id)                    |
+| provider    | VARCHAR(50)  | OAuth provider ID (e.g., `github`, `google`) |
+| provider_id | VARCHAR(255) | ID from the provider                         |
+| email       | VARCHAR(255) | User email from OAuth provider               |
+| name        | VARCHAR(255) | Display name                                 |
+| metadata    | JSONB        | Additional user data from OAuth              |
+| created_at  | TIMESTAMP    | Identity creation time                       |
+| updated_at  | TIMESTAMP    | Last update time                             |
 
 ### pod
 

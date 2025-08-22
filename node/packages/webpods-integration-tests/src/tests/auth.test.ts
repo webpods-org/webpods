@@ -1,81 +1,59 @@
 // Authentication tests for WebPods
 import { expect } from "chai";
-import jwt from "jsonwebtoken";
-import { TestHttpClient, createTestUser } from "webpods-test-utils";
+import {
+  TestHttpClient,
+  createTestUser,
+  createTestPod,
+} from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 
 describe("WebPods Authentication", () => {
   let client: TestHttpClient;
   const testPodId = "auth-test";
-  const baseUrl = `http://${testPodId}.localhost:3099`;
-
-  // Helper to create a test JWT token
-  function createTestToken(
-    userId: string,
-    email: string = "test@example.com",
-    name: string = "Test User",
-    pod?: string,
-  ) {
-    const payload: any = {
-      user_id: userId,
-      email,
-      name,
-    };
-
-    // Add pod claim if provided
-    if (pod) {
-      payload.pod = pod;
-    }
-
-    return jwt.sign(
-      payload,
-      "test-secret-key", // Must match test-config.json
-      { expiresIn: "1h" },
-    );
-  }
+  const baseUrl = `http://${testPodId}.localhost:3000`;
 
   beforeEach(() => {
-    client = new TestHttpClient("http://localhost:3099");
+    client = new TestHttpClient("http://localhost:3000");
     client.setBaseUrl(baseUrl);
   });
 
   describe("OAuth Endpoints", () => {
     it("should redirect to provider 2 OAuth (mock)", async () => {
       // Auth endpoints are on the main domain, not pod subdomains
-      client.setBaseUrl("http://localhost:3099");
+      client.setBaseUrl("http://localhost:3000");
       const response = await client.get("/auth/testprovider2", {
         followRedirect: false,
       });
 
       expect(response.status).to.be.oneOf([302, 303]);
-      // In test environment, we use mock OAuth provider
+      // In test environment, we use Hydra OAuth provider
       expect(response.headers.location).to.include(
-        "localhost:4567/oauth/authorize",
+        "localhost:4444/oauth2/auth",
       );
     });
 
     it("should redirect to provider 1 OAuth (mock)", async () => {
-      client.setBaseUrl("http://localhost:3099");
+      client.setBaseUrl("http://localhost:3000");
       const response = await client.get("/auth/testprovider1", {
         followRedirect: false,
       });
 
       expect(response.status).to.be.oneOf([302, 303]);
-      // In test environment, we use mock OAuth provider
+      // In test environment, we use Hydra OAuth provider
       expect(response.headers.location).to.include(
-        "localhost:4567/oauth/authorize",
+        "localhost:4444/oauth2/auth",
       );
     });
 
     it("should reject invalid OAuth provider", async () => {
-      client.setBaseUrl("http://localhost:3099");
+      client.setBaseUrl("http://localhost:3000");
       const response = await client.get("/auth/invalid-provider");
 
       expect(response.status).to.equal(400);
     });
 
     it("should handle OAuth callback", async () => {
-      client.setBaseUrl("http://localhost:3099");
+      client.setBaseUrl("http://localhost:3000");
       const response = await client.get(
         "/auth/testprovider2/callback?code=test-code&state=test-state",
       );
@@ -85,7 +63,7 @@ describe("WebPods Authentication", () => {
     });
   });
 
-  describe("JWT Authentication", () => {
+  describe("Hydra OAuth Authentication", () => {
     let userId: string;
     let authToken: string;
 
@@ -98,17 +76,28 @@ describe("WebPods Authentication", () => {
         email: "test@example.com",
         name: "Test User",
       });
-      
+
       userId = testUser.userId;
-      authToken = createTestToken(userId, testUser.email, testUser.name, testPodId);
+
+      // Create the test pod
+      await createTestPod(db, testPodId, userId);
+
+      // Get OAuth token via Hydra
+      authToken = await client.authenticateViaOAuth(userId, [testPodId]);
       client.setBaseUrl(baseUrl);
     });
 
     it("should reject requests without auth token to write operations", async () => {
+      // Make sure to clear any existing auth
+      client.clearAuthToken();
+      client.clearCookies();
+
       const response = await client.post(
         "/protected-stream/test",
         "test content",
       );
+
+      // Check response status
 
       expect(response.status).to.equal(401);
       expect(response.data.error.code).to.equal("UNAUTHORIZED");
@@ -123,60 +112,52 @@ describe("WebPods Authentication", () => {
         "authenticated content",
       );
 
-      if (response.status === 500) {
-        console.error("Server error:", response.data);
-      }
+      // Check server response
 
       expect(response.status).to.equal(201);
       expect(response.data).to.have.property("index", 0);
       expect(response.data).to.have.property("author", userId);
     });
 
-    it("should reject expired JWT token", async () => {
-      const expiredToken = jwt.sign(
-        {
-          user_id: userId,
-          email: "test@example.com",
-          name: "Test User",
-        },
-        "test-secret-key", // Must match test-config.json
-        { expiresIn: "-1h" }, // Already expired
-      );
+    it("should reject invalid OAuth token", async () => {
+      // Use a completely invalid token
+      const invalidToken = "invalid.oauth.token";
 
-      client.setAuthToken(expiredToken);
+      client.setAuthToken(invalidToken);
 
       const response = await client.post("/expired-test/content", "content");
 
       expect(response.status).to.equal(401);
-      expect(response.data.error.code).to.equal("TOKEN_EXPIRED");
+      expect(response.data.error.code).to.be.oneOf([
+        "INVALID_TOKEN",
+        "TOKEN_VERIFICATION_FAILED",
+      ]);
     });
 
-    it("should reject invalid JWT signature", async () => {
-      const invalidToken = jwt.sign(
-        {
-          user_id: userId,
-          email: "test@example.com",
-          name: "Test User",
-        },
-        "wrong-secret", // Wrong secret
-        { expiresIn: "1h" },
-      );
+    it("should reject token for wrong pod", async () => {
+      // Get a token for a different pod
+      const wrongPodToken = await client.authenticateViaOAuth(userId, [
+        "different-pod",
+      ]);
 
-      client.setAuthToken(invalidToken);
+      client.setAuthToken(wrongPodToken);
 
       const response = await client.post("/invalid-sig/content", "content");
 
-      expect(response.status).to.equal(401);
-      expect(response.data.error.code).to.equal("INVALID_TOKEN");
+      expect(response.status).to.equal(403);
+      expect(response.data.error.code).to.equal("POD_FORBIDDEN");
     });
 
-    it("should reject malformed JWT token", async () => {
-      client.setAuthToken("not.a.valid.jwt.token");
+    it("should reject malformed OAuth token", async () => {
+      client.setAuthToken("not.a.valid.oauth.token");
 
       const response = await client.post("/malformed/content", "content");
 
       expect(response.status).to.equal(401);
-      expect(response.data.error.code).to.equal("INVALID_TOKEN");
+      expect(response.data.error.code).to.be.oneOf([
+        "INVALID_TOKEN",
+        "TOKEN_VERIFICATION_FAILED",
+      ]);
     });
   });
 
@@ -194,7 +175,12 @@ describe("WebPods Authentication", () => {
       });
 
       userId = testUser.userId;
-      authToken = createTestToken(testUser.userId, testUser.email, testUser.name, testPodId);
+
+      // Create the test pod
+      await createTestPod(db, testPodId, userId);
+
+      // Get OAuth token via Hydra
+      authToken = await client.authenticateViaOAuth(userId, [testPodId]);
     });
 
     it("should allow anonymous read on public streams", async () => {
@@ -211,6 +197,10 @@ describe("WebPods Authentication", () => {
     });
 
     it("should require auth for write on public streams", async () => {
+      // Make sure to clear any existing auth
+      client.clearAuthToken();
+      client.clearCookies();
+
       // Try to write without auth
       const response = await client.post(
         "/public-writable/anon",
@@ -233,12 +223,18 @@ describe("WebPods Authentication", () => {
 
       // Verify in database
       const db = testDb.getDb();
-      const pod = await db("pod").where("pod_id", testPodId).first();
-      const stream = await db("stream")
-        .where("pod_id", pod.id)
-        .where("stream_id", "tracked")
-        .first();
-      const record = await db("record").where("stream_id", stream.id).first();
+      const pod = await db.oneOrNone(
+        `SELECT * FROM pod WHERE pod_id = $(podId)`,
+        { podId: testPodId },
+      );
+      const stream = await db.oneOrNone(
+        `SELECT * FROM stream WHERE pod_id = $(podId) AND stream_id = $(streamId)`,
+        { podId: pod.id, streamId: "tracked" },
+      );
+      const record = await db.oneOrNone(
+        `SELECT * FROM record WHERE stream_id = $(streamId) ORDER BY index ASC LIMIT 1`,
+        { streamId: stream.id },
+      );
 
       expect(record.author_id).to.equal(userId);
     });
@@ -246,6 +242,7 @@ describe("WebPods Authentication", () => {
 
   describe("Bearer Token Format", () => {
     let authToken: string;
+    let userId: string;
 
     beforeEach(async () => {
       const db = testDb.getDb();
@@ -256,7 +253,13 @@ describe("WebPods Authentication", () => {
         name: "Bearer Test",
       });
 
-      authToken = createTestToken(testUser.userId, testUser.email, testUser.name, testPodId);
+      userId = testUser.userId;
+
+      // Create the test pod
+      await createTestPod(db, testPodId, userId);
+
+      // Get OAuth token via Hydra
+      authToken = await client.authenticateViaOAuth(userId, [testPodId]);
     });
 
     it("should accept Bearer token in Authorization header", async () => {
@@ -280,6 +283,10 @@ describe("WebPods Authentication", () => {
     });
 
     it("should reject other auth schemes", async () => {
+      // Clear any existing auth and cookies
+      client.clearAuthToken();
+      client.clearCookies();
+
       const response = await client.post("/basic-auth/content", "content", {
         headers: {
           Authorization: `Basic ${Buffer.from("user:pass").toString("base64")}`,
@@ -293,17 +300,14 @@ describe("WebPods Authentication", () => {
   describe("Auth Success Page", () => {
     beforeEach(() => {
       // Auth endpoints are on main domain, not pod subdomains
-      client.setBaseUrl("http://localhost:3099");
+      client.setBaseUrl("http://localhost:3000");
     });
 
     it("should display token on success page", async () => {
       const testToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test.token";
       const response = await client.get(`/auth/success?token=${testToken}`);
 
-      if (response.status !== 200) {
-        console.log("Response status:", response.status);
-        console.log("Response data:", response.data);
-      }
+      // Check response
 
       expect(response.status).to.equal(200);
       expect(response.headers["content-type"]).to.include("text/html");
@@ -353,10 +357,11 @@ describe("WebPods Authentication", () => {
 
   describe("Logout", () => {
     let authToken: string;
+    let userId: string;
 
     beforeEach(async () => {
       // Auth endpoints are on main domain
-      client.setBaseUrl("http://localhost:3099");
+      client.setBaseUrl("http://localhost:3000");
       // Create a test user and token
       const db = testDb.getDb();
       const testUser = await createTestUser(db, {
@@ -366,7 +371,13 @@ describe("WebPods Authentication", () => {
         name: "Logout Test",
       });
 
-      authToken = createTestToken(testUser.userId, testUser.email, testUser.name, testPodId);
+      userId = testUser.userId;
+
+      // Create the test pod
+      await createTestPod(db, testPodId, userId);
+
+      // Get OAuth token via Hydra
+      authToken = await client.authenticateViaOAuth(userId, [testPodId]);
       client.setAuthToken(authToken);
     });
 
@@ -404,16 +415,21 @@ describe("WebPods Authentication", () => {
       // First verify we're authenticated
       let response = await client.get("/auth/whoami");
       expect(response.status).to.equal(200);
+      expect(response.data).to.have.property("user_id", userId);
 
-      // Logout
+      // Logout (clears session cookies but not OAuth tokens)
       await client.post("/auth/logout");
 
       // Clear auth token from client to test properly
+      // Note: OAuth tokens are stateless and can't be revoked server-side
+      // The client must discard the token
       client.clearAuthToken();
+      client.clearCookies();
 
-      // Should no longer be authenticated
+      // Should no longer be authenticated when token is not provided
       response = await client.get("/auth/whoami");
       expect(response.status).to.equal(401);
+      expect(response.data.error.code).to.equal("UNAUTHENTICATED");
     });
   });
 
@@ -433,15 +449,20 @@ describe("WebPods Authentication", () => {
     });
 
     it("should use same user with different pod tokens for different pods", async () => {
-      // Create token for first pod
-      const token1 = createTestToken(
-        userId,
-        "cross@example.com",
-        "Cross Pod User",
+      // Create pods
+      const db = testDb.getDb();
+      await createTestPod(db, "pod-one", userId);
+      await createTestPod(db, "pod-two", userId);
+
+      // Get token for both pods
+      const token = await client.authenticateViaOAuth(userId, [
         "pod-one",
-      );
-      client.setBaseUrl(`http://pod-one.localhost:3099`);
-      client.setAuthToken(token1);
+        "pod-two",
+      ]);
+
+      // Use token on first pod
+      client.setBaseUrl(`http://pod-one.localhost:3000`);
+      client.setAuthToken(token);
 
       const response1 = await client.post(
         "/stream1/content",
@@ -449,15 +470,9 @@ describe("WebPods Authentication", () => {
       );
       expect(response1.status).to.equal(201);
 
-      // Create token for second pod
-      const token2 = createTestToken(
-        userId,
-        "cross@example.com",
-        "Cross Pod User",
-        "pod-two",
-      );
-      client.setBaseUrl(`http://pod-two.localhost:3099`);
-      client.setAuthToken(token2);
+      // Use same token on second pod
+      client.setBaseUrl(`http://pod-two.localhost:3000`);
+      client.setAuthToken(token);
 
       const response2 = await client.post(
         "/stream2/content",
@@ -466,30 +481,37 @@ describe("WebPods Authentication", () => {
       expect(response2.status).to.equal(201);
 
       // Verify both pods exist and have correct ownership
-      const db = testDb.getDb();
-      const pod1 = await db("pod").where("pod_id", "pod-one").first();
-      const pod2 = await db("pod").where("pod_id", "pod-two").first();
+      const pod1 = await db.oneOrNone(
+        `SELECT * FROM pod WHERE pod_id = $(podId)`,
+        { podId: "pod-one" },
+      );
+      const pod2 = await db.oneOrNone(
+        `SELECT * FROM pod WHERE pod_id = $(podId)`,
+        { podId: "pod-two" },
+      );
 
       expect(pod1).to.exist;
       expect(pod2).to.exist;
 
       // Check .meta/owner for both pods
-      const owner1Stream = await db("stream")
-        .where("pod_id", pod1.id)
-        .where("stream_id", ".meta/owner")
-        .first();
-      const owner1Record = await db("record")
-        .where("stream_id", owner1Stream.id)
-        .first();
+      const owner1Stream = await db.oneOrNone(
+        `SELECT * FROM stream WHERE pod_id = $(podId) AND stream_id = $(streamId)`,
+        { podId: pod1.id, streamId: ".meta/owner" },
+      );
+      const owner1Record = await db.oneOrNone(
+        `SELECT * FROM record WHERE stream_id = $(streamId) ORDER BY index ASC LIMIT 1`,
+        { streamId: owner1Stream.id },
+      );
       expect(JSON.parse(owner1Record.content).owner).to.equal(userId);
 
-      const owner2Stream = await db("stream")
-        .where("pod_id", pod2.id)
-        .where("stream_id", ".meta/owner")
-        .first();
-      const owner2Record = await db("record")
-        .where("stream_id", owner2Stream.id)
-        .first();
+      const owner2Stream = await db.oneOrNone(
+        `SELECT * FROM stream WHERE pod_id = $(podId) AND stream_id = $(streamId)`,
+        { podId: pod2.id, streamId: ".meta/owner" },
+      );
+      const owner2Record = await db.oneOrNone(
+        `SELECT * FROM record WHERE stream_id = $(streamId) ORDER BY index ASC LIMIT 1`,
+        { streamId: owner2Stream.id },
+      );
       expect(JSON.parse(owner2Record.content).owner).to.equal(userId);
     });
   });
@@ -501,24 +523,31 @@ describe("WebPods Authentication", () => {
       // Simulate OAuth user creation with metadata in identity
       const userId = crypto.randomUUID();
       const identityId = crypto.randomUUID();
-      
-      await db("user").insert({ id: userId });
-      
-      const [identity] = await db("identity")
-        .insert({
-          id: identityId,
-          user_id: userId,
+
+      await db.none(
+        `INSERT INTO "user" (id, created_at, updated_at) 
+         VALUES ($(userId), NOW(), NOW())`,
+        { userId },
+      );
+
+      const identity = await db.one(
+        `INSERT INTO identity (id, user_id, provider, provider_id, email, name, metadata, created_at, updated_at)
+         VALUES ($(identityId), $(userId), $(provider), $(providerId), $(email), $(name), $(metadata), NOW(), NOW())
+         RETURNING *`,
+        {
+          identityId,
+          userId,
           provider: "testprovider1",
-          provider_id: "12345",
+          providerId: "12345",
           email: "oauth@example.com",
           name: "OAuth User",
-          metadata: {
+          metadata: JSON.stringify({
             avatar_url: "https://example.com/avatar.jpg",
             bio: "Developer",
             location: "San Francisco",
-          },
-        })
-        .returning("*");
+          }),
+        },
+      );
 
       expect(identity.metadata).to.deep.equal({
         avatar_url: "https://example.com/avatar.jpg",
@@ -547,12 +576,14 @@ describe("WebPods Authentication", () => {
       });
 
       // Verify identities were created correctly
-      const [identity1] = await db("identity")
-        .where({ user_id: user1.userId })
-        .returning("*");
-      const [identity2] = await db("identity")
-        .where({ user_id: user2.userId })
-        .returning("*");
+      const identity1 = await db.oneOrNone(
+        `SELECT * FROM identity WHERE user_id = $(userId)`,
+        { userId: user1.userId },
+      );
+      const identity2 = await db.oneOrNone(
+        `SELECT * FROM identity WHERE user_id = $(userId)`,
+        { userId: user2.userId },
+      );
 
       expect(identity1.provider).to.equal("testprovider1");
       expect(identity1.provider_id).to.equal("p1-123");

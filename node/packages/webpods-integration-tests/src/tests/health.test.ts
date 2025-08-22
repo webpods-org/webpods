@@ -1,14 +1,18 @@
 // Health check tests for WebPods
 import { expect } from "chai";
-import { TestHttpClient, createTestUser } from "webpods-test-utils";
+import {
+  TestHttpClient,
+  createTestUser,
+  createTestPod,
+} from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 
 describe("WebPods Health Checks", () => {
   let client: TestHttpClient;
 
   beforeEach(() => {
-    client = new TestHttpClient("http://localhost:3099");
-    client.setBaseUrl("http://localhost:3099");
+    client = new TestHttpClient("http://localhost:3000");
+    client.setBaseUrl("http://localhost:3000");
   });
 
   it("should return healthy status", async () => {
@@ -21,7 +25,7 @@ describe("WebPods Health Checks", () => {
 
   it("should verify wildcard subdomain routing works", async () => {
     const uniquePodId = `health-check-${Date.now()}`;
-    client.setBaseUrl(`http://${uniquePodId}.localhost:3099`);
+    client.setBaseUrl(`http://${uniquePodId}.localhost:3000`);
 
     // Create a test user and authenticate
     const db = testDb.getDb();
@@ -32,15 +36,11 @@ describe("WebPods Health Checks", () => {
       name: "Health Test User",
     });
 
-    // Generate pod-specific token for the unique pod
-    const token = client.generatePodToken(
-      {
-        user_id: user.userId,
-        email: user.email,
-        name: user.name,
-      },
-      uniquePodId,
-    );
+    // Create the pod
+    await createTestPod(db, uniquePodId, user.userId);
+
+    // Get OAuth token
+    const token = await client.authenticateViaOAuth(user.userId, [uniquePodId]);
 
     client.setAuthToken(token);
 
@@ -55,7 +55,10 @@ describe("WebPods Health Checks", () => {
     expect(response.data).to.have.property("index", 0);
 
     // Verify pod was created
-    const pod = await db("pod").where("pod_id", uniquePodId).first();
+    const pod = await db.oneOrNone(
+      `SELECT * FROM pod WHERE pod_id = $(podId)`,
+      { podId: uniquePodId },
+    );
     expect(pod).to.exist;
   });
 });

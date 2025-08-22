@@ -15,3 +15,61 @@ services:
       - ./pgdata:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     command: ["postgres", "-c", "log_statement=all"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - webpods-network
+
+  hydra-migrate:
+    image: oryd/hydra:v2.3.0
+    user: ${RUNAS_UID}:${RUNAS_GID}
+    command: migrate sql --yes postgres://postgres:postgres@postgres:5432/hydra?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - webpods-network
+    restart: on-failure
+
+  hydra:
+    image: oryd/hydra:v2.3.0
+    user: ${RUNAS_UID}:${RUNAS_GID}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      hydra-migrate:
+        condition: service_completed_successfully
+    ports:
+      - "4444:4444" # Public API
+      - "4445:4445" # Admin API
+    command: serve all --dev
+    environment:
+      - DSN=postgres://postgres:postgres@postgres:5432/hydra?sslmode=disable
+      - URLS_SELF_ISSUER=http://localhost:4444/
+      - URLS_CONSENT=http://localhost:3000/oauth/consent
+      - URLS_LOGIN=http://localhost:3000/oauth/login
+      - URLS_LOGOUT=http://localhost:3000/oauth/logout
+      - SECRETS_SYSTEM=youReallyNeedToChangeThis-UseARandomValue
+      - OIDC_SUBJECT_IDENTIFIERS_SUPPORTED_TYPES=public,pairwise
+      - OIDC_SUBJECT_IDENTIFIERS_PAIRWISE_SALT=youReallyNeedToChangeThis
+      - SERVE_COOKIES_SAME_SITE_MODE=Lax
+      - LOG_LEVEL=debug
+      - LOG_FORMAT=json
+      - STRATEGIES_ACCESS_TOKEN=jwt
+      - TTL_ACCESS_TOKEN=1h
+      - TTL_REFRESH_TOKEN=720h
+      - OAUTH2_EXPOSE_INTERNAL_ERRORS=true
+      - WEBFINGER_OIDC_DISCOVERY_SUPPORTED_SCOPES=openid,offline,offline_access,profile,email
+      - WEBFINGER_OIDC_DISCOVERY_SUPPORTED_CLAIMS=sub,name,email,email_verified,pods
+      - OAUTH2_PKCE_ENFORCED_FOR_PUBLIC_CLIENTS=true
+      - OAUTH2_PKCE_ENFORCED=false
+    networks:
+      - webpods-network
+    restart: always
+
+networks:
+  webpods-network:
+    driver: bridge

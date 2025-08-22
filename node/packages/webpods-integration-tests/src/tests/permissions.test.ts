@@ -1,6 +1,10 @@
 // Permission tests for WebPods
 import { expect } from "chai";
-import { TestHttpClient, createTestUser } from "webpods-test-utils";
+import {
+  TestHttpClient,
+  createTestUser,
+  createTestPod,
+} from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 
 describe("WebPods Permissions", () => {
@@ -11,10 +15,10 @@ describe("WebPods Permissions", () => {
   let user2Id: string;
   let user2Token: string;
   const testPodId = "perm-test";
-  const baseUrl = `http://${testPodId}.localhost:3099`;
+  const baseUrl = `http://${testPodId}.localhost:3000`;
 
   beforeEach(async () => {
-    client = new TestHttpClient("http://localhost:3099");
+    client = new TestHttpClient("http://localhost:3000");
     const db = testDb.getDb();
 
     // Create two test users
@@ -34,26 +38,14 @@ describe("WebPods Permissions", () => {
 
     user2Id = user2.userId;
 
+    // Create the test pod (owned by user1)
+    await createTestPod(db, testPodId, user1.userId);
+
+    // Get OAuth tokens for both users
+    user1Token = await client.authenticateViaOAuth(user1.userId, [testPodId]);
+    user2Token = await client.authenticateViaOAuth(user2.userId, [testPodId]);
+
     client.setBaseUrl(baseUrl);
-
-    // Generate pod-specific tokens for perm-test pod
-    user1Token = client.generatePodToken(
-      {
-        user_id: user1.userId,
-        email: user1.email,
-        name: user1.name,
-      },
-      testPodId
-    );
-
-    user2Token = client.generatePodToken(
-      {
-        user_id: user2.userId,
-        email: user2.email,
-        name: user2.name,
-      },
-      testPodId
-    );
   });
 
   describe("Private Streams", () => {
@@ -78,6 +70,7 @@ describe("WebPods Permissions", () => {
 
       // Anonymous cannot read
       client.clearAuthToken();
+      client.clearCookies();
       const response3 = await client.get("/private-read?i=0");
       expect(response3.status).to.equal(403);
     });
@@ -243,11 +236,14 @@ describe("WebPods Permissions", () => {
       // Verify permissions were updated for new records
       // (Note: existing stream permissions don't change, only apply to new writes)
       const db = testDb.getDb();
-      const pod = await db("pod").where("pod_id", testPodId).first();
-      const stream = await db("stream")
-        .where("pod_id", pod.id)
-        .where("stream_id", "perm-update")
-        .first();
+      const pod = await db.oneOrNone(
+        `SELECT * FROM pod WHERE pod_id = $(podId)`,
+        { podId: testPodId },
+      );
+      const stream = await db.oneOrNone(
+        `SELECT * FROM stream WHERE pod_id = $(podId) AND stream_id = $(streamId)`,
+        { podId: pod.id, streamId: "perm-update" },
+      );
 
       // Original permissions should remain (first write sets them)
       expect(stream.access_permission).to.equal("public");

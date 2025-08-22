@@ -183,13 +183,18 @@ for (const record of records) {
 # Run all tests
 npm test
 
-# Run specific test suite
-cd node/packages/webpods-integration-tests
-npm test -- --grep "permission"
+# Run specific test suite with grep (from root directory)
+npm run test:grep -- "pattern to match"
+
+# Examples:
+npm run test:grep -- "should accept requests with valid auth token"
+npm run test:grep -- "OAuth"
+npm run test:grep -- "permission"
 ```
 
 **IMPORTANT**: When running tests with mocha:
 
+- Always use `npm run test:grep -- "pattern"` from the root directory for specific tests
 - NEVER use `2>&1` redirection with mocha commands - it will cause errors
 - Use plain `npm test` or `npx mocha` without stderr redirection
 - If you need to capture output, use `| tee` or similar tools instead

@@ -18,6 +18,7 @@
     "migrate:webpods:status": "knex migrate:status --knexfile database/webpods/knexfile.js",
     "db:dump-schema": "./scripts/dump-db-schema.sh",
     "test:integration": "cd node/packages/webpods-integration-tests && npm test",
+    "test:grep": "cd node/packages/webpods-integration-tests && npm run test:grep",
     "lint": "./lint-all.sh",
     "docker:build": "./scripts/docker-build.sh",
     "docker:test": "./scripts/docker-test.sh",

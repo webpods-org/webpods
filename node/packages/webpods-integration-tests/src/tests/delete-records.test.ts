@@ -1,6 +1,10 @@
 // Delete and purge records tests for WebPods
 import { expect } from "chai";
-import { TestHttpClient, createTestUser } from "webpods-test-utils";
+import {
+  TestHttpClient,
+  createTestUser,
+  createTestPod,
+} from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 
 describe("WebPods Record Deletion", () => {
@@ -9,10 +13,10 @@ describe("WebPods Record Deletion", () => {
   let nonOwnerToken: string;
   let ownerId: string;
   const testPodId = "test-delete";
-  const baseUrl = `http://${testPodId}.localhost:3099`;
+  const baseUrl = `http://${testPodId}.localhost:3000`;
 
   beforeEach(async () => {
-    client = new TestHttpClient("http://localhost:3099");
+    client = new TestHttpClient("http://localhost:3000");
 
     // Create pod owner
     const db = testDb.getDb();
@@ -32,27 +36,18 @@ describe("WebPods Record Deletion", () => {
       name: "Other User",
     });
 
-    // Generate tokens
-    client.setBaseUrl(baseUrl);
-    ownerToken = client.generatePodToken(
-      {
-        user_id: owner.userId,
-        email: owner.email,
-        name: owner.name,
-      },
-      testPodId,
-    );
-
-    nonOwnerToken = client.generatePodToken(
-      {
-        user_id: nonOwner.userId,
-        email: nonOwner.email,
-        name: nonOwner.name,
-      },
-      testPodId,
-    );
-
     // Create pod as owner
+    await createTestPod(db, testPodId, ownerId);
+
+    // Get OAuth tokens
+    ownerToken = await client.authenticateViaOAuth(ownerId, [testPodId]);
+    nonOwnerToken = await client.authenticateViaOAuth(nonOwner.userId, [
+      testPodId,
+    ]);
+
+    client.setBaseUrl(baseUrl);
+
+    // Initialize with a first record
     client.setAuthToken(ownerToken);
     await client.post("/init/start", "Initialize pod");
   });
@@ -70,9 +65,7 @@ describe("WebPods Record Deletion", () => {
 
       // Soft delete it
       response = await client.delete("/documents/report");
-      if (response.status !== 204) {
-        console.log("Delete error:", response.data);
-      }
+      // Check delete response
       expect(response.status).to.equal(204);
 
       // Verify it returns 404
@@ -82,17 +75,23 @@ describe("WebPods Record Deletion", () => {
 
       // Verify the tombstone record exists in database
       const db = testDb.getDb();
-      const pod = await db("pod").where("pod_id", testPodId).first();
-      const stream = await db("stream")
-        .where("pod_id", pod.id)
-        .where("stream_id", "documents")
-        .first();
+      const pod = await db.oneOrNone(
+        `SELECT * FROM pod WHERE pod_id = $(podId)`,
+        { podId: testPodId },
+      );
+      const stream = await db.oneOrNone(
+        `SELECT * FROM stream WHERE pod_id = $(podId) AND stream_id = $(streamId)`,
+        { podId: pod.id, streamId: "documents" },
+      );
 
       // Check for tombstone record
-      const tombstones = await db("record")
-        .where("stream_id", stream.id)
-        .where("name", "like", "report.deleted.%")
-        .orderBy("index", "desc");
+      const tombstones = await db.manyOrNone(
+        `SELECT * FROM record 
+         WHERE stream_id = $(streamId) 
+         AND name LIKE 'report.deleted.%'
+         ORDER BY index DESC`,
+        { streamId: stream.id },
+      );
 
       expect(tombstones).to.have.lengthOf(1);
       const tombstone = JSON.parse(tombstones[0].content);
@@ -157,15 +156,18 @@ describe("WebPods Record Deletion", () => {
 
       // Verify the content was physically deleted but hash preserved
       const db = testDb.getDb();
-      const pod = await db("pod").where("pod_id", testPodId).first();
-      const stream = await db("stream")
-        .where("pod_id", pod.id)
-        .where("stream_id", "secrets")
-        .first();
-      const record = await db("record")
-        .where("stream_id", stream.id)
-        .where("name", "password")
-        .first();
+      const pod = await db.oneOrNone(
+        `SELECT * FROM pod WHERE pod_id = $(podId)`,
+        { podId: testPodId },
+      );
+      const stream = await db.oneOrNone(
+        `SELECT * FROM stream WHERE pod_id = $(podId) AND stream_id = $(streamId)`,
+        { podId: pod.id, streamId: "secrets" },
+      );
+      const record = await db.oneOrNone(
+        `SELECT * FROM record WHERE stream_id = $(streamId) AND name = $(name)`,
+        { streamId: stream.id, name: "password" },
+      );
 
       expect(record).to.exist;
       const content = JSON.parse(record.content);
@@ -215,16 +217,11 @@ describe("WebPods Record Deletion", () => {
       expect(response.status).to.equal(404);
 
       // Create another with same name (should work since old one is deleted)
-      const postResponse = await client.post("/logs/event", "Event 2");
-      if (postResponse.status !== 201) {
-        console.log("POST failed:", postResponse.status, postResponse.data);
-      }
+      await client.post("/logs/event", "Event 2");
 
       // Should be accessible again
       response = await client.get("/logs/event");
-      if (response.status !== 200) {
-        console.log("GET failed:", response.status, response.data);
-      }
+      // Check get response
       expect(response.status).to.equal(200);
       expect(response.data).to.equal("Event 2");
 

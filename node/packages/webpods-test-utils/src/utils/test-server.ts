@@ -26,7 +26,7 @@ export class TestServer {
 
   constructor(config: TestServerConfig = {}) {
     this.config = {
-      port: config.port || 3099,
+      port: config.port || 3000,
       dbName: config.dbName || "webpodsdb_test",
       logger: config.logger,
       useMockOAuth: config.useMockOAuth !== false, // Default to true for tests
@@ -54,6 +54,7 @@ export class TestServer {
     const env: any = {
       ...process.env,
       NODE_ENV: "test",
+      WEBPODS_TEST_MODE: "enabled", // Enable test mode for integration tests
       WEBPODS_CONFIG_PATH: testConfigPath,
       WEBPODS_PORT: String(this.config.port),
       WEBPODS_DB_NAME: this.config.dbName,
@@ -76,10 +77,7 @@ export class TestServer {
 
       this.process.stdout?.on("data", (data) => {
         const message = data.toString();
-        // Only log server output when LOG_LEVEL is debug
-        if (process.env.LOG_LEVEL === "debug") {
-          console.log("[Server]", message.trim());
-        }
+        // Server output is handled silently
         if (
           message.includes("WebPods server started") ||
           message.includes("Server listening")
@@ -90,10 +88,7 @@ export class TestServer {
 
       this.process.stderr?.on("data", (data) => {
         const message = data.toString();
-        // Only log server errors when LOG_LEVEL is debug
-        if (process.env.LOG_LEVEL === "debug") {
-          console.error("[Server Error]", message.trim());
-        }
+        // Server errors are handled silently
         // Sometimes the server logs to stderr
         if (
           message.includes("WebPods server started") ||

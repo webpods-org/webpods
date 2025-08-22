@@ -1,19 +1,23 @@
 // Rate limiting tests for WebPods
 import { expect } from "chai";
-import { TestHttpClient, createTestUser } from "webpods-test-utils";
+import {
+  TestHttpClient,
+  createTestUser,
+  createTestPod,
+} from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
+import crypto from "crypto";
 
 describe("WebPods Rate Limiting", () => {
   let client: TestHttpClient;
   let userId: string;
   let authToken: string;
-  let testUser: any; // Store user for token generation
   const testPodId = "rate-test";
-  const baseUrl = `http://${testPodId}.localhost:3099`;
+  const baseUrl = `http://${testPodId}.localhost:3000`;
 
   beforeEach(async () => {
     // Create a new client instance for each test
-    client = new TestHttpClient("http://localhost:3099");
+    client = new TestHttpClient("http://localhost:3000");
     const db = testDb.getDb();
     const user = await createTestUser(db, {
       provider: "testprovider2",
@@ -22,21 +26,15 @@ describe("WebPods Rate Limiting", () => {
       name: "Rate Limit User",
     });
 
-    testUser = user; // Save for later use
     userId = user.userId;
 
+    // Create the test pod
+    await createTestPod(db, testPodId, userId);
+
+    // Get OAuth token
+    authToken = await client.authenticateViaOAuth(userId, [testPodId]);
+
     client.setBaseUrl(baseUrl);
-
-    // Generate pod-specific token for rate-test pod
-    authToken = client.generatePodToken(
-      {
-        user_id: user.userId,
-        email: user.email,
-        name: user.name,
-      },
-      testPodId,
-    );
-
     client.setAuthToken(authToken);
   });
 
@@ -50,10 +48,10 @@ describe("WebPods Rate Limiting", () => {
 
       // Check rate limit record was created
       const db = testDb.getDb();
-      const rateLimit = await db("rate_limit")
-        .where("identifier", userId)
-        .where("action", "write")
-        .first();
+      const rateLimit = await db.oneOrNone(
+        `SELECT * FROM rate_limit WHERE identifier = $(identifier) AND action = $(action)`,
+        { identifier: userId, action: "write" },
+      );
 
       expect(rateLimit).to.exist;
       expect(rateLimit.count).to.equal(4);
@@ -61,40 +59,104 @@ describe("WebPods Rate Limiting", () => {
     });
 
     it("should track pod creation rate limits separately", async () => {
-      // Create multiple pods with proper tokens for each
-      client.setBaseUrl(`http://pod-limit-1.localhost:3099`);
-      const token1 = client.generatePodToken(
-        {
-          user_id: testUser.userId,
-          email: testUser.email,
-          name: testUser.name,
-        },
-        "pod-limit-1",
-      );
-      client.setAuthToken(token1);
-      await client.post("/init/pod1", "Pod 1");
+      // Create a unique user for this test to avoid interference
+      const db = testDb.getDb();
+      const podTestUser = await createTestUser(db, {
+        provider: "testprovider1",
+        providerId: "pod-creator-" + crypto.randomUUID(),
+        email: "pod-creator@example.com",
+        name: "Pod Creator User",
+      });
 
-      client.setBaseUrl(`http://pod-limit-2.localhost:3099`);
-      const token2 = client.generatePodToken(
-        {
-          user_id: testUser.userId,
-          email: testUser.email,
-          name: testUser.name,
-        },
+      // Get tokens that allow access to multiple pods
+      // Note: The pods don't exist yet, they'll be created on first POST
+      const token1 = await client.authenticateViaOAuth(podTestUser.userId, [
+        "pod-limit-1",
+      ]);
+      const token2 = await client.authenticateViaOAuth(podTestUser.userId, [
         "pod-limit-2",
-      );
+      ]);
+
+      // Create first pod by POSTing to it
+      client.setBaseUrl(`http://pod-limit-1.localhost:3000`);
+      client.setAuthToken(token1);
+      const response1 = await client.post("/init/pod1", "Pod 1");
+      expect(response1.status).to.equal(201);
+
+      // Create second pod by POSTing to it
+      client.setBaseUrl(`http://pod-limit-2.localhost:3000`);
       client.setAuthToken(token2);
-      await client.post("/init/pod2", "Pod 2");
+      const response2 = await client.post("/init/pod2", "Pod 2");
+      expect(response2.status).to.equal(201);
+
+      // Verify pods were actually created in the database
+      const pod1 = await db.oneOrNone(
+        `SELECT * FROM pod WHERE pod_id = $(podId)`,
+        { podId: "pod-limit-1" },
+      );
+      const pod2 = await db.oneOrNone(
+        `SELECT * FROM pod WHERE pod_id = $(podId)`,
+        { podId: "pod-limit-2" },
+      );
+
+      expect(pod1).to.exist;
+      expect(pod2).to.exist;
+
+      // Verify ownership via .meta/owner stream
+      const owner1Record = await db.oneOrNone(
+        `SELECT r.content FROM record r
+         JOIN stream s ON r.stream_id = s.id
+         WHERE s.pod_id = $(podId) AND s.stream_id = '.meta/owner'
+         ORDER BY r.index DESC LIMIT 1`,
+        { podId: pod1.id },
+      );
+      const owner2Record = await db.oneOrNone(
+        `SELECT r.content FROM record r
+         JOIN stream s ON r.stream_id = s.id
+         WHERE s.pod_id = $(podId) AND s.stream_id = '.meta/owner'
+         ORDER BY r.index DESC LIMIT 1`,
+        { podId: pod2.id },
+      );
+
+      expect(owner1Record).to.exist;
+      expect(JSON.parse(owner1Record.content).owner).to.equal(
+        podTestUser.userId,
+      );
+      expect(owner2Record).to.exist;
+      expect(JSON.parse(owner2Record.content).owner).to.equal(
+        podTestUser.userId,
+      );
 
       // Check rate limit records
-      const db = testDb.getDb();
-      const podLimit = await db("rate_limit")
-        .where("identifier", userId)
-        .where("action", "pod_create")
-        .first();
+      const podLimit = await db.oneOrNone(
+        `SELECT * FROM rate_limit WHERE identifier = $(identifier) AND action = $(action)`,
+        { identifier: podTestUser.userId, action: "pod_create" },
+      );
 
       expect(podLimit).to.exist;
       expect(podLimit.count).to.equal(2);
+
+      // Now test that we can create more pods up to the limit (10)
+      // We've created 2, so we can create 8 more
+      for (let i = 3; i <= 10; i++) {
+        const tokenN = await client.authenticateViaOAuth(podTestUser.userId, [
+          `pod-limit-${i}`,
+        ]);
+        client.setBaseUrl(`http://pod-limit-${i}.localhost:3000`);
+        client.setAuthToken(tokenN);
+        const responseN = await client.post(`/init/pod${i}`, `Pod ${i}`);
+        expect(responseN.status).to.equal(201, `Should create pod ${i}`);
+      }
+
+      // The 11th pod should be blocked
+      const token11 = await client.authenticateViaOAuth(podTestUser.userId, [
+        "pod-limit-11",
+      ]);
+      client.setBaseUrl(`http://pod-limit-11.localhost:3000`);
+      client.setAuthToken(token11);
+      const response11 = await client.post("/init/pod11", "Pod 11");
+      expect(response11.status).to.equal(429);
+      expect(response11.data.error.code).to.equal("RATE_LIMIT_EXCEEDED");
     });
 
     it("should track stream creation rate limits", async () => {
@@ -105,10 +167,10 @@ describe("WebPods Rate Limiting", () => {
       await client.post("/blog/posts/2024", "Nested stream");
 
       const db = testDb.getDb();
-      const streamLimit = await db("rate_limit")
-        .where("identifier", userId)
-        .where("action", "stream_create")
-        .first();
+      const streamLimit = await db.oneOrNone(
+        `SELECT * FROM rate_limit WHERE identifier = $(identifier) AND action = $(action)`,
+        { identifier: userId, action: "stream_create" },
+      );
 
       expect(streamLimit).to.exist;
       expect(streamLimit.count).to.equal(4);
@@ -123,19 +185,19 @@ describe("WebPods Rate Limiting", () => {
       await client.post("/existing/third", "Third message");
 
       const db = testDb.getDb();
-      const streamLimit = await db("rate_limit")
-        .where("identifier", userId)
-        .where("action", "stream_create")
-        .first();
+      const streamLimit = await db.oneOrNone(
+        `SELECT * FROM rate_limit WHERE identifier = $(identifier) AND action = $(action)`,
+        { identifier: userId, action: "stream_create" },
+      );
 
       // Only one stream was created
       expect(streamLimit.count).to.equal(1);
 
       // But 3 writes were made
-      const writeLimit = await db("rate_limit")
-        .where("identifier", userId)
-        .where("action", "write")
-        .first();
+      const writeLimit = await db.oneOrNone(
+        `SELECT * FROM rate_limit WHERE identifier = $(identifier) AND action = $(action)`,
+        { identifier: userId, action: "write" },
+      );
       expect(writeLimit.count).to.equal(3);
     });
   });
@@ -155,15 +217,15 @@ describe("WebPods Rate Limiting", () => {
 
       // Check rate limit records
       const db = testDb.getDb();
-      const writeLimit = await db("rate_limit")
-        .where("identifier", userId)
-        .where("action", "write")
-        .first();
+      const writeLimit = await db.oneOrNone(
+        `SELECT * FROM rate_limit WHERE identifier = $(identifier) AND action = $(action)`,
+        { identifier: userId, action: "write" },
+      );
 
-      const readLimit = await db("rate_limit")
-        .where("identifier", userId)
-        .where("action", "read")
-        .first();
+      const readLimit = await db.oneOrNone(
+        `SELECT * FROM rate_limit WHERE identifier = $(identifier) AND action = $(action)`,
+        { identifier: userId, action: "read" },
+      );
 
       expect(writeLimit.count).to.equal(2); // Two writes in beforeEach
       expect(readLimit.count).to.equal(3); // Three reads
@@ -185,10 +247,10 @@ describe("WebPods Rate Limiting", () => {
       const db = testDb.getDb();
 
       // Find any IP-based rate limit (could be ::1 or 127.0.0.1)
-      const ipLimit = await db("rate_limit")
-        .where("identifier", "like", "ip:%")
-        .where("action", "read")
-        .first();
+      const ipLimit = await db.oneOrNone(
+        `SELECT * FROM rate_limit WHERE identifier LIKE 'ip:%' AND action = $(action)`,
+        { action: "read" },
+      );
 
       expect(ipLimit).to.exist;
       expect(ipLimit.count).to.equal(2);
@@ -203,10 +265,10 @@ describe("WebPods Rate Limiting", () => {
       await client.post("/window-test/msg", "Message");
 
       // Check the window
-      const rateLimit = await db("rate_limit")
-        .where("identifier", userId)
-        .where("action", "write")
-        .first();
+      const rateLimit = await db.oneOrNone(
+        `SELECT * FROM rate_limit WHERE identifier = $(identifier) AND action = $(action)`,
+        { identifier: userId, action: "write" },
+      );
 
       const windowStart = new Date(rateLimit.window_start);
       const windowEnd = new Date(rateLimit.window_end);
@@ -221,25 +283,31 @@ describe("WebPods Rate Limiting", () => {
       const now = new Date();
 
       // Insert an expired window with high count
-      await db("rate_limit").insert({
-        id: crypto.randomUUID(),
-        identifier: userId, // Rate limiting uses user_id
-        action: "write",
-        count: 999, // Just under limit
-        window_start: new Date(now.getTime() - 2 * 60 * 60 * 1000), // 2 hours ago
-        window_end: new Date(now.getTime() - 60 * 60 * 1000), // 1 hour ago
-      });
+      await db.none(
+        `INSERT INTO rate_limit (id, identifier, action, count, window_start, window_end)
+         VALUES ($(id), $(identifier), $(action), $(count), $(windowStart), $(windowEnd))`,
+        {
+          id: crypto.randomUUID(),
+          identifier: userId, // Rate limiting uses user_id
+          action: "write",
+          count: 999, // Just under limit
+          windowStart: new Date(now.getTime() - 2 * 60 * 60 * 1000), // 2 hours ago
+          windowEnd: new Date(now.getTime() - 60 * 60 * 1000), // 1 hour ago
+        },
+      );
 
       // Make a new request (should start new window)
       const response = await client.post("/new-window/msg", "Message");
       expect(response.status).to.equal(201);
 
       // Check new window was created
-      const newLimit = await db("rate_limit")
-        .where("identifier", userId)
-        .where("action", "write")
-        .where("window_end", ">", now)
-        .first();
+      const newLimit = await db.oneOrNone(
+        `SELECT * FROM rate_limit 
+         WHERE identifier = $(identifier) 
+         AND action = $(action) 
+         AND window_end > $(now)`,
+        { identifier: userId, action: "write", now },
+      );
 
       expect(newLimit.count).to.equal(1); // Reset to 1
     });
@@ -249,34 +317,37 @@ describe("WebPods Rate Limiting", () => {
 
       // Insert multiple old windows
       const oldDate = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours ago
-      await db("rate_limit").insert([
+      await db.none(
+        `INSERT INTO rate_limit (id, identifier, action, count, window_start, window_end)
+         VALUES 
+         ($(id1), $(identifier1), $(action1), $(count1), $(windowStart1), $(windowEnd1)),
+         ($(id2), $(identifier2), $(action2), $(count2), $(windowStart2), $(windowEnd2))`,
         {
-          id: crypto.randomUUID(),
-          identifier: "old-user-1",
-          action: "write",
-          count: 100,
-          window_start: new Date(oldDate.getTime() - 60 * 60 * 1000),
-          window_end: oldDate,
+          id1: crypto.randomUUID(),
+          identifier1: "old-user-1",
+          action1: "write",
+          count1: 100,
+          windowStart1: new Date(oldDate.getTime() - 60 * 60 * 1000),
+          windowEnd1: oldDate,
+          id2: crypto.randomUUID(),
+          identifier2: "old-user-2",
+          action2: "read",
+          count2: 200,
+          windowStart2: new Date(oldDate.getTime() - 60 * 60 * 1000),
+          windowEnd2: oldDate,
         },
-        {
-          id: crypto.randomUUID(),
-          identifier: "old-user-2",
-          action: "read",
-          count: 200,
-          window_start: new Date(oldDate.getTime() - 60 * 60 * 1000),
-          window_end: oldDate,
-        },
-      ]);
+      );
 
       // Make a new request (triggers cleanup)
       await client.post("/cleanup-trigger/new", "New message");
 
       // Check that old windows are gone
-      const oldLimits = await db("rate_limit")
-        .where("window_end", "<", new Date(Date.now() - 2 * 60 * 60 * 1000))
-        .count("* as count");
+      const oldLimits = await db.oneOrNone(
+        `SELECT COUNT(*) as count FROM rate_limit WHERE window_end < $(cutoff)`,
+        { cutoff: new Date(Date.now() - 2 * 60 * 60 * 1000) },
+      );
 
-      expect(parseInt(oldLimits[0]?.count as string)).to.equal(0);
+      expect(parseInt(oldLimits?.count || "0")).to.equal(0);
     });
   });
 
@@ -317,14 +388,18 @@ describe("WebPods Rate Limiting", () => {
       const windowStart = new Date(windowEnd.getTime() - windowMs);
 
       // Set a rate limit that's already exceeded
-      await db("rate_limit").insert({
-        id: crypto.randomUUID(),
-        identifier: userId, // Rate limiting uses user_id
-        action: "write",
-        count: 1001, // Over the default limit of 1000
-        window_start: windowStart,
-        window_end: windowEnd,
-      });
+      await db.none(
+        `INSERT INTO rate_limit (id, identifier, action, count, window_start, window_end)
+         VALUES ($(id), $(identifier), $(action), $(count), $(windowStart), $(windowEnd))`,
+        {
+          id: crypto.randomUUID(),
+          identifier: userId, // Rate limiting uses user_id
+          action: "write",
+          count: 1001, // Over the default limit of 1000
+          windowStart,
+          windowEnd,
+        },
+      );
 
       // Try to make another request
       const response = await client.post("/over-limit/fail", "Should fail");
@@ -345,33 +420,63 @@ describe("WebPods Rate Limiting", () => {
         name: "Rate Limit User 2",
       });
 
-      const token2 = client.generatePodToken(
-        {
-          user_id: user2.userId,
-          email: user2.email,
-          name: user2.name,
-        },
-        testPodId
-      );
+      // Get tokens for both users
+      const token1 = await client.authenticateViaOAuth(userId, [testPodId]);
+      const token2 = await client.authenticateViaOAuth(user2.userId, [
+        testPodId,
+      ]);
 
-      // Calculate proper window boundaries
+      // Start with user1's token
+      client.setAuthToken(token1);
+
+      // Calculate proper window boundaries - must match EXACTLY what the rate limit code uses
       const windowMs = 60 * 60 * 1000;
       const now = Date.now();
       const windowEnd = new Date(Math.ceil(now / windowMs) * windowMs);
       const windowStart = new Date(windowEnd.getTime() - windowMs);
 
+      // Clean up any existing rate limit records for user1
+      await db.none(
+        `DELETE FROM rate_limit WHERE identifier = $(identifier) AND action = $(action)`,
+        { identifier: userId, action: "write" },
+      );
+
       // Set user1 at limit
-      await db("rate_limit").insert({
-        id: crypto.randomUUID(),
-        identifier: userId, // Rate limiting uses user_id
-        action: "write",
-        count: 1000, // At the limit
-        window_start: windowStart,
-        window_end: windowEnd,
-      });
+      await db.none(
+        `INSERT INTO rate_limit (id, identifier, action, count, window_start, window_end)
+         VALUES ($(id), $(identifier), $(action), $(count), $(windowStart), $(windowEnd))`,
+        {
+          id: crypto.randomUUID(),
+          identifier: userId, // Rate limiting uses user_id
+          action: "write",
+          count: 1000, // At the limit
+          windowStart,
+          windowEnd,
+        },
+      );
+
+      // Verify the rate limit was created
+      const rateLimit = await db.oneOrNone(
+        `SELECT * FROM rate_limit WHERE identifier = $(identifier) AND action = $(action) AND window_start = $(windowStart)`,
+        { identifier: userId, action: "write", windowStart },
+      );
+      expect(rateLimit).to.exist;
+      expect(rateLimit.count).to.equal(1000);
 
       // User1 should be blocked
       const response1 = await client.post("/user1-blocked/fail", "Should fail");
+
+      // Check what happened to the rate limit after the request
+      if (response1.status !== 429) {
+        const afterLimit = await db.manyOrNone(
+          `SELECT * FROM rate_limit WHERE identifier = $(identifier) AND action = $(action) ORDER BY window_start DESC`,
+          { identifier: userId, action: "write" },
+        );
+        throw new Error(
+          `Expected 429 but got ${response1.status}. Rate limits after request: ${JSON.stringify(afterLimit, null, 2)}. Headers: ${JSON.stringify(response1.headers)}`,
+        );
+      }
+
       expect(response1.status).to.equal(429);
 
       // User2 should still be able to post
@@ -398,14 +503,9 @@ describe("WebPods Rate Limiting", () => {
         name: "Rate Limit Unique User",
       });
 
-      const uniqueToken = client.generatePodToken(
-        {
-          user_id: uniqueUser.userId,
-          email: uniqueUser.email,
-          name: uniqueUser.name,
-        },
-        testPodId
-      );
+      const uniqueToken = await client.authenticateViaOAuth(uniqueUser.userId, [
+        testPodId,
+      ]);
 
       // Use the unique user for this test
       client.setAuthToken(uniqueToken);
@@ -418,68 +518,51 @@ describe("WebPods Rate Limiting", () => {
       const windowStart = new Date(windowEnd.getTime() - windowMs);
 
       // Clear any existing rate limits for this user
-      await db("rate_limit").where("identifier", testUserId).delete();
+      await db.none(`DELETE FROM rate_limit WHERE identifier = $(identifier)`, {
+        identifier: testUserId,
+      });
 
       // Set different counts for different actions
-      await db("rate_limit").insert([
+      await db.none(
+        `INSERT INTO rate_limit (id, identifier, action, count, window_start, window_end)
+         VALUES 
+         ($(id1), $(identifier1), $(action1), $(count1), $(windowStart1), $(windowEnd1)),
+         ($(id2), $(identifier2), $(action2), $(count2), $(windowStart2), $(windowEnd2))`,
         {
-          id: crypto.randomUUID(),
-          identifier: testUserId, // Rate limiting uses user_id
-          action: "pod_create",
-          count: 8, // Leave room for 2 more (checkRateLimit will increment to 9, then 10)
-          window_start: windowStart,
-          window_end: windowEnd,
+          id1: crypto.randomUUID(),
+          identifier1: testUserId, // Rate limiting uses user_id
+          action1: "stream_create", // Changed from pod_create since we're creating streams
+          count1: 97, // Leave room for 3 stream creations (can-write, stream-99, stream-100)
+          windowStart1: windowStart,
+          windowEnd1: windowEnd,
+          id2: crypto.randomUUID(),
+          identifier2: testUserId, // Rate limiting uses user_id
+          action2: "write",
+          count2: 100, // Well under the limit of 1000
+          windowStart2: windowStart,
+          windowEnd2: windowEnd,
         },
-        {
-          id: crypto.randomUUID(),
-          identifier: testUserId, // Rate limiting uses user_id
-          action: "write",
-          count: 100, // Well under the limit of 1000
-          window_start: windowStart,
-          window_end: windowEnd,
-        },
-      ]);
+      );
 
       // Can still write
       const writeResponse = await client.post("/can-write/msg", "Message");
       expect(writeResponse.status).to.equal(201);
 
-      // Can create one more pod
-      client.setBaseUrl(`http://pod-limit-final.localhost:3099`);
-      const finalToken = client.generatePodToken(
-        {
-          user_id: uniqueUser.userId,
-          email: uniqueUser.email,
-          name: uniqueUser.name,
-        },
-        "pod-limit-final",
-      );
-      client.setAuthToken(finalToken);
-      const podResponse = await client.post("/init/final", "Final pod");
-      if (podResponse.status !== 201) {
-        console.log("Pod creation failed:", podResponse.data);
-        const currentLimits = await db("rate_limit")
-          .where("identifier", testUserId)
-          .where("action", "pod_create")
-          .first();
-        console.log("Current pod_create limit:", currentLimits);
-      }
-      expect(podResponse.status).to.equal(201);
+      // Can create exactly one more stream (count will go from 98 to 99)
+      const streamResponse1 = await client.post("/stream-99/test", "Stream 99");
+      expect(streamResponse1.status).to.equal(201);
 
-      // But creating another pod would exceed limit
-      client.setBaseUrl(`http://pod-limit-exceed.localhost:3099`);
-      const exceedToken = client.generatePodToken(
-        {
-          user_id: uniqueUser.userId,
-          email: uniqueUser.email,
-          name: uniqueUser.name,
-        },
-        "pod-limit-exceed",
+      // Can create one more stream (count will go from 99 to 100)
+      const streamResponse2 = await client.post(
+        "/stream-100/test",
+        "Stream 100",
       );
-      client.setAuthToken(exceedToken);
+      expect(streamResponse2.status).to.equal(201);
+
+      // But creating another stream would exceed limit (would be 101, limit is 100)
       const exceededResponse = await client.post(
-        "/init/toomany",
-        "Too many pods",
+        "/stream-101/test",
+        "Too many streams",
       );
       expect(exceededResponse.status).to.equal(429);
     });

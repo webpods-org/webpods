@@ -9,5 +9,5 @@ export type {
   MockOAuthProvider,
   MockUser,
 } from "./utils/mock-oauth-provider.js";
-export { createTestUser } from "./utils/test-helpers.js";
+export { createTestUser, createTestPod } from "./utils/test-helpers.js";
 export type { TestUser } from "./utils/test-helpers.js";

@@ -1,6 +1,10 @@
 // Stream operations tests for WebPods
 import { expect } from "chai";
-import { TestHttpClient, createTestUser } from "webpods-test-utils";
+import {
+  TestHttpClient,
+  createTestUser,
+  createTestPod,
+} from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 
 describe("WebPods Stream Operations", () => {
@@ -8,10 +12,10 @@ describe("WebPods Stream Operations", () => {
   let userId: string;
   let authToken: string;
   const testPodId = "test-pod";
-  const baseUrl = `http://${testPodId}.localhost:3099`;
+  const baseUrl = `http://${testPodId}.localhost:3000`;
 
   beforeEach(async () => {
-    client = new TestHttpClient("http://localhost:3099");
+    client = new TestHttpClient("http://localhost:3000");
     // Create a test user and auth token
     const db = testDb.getDb();
     const user = await createTestUser(db, {
@@ -23,17 +27,13 @@ describe("WebPods Stream Operations", () => {
 
     userId = user.userId;
 
-    // Generate pod-specific token for test-pod
-    client.setBaseUrl(baseUrl);
-    authToken = client.generatePodToken(
-      {
-        user_id: user.userId,
-        email: user.email,
-        name: user.name,
-      },
-      testPodId,
-    );
+    // Create the test pod
+    await createTestPod(db, testPodId, userId);
 
+    // Get OAuth token via Hydra
+    authToken = await client.authenticateViaOAuth(userId, [testPodId]);
+
+    client.setBaseUrl(baseUrl);
     client.setAuthToken(authToken);
   });
 
@@ -53,14 +53,17 @@ describe("WebPods Stream Operations", () => {
 
       // Verify pod was created
       const db = testDb.getDb();
-      const pod = await db("pod").where("pod_id", testPodId).first();
+      const pod = await db.oneOrNone(
+        `SELECT * FROM pod WHERE pod_id = $(podId)`,
+        { podId: testPodId },
+      );
       expect(pod).to.exist;
 
       // Verify stream was created
-      const stream = await db("stream")
-        .where("pod_id", pod.id)
-        .where("stream_id", "my-first-stream")
-        .first();
+      const stream = await db.oneOrNone(
+        `SELECT * FROM stream WHERE pod_id = $(podId) AND stream_id = $(streamId)`,
+        { podId: pod.id, streamId: "my-first-stream" },
+      );
       expect(stream).to.exist;
       expect(stream.creator_id).to.equal(userId);
     });
@@ -74,19 +77,22 @@ describe("WebPods Stream Operations", () => {
 
       // Verify nested path stream was created
       const db = testDb.getDb();
-      const pod = await db("pod").where("pod_id", testPodId).first();
-      const stream = await db("stream")
-        .where("pod_id", pod.id)
-        .where("stream_id", "blog/posts/2024")
-        .first();
+      const pod = await db.oneOrNone(
+        `SELECT * FROM pod WHERE pod_id = $(podId)`,
+        { podId: testPodId },
+      );
+      const stream = await db.oneOrNone(
+        `SELECT * FROM stream WHERE pod_id = $(podId) AND stream_id = $(streamId)`,
+        { podId: pod.id, streamId: "blog/posts/2024" },
+      );
       expect(stream).to.exist;
       expect(stream.stream_id).to.equal("blog/posts/2024");
 
       // Verify the record was created with name 'january'
-      const record = await db("record")
-        .where("stream_id", stream.id)
-        .where("name", "january")
-        .first();
+      const record = await db.oneOrNone(
+        `SELECT * FROM record WHERE stream_id = $(streamId) AND name = $(name)`,
+        { streamId: stream.id, name: "january" },
+      );
       expect(record).to.exist;
     });
 
@@ -99,11 +105,14 @@ describe("WebPods Stream Operations", () => {
       expect(response.status).to.equal(201);
 
       const db = testDb.getDb();
-      const pod = await db("pod").where("pod_id", testPodId).first();
-      const stream = await db("stream")
-        .where("pod_id", pod.id)
-        .where("stream_id", "private-stream")
-        .first();
+      const pod = await db.oneOrNone(
+        `SELECT * FROM pod WHERE pod_id = $(podId)`,
+        { podId: testPodId },
+      );
+      const stream = await db.oneOrNone(
+        `SELECT * FROM stream WHERE pod_id = $(podId) AND stream_id = $(streamId)`,
+        { podId: pod.id, streamId: "private-stream" },
+      );
       expect(stream.access_permission).to.equal("private");
     });
   });
@@ -279,19 +288,23 @@ describe("WebPods Stream Operations", () => {
       await client.post("/any-stream/init", "Create pod");
 
       const db = testDb.getDb();
-      const pod = await db("pod").where("pod_id", testPodId).first();
-      const ownerStream = await db("stream")
-        .where("pod_id", pod.id)
-        .where("stream_id", ".meta/owner")
-        .first();
+      const pod = await db.oneOrNone(
+        `SELECT * FROM pod WHERE pod_id = $(podId)`,
+        { podId: testPodId },
+      );
+      const ownerStream = await db.oneOrNone(
+        `SELECT * FROM stream WHERE pod_id = $(podId) AND stream_id = $(streamId)`,
+        { podId: pod.id, streamId: ".meta/owner" },
+      );
 
       expect(ownerStream).to.exist;
       expect(ownerStream.access_permission).to.equal("private");
 
       // Check owner record
-      const ownerRecord = await db("record")
-        .where("stream_id", ownerStream.id)
-        .first();
+      const ownerRecord = await db.oneOrNone(
+        `SELECT * FROM record WHERE stream_id = $(streamId) ORDER BY index ASC LIMIT 1`,
+        { streamId: ownerStream.id },
+      );
       const content = JSON.parse(ownerRecord.content);
       expect(content.owner).to.equal(userId);
     });
@@ -348,21 +361,17 @@ describe("WebPods Stream Operations", () => {
         name: "Other User",
       });
 
-      const token2 = client.generatePodToken(
-        {
-          user_id: user2.userId,
-          email: user2.email,
-          name: user2.name,
-        },
-        testPodId
-      );
+      const token2 = await client.authenticateViaOAuth(user2.userId, [
+        testPodId,
+      ]);
 
-      // Create pod as first user
-      await client.post("/test/init", "Create pod");
+      // Stream already exists from beforeEach
 
       // Try to update .meta/owner as second user
       client.setAuthToken(token2);
-      const response = await client.post("/.meta/owner", { owner: user2.userId });
+      const response = await client.post("/.meta/owner", {
+        owner: user2.userId,
+      });
 
       expect(response.status).to.equal(403);
       expect(response.data.error.code).to.equal("FORBIDDEN");
@@ -402,14 +411,9 @@ describe("WebPods Stream Operations", () => {
         name: "Other User",
       });
 
-      const token2 = client.generatePodToken(
-        {
-          user_id: user2.userId,
-          email: user2.email,
-          name: user2.name,
-        },
-        testPodId
-      );
+      const token2 = await client.authenticateViaOAuth(user2.userId, [
+        testPodId,
+      ]);
 
       client.setAuthToken(token2);
       const response = await client.delete("/my-stream");

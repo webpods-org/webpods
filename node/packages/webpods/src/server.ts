@@ -14,6 +14,7 @@ import { getConfig } from "./config-loader.js";
 import { getVersion } from "./version.js";
 import { isMainDomain, isSubdomainOf } from "./utils.js";
 import authRouter from "./auth/routes.js";
+import oauthRouter from "./oauth/routes.js";
 import podsRouter from "./routes/pods.js";
 
 const logger = createLogger("webpods");
@@ -103,6 +104,23 @@ export function createApp(): Express {
         cache: "not_configured",
       },
     });
+  });
+
+  // OAuth routes (main domain only)
+  app.use("/oauth", (req, res, next) => {
+    const hostname = req.hostname || req.headers.host?.split(":")[0] || "";
+    const mainDomain = config.server.public?.hostname || "localhost";
+
+    if (isMainDomain(hostname, mainDomain)) {
+      oauthRouter(req, res, next);
+    } else {
+      res.status(404).json({
+        error: {
+          code: "NOT_FOUND",
+          message: "OAuth endpoints are only available on the main domain",
+        },
+      });
+    }
   });
 
   // Auth routes (main domain only, except /auth/callback which pods handle)

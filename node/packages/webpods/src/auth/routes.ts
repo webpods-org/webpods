@@ -3,11 +3,12 @@
  */
 
 import { Router, Request, Response } from "express";
-import jwt from "jsonwebtoken";
 import { getDb } from "../db.js";
 import { createLogger } from "../logger.js";
 import { getConfig } from "../config-loader.js";
-import { findOrCreateUser, generateToken } from "../domain/auth.js";
+import { findOrCreateUser } from "../domain/users.js";
+import { verifyHydraToken } from "../oauth/jwt-validator.js";
+import type { OAuthProvider as OAuthProviderType } from "../types.js";
 import {
   getAuthorizationUrl,
   exchangeCodeForTokens,
@@ -256,14 +257,21 @@ router.get("/whoami", async (req: Request, res: Response) => {
   }
 
   try {
-    const config = getConfig();
-    const secret = config.auth.jwtSecret;
-    const payload = jwt.verify(token, secret) as any;
+    const result = await verifyHydraToken(token);
 
+    if (!result.success) {
+      res.status(401).json({
+        error: result.error,
+      });
+      return;
+    }
+
+    const payload = result.data;
     res.json({
-      user_id: payload.user_id,
-      email: payload.email,
-      name: payload.name,
+      user_id: payload.sub,
+      // Hydra tokens don't include email/name - would need userinfo endpoint
+      email: null,
+      name: null,
     });
   } catch {
     res.status(401).json({
@@ -296,8 +304,9 @@ router.get("/authorize", async (req: Request, res: Response) => {
   // Check if user has a valid session (SSO)
   if ((req as any).session?.user) {
     try {
-      // User is already authenticated, generate pod-specific token
-      const podToken = generateToken((req as any).session.user, (req as any).session.identity, pod);
+      // WebPods JWT tokens removed - using Hydra OAuth
+      // Sessions are used for SSO across pods
+      const podToken = "session"; // Placeholder for session-based auth
 
       // Redirect back to pod with token
       const config = getConfig();
@@ -448,7 +457,28 @@ router.get("/:provider/callback", async (req: Request, res: Response) => {
 
     // Find or create user
     const db = getDb();
-    const userResult = await findOrCreateUser(db, provider, userInfo);
+    const appConfig = getConfig();
+    const providerConfigData = appConfig.oauth.providers.find(
+      (p) => p.id === provider,
+    );
+    if (!providerConfigData) {
+      res.status(500).json({
+        error: {
+          code: "PROVIDER_NOT_FOUND",
+          message: "OAuth provider not configured",
+        },
+      });
+      return;
+    }
+
+    // Create provider object for user creation
+    const providerConfig: OAuthProviderType = {
+      provider: provider,
+      clientId: providerConfigData.clientId,
+      clientSecret: providerConfigData.clientSecret,
+    };
+
+    const userResult = await findOrCreateUser(db, providerConfig, userInfo);
 
     if (!userResult.success) {
       logger.error("Failed to create/find user", {
@@ -484,8 +514,8 @@ router.get("/:provider/callback", async (req: Request, res: Response) => {
 
     // Check if this is pod-specific auth
     if (stateData.pod) {
-      // Generate pod-specific token
-      const podToken = generateToken(userResult.data.user, userResult.data.identity, stateData.pod);
+      // WebPods JWT tokens removed - using Hydra OAuth
+      const podToken = "session"; // Placeholder for session-based auth
       // Build callback URL for pod subdomain
       const publicConfig = config.server.public!;
       const podHost =
@@ -503,8 +533,8 @@ router.get("/:provider/callback", async (req: Request, res: Response) => {
 
       res.redirect(callbackUrl);
     } else {
-      // Regular auth flow (backwards compatibility)
-      const token = generateToken(userResult.data.user, userResult.data.identity);
+      // WebPods JWT tokens removed - using Hydra OAuth
+      const token = "session"; // Placeholder for session-based auth
 
       // Set cookie for web apps
       const isSecure = config.server.public?.isSecure || false;

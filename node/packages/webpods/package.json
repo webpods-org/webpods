@@ -1,6 +1,6 @@
 {
   "name": "webpods",
-  "version": "0.0.21",
+  "version": "0.0.24",
   "description": "Append-only log service with OAuth authentication",
   "type": "module",
   "main": "./dist/index.js",
@@ -20,6 +20,7 @@
     "lint:fix": "eslint src --ext .ts --fix"
   },
   "dependencies": {
+    "@ory/hydra-client": "^2.4.0-alpha.1",
     "@types/express-session": "^1.18.2",
     "compression": "^1.7.4",
     "connect-pg-simple": "^10.0.0",
@@ -31,6 +32,7 @@
     "express-session": "^1.18.2",
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
+    "jwks-rsa": "^3.2.0",
     "openid-client": "^5.6.4",
     "pg": "^8.16.3",
     "pg-promise": "^11.15.0",

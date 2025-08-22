@@ -1,16 +1,20 @@
 // Name validation tests for WebPods
 import { expect } from "chai";
-import { TestHttpClient, createTestUser } from "webpods-test-utils";
+import {
+  TestHttpClient,
+  createTestUser,
+  createTestPod,
+} from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 
 describe("WebPods Name Validation", () => {
   let client: TestHttpClient;
   let authToken: string;
   const testPodId = "test-names";
-  const baseUrl = `http://${testPodId}.localhost:3099`;
+  const baseUrl = `http://${testPodId}.localhost:3000`;
 
   beforeEach(async () => {
-    client = new TestHttpClient("http://localhost:3099");
+    client = new TestHttpClient("http://localhost:3000");
     // Create a test user and auth token
     const db = testDb.getDb();
     const user = await createTestUser(db, {
@@ -20,17 +24,13 @@ describe("WebPods Name Validation", () => {
       name: "Name Test User",
     });
 
-    // Generate pod-specific token
-    client.setBaseUrl(baseUrl);
-    authToken = client.generatePodToken(
-      {
-        user_id: user.userId,
-        email: user.email,
-        name: user.name,
-      },
-      testPodId,
-    );
+    // Create the test pod
+    await createTestPod(db, testPodId, user.userId);
 
+    // Get OAuth token
+    authToken = await client.authenticateViaOAuth(user.userId, [testPodId]);
+
+    client.setBaseUrl(baseUrl);
     client.setAuthToken(authToken);
   });
 
@@ -43,9 +43,6 @@ describe("WebPods Name Validation", () => {
           `/stream/${name}`,
           `Content for ${name}`,
         );
-        if (response.status !== 201) {
-          console.error("Error for name:", name, response.data);
-        }
         expect(response.status).to.equal(201, `Failed for name: ${name}`);
         expect(response.data).to.have.property("name", name);
       }
