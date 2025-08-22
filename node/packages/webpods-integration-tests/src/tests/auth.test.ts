@@ -21,7 +21,7 @@ describe("WebPods Authentication", () => {
     it("should redirect to provider 2 OAuth (mock)", async () => {
       // Auth endpoints are on the main domain, not pod subdomains
       client.setBaseUrl("http://localhost:3000");
-      const response = await client.get("/auth/testprovider2", {
+      const response = await client.get("/auth/test-auth-provider-2", {
         followRedirect: false,
       });
 
@@ -34,7 +34,7 @@ describe("WebPods Authentication", () => {
 
     it("should redirect to provider 1 OAuth (mock)", async () => {
       client.setBaseUrl("http://localhost:3000");
-      const response = await client.get("/auth/testprovider1", {
+      const response = await client.get("/auth/test-auth-provider-1", {
         followRedirect: false,
       });
 
@@ -55,7 +55,7 @@ describe("WebPods Authentication", () => {
     it("should handle OAuth callback", async () => {
       client.setBaseUrl("http://localhost:3000");
       const response = await client.get(
-        "/auth/testprovider2/callback?code=test-code&state=test-state",
+        "/auth/test-auth-provider-2/callback?code=test-code&state=test-state",
       );
 
       // Will fail due to invalid code, but endpoint should exist
@@ -71,7 +71,7 @@ describe("WebPods Authentication", () => {
       // Create a test user and identity
       const db = testDb.getDb();
       const testUser = await createTestUser(db, {
-        provider: "testprovider2",
+        provider: "test-auth-provider-2",
         providerId: "test123",
         email: "test@example.com",
         name: "Test User",
@@ -168,7 +168,7 @@ describe("WebPods Authentication", () => {
     beforeEach(async () => {
       const db = testDb.getDb();
       const testUser = await createTestUser(db, {
-        provider: "testprovider1",
+        provider: "test-auth-provider-1",
         providerId: "public-test",
         email: "public@example.com",
         name: "Public Test User",
@@ -247,7 +247,7 @@ describe("WebPods Authentication", () => {
     beforeEach(async () => {
       const db = testDb.getDb();
       const testUser = await createTestUser(db, {
-        provider: "testprovider2",
+        provider: "test-auth-provider-2",
         providerId: "bearer-test",
         email: "bearer@example.com",
         name: "Bearer Test",
@@ -365,7 +365,7 @@ describe("WebPods Authentication", () => {
       // Create a test user and token
       const db = testDb.getDb();
       const testUser = await createTestUser(db, {
-        provider: "testprovider2",
+        provider: "test-auth-provider-2",
         providerId: "logout-test",
         email: "logout@example.com",
         name: "Logout Test",
@@ -439,7 +439,7 @@ describe("WebPods Authentication", () => {
     beforeEach(async () => {
       const db = testDb.getDb();
       const testUser = await createTestUser(db, {
-        provider: "testprovider1",
+        provider: "test-auth-provider-1",
         providerId: "cross-pod",
         email: "cross@example.com",
         name: "Cross Pod User",
@@ -537,7 +537,7 @@ describe("WebPods Authentication", () => {
         {
           identityId,
           userId,
-          provider: "testprovider1",
+          provider: "test-auth-provider-1",
           providerId: "12345",
           email: "oauth@example.com",
           name: "OAuth User",
@@ -561,7 +561,7 @@ describe("WebPods Authentication", () => {
 
       // Provider 1 user
       const user1 = await createTestUser(db, {
-        provider: "testprovider1",
+        provider: "test-auth-provider-1",
         providerId: "p1-123",
         email: "user1@example.com",
         name: "Provider1 User",
@@ -569,7 +569,7 @@ describe("WebPods Authentication", () => {
 
       // Provider 2 user
       const user2 = await createTestUser(db, {
-        provider: "testprovider2",
+        provider: "test-auth-provider-2",
         providerId: "p2-456",
         email: "user2@example.com",
         name: "Provider2 User",
@@ -585,10 +585,10 @@ describe("WebPods Authentication", () => {
         { userId: user2.userId },
       );
 
-      expect(identity1.provider).to.equal("testprovider1");
+      expect(identity1.provider).to.equal("test-auth-provider-1");
       expect(identity1.provider_id).to.equal("p1-123");
 
-      expect(identity2.provider).to.equal("testprovider2");
+      expect(identity2.provider).to.equal("test-auth-provider-2");
       expect(identity2.provider_id).to.equal("p2-456");
     });
   });

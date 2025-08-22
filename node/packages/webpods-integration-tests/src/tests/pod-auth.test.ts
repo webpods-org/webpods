@@ -53,7 +53,7 @@ describe("Pod-Specific Authentication with SSO", () => {
 
       // Create test user
       user = await createTestUser(db, {
-        provider: "testprovider2",
+        provider: "test-auth-provider-2",
         providerId: "12345",
         email: "pod-test@example.com",
         name: "Pod Test User",
@@ -163,7 +163,7 @@ describe("Pod-Specific Authentication with SSO", () => {
 
       // Create test user
       user = await createTestUser(db, {
-        provider: "testprovider2",
+        provider: "test-auth-provider-2",
         providerId: "67890",
         email: "isolation-test@example.com",
         name: "Isolation Test User",
@@ -216,7 +216,7 @@ describe("Pod-Specific Authentication with SSO", () => {
       // Create a test user and pod
       const db = testDb.getDb();
       const user = await createTestUser(db, {
-        provider: "testprovider2",
+        provider: "test-auth-provider-2",
         providerId: "callback-test",
         email: "callback@example.com",
         name: "Callback Test User",

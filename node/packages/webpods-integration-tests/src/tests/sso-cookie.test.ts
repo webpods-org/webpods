@@ -60,7 +60,7 @@ describe("SSO Cookie Management", () => {
       // Create a test user
       const db = testDb.getDb();
       const user = await createTestUser(db, {
-        provider: "testprovider2",
+        provider: "test-auth-provider-2",
         providerId: "cookie-test-user",
         email: "cookie@example.com",
         name: "Cookie User",
@@ -79,7 +79,7 @@ describe("SSO Cookie Management", () => {
           id: user.userId,
           email: user.email,
           name: user.name,
-          provider: "testprovider2",
+          provider: "test-auth-provider-2",
         },
       };
 
@@ -130,7 +130,7 @@ describe("SSO Cookie Management", () => {
       // 1. Create a user and session (simulating successful OAuth)
       const db = testDb.getDb();
       const user = await createTestUser(db, {
-        provider: "testprovider2",
+        provider: "test-auth-provider-2",
         providerId: "sso-test-user",
         email: "sso@example.com",
         name: "SSO User",
@@ -154,7 +154,7 @@ describe("SSO Cookie Management", () => {
               id: user.userId,
               email: user.email,
               name: user.name,
-              provider: "testprovider2",
+              provider: "test-auth-provider-2",
             },
           }),
           expire: new Date(Date.now() + 604800000),

@@ -23,14 +23,14 @@ describe("WebPods Permissions", () => {
 
     // Create two test users
     user1 = await createTestUser(db, {
-      provider: "testprovider2",
+      provider: "test-auth-provider-2",
       providerId: "user1",
       email: "user1@example.com",
       name: "User One",
     });
 
     user2 = await createTestUser(db, {
-      provider: "testprovider2",
+      provider: "test-auth-provider-2",
       providerId: "user2",
       email: "user2@example.com",
       name: "User Two",

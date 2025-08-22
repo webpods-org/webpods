@@ -20,7 +20,7 @@ describe("WebPods Rate Limiting", () => {
     client = new TestHttpClient("http://localhost:3000");
     const db = testDb.getDb();
     const user = await createTestUser(db, {
-      provider: "testprovider2",
+      provider: "test-auth-provider-2",
       providerId: "ratelimit",
       email: "ratelimit@example.com",
       name: "Rate Limit User",
@@ -62,7 +62,7 @@ describe("WebPods Rate Limiting", () => {
       // Create a unique user for this test to avoid interference
       const db = testDb.getDb();
       const podTestUser = await createTestUser(db, {
-        provider: "testprovider1",
+        provider: "test-auth-provider-1",
         providerId: "pod-creator-" + crypto.randomUUID(),
         email: "pod-creator@example.com",
         name: "Pod Creator User",
@@ -414,7 +414,7 @@ describe("WebPods Rate Limiting", () => {
 
       // Create a second user
       const user2 = await createTestUser(db, {
-        provider: "testprovider1",
+        provider: "test-auth-provider-1",
         providerId: "ratelimit2",
         email: "ratelimit2@example.com",
         name: "Rate Limit User 2",
@@ -497,7 +497,7 @@ describe("WebPods Rate Limiting", () => {
 
       // Create a unique user for this test to avoid rate limit conflicts
       const uniqueUser = await createTestUser(db, {
-        provider: "testprovider1",
+        provider: "test-auth-provider-1",
         providerId: "ratelimit-unique",
         email: "ratelimit-unique@example.com",
         name: "Rate Limit Unique User",

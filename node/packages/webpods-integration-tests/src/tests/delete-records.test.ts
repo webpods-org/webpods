@@ -21,7 +21,7 @@ describe("WebPods Record Deletion", () => {
     // Create pod owner
     const db = testDb.getDb();
     const owner = await createTestUser(db, {
-      provider: "testprovider1",
+      provider: "test-auth-provider-1",
       providerId: "owner",
       email: "owner@example.com",
       name: "Pod Owner",
@@ -30,7 +30,7 @@ describe("WebPods Record Deletion", () => {
 
     // Create non-owner user
     const nonOwner = await createTestUser(db, {
-      provider: "testprovider1",
+      provider: "test-auth-provider-1",
       providerId: "other",
       email: "other@example.com",
       name: "Other User",

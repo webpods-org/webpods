@@ -2,8 +2,8 @@
   "oauth": {
     "providers": [
       {
-        "id": "testprovider1",
-        "clientId": "webpods-test-client",
+        "id": "test-auth-provider-1",
+        "clientId": "webpods-test-authn-client",
         "clientSecret": "test-secret",
         "authUrl": "http://localhost:4444/oauth2/auth",
         "tokenUrl": "http://localhost:4444/oauth2/token",
@@ -14,8 +14,8 @@
         "nameField": "name"
       },
       {
-        "id": "testprovider2",
-        "clientId": "webpods-test-client",
+        "id": "test-auth-provider-2",
+        "clientId": "webpods-test-authn-client",
         "clientSecret": "test-secret",
         "issuer": "http://localhost:4444",
         "authUrl": "http://localhost:4444/oauth2/auth",
@@ -27,7 +27,7 @@
         "nameField": "name"
       }
     ],
-    "defaultProvider": "testprovider2"
+    "defaultProvider": "test-auth-provider-2"
   },
   "server": {
     "host": "localhost",

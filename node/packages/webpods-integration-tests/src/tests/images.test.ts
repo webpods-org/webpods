@@ -28,7 +28,7 @@ describe("WebPods Image Support", () => {
     // Create a test user and auth token
     const db = testDb.getDb();
     const user = await createTestUser(db, {
-      provider: "testprovider1",
+      provider: "test-auth-provider-1",
       providerId: "img123",
       email: "images@example.com",
       name: "Image Test User",

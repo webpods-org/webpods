@@ -30,7 +30,7 @@ describe("WebPods Health Checks", () => {
     // Create a test user and authenticate
     const db = testDb.getDb();
     const user = await createTestUser(db, {
-      provider: "testprovider1",
+      provider: "test-auth-provider-1",
       providerId: "health-test",
       email: "health@example.com",
       name: "Health Test User",

@@ -19,7 +19,7 @@ describe("WebPods Stream Operations", () => {
     // Create a test user and auth token
     const db = testDb.getDb();
     const user = await createTestUser(db, {
-      provider: "testprovider1",
+      provider: "test-auth-provider-1",
       providerId: "123456",
       email: "test@example.com",
       name: "Test User",
@@ -355,7 +355,7 @@ describe("WebPods Stream Operations", () => {
       // Create second user
       const db = testDb.getDb();
       const user2 = await createTestUser(db, {
-        provider: "testprovider1",
+        provider: "test-auth-provider-1",
         providerId: "789",
         email: "other@example.com",
         name: "Other User",
@@ -405,7 +405,7 @@ describe("WebPods Stream Operations", () => {
       // Create second user and try to delete
       const db = testDb.getDb();
       const user2 = await createTestUser(db, {
-        provider: "testprovider1",
+        provider: "test-auth-provider-1",
         providerId: "999",
         email: "other@example.com",
         name: "Other User",

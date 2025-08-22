@@ -350,7 +350,7 @@ export class TestHttpClient {
     userId: string,
     pods: string[] = [],
   ): Promise<string> {
-    const clientId = "webpods-test-client";
+    const clientId = "webpods-test-authz-client";
     const redirectUri = "http://localhost:3000/callback";
     const scopes = "openid offline"; // Generic scopes only
 

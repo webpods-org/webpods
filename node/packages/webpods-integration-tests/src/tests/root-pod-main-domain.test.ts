@@ -24,7 +24,7 @@ describe("WebPods Root Pod Main Domain", () => {
     // Create test user
     const db = testDb.getDb();
     const user = await createTestUser(db, {
-      provider: "testprovider1",
+      provider: "test-auth-provider-1",
       providerId: "mainroot",
       email: "mainroot@example.com",
       name: "Main Root User",
@@ -222,7 +222,7 @@ describe("WebPods Root Pod Main Domain", () => {
       const aliceClient = new TestHttpClient("http://alice.localhost:3000");
       const db = testDb.getDb();
       const user = await createTestUser(db, {
-        provider: "testprovider1",
+        provider: "test-auth-provider-1",
         providerId: "alice2",
         email: "alice2@example.com",
         name: "Alice Two",

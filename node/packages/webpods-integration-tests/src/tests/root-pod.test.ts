@@ -52,7 +52,7 @@ describe("WebPods Root Pod", () => {
     // Create test user - needs to be in beforeEach since afterEach truncates all tables
     const db = testDb.getDb();
     const user = await createTestUser(db, {
-      provider: "testprovider1",
+      provider: "test-auth-provider-1",
       providerId: "roottest",
       email: "roottest@example.com",
       name: "Root Test User",

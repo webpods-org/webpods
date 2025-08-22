@@ -18,7 +18,7 @@ describe("WebPods Name Validation", () => {
     // Create a test user and auth token
     const db = testDb.getDb();
     const user = await createTestUser(db, {
-      provider: "testprovider1",
+      provider: "test-auth-provider-1",
       providerId: "name123",
       email: "name@example.com",
       name: "Name Test User",
