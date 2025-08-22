@@ -46,7 +46,7 @@ export interface Identity {
 export interface Pod {
   id: string;
   name: string; // Subdomain (e.g., 'alice')
-  owner_id: string;
+  user_id: string;
   metadata?: any;
   created_at: Date;
   updated_at: Date;

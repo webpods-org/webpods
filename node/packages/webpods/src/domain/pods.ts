@@ -17,7 +17,7 @@ function mapPodFromDb(row: PodDbRow): Pod {
   return {
     id: row.id,
     name: row.name,
-    owner_id: "", // Will be populated from .meta/owner stream
+    user_id: "", // Will be populated from .meta/owner stream
     metadata: undefined,
     created_at: row.created_at,
     updated_at: row.created_at,
@@ -112,7 +112,7 @@ export async function createPod(
 
       logger.info("Pod created", { podName, userId });
       const mappedPod = mapPodFromDb(pod);
-      mappedPod.owner_id = userId; // Set owner from what we just wrote
+      mappedPod.user_id = userId; // Set owner from what we just wrote
       return { success: true, data: mappedPod };
     });
   } catch (error: any) {
@@ -155,7 +155,7 @@ export async function getPod(
     // Get owner from .meta/owner stream
     const ownerResult = await getPodOwner(db, podName);
     if (ownerResult.success) {
-      mappedPod.owner_id = ownerResult.data;
+      mappedPod.user_id = ownerResult.data;
     }
 
     return { success: true, data: mappedPod };
