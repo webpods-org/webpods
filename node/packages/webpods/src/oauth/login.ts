@@ -4,6 +4,7 @@
 
 import { Router, Request, Response } from "express";
 import { getHydraAdmin } from "./hydra-client.js";
+import { isTestModeAllowed } from "./test-mode-guard.js";
 // Removed old auth imports - using Hydra OAuth only
 import { createLogger } from "../logger.js";
 import { getConfig } from "../config-loader.js";
@@ -42,8 +43,19 @@ router.get("/login", async (req: Request, res: Response) => {
       requestedScope: loginRequest.requested_scope,
     });
 
-    // Test mode: auto-accept with test user
+    // Test mode: auto-accept with test user (only in controlled environments)
     if (req.headers["x-test-user"]) {
+      if (!isTestModeAllowed(req)) {
+        // Test headers detected but not allowed
+        res.status(403).json({
+          error: {
+            code: "FORBIDDEN",
+            message: "Test mode is not enabled",
+          },
+        });
+        return;
+      }
+
       const testUserId = req.headers["x-test-user"] as string;
       logger.info("Test mode: auto-accepting login", { testUserId });
 

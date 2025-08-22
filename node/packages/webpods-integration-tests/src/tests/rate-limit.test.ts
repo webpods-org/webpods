@@ -98,10 +98,10 @@ describe("WebPods Rate Limiting", () => {
         `SELECT * FROM pod WHERE pod_id = $(podId)`,
         { podId: "pod-limit-2" },
       );
-      
+
       expect(pod1).to.exist;
       expect(pod2).to.exist;
-      
+
       // Verify ownership via .meta/owner stream
       const owner1Record = await db.oneOrNone(
         `SELECT r.content FROM record r
@@ -117,11 +117,15 @@ describe("WebPods Rate Limiting", () => {
          ORDER BY r.index DESC LIMIT 1`,
         { podId: pod2.id },
       );
-      
+
       expect(owner1Record).to.exist;
-      expect(JSON.parse(owner1Record.content).owner).to.equal(podTestUser.userId);
+      expect(JSON.parse(owner1Record.content).owner).to.equal(
+        podTestUser.userId,
+      );
       expect(owner2Record).to.exist;
-      expect(JSON.parse(owner2Record.content).owner).to.equal(podTestUser.userId);
+      expect(JSON.parse(owner2Record.content).owner).to.equal(
+        podTestUser.userId,
+      );
 
       // Check rate limit records
       const podLimit = await db.oneOrNone(
@@ -421,7 +425,7 @@ describe("WebPods Rate Limiting", () => {
       const token2 = await client.authenticateViaOAuth(user2.userId, [
         testPodId,
       ]);
-      
+
       // Start with user1's token
       client.setAuthToken(token1);
 
@@ -461,16 +465,18 @@ describe("WebPods Rate Limiting", () => {
 
       // User1 should be blocked
       const response1 = await client.post("/user1-blocked/fail", "Should fail");
-      
+
       // Check what happened to the rate limit after the request
       if (response1.status !== 429) {
         const afterLimit = await db.manyOrNone(
           `SELECT * FROM rate_limit WHERE identifier = $(identifier) AND action = $(action) ORDER BY window_start DESC`,
           { identifier: userId, action: "write" },
         );
-        throw new Error(`Expected 429 but got ${response1.status}. Rate limits after request: ${JSON.stringify(afterLimit, null, 2)}. Headers: ${JSON.stringify(response1.headers)}`);
+        throw new Error(
+          `Expected 429 but got ${response1.status}. Rate limits after request: ${JSON.stringify(afterLimit, null, 2)}. Headers: ${JSON.stringify(response1.headers)}`,
+        );
       }
-      
+
       expect(response1.status).to.equal(429);
 
       // User2 should still be able to post
@@ -525,7 +531,7 @@ describe("WebPods Rate Limiting", () => {
         {
           id1: crypto.randomUUID(),
           identifier1: testUserId, // Rate limiting uses user_id
-          action1: "stream_create",  // Changed from pod_create since we're creating streams
+          action1: "stream_create", // Changed from pod_create since we're creating streams
           count1: 97, // Leave room for 3 stream creations (can-write, stream-99, stream-100)
           windowStart1: windowStart,
           windowEnd1: windowEnd,
@@ -545,9 +551,12 @@ describe("WebPods Rate Limiting", () => {
       // Can create exactly one more stream (count will go from 98 to 99)
       const streamResponse1 = await client.post("/stream-99/test", "Stream 99");
       expect(streamResponse1.status).to.equal(201);
-      
+
       // Can create one more stream (count will go from 99 to 100)
-      const streamResponse2 = await client.post("/stream-100/test", "Stream 100");
+      const streamResponse2 = await client.post(
+        "/stream-100/test",
+        "Stream 100",
+      );
       expect(streamResponse2.status).to.equal(201);
 
       // But creating another stream would exceed limit (would be 101, limit is 100)

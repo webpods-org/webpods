@@ -1,6 +1,10 @@
 // Test setup for WebPods integration tests
 import { TestDatabase, TestServer, testLogger } from "webpods-test-utils";
 
+// Ensure test mode is enabled for this process
+process.env.NODE_ENV = "test";
+process.env.WEBPODS_TEST_MODE = "enabled";
+
 // Test configuration
 export const testDb = new TestDatabase({
   dbName: "webpodsdb_test",

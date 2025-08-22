@@ -217,8 +217,7 @@ describe("WebPods Record Deletion", () => {
       expect(response.status).to.equal(404);
 
       // Create another with same name (should work since old one is deleted)
-      const postResponse = await client.post("/logs/event", "Event 2");
-      // Check post response
+      await client.post("/logs/event", "Event 2");
 
       // Should be accessible again
       response = await client.get("/logs/event");

@@ -105,7 +105,7 @@ describe("WebPods Root Pod Main Domain", () => {
 
     it("should serve root pod linked paths on main domain", async () => {
       // First test that the linked path works via the subdomain
-      const subResponse = await rootClient.get("/about");
+      await rootClient.get("/about");
       // Verify subdomain /about works
 
       const response = await mainClient.get("/about");

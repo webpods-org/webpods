@@ -54,6 +54,7 @@ export class TestServer {
     const env: any = {
       ...process.env,
       NODE_ENV: "test",
+      WEBPODS_TEST_MODE: "enabled", // Enable test mode for integration tests
       WEBPODS_CONFIG_PATH: testConfigPath,
       WEBPODS_PORT: String(this.config.port),
       WEBPODS_DB_NAME: this.config.dbName,

@@ -4,6 +4,7 @@
 
 import { Router, Request, Response } from "express";
 import { getHydraAdmin } from "./hydra-client.js";
+import { isTestModeAllowed } from "./test-mode-guard.js";
 import { getDb } from "../db.js";
 import { createLogger } from "../logger.js";
 
@@ -126,8 +127,19 @@ router.get("/consent", async (req: Request, res: Response) => {
       oidcContext: consentRequest.oidc_context,
     });
 
-    // Test mode: auto-accept consent
+    // Test mode: auto-accept consent (only in controlled environments)
     if (req.headers["x-test-consent"]) {
+      if (!isTestModeAllowed(req)) {
+        // Test headers detected but not allowed
+        res.status(403).json({
+          error: {
+            code: "FORBIDDEN",
+            message: "Test mode is not enabled",
+          },
+        });
+        return;
+      }
+
       logger.info("Test mode: auto-accepting consent", {
         query: req.query,
         requestedScope: consentRequest.requested_scope,

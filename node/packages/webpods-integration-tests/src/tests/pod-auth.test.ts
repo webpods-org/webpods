@@ -46,7 +46,6 @@ describe("Pod-Specific Authentication with SSO", () => {
   describe("Pod Token Validation", () => {
     let user: any;
     let aliceToken: string;
-    let bothPodsToken: string;
 
     beforeEach(async () => {
       client = new TestHttpClient("http://localhost:3000");
@@ -65,7 +64,7 @@ describe("Pod-Specific Authentication with SSO", () => {
       await createTestPod(db, pod2, user.userId);
 
       // Get OAuth tokens - create bothPodsToken first to avoid consent caching issues
-      bothPodsToken = await client.authenticateViaOAuth(user.userId, [
+      await client.authenticateViaOAuth(user.userId, [
         pod1,
         pod2,
       ]);
