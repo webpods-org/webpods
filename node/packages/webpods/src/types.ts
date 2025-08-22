@@ -24,11 +24,8 @@ export function failure(error: DomainError): Result<never> {
 // Database entities
 export interface User {
   id: string;
-  email?: string | null;
-  name?: string | null;
-  avatar_url?: string | null;
-  created_at: Date;
-  updated_at: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface Identity {

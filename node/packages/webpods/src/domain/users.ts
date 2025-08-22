@@ -16,11 +16,8 @@ const logger = createLogger("webpods:users");
 function mapUserFromDb(row: UserDbRow): User {
   return {
     id: row.id,
-    email: undefined,
-    name: undefined,
-    avatar_url: undefined,
-    created_at: row.created_at,
-    updated_at: row.updated_at || row.created_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at || row.created_at,
   };
 }
 
@@ -93,7 +90,6 @@ export async function findOrCreateUser(
   const providerId = profile.id;
   const email = profile.email || profile.emails?.[0]?.value;
   const name = profile.displayName || profile.name || profile.username;
-  const avatarUrl = profile.photos?.[0]?.value || profile.picture;
 
   try {
     // First check if we have an identity for this provider
@@ -113,10 +109,6 @@ export async function findOrCreateUser(
       );
 
       const user = mapUserFromDb(userRow);
-      // Set email and name from current data
-      user.email = email;
-      user.name = name;
-      user.avatar_url = avatarUrl;
 
       // Update identity info if changed
       if (
@@ -151,9 +143,6 @@ export async function findOrCreateUser(
           { userId: existingUserWithEmailRow.user_id },
         );
         user = mapUserFromDb(userRow);
-        user.email = email;
-        user.name = name;
-        user.avatar_url = avatarUrl;
       }
     }
 
@@ -170,9 +159,6 @@ export async function findOrCreateUser(
       );
 
       user = mapUserFromDb(userRow);
-      user.email = email;
-      user.name = name;
-      user.avatar_url = avatarUrl;
 
       logger.info("Created new user", {
         userId: user.id,
