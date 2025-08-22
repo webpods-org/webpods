@@ -64,10 +64,7 @@ describe("Pod-Specific Authentication with SSO", () => {
       await createTestPod(db, pod2, user.userId);
 
       // Get OAuth tokens - create bothPodsToken first to avoid consent caching issues
-      await client.authenticateViaOAuth(user.userId, [
-        pod1,
-        pod2,
-      ]);
+      await client.authenticateViaOAuth(user.userId, [pod1, pod2]);
       aliceToken = await client.authenticateViaOAuth(user.userId, [pod1]);
     });
 
