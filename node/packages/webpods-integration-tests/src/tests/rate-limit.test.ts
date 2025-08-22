@@ -58,27 +58,41 @@ describe("WebPods Rate Limiting", () => {
       expect(rateLimit.window_end).to.be.instanceOf(Date);
     });
 
-    it.skip("should track pod creation rate limits separately", async () => {
-      // Create multiple pods with proper tokens for each
-      const podDb = testDb.getDb();
-      await createTestPod(podDb, "pod-limit-1", userId);
-      await createTestPod(podDb, "pod-limit-2", userId);
+    it("should track pod creation rate limits separately", async () => {
+      // Create a unique user for this test to avoid interference
+      const db = testDb.getDb();
+      const podTestUser = await createTestUser(db, {
+        provider: "testprovider1",
+        providerId: "pod-creator-" + crypto.randomUUID(),
+        email: "pod-creator@example.com",
+        name: "Pod Creator User",
+      });
 
+      // Get tokens that allow access to multiple pods
+      // Note: The pods don't exist yet, they'll be created on first POST
+      const token1 = await client.authenticateViaOAuth(podTestUser.userId, [
+        "pod-limit-1",
+      ]);
+      const token2 = await client.authenticateViaOAuth(podTestUser.userId, [
+        "pod-limit-2",
+      ]);
+
+      // Create first pod by POSTing to it
       client.setBaseUrl(`http://pod-limit-1.localhost:3000`);
-      const token1 = await client.authenticateViaOAuth(userId, ["pod-limit-1"]);
       client.setAuthToken(token1);
-      await client.post("/init/pod1", "Pod 1");
+      const response1 = await client.post("/init/pod1", "Pod 1");
+      expect(response1.status).to.equal(201);
 
+      // Create second pod by POSTing to it
       client.setBaseUrl(`http://pod-limit-2.localhost:3000`);
-      const token2 = await client.authenticateViaOAuth(userId, ["pod-limit-2"]);
       client.setAuthToken(token2);
-      await client.post("/init/pod2", "Pod 2");
+      const response2 = await client.post("/init/pod2", "Pod 2");
+      expect(response2.status).to.equal(201);
 
       // Check rate limit records
-      const db = testDb.getDb();
       const podLimit = await db.oneOrNone(
         `SELECT * FROM rate_limit WHERE identifier = $(identifier) AND action = $(action)`,
-        { identifier: userId, action: "pod_create" },
+        { identifier: podTestUser.userId, action: "pod_create" },
       );
 
       expect(podLimit).to.exist;
