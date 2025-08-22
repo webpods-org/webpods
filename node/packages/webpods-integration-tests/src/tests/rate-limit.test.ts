@@ -89,6 +89,40 @@ describe("WebPods Rate Limiting", () => {
       const response2 = await client.post("/init/pod2", "Pod 2");
       expect(response2.status).to.equal(201);
 
+      // Verify pods were actually created in the database
+      const pod1 = await db.oneOrNone(
+        `SELECT * FROM pod WHERE pod_id = $(podId)`,
+        { podId: "pod-limit-1" },
+      );
+      const pod2 = await db.oneOrNone(
+        `SELECT * FROM pod WHERE pod_id = $(podId)`,
+        { podId: "pod-limit-2" },
+      );
+      
+      expect(pod1).to.exist;
+      expect(pod2).to.exist;
+      
+      // Verify ownership via .meta/owner stream
+      const owner1Record = await db.oneOrNone(
+        `SELECT r.content FROM record r
+         JOIN stream s ON r.stream_id = s.id
+         WHERE s.pod_id = $(podId) AND s.stream_id = '.meta/owner'
+         ORDER BY r.index DESC LIMIT 1`,
+        { podId: pod1.id },
+      );
+      const owner2Record = await db.oneOrNone(
+        `SELECT r.content FROM record r
+         JOIN stream s ON r.stream_id = s.id
+         WHERE s.pod_id = $(podId) AND s.stream_id = '.meta/owner'
+         ORDER BY r.index DESC LIMIT 1`,
+        { podId: pod2.id },
+      );
+      
+      expect(owner1Record).to.exist;
+      expect(JSON.parse(owner1Record.content).owner).to.equal(podTestUser.userId);
+      expect(owner2Record).to.exist;
+      expect(JSON.parse(owner2Record.content).owner).to.equal(podTestUser.userId);
+
       // Check rate limit records
       const podLimit = await db.oneOrNone(
         `SELECT * FROM rate_limit WHERE identifier = $(identifier) AND action = $(action)`,
@@ -97,6 +131,28 @@ describe("WebPods Rate Limiting", () => {
 
       expect(podLimit).to.exist;
       expect(podLimit.count).to.equal(2);
+
+      // Now test that we can create more pods up to the limit (10)
+      // We've created 2, so we can create 8 more
+      for (let i = 3; i <= 10; i++) {
+        const tokenN = await client.authenticateViaOAuth(podTestUser.userId, [
+          `pod-limit-${i}`,
+        ]);
+        client.setBaseUrl(`http://pod-limit-${i}.localhost:3000`);
+        client.setAuthToken(tokenN);
+        const responseN = await client.post(`/init/pod${i}`, `Pod ${i}`);
+        expect(responseN.status).to.equal(201, `Should create pod ${i}`);
+      }
+
+      // The 11th pod should be blocked
+      const token11 = await client.authenticateViaOAuth(podTestUser.userId, [
+        "pod-limit-11",
+      ]);
+      client.setBaseUrl(`http://pod-limit-11.localhost:3000`);
+      client.setAuthToken(token11);
+      const response11 = await client.post("/init/pod11", "Pod 11");
+      expect(response11.status).to.equal(429);
+      expect(response11.data.error.code).to.equal("RATE_LIMIT_EXCEEDED");
     });
 
     it("should track stream creation rate limits", async () => {
