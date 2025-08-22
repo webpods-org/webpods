@@ -5,7 +5,7 @@
 import { Database } from "../db.js";
 import { PodDbRow, StreamDbRow, RecordDbRow } from "../db-types.js";
 import { Pod, Stream, Result } from "../types.js";
-import { isValidPodId, calculateRecordHash } from "../utils.js";
+import { isValidPodName, calculateRecordHash } from "../utils.js";
 import { createLogger } from "../logger.js";
 
 const logger = createLogger("webpods:domain:pods");
@@ -16,7 +16,7 @@ const logger = createLogger("webpods:domain:pods");
 function mapPodFromDb(row: PodDbRow): Pod {
   return {
     id: row.id,
-    pod_id: row.pod_id,
+    name: row.name,
     owner_id: "", // Will be populated from .meta/owner stream
     metadata: undefined,
     created_at: row.created_at,
@@ -46,15 +46,15 @@ function mapStreamFromDb(row: StreamDbRow): Stream {
 export async function createPod(
   db: Database,
   userId: string,
-  podId: string,
+  podName: string,
 ): Promise<Result<Pod>> {
-  // Validate pod ID
-  if (!isValidPodId(podId)) {
+  // Validate pod name
+  if (!isValidPodName(podName)) {
     return {
       success: false,
       error: {
-        code: "INVALID_POD_ID",
-        message: "Pod ID must be lowercase alphanumeric with hyphens",
+        code: "INVALID_POD_NAME",
+        message: "Pod name must be lowercase alphanumeric with hyphens",
       },
     };
   }
@@ -63,8 +63,8 @@ export async function createPod(
     return await db.tx(async (t) => {
       // Check if pod already exists
       const existing = await t.oneOrNone<PodDbRow>(
-        `SELECT * FROM pod WHERE pod_id = $(podId)`,
-        { podId },
+        `SELECT * FROM pod WHERE name = $(podName)`,
+        { podName },
       );
 
       if (existing) {
@@ -79,10 +79,10 @@ export async function createPod(
 
       // Create pod
       const pod = await t.one<PodDbRow>(
-        `INSERT INTO pod (id, pod_id, created_at)
-         VALUES (gen_random_uuid(), $(podId), NOW())
+        `INSERT INTO pod (id, name, created_at)
+         VALUES (gen_random_uuid(), $(podName), NOW())
          RETURNING *`,
-        { podId },
+        { podName },
       );
 
       // Create .meta/owner stream with initial owner record
@@ -110,13 +110,13 @@ export async function createPod(
         },
       );
 
-      logger.info("Pod created", { podId, userId });
+      logger.info("Pod created", { podName, userId });
       const mappedPod = mapPodFromDb(pod);
       mappedPod.owner_id = userId; // Set owner from what we just wrote
       return { success: true, data: mappedPod };
     });
   } catch (error: any) {
-    logger.error("Failed to create pod", { error, podId });
+    logger.error("Failed to create pod", { error, podName });
     return {
       success: false,
       error: {
@@ -132,12 +132,12 @@ export async function createPod(
  */
 export async function getPod(
   db: Database,
-  podId: string,
+  podName: string,
 ): Promise<Result<Pod>> {
   try {
     const pod = await db.oneOrNone<PodDbRow>(
-      `SELECT * FROM pod WHERE pod_id = $(podId)`,
-      { podId },
+      `SELECT * FROM pod WHERE name = $(podName)`,
+      { podName },
     );
 
     if (!pod) {
@@ -153,14 +153,14 @@ export async function getPod(
     const mappedPod = mapPodFromDb(pod);
 
     // Get owner from .meta/owner stream
-    const ownerResult = await getPodOwner(db, podId);
+    const ownerResult = await getPodOwner(db, podName);
     if (ownerResult.success) {
       mappedPod.owner_id = ownerResult.data;
     }
 
     return { success: true, data: mappedPod };
   } catch (error: any) {
-    logger.error("Failed to get pod", { error, podId });
+    logger.error("Failed to get pod", { error, podName });
     return {
       success: false,
       error: {
@@ -176,7 +176,7 @@ export async function getPod(
  */
 export async function getPodOwner(
   db: Database,
-  podId: string,
+  podName: string,
 ): Promise<Result<string>> {
   try {
     const record = await db.oneOrNone<RecordDbRow>(
@@ -184,11 +184,11 @@ export async function getPodOwner(
        FROM record r
        JOIN stream s ON s.id = r.stream_id
        JOIN pod p ON p.id = s.pod_id
-       WHERE p.pod_id = $(podId)
+       WHERE p.name = $(podName)
          AND s.stream_id = '.meta/owner'
        ORDER BY r.created_at DESC
        LIMIT 1`,
-      { podId },
+      { podName },
     );
 
     if (!record) {
@@ -208,7 +208,7 @@ export async function getPodOwner(
 
     return { success: true, data: content.owner };
   } catch (error: any) {
-    logger.error("Failed to get pod owner", { error, podId });
+    logger.error("Failed to get pod owner", { error, podName });
     return {
       success: false,
       error: {
@@ -224,14 +224,14 @@ export async function getPodOwner(
  */
 export async function transferPodOwnership(
   db: Database,
-  podId: string,
+  podName: string,
   currentUserId: string,
   newOwnerId: string,
 ): Promise<Result<void>> {
   try {
     return await db.tx(async (t) => {
       // Check current ownership
-      const ownerResult = await getPodOwner(t as any, podId);
+      const ownerResult = await getPodOwner(t as any, podName);
       if (!ownerResult.success || ownerResult.data !== currentUserId) {
         return {
           success: false,
@@ -247,9 +247,9 @@ export async function transferPodOwnership(
         `SELECT s.*
          FROM stream s
          JOIN pod p ON p.id = s.pod_id
-         WHERE p.pod_id = $(podId)
+         WHERE p.name = $(podName)
            AND s.stream_id = '.meta/owner'`,
-        { podId },
+        { podName },
       );
 
       if (!ownerStream) {
@@ -296,14 +296,14 @@ export async function transferPodOwnership(
       );
 
       logger.info("Pod ownership transferred", {
-        podId,
+        podName,
         from: currentUserId,
         to: newOwnerId,
       });
       return { success: true, data: undefined };
     });
   } catch (error: any) {
-    logger.error("Failed to transfer pod ownership", { error, podId });
+    logger.error("Failed to transfer pod ownership", { error, podName });
     return {
       success: false,
       error: {
@@ -319,13 +319,13 @@ export async function transferPodOwnership(
  */
 export async function deletePod(
   db: Database,
-  podId: string,
+  podName: string,
   userId: string,
 ): Promise<Result<void>> {
   try {
     return await db.tx(async (t) => {
       // Check ownership
-      const ownerResult = await getPodOwner(t as any, podId);
+      const ownerResult = await getPodOwner(t as any, podName);
       if (!ownerResult.success || ownerResult.data !== userId) {
         return {
           success: false,
@@ -338,8 +338,8 @@ export async function deletePod(
 
       // Get pod
       const pod = await t.oneOrNone<PodDbRow>(
-        `SELECT * FROM pod WHERE pod_id = $(podId)`,
-        { podId },
+        `SELECT * FROM pod WHERE name = $(podName)`,
+        { podName },
       );
 
       if (!pod) {
@@ -360,11 +360,11 @@ export async function deletePod(
       // Delete pod (cascades to streams and records)
       await t.none(`DELETE FROM pod WHERE id = $(podId)`, { podId: pod.id });
 
-      logger.info("Pod deleted", { podId, userId });
+      logger.info("Pod deleted", { podName, userId });
       return { success: true, data: undefined };
     });
   } catch (error: any) {
-    logger.error("Failed to delete pod", { error, podId });
+    logger.error("Failed to delete pod", { error, podName });
     return {
       success: false,
       error: {
@@ -380,12 +380,12 @@ export async function deletePod(
  */
 export async function listPodStreams(
   db: Database,
-  podId: string,
+  podName: string,
 ): Promise<Result<Stream[]>> {
   try {
     const pod = await db.oneOrNone<PodDbRow>(
-      `SELECT * FROM pod WHERE pod_id = $(podId)`,
-      { podId },
+      `SELECT * FROM pod WHERE name = $(podName)`,
+      { podName },
     );
 
     if (!pod) {
@@ -407,7 +407,7 @@ export async function listPodStreams(
 
     return { success: true, data: streams.map(mapStreamFromDb) };
   } catch (error: any) {
-    logger.error("Failed to list pod streams", { error, podId });
+    logger.error("Failed to list pod streams", { error, podName });
     return {
       success: false,
       error: {

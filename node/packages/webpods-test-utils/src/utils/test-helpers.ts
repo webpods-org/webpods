@@ -65,7 +65,7 @@ export async function createTestUser(
  */
 export async function createTestPod(
   db: pgPromise.IDatabase<any>,
-  podId: string,
+  podName: string,
   ownerId: string,
 ): Promise<void> {
   const podUuid = crypto.randomUUID();
@@ -73,9 +73,9 @@ export async function createTestPod(
 
   // Create pod
   await db.none(
-    `INSERT INTO pod (id, pod_id, created_at, updated_at) 
-     VALUES ($(podUuid), $(podId), NOW(), NOW())`,
-    { podUuid, podId },
+    `INSERT INTO pod (id, name, created_at, updated_at) 
+     VALUES ($(podUuid), $(podName), NOW(), NOW())`,
+    { podUuid, podName },
   );
 
   // Create .meta/owner stream

@@ -80,7 +80,7 @@ const domainsSchema = z.object({
  * GET {pod}.webpods.org/login
  */
 router.get("/login", extractPod, (req: ExpressRequest, res: Response) => {
-  if (!req.pod_id) {
+  if (!req.pod_name) {
     res.status(400).json({
       error: {
         code: "INVALID_POD",
@@ -96,9 +96,9 @@ router.get("/login", extractPod, (req: ExpressRequest, res: Response) => {
   // Redirect to main domain authorization with pod info
   const config = getConfig();
   const publicUrl = config.server.publicUrl || "http://localhost:3000";
-  const authUrl = `${publicUrl}/auth/authorize?pod=${req.pod_id}&redirect=${encodeURIComponent(redirect)}`;
+  const authUrl = `${publicUrl}/auth/authorize?pod=${req.pod_name}&redirect=${encodeURIComponent(redirect)}`;
 
-  logger.info("Pod login initiated", { pod: req.pod_id, redirect });
+  logger.info("Pod login initiated", { pod: req.pod_name, redirect });
   res.redirect(authUrl);
 });
 
@@ -114,7 +114,7 @@ router.get(
     const redirect = (req.query.redirect as string) || "/";
 
     logger.info("Auth callback on pod", {
-      pod: req.pod_id,
+      pod: req.pod_name,
       hasToken: !!token,
       redirect,
     });
@@ -140,10 +140,10 @@ router.get(
       maxAge: 10 * 365 * 24 * 60 * 60 * 1000, // 10 years (effectively unlimited)
       path: "/",
       // Cookie domain cannot have port
-      domain: `.${req.pod_id}.${publicConfig?.hostname || "localhost"}`, // Scoped to pod subdomain
+      domain: `.${req.pod_name}.${publicConfig?.hostname || "localhost"}`, // Scoped to pod subdomain
     });
 
-    logger.info("Pod auth callback successful", { pod: req.pod_id });
+    logger.info("Pod auth callback successful", { pod: req.pod_name });
 
     // Redirect to final destination
     res.redirect(redirect);
@@ -158,7 +158,7 @@ router.get(
   "/.meta/streams",
   extractPod,
   async (req: AuthRequest, res: Response) => {
-    if (!req.pod || !req.pod_id) {
+    if (!req.pod || !req.pod_name) {
       res.status(404).json({
         error: {
           code: "POD_NOT_FOUND",
@@ -169,7 +169,7 @@ router.get(
     }
 
     const db = getDb();
-    const result = await listPodStreams(db, req.pod_id);
+    const result = await listPodStreams(db, req.pod_name);
 
     if (!result.success) {
       res.status(500).json({
@@ -179,7 +179,7 @@ router.get(
     }
 
     res.json({
-      pod: req.pod_id,
+      pod: req.pod_name,
       streams: result.data,
     });
   },
@@ -195,7 +195,7 @@ router.delete(
   authenticate,
   rateLimit("pod_create"),
   async (req: AuthRequest, res: Response) => {
-    if (!req.pod_id || !req.auth) {
+    if (!req.pod_name || !req.auth) {
       res.status(404).json({
         error: {
           code: "POD_NOT_FOUND",
@@ -206,7 +206,7 @@ router.delete(
     }
 
     const db = getDb();
-    const result = await deletePod(db, req.pod_id, req.auth.user_id);
+    const result = await deletePod(db, req.pod_name, req.auth.user_id);
 
     if (!result.success) {
       const status = result.error.code === "FORBIDDEN" ? 403 : 500;
@@ -231,7 +231,7 @@ router.post(
   extractPod,
   authenticate,
   async (req: AuthRequest, res: Response) => {
-    if (!req.pod_id || !req.auth) {
+    if (!req.pod_name || !req.auth) {
       res.status(404).json({
         error: {
           code: "POD_NOT_FOUND",
@@ -247,7 +247,7 @@ router.post(
 
       const result = await transferPodOwnership(
         db,
-        req.pod_id,
+        req.pod_name,
         req.auth.user_id,
         data.owner,
       );
@@ -287,7 +287,7 @@ router.post(
   extractPod,
   authenticate,
   async (req: AuthRequest, res: Response) => {
-    if (!req.pod_id || !req.auth) {
+    if (!req.pod_name || !req.auth) {
       res.status(404).json({
         error: {
           code: "POD_NOT_FOUND",
@@ -302,7 +302,7 @@ router.post(
       const db = getDb();
 
       // Check ownership
-      const ownerResult = await getPodOwner(db, req.pod_id);
+      const ownerResult = await getPodOwner(db, req.pod_name);
       if (!ownerResult.success || ownerResult.data !== req.auth.user_id) {
         res.status(403).json({
           error: {
@@ -315,7 +315,7 @@ router.post(
 
       const result = await updateLinks(
         db,
-        req.pod_id,
+        req.pod_name,
         data,
         req.auth.user_id,
         req.auth.user_id,
@@ -355,7 +355,7 @@ router.post(
   extractPod,
   authenticate,
   async (req: AuthRequest, res: Response) => {
-    if (!req.pod_id || !req.auth) {
+    if (!req.pod_name || !req.auth) {
       res.status(404).json({
         error: {
           code: "POD_NOT_FOUND",
@@ -370,7 +370,7 @@ router.post(
       const db = getDb();
 
       // Check ownership
-      const ownerResult = await getPodOwner(db, req.pod_id);
+      const ownerResult = await getPodOwner(db, req.pod_name);
       if (!ownerResult.success || ownerResult.data !== req.auth.user_id) {
         res.status(403).json({
           error: {
@@ -383,7 +383,7 @@ router.post(
 
       const result = await updateCustomDomains(
         db,
-        req.pod_id,
+        req.pod_name,
         data.domains,
         req.auth.user_id,
         req.auth.user_id,
@@ -430,7 +430,7 @@ router.post(
   rateLimit("write"),
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     // If no pod_id was extracted, this is the main domain - skip to next handler
-    if (!req.pod_id) {
+    if (!req.pod_name) {
       return next();
     }
 
@@ -578,7 +578,7 @@ router.post(
       const db = getDb();
 
       // Create pod if it doesn't exist
-      if (!req.pod && req.pod_id) {
+      if (!req.pod && req.pod_name) {
         // Check pod creation rate limit first
         const podLimitResult = await checkRateLimit(
           db,
@@ -615,7 +615,7 @@ router.post(
           return;
         }
 
-        const podResult = await createPod(db, req.auth.user_id, req.pod_id);
+        const podResult = await createPod(db, req.auth.user_id, req.pod_name);
         if (!podResult.success) {
           res.status(500).json({
             error: podResult.error,
@@ -737,7 +737,7 @@ router.get(
   optionalAuth,
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     // If no pod_id was extracted, this is the main domain - skip to next handler
-    if (!req.pod_id) {
+    if (!req.pod_name) {
       return next();
     }
 
@@ -773,7 +773,7 @@ router.get(
     const db = getDb();
 
     // Check if path "/" is mapped in .meta/links
-    const linkResult = await resolveLink(db, req.pod_id, "/");
+    const linkResult = await resolveLink(db, req.pod_name, "/");
 
     if (linkResult.success && linkResult.data) {
       // Redirect to the mapped stream/record
@@ -824,7 +824,7 @@ router.get(
   rateLimit("read"),
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     // If no pod_id was extracted, this is the main domain - skip to next handler
-    if (!req.pod_id) {
+    if (!req.pod_name) {
       return next();
     }
 
@@ -861,7 +861,7 @@ router.get(
     const db = getDb();
 
     // First check if this path is mapped in .meta/links
-    const linkResult = await resolveLink(db, req.pod_id, req.path);
+    const linkResult = await resolveLink(db, req.pod_name, req.path);
 
     if (linkResult.success && linkResult.data) {
       // Redirect to the mapped stream/record
@@ -1196,7 +1196,7 @@ router.delete(
   authenticate,
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     // If no pod_id was extracted, this is the main domain - skip to next handler
-    if (!req.pod_id) {
+    if (!req.pod_name) {
       return next();
     }
 
@@ -1247,7 +1247,7 @@ router.delete(
     }
 
     // Check ownership - only pod owner can delete
-    const ownerResult = await getPodOwner(db, req.pod_id);
+    const ownerResult = await getPodOwner(db, req.pod_name);
     if (!ownerResult.success || ownerResult.data !== req.auth.user_id) {
       res.status(403).json({
         error: {
@@ -1306,7 +1306,7 @@ router.delete(
         }
 
         logger.info("Record purged", {
-          podId: req.pod_id,
+          podId: req.pod_name,
           streamId,
           recordName,
           userId: req.auth.user_id,
@@ -1350,7 +1350,7 @@ router.delete(
         }
 
         logger.info("Record soft deleted", {
-          podId: req.pod_id,
+          podId: req.pod_name,
           streamId,
           recordName,
           userId: req.auth.user_id,

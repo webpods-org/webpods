@@ -3,7 +3,7 @@
  */
 
 import { Request, Response, NextFunction } from "express";
-import { extractPodId, isMainDomain } from "../utils.js";
+import { extractPodName, isMainDomain } from "../utils.js";
 import { findPodByDomain } from "../domain/routing.js";
 import { getPod } from "../domain/pods.js";
 import { getDb } from "../db.js";
@@ -17,7 +17,7 @@ const logger = createLogger("webpods:pod");
 declare module "express-serve-static-core" {
   interface Request {
     pod?: Pod;
-    pod_id?: string;
+    pod_name?: string;
   }
 }
 
@@ -30,8 +30,8 @@ export async function extractPod(
   next: NextFunction,
 ): Promise<void> {
   try {
-    // If pod_id is already set (e.g., by rootPod handler), skip extraction
-    if (req.pod_id) {
+    // If pod_name is already set (e.g., by rootPod handler), skip extraction
+    if (req.pod_name) {
       next();
       return;
     }
@@ -44,39 +44,39 @@ export async function extractPod(
     const mainDomain = config.server.public?.hostname || "localhost";
 
     // First try standard subdomain format
-    let podId = extractPodId(hostname, mainDomain);
+    let podName = extractPodName(hostname, mainDomain);
 
     // If not found, check custom domains
-    if (!podId) {
+    if (!podName) {
       const result = await findPodByDomain(db, hostname);
       if (result.success && result.data) {
-        podId = result.data;
+        podName = result.data;
       }
     }
 
     // If still no pod found and this is the main domain, check for rootPod config
-    if (!podId && isMainDomain(hostname, mainDomain) && config.rootPod) {
-      podId = config.rootPod;
+    if (!podName && isMainDomain(hostname, mainDomain) && config.rootPod) {
+      podName = config.rootPod;
     }
 
-    if (!podId) {
+    if (!podName) {
       // No pod found - just continue without setting pod
       next();
       return;
     }
 
-    // Store the pod_id even if pod doesn't exist yet
-    req.pod_id = podId;
+    // Store the pod_name even if pod doesn't exist yet
+    req.pod_name = podName;
 
     // Try to get the pod (may not exist yet)
-    const podResult = await getPod(db, podId);
+    const podResult = await getPod(db, podName);
 
     if (podResult.success) {
       req.pod = podResult.data;
     }
     // If pod doesn't exist, it will be created on first write
 
-    logger.debug("Pod extracted", { podId, hostname });
+    logger.debug("Pod extracted", { podName, hostname });
     next();
   } catch (error) {
     logger.error("Pod extraction error", { error });
@@ -106,23 +106,23 @@ export async function optionalExtractPod(
     const mainDomain = config.server.public?.hostname || "localhost";
 
     // First try standard subdomain format
-    let podId = extractPodId(hostname, mainDomain);
+    let podName = extractPodName(hostname, mainDomain);
 
     // If not found, check custom domains
-    if (!podId) {
+    if (!podName) {
       const result = await findPodByDomain(db, hostname);
       if (result.success && result.data) {
-        podId = result.data;
+        podName = result.data;
       }
     }
 
-    if (podId) {
+    if (podName) {
       // Get the pod
-      const podResult = await getPod(db, podId);
+      const podResult = await getPod(db, podName);
 
       if (podResult.success) {
         req.pod = podResult.data;
-        req.pod_id = podId;
+        req.pod_name = podName;
       }
     }
 

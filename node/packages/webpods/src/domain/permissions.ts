@@ -32,14 +32,14 @@ export function parsePermission(permission: string): {
  */
 async function checkPermissionStream(
   db: Database,
-  podId: string,
+  podName: string,
   streamId: string,
   userId: string,
   action: "read" | "write",
 ): Promise<boolean> {
   try {
     logger.debug("Checking permission stream", {
-      podId,
+      podName,
       streamId,
       userId,
       action,
@@ -50,13 +50,13 @@ async function checkPermissionStream(
       `SELECT s.*
        FROM stream s
        JOIN pod p ON p.id = s.pod_id
-       WHERE p.pod_id = $(podId)
+       WHERE p.name = $(podName)
          AND s.stream_id = $(streamId)`,
-      { podId, streamId },
+      { podName, streamId },
     );
 
     if (!stream) {
-      logger.warn("Permission stream not found", { podId, streamId });
+      logger.warn("Permission stream not found", { podName, streamId });
       return false;
     }
 
@@ -117,7 +117,7 @@ async function checkPermissionStream(
   } catch (error) {
     logger.error("Failed to check permission stream", {
       error,
-      podId,
+      podName,
       streamId,
       userId,
     });
@@ -179,7 +179,7 @@ export async function canRead(
     // Check if user has read permission in the permission stream
     return await checkPermissionStream(
       db,
-      pod.pod_id,
+      pod.name,
       perm.stream,
       userId,
       "read",
@@ -227,7 +227,7 @@ export async function canWrite(
     // Check if user has write permission in the permission stream
     return await checkPermissionStream(
       db,
-      pod.pod_id,
+      pod.name,
       perm.stream,
       userId,
       "write",

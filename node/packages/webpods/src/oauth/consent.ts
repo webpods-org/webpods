@@ -70,8 +70,8 @@ async function getUserOwnedPods(userId: string): Promise<string[]> {
 
   try {
     // Query all pods and check ownership via .meta/owner stream
-    const pods = await db.manyOrNone<{ pod_id: string }>(
-      `SELECT DISTINCT p.pod_id
+    const pods = await db.manyOrNone<{ name: string }>(
+      `SELECT DISTINCT p.name
        FROM pod p
        WHERE EXISTS (
          SELECT 1 FROM stream s
@@ -87,7 +87,7 @@ async function getUserOwnedPods(userId: string): Promise<string[]> {
       { userId },
     );
 
-    return pods.map((p) => p.pod_id);
+    return pods.map((p) => p.name);
   } catch (error) {
     logger.error("Failed to get user pods", { error, userId });
     return [];

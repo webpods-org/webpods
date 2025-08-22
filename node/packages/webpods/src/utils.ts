@@ -5,12 +5,12 @@
 import { createHash } from "crypto";
 
 /**
- * Validate pod ID (subdomain)
+ * Validate pod name (subdomain)
  * Must be lowercase alphanumeric with hyphens, max 63 chars
  */
-export function isValidPodId(podId: string): boolean {
-  if (!podId || podId.length > 63) return false;
-  return /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(podId);
+export function isValidPodName(podName: string): boolean {
+  if (!podName || podName.length > 63) return false;
+  return /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(podName);
 }
 
 /**
@@ -130,9 +130,9 @@ export function isSubdomainOf(hostname: string, mainDomain: string): boolean {
 }
 
 /**
- * Extract pod ID from hostname
+ * Extract pod name from hostname
  */
-export function extractPodId(
+export function extractPodName(
   hostname: string,
   mainDomain?: string,
 ): string | null {
@@ -148,11 +148,11 @@ export function extractPodId(
     return null;
   }
 
-  // If it's a subdomain, extract the pod ID
+  // If it's a subdomain, extract the pod name
   if (isSubdomainOf(hostname, mainDomain)) {
-    // The first part is the pod ID
-    const podId = hostname.split(".")[0]!;
-    return isValidPodId(podId) ? podId : null;
+    // The first part is the pod name
+    const podName = hostname.split(".")[0]!;
+    return isValidPodName(podName) ? podName : null;
   }
 
   // Not a subdomain of the main domain - could be a custom domain

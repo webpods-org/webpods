@@ -91,11 +91,11 @@ describe("WebPods Rate Limiting", () => {
 
       // Verify pods were actually created in the database
       const pod1 = await db.oneOrNone(
-        `SELECT * FROM pod WHERE pod_id = $(podId)`,
+        `SELECT * FROM pod WHERE name = $(podId)`,
         { podId: "pod-limit-1" },
       );
       const pod2 = await db.oneOrNone(
-        `SELECT * FROM pod WHERE pod_id = $(podId)`,
+        `SELECT * FROM pod WHERE name = $(podId)`,
         { podId: "pod-limit-2" },
       );
 

@@ -224,7 +224,7 @@ describe("WebPods Authentication", () => {
       // Verify in database
       const db = testDb.getDb();
       const pod = await db.oneOrNone(
-        `SELECT * FROM pod WHERE pod_id = $(podId)`,
+        `SELECT * FROM pod WHERE name = $(podId)`,
         { podId: testPodId },
       );
       const stream = await db.oneOrNone(
@@ -482,11 +482,11 @@ describe("WebPods Authentication", () => {
 
       // Verify both pods exist and have correct ownership
       const pod1 = await db.oneOrNone(
-        `SELECT * FROM pod WHERE pod_id = $(podId)`,
+        `SELECT * FROM pod WHERE name = $(podId)`,
         { podId: "pod-one" },
       );
       const pod2 = await db.oneOrNone(
-        `SELECT * FROM pod WHERE pod_id = $(podId)`,
+        `SELECT * FROM pod WHERE name = $(podId)`,
         { podId: "pod-two" },
       );
 

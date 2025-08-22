@@ -229,7 +229,7 @@ describe("WebPods Permissions", () => {
       // Verify initial permissions are public
       const db = testDb.getDb();
       const pod = await db.oneOrNone(
-        `SELECT * FROM pod WHERE pod_id = $(podId)`,
+        `SELECT * FROM pod WHERE name = $(podId)`,
         { podId: testPodId },
       );
       let stream = await db.oneOrNone(
@@ -277,7 +277,7 @@ describe("WebPods Permissions", () => {
       // Verify initial permissions are public
       const db = testDb.getDb();
       const pod = await db.oneOrNone(
-        `SELECT * FROM pod WHERE pod_id = $(podId)`,
+        `SELECT * FROM pod WHERE name = $(podId)`,
         { podId: testPodId },
       );
       let stream = await db.oneOrNone(

@@ -23,7 +23,7 @@ The system uses JWT-based authentication with OAuth providers:
 
 ### 2. Input Validation & Sanitization
 
-- [ ] Strengthen pod_id validation (DNS-compliant, reserved names)
+- [ ] Strengthen pod name validation (DNS-compliant, reserved names)
 - [ ] Add content size limits per stream/pod
 - [ ] Validate and sanitize HTML content before serving
 - [ ] Implement stricter name validation for records

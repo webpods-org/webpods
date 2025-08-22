@@ -45,7 +45,7 @@ export interface Identity {
 
 export interface Pod {
   id: string;
-  pod_id: string; // Subdomain (e.g., 'alice')
+  name: string; // Subdomain (e.g., 'alice')
   owner_id: string;
   metadata?: any;
   created_at: Date;
@@ -197,13 +197,13 @@ export interface AuthRequest extends Request {
   auth?: AuthPayload;
   auth_type?: "webpods" | "hydra";
   pod?: Pod;
-  pod_id?: string;
+  pod_name?: string;
   ip_address?: string;
 }
 
 // Input types
 export interface CreatePodInput {
-  pod_id: string;
+  name: string;
 }
 
 export interface CreateStreamInput {

@@ -20,7 +20,7 @@ describe("WebPods Root Pod", () => {
 
     // Check if pod already exists
     const existingPod = await db.oneOrNone(
-      `SELECT pod_id FROM pod WHERE pod_id = $(podId)`,
+      `SELECT name FROM pod WHERE name = $(podId)`,
       { podId: rootPodId },
     );
 
@@ -130,7 +130,7 @@ describe("WebPods Root Pod", () => {
       const db = testDb.getDb();
       // Check if pod exists first
       const existingPod = await db.oneOrNone(
-        `SELECT pod_id FROM pod WHERE pod_id = $(podId)`,
+        `SELECT name FROM pod WHERE name = $(podId)`,
         { podId: rootPodId },
       );
       if (!existingPod) {
@@ -159,7 +159,7 @@ describe("WebPods Root Pod", () => {
       const db = testDb.getDb();
       // Check if pod exists first
       const existingPod = await db.oneOrNone(
-        `SELECT pod_id FROM pod WHERE pod_id = $(podId)`,
+        `SELECT name FROM pod WHERE name = $(podId)`,
         { podId: rootPodId },
       );
       if (!existingPod) {

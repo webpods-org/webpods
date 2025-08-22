@@ -38,12 +38,12 @@ export async function up(knex) {
   // Pod table - represents subdomains (e.g., alice.webpods.org)
   await knex.schema.createTable('pod', (table) => {
     table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
-    table.string('pod_id', 63).unique().notNullable(); // DNS subdomain limit
+    table.string('name', 63).unique().notNullable(); // DNS subdomain limit
     table.jsonb('metadata').defaultTo('{}');
     table.timestamp('created_at').defaultTo(knex.fn.now());
     table.timestamp('updated_at').defaultTo(knex.fn.now());
     
-    table.index('pod_id');
+    table.index('name');
   });
 
   // Stream table - represents streams within pods (supports nested paths)

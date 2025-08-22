@@ -47,7 +47,7 @@ export async function authenticateHybrid(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const currentPod = req.pod_id || undefined;
+    const currentPod = req.pod_name || undefined;
     const token = extractToken(req, currentPod);
 
     if (!token) {

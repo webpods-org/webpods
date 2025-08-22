@@ -20,7 +20,7 @@ interface LinkMapping {
  */
 export async function resolveLink(
   db: Database,
-  podId: string,
+  podName: string,
   path: string,
 ): Promise<Result<LinkMapping | null>> {
   try {
@@ -30,11 +30,11 @@ export async function resolveLink(
        FROM record r
        JOIN stream s ON s.id = r.stream_id
        JOIN pod p ON p.id = s.pod_id
-       WHERE p.pod_id = $(podId)
+       WHERE p.name = $(podName)
          AND s.stream_id = '.meta/links'
        ORDER BY r.created_at DESC
        LIMIT 1`,
-      { podId },
+      { podName },
     );
 
     if (!record) {
@@ -87,11 +87,11 @@ export async function resolveLink(
         },
       };
     } else {
-      logger.warn("Invalid link mapping", { podId, path, mapping });
+      logger.warn("Invalid link mapping", { podName, path, mapping });
       return { success: true, data: null };
     }
   } catch (error: any) {
-    logger.error("Failed to resolve link", { error, podId, path });
+    logger.error("Failed to resolve link", { error, podName, path });
     return {
       success: false,
       error: {
@@ -107,7 +107,7 @@ export async function resolveLink(
  */
 export async function updateLinks(
   db: Database,
-  podId: string,
+  podName: string,
   links: Record<string, string>,
   userId: string,
   authorId: string,
@@ -116,8 +116,8 @@ export async function updateLinks(
     return await db.tx(async (t) => {
       // Get pod
       const pod = await t.oneOrNone<PodDbRow>(
-        `SELECT * FROM pod WHERE pod_id = $(podId)`,
-        { podId },
+        `SELECT * FROM pod WHERE name = $(podName)`,
+        { podName },
       );
 
       if (!pod) {
@@ -179,11 +179,11 @@ export async function updateLinks(
         },
       );
 
-      logger.info("Links updated", { podId, paths: Object.keys(links) });
+      logger.info("Links updated", { podName, paths: Object.keys(links) });
       return { success: true, data: undefined };
     });
   } catch (error: any) {
-    logger.error("Failed to update links", { error, podId });
+    logger.error("Failed to update links", { error, podName });
     return {
       success: false,
       error: {
@@ -222,7 +222,7 @@ export async function findPodByDomain(
       return { success: true, data: null };
     }
 
-    return { success: true, data: pod.pod_id };
+    return { success: true, data: pod.name };
   } catch (error: any) {
     logger.error("Failed to find pod by domain", { error, domain });
     return {
@@ -240,7 +240,7 @@ export async function findPodByDomain(
  */
 export async function updateCustomDomains(
   db: Database,
-  podId: string,
+  podName: string,
   domains: string[],
   userId: string,
   authorId: string,
@@ -249,8 +249,8 @@ export async function updateCustomDomains(
     return await db.tx(async (t) => {
       // Get pod
       const pod = await t.oneOrNone<PodDbRow>(
-        `SELECT * FROM pod WHERE pod_id = $(podId)`,
-        { podId },
+        `SELECT * FROM pod WHERE name = $(podName)`,
+        { podName },
       );
 
       if (!pod) {
@@ -314,7 +314,7 @@ export async function updateCustomDomains(
 
       // Update custom_domain table (for faster lookups)
       // Remove old domains
-      await t.none(`DELETE FROM custom_domain WHERE pod_id = $(podId)`, {
+      await t.none(`DELETE FROM custom_domain WHERE name = $(podName)`, {
         podId: pod.id,
       });
 
@@ -338,11 +338,11 @@ export async function updateCustomDomains(
         }
       }
 
-      logger.info("Custom domains updated", { podId, domains });
+      logger.info("Custom domains updated", { podName, domains });
       return { success: true, data: undefined };
     });
   } catch (error: any) {
-    logger.error("Failed to update custom domains", { error, podId });
+    logger.error("Failed to update custom domains", { error, podName });
     return {
       success: false,
       error: {

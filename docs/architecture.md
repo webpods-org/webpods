@@ -94,13 +94,13 @@ WebPods implements two distinct OAuth flows:
 #### pod
 
 - `id` (UUID): Primary key
-- `pod_id`: Subdomain identifier
+- `name`: Subdomain identifier
 - `user_id` → user: Owner
 
 #### stream
 
 - `id` (UUID): Primary key
-- `pod_id` → pod: Parent pod
+- `pod_id` → pod.id: Parent pod (foreign key)
 - `stream_id`: Path (e.g., `/blog/2024`)
 - `user_id` → user: Creator
 - `access_permission`: Access mode

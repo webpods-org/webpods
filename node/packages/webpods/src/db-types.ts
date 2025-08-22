@@ -26,7 +26,7 @@ export type IdentityDbRow = {
 // Pod table
 export type PodDbRow = {
   id: string;
-  pod_id: string;
+  name: string;
   created_at: Date;
 };
 
