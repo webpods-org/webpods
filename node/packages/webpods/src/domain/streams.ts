@@ -35,7 +35,7 @@ export async function getOrCreateStream(
   streamId: string,
   userId: string,
   accessPermission?: string,
-): Promise<Result<{ stream: Stream; created: boolean }>> {
+): Promise<Result<{ stream: Stream; created: boolean; updated?: boolean }>> {
   // Validate stream ID
   if (!isValidStreamId(streamId)) {
     return {
@@ -59,9 +59,69 @@ export async function getOrCreateStream(
     );
 
     if (stream) {
+      // Check if permissions need to be updated
+      if (accessPermission && accessPermission !== stream.access_permission) {
+        // Only the creator can update permissions
+        if (stream.creator_id !== userId) {
+          logger.warn("Non-creator attempted to update stream permissions", {
+            streamId: stream.id,
+            userId,
+            creatorId: stream.creator_id,
+          });
+          // Return the existing stream without updating
+          return {
+            success: true,
+            data: {
+              stream: mapStreamFromDb(stream),
+              created: false,
+              updated: false,
+            },
+          };
+        }
+
+        // Update the stream permissions
+        const updateResult = await updateStreamPermissions(
+          db,
+          stream.id,
+          accessPermission,
+        );
+
+        if (!updateResult.success) {
+          logger.error("Failed to update stream permissions", {
+            streamId: stream.id,
+            error: updateResult.error,
+          });
+          // Return the existing stream even if update fails
+          return {
+            success: true,
+            data: {
+              stream: mapStreamFromDb(stream),
+              created: false,
+              updated: false,
+            },
+          };
+        }
+
+        logger.info("Stream permissions updated", {
+          streamId: stream.id,
+          oldPermission: stream.access_permission,
+          newPermission: accessPermission,
+          userId,
+        });
+
+        return {
+          success: true,
+          data: { stream: updateResult.data, created: false, updated: true },
+        };
+      }
+
       return {
         success: true,
-        data: { stream: mapStreamFromDb(stream), created: false },
+        data: {
+          stream: mapStreamFromDb(stream),
+          created: false,
+          updated: false,
+        },
       };
     }
 

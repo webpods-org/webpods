@@ -222,31 +222,84 @@ describe("WebPods Permissions", () => {
 
   describe("Stream Permission Updates", () => {
     it("should allow creator to update stream permissions", async () => {
-      // User1 creates stream
+      // User1 creates stream with default (public) permissions
       client.setAuthToken(user1Token);
       await client.post("/perm-update/initial", "Initial");
 
-      // User1 can update permissions by writing with new permissions
+      // Verify initial permissions are public
+      const db = testDb.getDb();
+      const pod = await db.oneOrNone(
+        `SELECT * FROM pod WHERE pod_id = $(podId)`,
+        { podId: testPodId },
+      );
+      let stream = await db.oneOrNone(
+        `SELECT * FROM stream WHERE pod_id = $(podId) AND stream_id = $(streamId)`,
+        { podId: pod.id, streamId: "perm-update" },
+      );
+      expect(stream.access_permission).to.equal("public");
+
+      // User2 can read the public stream
+      client.setAuthToken(user2Token);
+      let readResponse = await client.get("/perm-update/initial");
+      expect(readResponse.status).to.equal(200);
+
+      // User1 updates permissions to private
+      client.setAuthToken(user1Token);
       const response = await client.post(
         "/perm-update/updated?access=private",
         "Updated",
       );
       expect(response.status).to.equal(201);
 
-      // Verify permissions were updated for new records
-      // (Note: existing stream permissions don't change, only apply to new writes)
+      // Verify permissions were actually updated
+      stream = await db.oneOrNone(
+        `SELECT * FROM stream WHERE pod_id = $(podId) AND stream_id = $(streamId)`,
+        { podId: pod.id, streamId: "perm-update" },
+      );
+      expect(stream.access_permission).to.equal("private");
+
+      // User2 can no longer read the now-private stream
+      client.setAuthToken(user2Token);
+      readResponse = await client.get("/perm-update/updated");
+      expect(readResponse.status).to.equal(403);
+
+      // User1 can still read their own private stream
+      client.setAuthToken(user1Token);
+      readResponse = await client.get("/perm-update/updated");
+      expect(readResponse.status).to.equal(200);
+    });
+
+    it("should prevent non-creator from updating stream permissions", async () => {
+      // User1 creates stream
+      client.setAuthToken(user1Token);
+      await client.post("/perm-noncreator/initial", "Initial");
+
+      // Verify initial permissions are public
       const db = testDb.getDb();
       const pod = await db.oneOrNone(
         `SELECT * FROM pod WHERE pod_id = $(podId)`,
         { podId: testPodId },
       );
-      const stream = await db.oneOrNone(
+      let stream = await db.oneOrNone(
         `SELECT * FROM stream WHERE pod_id = $(podId) AND stream_id = $(streamId)`,
-        { podId: pod.id, streamId: "perm-update" },
+        { podId: pod.id, streamId: "perm-noncreator" },
       );
-
-      // Original permissions should remain (first write sets them)
       expect(stream.access_permission).to.equal("public");
+
+      // User2 tries to update permissions (should be ignored)
+      client.setAuthToken(user2Token);
+      const response = await client.post(
+        "/perm-noncreator/attempt?access=private",
+        "Attempt to change permissions",
+      );
+      expect(response.status).to.equal(201); // Write succeeds
+
+      // But permissions should remain unchanged
+      stream = await db.oneOrNone(
+        `SELECT * FROM stream WHERE pod_id = $(podId) AND stream_id = $(streamId)`,
+        { podId: pod.id, streamId: "perm-noncreator" },
+      );
+      expect(stream.access_permission).to.equal("public"); // Still public
     });
   });
 
