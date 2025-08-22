@@ -137,11 +137,11 @@ export async function canRead(
     streamId: stream.stream_id,
     accessPermission: stream.access_permission,
     userId,
-    creatorId: stream.creator_id,
+    creatorId: stream.user_id,
   });
 
   // Creator always has access
-  if (userId && userId === stream.creator_id) {
+  if (userId && userId === stream.user_id) {
     return true;
   }
 
@@ -152,7 +152,7 @@ export async function canRead(
 
   // Private access - only creator
   if (stream.access_permission === "private") {
-    return userId === stream.creator_id;
+    return userId === stream.user_id;
   }
 
   // No auth means no access for non-public
@@ -198,7 +198,7 @@ export async function canWrite(
   userId: string,
 ): Promise<boolean> {
   // Creator always has access
-  if (userId === stream.creator_id) {
+  if (userId === stream.user_id) {
     return true;
   }
 
@@ -209,7 +209,7 @@ export async function canWrite(
 
   // Private access - only creator
   if (stream.access_permission === "private") {
-    return userId === stream.creator_id;
+    return userId === stream.user_id;
   }
 
   // Parse permission

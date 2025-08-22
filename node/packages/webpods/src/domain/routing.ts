@@ -140,7 +140,7 @@ export async function updateLinks(
 
       if (!linksStream) {
         linksStream = await t.one<StreamDbRow>(
-          `INSERT INTO stream (id, pod_id, stream_id, creator_id, access_permission, created_at)
+          `INSERT INTO stream (id, pod_id, stream_id, user_id, access_permission, created_at)
            VALUES (gen_random_uuid(), $(podId), '.meta/links', $(userId), 'private', NOW())
            RETURNING *`,
           { podId: pod.id, userId },
@@ -273,7 +273,7 @@ export async function updateCustomDomains(
 
       if (!domainsStream) {
         domainsStream = await t.one<StreamDbRow>(
-          `INSERT INTO stream (id, pod_id, stream_id, creator_id, access_permission, created_at)
+          `INSERT INTO stream (id, pod_id, stream_id, user_id, access_permission, created_at)
            VALUES (gen_random_uuid(), $(podId), '.meta/domains', $(userId), 'private', NOW())
            RETURNING *`,
           { podId: pod.id, userId },

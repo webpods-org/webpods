@@ -80,7 +80,7 @@ export async function createTestPod(
 
   // Create .meta/owner stream
   await db.none(
-    `INSERT INTO stream (id, pod_id, stream_id, creator_id, access_permission, created_at, updated_at)
+    `INSERT INTO stream (id, pod_id, stream_id, user_id, access_permission, created_at, updated_at)
      VALUES ($(streamUuid), $(podUuid), '.meta/owner', $(ownerId), 'private', NOW(), NOW())`,
     { streamUuid, podUuid, ownerId },
   );

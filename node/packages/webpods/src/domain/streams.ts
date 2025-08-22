@@ -18,7 +18,7 @@ function mapStreamFromDb(row: StreamDbRow): Stream {
     id: row.id,
     pod_id: row.pod_id,
     stream_id: row.stream_id,
-    creator_id: row.creator_id,
+    user_id: row.user_id,
     access_permission: row.access_permission,
     metadata: undefined,
     created_at: row.created_at,
@@ -62,11 +62,11 @@ export async function getOrCreateStream(
       // Check if permissions need to be updated
       if (accessPermission && accessPermission !== stream.access_permission) {
         // Only the creator can update permissions
-        if (stream.creator_id !== userId) {
+        if (stream.user_id !== userId) {
           logger.warn("Non-creator attempted to update stream permissions", {
             streamId: stream.id,
             userId,
-            creatorId: stream.creator_id,
+            creatorId: stream.user_id,
           });
           // Return the existing stream without updating
           return {
@@ -127,7 +127,7 @@ export async function getOrCreateStream(
 
     // Create new stream
     stream = await db.one<StreamDbRow>(
-      `INSERT INTO stream (id, pod_id, stream_id, creator_id, access_permission, created_at)
+      `INSERT INTO stream (id, pod_id, stream_id, user_id, access_permission, created_at)
        VALUES (gen_random_uuid(), $(podId), $(streamId), $(userId), $(accessPermission), NOW())
        RETURNING *`,
       {
@@ -233,7 +233,7 @@ export async function deleteStream(
     }
 
     // Only creator can delete stream
-    if (stream.creator_id !== userId) {
+    if (stream.user_id !== userId) {
       return {
         success: false,
         error: {

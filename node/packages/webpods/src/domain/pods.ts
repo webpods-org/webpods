@@ -32,7 +32,7 @@ function mapStreamFromDb(row: StreamDbRow): Stream {
     id: row.id,
     pod_id: row.pod_id,
     stream_id: row.stream_id,
-    creator_id: row.creator_id,
+    user_id: row.user_id,
     access_permission: row.access_permission,
     metadata: undefined,
     created_at: row.created_at,
@@ -87,7 +87,7 @@ export async function createPod(
 
       // Create .meta/owner stream with initial owner record
       const ownerStream = await t.one<StreamDbRow>(
-        `INSERT INTO stream (id, pod_id, stream_id, creator_id, access_permission, created_at)
+        `INSERT INTO stream (id, pod_id, stream_id, user_id, access_permission, created_at)
          VALUES (gen_random_uuid(), $(podId), '.meta/owner', $(userId), 'private', NOW())
          RETURNING *`,
         { podId: pod.id, userId },

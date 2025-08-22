@@ -65,7 +65,7 @@ describe("WebPods Stream Operations", () => {
         { podId: pod.id, streamId: "my-first-stream" },
       );
       expect(stream).to.exist;
-      expect(stream.creator_id).to.equal(userId);
+      expect(stream.user_id).to.equal(userId);
     });
 
     it("should support nested stream paths", async () => {

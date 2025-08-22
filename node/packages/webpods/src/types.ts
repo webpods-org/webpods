@@ -56,7 +56,7 @@ export interface Stream {
   id: string;
   pod_id: string;
   stream_id: string; // Stream path within pod (can include slashes)
-  creator_id: string;
+  user_id: string;
   access_permission: string; // 'public', 'private', or '/streamname'
   metadata?: any;
   created_at: Date;

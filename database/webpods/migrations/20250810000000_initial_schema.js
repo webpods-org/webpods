@@ -51,7 +51,7 @@ export async function up(knex) {
     table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
     table.uuid('pod_id').references('id').inTable('pod').onDelete('CASCADE');
     table.string('stream_id', 256).notNullable(); // Stream path (can include slashes)
-    table.uuid('creator_id').references('id').inTable('user').onDelete('RESTRICT');
+    table.uuid('user_id').references('id').inTable('user').onDelete('RESTRICT');
     table.string('access_permission', 500).defaultTo('public');
     table.jsonb('metadata').defaultTo('{}');
     table.timestamp('created_at').defaultTo(knex.fn.now());
@@ -59,7 +59,7 @@ export async function up(knex) {
     
     table.unique(['pod_id', 'stream_id']);
     table.index(['pod_id', 'stream_id']);
-    table.index('creator_id');
+    table.index('user_id');
   });
 
   // Record table - append-only records with hash chain
