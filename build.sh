@@ -3,8 +3,9 @@
 # build.sh – monorepo-aware build helper for WebPods
 #
 # Flags:
-#   --install   Force npm install in every package even if node_modules exists
-#   --migrate   Run DB migrations after build for all databases
+#   --install    Force npm install in every package even if node_modules exists
+#   --migrate    Run DB migrations after build for all databases
+#   --no-format  Skip prettier formatting (faster builds during development)
 # -------------------------------------------------------------------
 set -euo pipefail
 
@@ -54,7 +55,15 @@ for pkg_name in "${PACKAGES[@]}"; do
   fi
 done
 
-# 5 ▸ optional migrations via root scripts
+# 5 ▸ run prettier formatting (unless --no-format is passed)
+if [[ "$*" != *--no-format* ]]; then
+  echo "Running prettier formatting…"
+  ./format-all.sh
+else
+  echo "Skipping prettier formatting (--no-format flag)"
+fi
+
+# 6 ▸ optional migrations via root scripts
 if [[ "$*" == *--migrate* ]]; then
   echo "Running database migrations for all databases…"
   npm run migrate:all

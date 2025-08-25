@@ -87,8 +87,9 @@ When the user asks you to commit and push:
 
 ```bash
 # Build entire project (from root)
-./build.sh              # Standard build
+./build.sh              # Standard build with formatting
 ./build.sh --migrate    # Build + run DB migrations
+./build.sh --no-format  # Skip prettier formatting (faster builds during development)
 
 # Clean build artifacts
 ./clean.sh
@@ -199,6 +200,15 @@ npm run test:grep -- "permission"
 - NEVER use `2>&1` redirection with mocha commands - it will cause errors
 - Use plain `npm test` or `npx mocha` without stderr redirection
 - If you need to capture output, use `| tee` or similar tools instead
+
+### Optimizing Build Speed During Debugging
+
+**TIP**: Use `./build.sh --no-format` during debugging sessions to skip prettier formatting. This:
+- Reduces build time significantly  
+- Minimizes output that gets sent to the AI model (reducing token count)
+- Makes the debugging cycle faster
+
+Only use the standard `./build.sh` (with formatting) for final builds before committing.
 
 ## Git Workflow
 
