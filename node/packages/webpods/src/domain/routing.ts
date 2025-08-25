@@ -2,7 +2,7 @@
  * URL routing and custom domain logic
  */
 
-import { Database } from "../db.js";
+import { Database } from "../db/index.js";
 import { PodDbRow, StreamDbRow, RecordDbRow } from "../db-types.js";
 import { Result } from "../types.js";
 import { createLogger } from "../logger.js";

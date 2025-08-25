@@ -16,7 +16,7 @@ import {
 } from "../middleware/hybrid-auth.js";
 import { extractPod } from "../middleware/pod.js";
 import { rateLimit } from "../middleware/ratelimit.js";
-import { getDb } from "../db.js";
+import { getDb } from "../db/index.js";
 import { createLogger } from "../logger.js";
 import { getConfig } from "../config-loader.js";
 import {

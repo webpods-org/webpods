@@ -6,7 +6,7 @@ import { Request, Response, NextFunction } from "express";
 import { extractPodName, isMainDomain } from "../utils.js";
 import { findPodByDomain } from "../domain/routing.js";
 import { getPod } from "../domain/pods.js";
-import { getDb } from "../db.js";
+import { getDb } from "../db/index.js";
 import { createLogger } from "../logger.js";
 import { Pod } from "../types.js";
 import { getConfig } from "../config-loader.js";

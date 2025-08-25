@@ -4,7 +4,7 @@
 
 import { Request, Response, NextFunction } from "express";
 import { checkRateLimit, getRateLimitStatus } from "../domain/ratelimit.js";
-import { getDb } from "../db.js";
+import { getDb } from "../db/index.js";
 import { createLogger } from "../logger.js";
 import { getIpAddress } from "../utils.js";
 

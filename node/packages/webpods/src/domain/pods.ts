@@ -2,7 +2,7 @@
  * Pod operations domain logic
  */
 
-import { Database } from "../db.js";
+import { Database, sql } from "../db/index.js";
 import { PodDbRow, StreamDbRow, RecordDbRow } from "../db-types.js";
 import { Pod, Stream, Result } from "../types.js";
 import { isValidPodName, calculateRecordHash } from "../utils.js";
@@ -77,37 +77,53 @@ export async function createPod(
         };
       }
 
-      // Create pod
+      // Create pod with snake_case parameters
+      const podParams = {
+        id: crypto.randomUUID(),
+        name: podName,
+        created_at: new Date(),
+      };
+      
       const pod = await t.one<PodDbRow>(
-        `INSERT INTO pod (id, name, created_at)
-         VALUES (gen_random_uuid(), $(podName), NOW())
-         RETURNING *`,
-        { podName },
+        `${sql.insert("pod", podParams)} RETURNING *`,
+        podParams,
       );
 
-      // Create .meta/owner stream with initial owner record
+      // Create .meta/owner stream with snake_case parameters
+      const streamParams = {
+        id: crypto.randomUUID(),
+        pod_id: pod.id,
+        stream_id: ".meta/owner",
+        user_id: userId,
+        access_permission: "private",
+        created_at: new Date(),
+      };
+      
       const ownerStream = await t.one<StreamDbRow>(
-        `INSERT INTO stream (id, pod_id, stream_id, user_id, access_permission, created_at)
-         VALUES (gen_random_uuid(), $(podId), '.meta/owner', $(userId), 'private', NOW())
-         RETURNING *`,
-        { podId: pod.id, userId },
+        `${sql.insert("stream", streamParams)} RETURNING *`,
+        streamParams,
       );
 
-      // Write initial owner record
+      // Write initial owner record with snake_case parameters
       const ownerContent = { owner: userId };
       const timestamp = new Date().toISOString();
       const hash = calculateRecordHash(null, timestamp, ownerContent);
 
+      const recordParams = {
+        stream_id: ownerStream.id,
+        index: 0,
+        content: JSON.stringify(ownerContent),
+        content_type: "application/json",
+        name: "owner",
+        hash: hash,
+        previous_hash: null,
+        user_id: userId,
+        created_at: timestamp,
+      };
+      
       await t.none(
-        `INSERT INTO record (stream_id, index, content, content_type, name, hash, previous_hash, user_id, created_at)
-         VALUES ($(streamId), 0, $(content), 'application/json', 'owner', $(hash), NULL, $(userId), $(timestamp))`,
-        {
-          streamId: ownerStream.id,
-          content: JSON.stringify(ownerContent),
-          hash,
-          userId: userId,
-          timestamp,
-        },
+        sql.insert("record", recordParams),
+        recordParams,
       );
 
       logger.info("Pod created", { podName, userId });

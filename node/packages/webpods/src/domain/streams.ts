@@ -2,7 +2,7 @@
  * Stream operations domain logic
  */
 
-import { Database } from "../db.js";
+import { Database } from "../db/index.js";
 import { StreamDbRow } from "../db-types.js";
 import { Stream, Result } from "../types.js";
 import { isValidStreamId, isSystemStream } from "../utils.js";

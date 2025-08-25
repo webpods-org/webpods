@@ -5,7 +5,7 @@
 import { Router, Request, Response } from "express";
 import { getHydraAdmin } from "./hydra-client.js";
 import { isTestModeAllowed } from "./test-mode-guard.js";
-import { getDb } from "../db.js";
+import { getDb } from "../db/index.js";
 import { createLogger } from "../logger.js";
 
 const logger = createLogger("webpods:oauth:consent");

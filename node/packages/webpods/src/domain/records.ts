@@ -2,7 +2,7 @@
  * Record operations domain logic
  */
 
-import { Database } from "../db.js";
+import { Database } from "../db/index.js";
 import { RecordDbRow } from "../db-types.js";
 import { StreamRecord, Result, StreamRecordResponse } from "../types.js";
 import { calculateRecordHash, isValidName, isNumericIndex } from "../utils.js";

@@ -3,7 +3,7 @@
  */
 
 import { Router, Request, Response } from "express";
-import { getDb } from "../db.js";
+import { getDb } from "../db/index.js";
 import { createLogger } from "../logger.js";
 import { getConfig } from "../config-loader.js";
 import { findOrCreateUser } from "../domain/users.js";

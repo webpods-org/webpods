@@ -4,7 +4,7 @@
 
 import { config } from "dotenv";
 import { createLogger } from "./logger.js";
-import { closeDb, checkDbConnection } from "./db.js";
+import { closeDb, checkDbConnection } from "./db/index.js";
 import { cleanupExpiredStates } from "./auth/pkce-store.js";
 import { createApp } from "./server.js";
 import { getConfig } from "./config-loader.js";

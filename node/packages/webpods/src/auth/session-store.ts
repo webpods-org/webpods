@@ -4,7 +4,7 @@
 
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
-import { getDb } from "../db.js";
+import { getDb } from "../db/index.js";
 import { createLogger } from "../logger.js";
 import { getConfig } from "../config-loader.js";
 

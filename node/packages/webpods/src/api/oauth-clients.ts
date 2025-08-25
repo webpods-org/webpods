@@ -5,7 +5,7 @@
 import { Router, Request, Response } from "express";
 import { z } from "zod";
 import crypto from "crypto";
-import { getDb } from "../db.js";
+import { getDb } from "../db/index.js";
 import { getHydraAdmin } from "../oauth/hydra-client.js";
 import { requireWebPodsJWT } from "../middleware/webpods-jwt.js";
 import { createLogger } from "../logger.js";

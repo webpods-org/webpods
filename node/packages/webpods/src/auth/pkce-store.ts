@@ -2,7 +2,7 @@
  * PKCE state storage in PostgreSQL
  */
 
-import { getDb } from "../db.js";
+import { getDb } from "../db/index.js";
 import { createLogger } from "../logger.js";
 import { generators } from "openid-client";
 

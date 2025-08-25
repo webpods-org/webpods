@@ -13,7 +13,7 @@ import { getSessionConfig } from "./auth/session-store.js";
 import { getConfig } from "./config-loader.js";
 import { getVersion } from "./version.js";
 import { isMainDomain, isSubdomainOf } from "./utils.js";
-import { getDb } from "./db.js";
+import { getDb } from "./db/index.js";
 import authRouter from "./auth/routes.js";
 import loginRouter from "./auth/login-page.js";
 import oauthRouter from "./oauth/routes.js";

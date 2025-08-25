@@ -10,7 +10,7 @@
 
 import { Router, Request, Response } from "express";
 import crypto from "crypto";
-import { getDb } from "../db.js";
+import { getDb } from "../db/index.js";
 import { createLogger } from "../logger.js";
 import { getHydraPublicUrl } from "./hydra-client.js";
 

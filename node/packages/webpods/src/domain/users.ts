@@ -2,7 +2,7 @@
  * User management functions
  */
 
-import { Database } from "../db.js";
+import { Database } from "../db/index.js";
 import { Result, User, Identity } from "../types.js";
 import { createLogger } from "../logger.js";
 import type { OAuthProvider } from "../types.js";
