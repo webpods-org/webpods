@@ -83,7 +83,7 @@ export async function createPod(
         name: podName,
         created_at: new Date(),
       };
-      
+
       const pod = await t.one<PodDbRow>(
         `${sql.insert("pod", podParams)} RETURNING *`,
         podParams,
@@ -98,7 +98,7 @@ export async function createPod(
         access_permission: "private",
         created_at: new Date(),
       };
-      
+
       const ownerStream = await t.one<StreamDbRow>(
         `${sql.insert("stream", streamParams)} RETURNING *`,
         streamParams,
@@ -120,11 +120,8 @@ export async function createPod(
         user_id: userId,
         created_at: timestamp,
       };
-      
-      await t.none(
-        sql.insert("record", recordParams),
-        recordParams,
-      );
+
+      await t.none(sql.insert("record", recordParams), recordParams);
 
       logger.info("Pod created", { podName, userId });
       const mappedPod = mapPodFromDb(pod);

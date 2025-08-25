@@ -5,11 +5,11 @@
 
 /**
  * Generate an INSERT statement with named parameters
- * 
+ *
  * @param tableName - The table to insert into
  * @param params - Object with snake_case column names as keys
  * @returns SQL INSERT statement string
- * 
+ *
  * @example
  * const params = {
  *   id: uuidv4(),
@@ -30,15 +30,15 @@ export function insert(tableName: string, params: Record<string, any>): string {
 
 /**
  * Generate an UPDATE statement with named parameters
- * 
+ *
  * @param tableName - The table to update
  * @param params - Object with snake_case column names as keys
  * @returns SQL UPDATE statement string (without WHERE clause)
- * 
+ *
  * @example
- * const updateParams = { 
+ * const updateParams = {
  *   status: 'completed',
- *   updated_at: new Date() 
+ *   updated_at: new Date()
  * };
  * const query = `
  *   ${sql.update("task", updateParams)}
