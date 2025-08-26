@@ -389,6 +389,7 @@ Supported formats: PNG, JPEG, GIF, WebP, SVG, ICO
 ## Pagination Examples
 
 ### Get the last 20 records
+
 ```bash
 # Using negative after parameter
 curl alice.webpods.org/stream?after=-20
@@ -397,6 +398,7 @@ curl alice.webpods.org/stream?after=-20
 ```
 
 ### Get records 10-30
+
 ```bash
 # Using positive after with limit
 curl alice.webpods.org/stream?after=9&limit=21
@@ -405,6 +407,7 @@ curl alice.webpods.org/stream?after=9&limit=21
 ```
 
 ### Get all records from the last 50
+
 ```bash
 # When there are fewer than 50 records, returns all
 curl alice.webpods.org/stream?after=-50
@@ -414,6 +417,7 @@ curl alice.webpods.org/stream?after=-50
 ```
 
 ### Paginate through unique records
+
 ```bash
 # Get last 10 unique (named) records
 curl alice.webpods.org/stream?unique=true&after=-10

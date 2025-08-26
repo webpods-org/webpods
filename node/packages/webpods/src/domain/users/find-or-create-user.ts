@@ -78,7 +78,11 @@ export async function findOrCreateUser(
         await ctx.db.none(
           `${sql.update("identity", updateParams)}
            WHERE provider = $(provider) AND provider_id = $(provider_id)`,
-          { ...updateParams, provider: provider.provider, provider_id: providerId },
+          {
+            ...updateParams,
+            provider: provider.provider,
+            provider_id: providerId,
+          },
         );
       }
 

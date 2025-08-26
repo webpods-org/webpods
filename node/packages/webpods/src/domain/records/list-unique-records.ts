@@ -89,20 +89,24 @@ export async function listUniqueRecords(
     let actualAfter = after;
     if (after !== undefined && after < 0) {
       // Get total count to convert negative index
-      const totalCount = await ctx.db.one<{ count: string }>(
-        `SELECT COUNT(*) as count FROM record WHERE stream_id = $(stream_id)`,
-        { stream_id: streamId },
-      ).then(r => parseInt(r.count));
-      
+      const totalCount = await ctx.db
+        .one<{
+          count: string;
+        }>(
+          `SELECT COUNT(*) as count FROM record WHERE stream_id = $(stream_id)`,
+          { stream_id: streamId },
+        )
+        .then((r) => parseInt(r.count));
+
       // after=-3 means "get the last 3 records", so we skip totalCount-3 records
       actualAfter = totalCount + after - 1;
-      
+
       // If still negative, start from beginning
       if (actualAfter < 0) {
         actualAfter = -1;
       }
     }
-    
+
     if (actualAfter !== undefined) {
       uniqueRecords = uniqueRecords.filter((r) => r.index > actualAfter);
     }

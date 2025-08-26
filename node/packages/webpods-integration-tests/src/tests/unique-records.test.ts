@@ -214,7 +214,7 @@ describe("Unique Records Listing", () => {
       const response = await podClient.get("/negtest?unique=true&after=-3");
       expect(response.status).to.equal(200);
       expect(response.data.records).to.have.length(3);
-      
+
       // Should get the last 3 items
       const names = response.data.records.map((r: any) => r.name);
       expect(names).to.deep.equal(["item3", "item4", "item5"]);
