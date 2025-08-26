@@ -75,13 +75,13 @@ async function getUserOwnedPods(userId: string): Promise<string[]> {
        FROM pod p
        WHERE EXISTS (
          SELECT 1 FROM stream s
-         JOIN record r ON r.stream_id = s.id
-         WHERE s.pod_id = p.id
-         AND s.stream_id = '.meta/owner'
+         JOIN record r ON r.stream_pod_name = s.pod_name AND r.stream_name = s.name
+         WHERE s.pod_name = p.name
+         AND s.name = '.meta/owner'
          AND r.content::jsonb->>'owner' = $(user_id)
          AND r.index = (
            SELECT MAX(r2.index) FROM record r2
-           WHERE r2.stream_id = s.id
+           WHERE r2.stream_pod_name = s.pod_name AND r2.stream_name = s.name
          )
        )`,
       { user_id: userId },

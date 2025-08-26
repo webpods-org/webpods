@@ -46,7 +46,7 @@ export async function up(knex) {
   // Stream table - represents streams within pods (supports nested paths)
   await knex.schema.createTable('stream', (table) => {
     table.string('pod_name', 63).references('name').inTable('pod').onDelete('CASCADE');
-    table.string('stream_id', 256).notNullable(); // Stream path (can include slashes)
+    table.string('name', 256).notNullable(); // Stream path (can include slashes)
     table.uuid('user_id').references('id').inTable('user').onDelete('RESTRICT');
     table.string('access_permission', 500).defaultTo('public');
     table.jsonb('metadata').defaultTo('{}');
@@ -54,7 +54,7 @@ export async function up(knex) {
     table.timestamp('updated_at').defaultTo(knex.fn.now());
     
     // Composite primary key
-    table.primary(['pod_name', 'stream_id']);
+    table.primary(['pod_name', 'name']);
     table.index('user_id');
   });
 
@@ -62,7 +62,7 @@ export async function up(knex) {
   await knex.schema.createTable('record', (table) => {
     table.bigIncrements('id').primary();
     table.string('stream_pod_name', 63).notNullable();
-    table.string('stream_id', 256).notNullable();
+    table.string('stream_name', 256).notNullable();
     table.integer('index').notNullable(); // Position in stream (0-based)
     table.text('content'); // Can be text or JSON
     table.string('content_type', 100).defaultTo('text/plain');
@@ -73,11 +73,11 @@ export async function up(knex) {
     table.timestamp('created_at').defaultTo(knex.fn.now());
     
     // Foreign key to stream composite primary key
-    table.foreign(['stream_pod_name', 'stream_id']).references(['pod_name', 'stream_id']).inTable('stream').onDelete('CASCADE');
+    table.foreign(['stream_pod_name', 'stream_name']).references(['pod_name', 'name']).inTable('stream').onDelete('CASCADE');
     
-    table.unique(['stream_pod_name', 'stream_id', 'index']);
-    table.index(['stream_pod_name', 'stream_id', 'index']);
-    table.index(['stream_pod_name', 'stream_id', 'name']);
+    table.unique(['stream_pod_name', 'stream_name', 'index']);
+    table.index(['stream_pod_name', 'stream_name', 'index']);
+    table.index(['stream_pod_name', 'stream_name', 'name']);
     table.index('user_id');
     table.index('hash');
   });

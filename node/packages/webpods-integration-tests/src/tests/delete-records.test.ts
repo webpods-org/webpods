@@ -80,7 +80,7 @@ describe("WebPods Record Deletion", () => {
         { podId: testPodId },
       );
       const stream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND stream_id = $(streamId)`,
+        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId)`,
         { pod_name: pod.name, streamId: "documents" },
       );
 
@@ -88,10 +88,10 @@ describe("WebPods Record Deletion", () => {
       const tombstones = await db.manyOrNone(
         `SELECT * FROM record 
          WHERE stream_pod_name = $(pod_name)
-         AND stream_id = $(streamId) 
+         AND stream_name = $(streamId) 
          AND name LIKE 'report.deleted.%'
          ORDER BY index DESC`,
-        { pod_name: pod.name, streamId: stream.stream_id },
+        { pod_name: pod.name, streamId: stream.name },
       );
 
       expect(tombstones).to.have.lengthOf(1);
@@ -162,11 +162,11 @@ describe("WebPods Record Deletion", () => {
         { podId: testPodId },
       );
       await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND stream_id = $(streamId)`,
+        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId)`,
         { pod_name: pod.name, streamId: "secrets" },
       );
       const record = await db.oneOrNone(
-        `SELECT * FROM record WHERE stream_pod_name = $(pod_name) AND stream_id = $(streamId) AND name = $(name)`,
+        `SELECT * FROM record WHERE stream_pod_name = $(pod_name) AND stream_name = $(streamId) AND name = $(name)`,
         { pod_name: pod.name, streamId: "secrets", name: "password" },
       );
 

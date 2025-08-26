@@ -17,7 +17,7 @@ const logger = createLogger("webpods:domain:pods");
 function mapStreamFromDb(row: StreamDbRow): Stream {
   return {
     pod_name: row.pod_name,
-    stream_id: row.stream_id,
+    name: row.name,
     user_id: row.user_id,
     access_permission: row.access_permission,
     metadata: row.metadata,

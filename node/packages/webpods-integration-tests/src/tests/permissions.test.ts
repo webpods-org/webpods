@@ -233,7 +233,7 @@ describe("WebPods Permissions", () => {
         { podId: testPodId },
       );
       let stream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND stream_id = $(streamId)`,
+        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId)`,
         { pod_name: pod.name, streamId: "perm-update" },
       );
       expect(stream.access_permission).to.equal("public");
@@ -253,7 +253,7 @@ describe("WebPods Permissions", () => {
 
       // Verify permissions were actually updated
       stream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND stream_id = $(streamId)`,
+        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId)`,
         { pod_name: pod.name, streamId: "perm-update" },
       );
       expect(stream.access_permission).to.equal("private");
@@ -281,7 +281,7 @@ describe("WebPods Permissions", () => {
         { podId: testPodId },
       );
       let stream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND stream_id = $(streamId)`,
+        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId)`,
         { pod_name: pod.name, streamId: "perm-noncreator" },
       );
       expect(stream.access_permission).to.equal("public");
@@ -296,7 +296,7 @@ describe("WebPods Permissions", () => {
 
       // But permissions should remain unchanged
       stream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND stream_id = $(streamId)`,
+        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId)`,
         { pod_name: pod.name, streamId: "perm-noncreator" },
       );
       expect(stream.access_permission).to.equal("public"); // Still public

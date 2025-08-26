@@ -25,7 +25,7 @@ export async function resolveLink(
       `SELECT r.*
        FROM record r
        WHERE r.stream_pod_name = $(pod_name)
-         AND r.stream_id = '.meta/links'
+         AND r.stream_name = '.meta/links'
        ORDER BY r.created_at DESC
        LIMIT 1`,
       { pod_name: podName },

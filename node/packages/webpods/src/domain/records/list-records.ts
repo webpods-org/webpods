@@ -17,7 +17,7 @@ function mapRecordFromDb(row: RecordDbRow): StreamRecord {
   return {
     id: row.id ? parseInt(row.id) : 0,
     stream_pod_name: row.stream_pod_name,
-    stream_id: row.stream_id,
+    stream_name: row.stream_name,
     index: row.index,
     content: row.content,
     content_type: row.content_type,
@@ -45,10 +45,10 @@ export async function listRecords(
   try {
     let query = `SELECT * FROM record 
                   WHERE stream_pod_name = $(pod_name) 
-                    AND stream_id = $(stream_id)`;
+                    AND stream_name = $(stream_name)`;
     const params: any = {
       pod_name: podName,
-      stream_id: streamId,
+      stream_name: streamId,
       limit: limit + 1,
     };
 
@@ -59,8 +59,8 @@ export async function listRecords(
       const countResult = await ctx.db.one<{ count: string }>(
         `SELECT COUNT(*) as count FROM record 
          WHERE stream_pod_name = $(pod_name) 
-           AND stream_id = $(stream_id)`,
-        { pod_name: podName, stream_id: streamId },
+           AND stream_name = $(stream_name)`,
+        { pod_name: podName, stream_name: streamId },
       );
       const totalCount = parseInt(countResult.count);
       // after=-3 means "get the last 3 records", so we skip totalCount-3 records
@@ -85,8 +85,8 @@ export async function listRecords(
     const countResult = await ctx.db.one<{ count: string }>(
       `SELECT COUNT(*) as count FROM record 
        WHERE stream_pod_name = $(pod_name) 
-         AND stream_id = $(stream_id)`,
-      { pod_name: podName, stream_id: streamId },
+         AND stream_name = $(stream_name)`,
+      { pod_name: podName, stream_name: streamId },
     );
 
     const total = parseInt(countResult.count);

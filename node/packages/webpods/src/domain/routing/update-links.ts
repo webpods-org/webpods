@@ -34,7 +34,7 @@ export async function updateLinks(
       let linksStream = await t.oneOrNone<StreamDbRow>(
         `SELECT * FROM stream
          WHERE pod_name = $(pod_name)
-           AND stream_id = '.meta/links'`,
+           AND name = '.meta/links'`,
         { pod_name: podName },
       );
 
@@ -42,7 +42,7 @@ export async function updateLinks(
         // Create the stream with snake_case parameters
         const streamParams = {
           pod_name: podName,
-          stream_id: ".meta/links",
+          name: ".meta/links",
           user_id: userId,
           access_permission: "private",
           created_at: new Date(),
@@ -58,10 +58,10 @@ export async function updateLinks(
       const previousRecord = await t.oneOrNone<RecordDbRow>(
         `SELECT * FROM record
          WHERE stream_pod_name = $(stream_pod_name)
-           AND stream_id = $(stream_id)
+           AND stream_name = $(stream_name)
          ORDER BY index DESC
          LIMIT 1`,
-        { stream_pod_name: podName, stream_id: ".meta/links" },
+        { stream_pod_name: podName, stream_name: ".meta/links" },
       );
 
       const index = (previousRecord?.index ?? -1) + 1;
@@ -74,7 +74,7 @@ export async function updateLinks(
       // Write new links record with all links in one record
       const params = {
         stream_pod_name: podName,
-        stream_id: ".meta/links",
+        stream_name: ".meta/links",
         index: index,
         content: JSON.stringify(links),
         content_type: "application/json",

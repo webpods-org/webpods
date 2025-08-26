@@ -17,7 +17,7 @@ function mapRecordFromDb(row: RecordDbRow): StreamRecord {
   return {
     id: row.id ? parseInt(row.id) : 0,
     stream_pod_name: row.stream_pod_name,
-    stream_id: row.stream_id,
+    stream_name: row.stream_name,
     index: row.index,
     content: row.content,
     content_type: row.content_type,
@@ -47,10 +47,10 @@ export async function listUniqueRecords(
     const allRecords = await ctx.db.manyOrNone<RecordDbRow>(
       `SELECT * FROM record
        WHERE stream_pod_name = $(pod_name)
-         AND stream_id = $(stream_id)
+         AND stream_name = $(stream_name)
          AND name IS NOT NULL
        ORDER BY index ASC`,
-      { pod_name: podName, stream_id: streamId },
+      { pod_name: podName, stream_name: streamId },
     );
 
     // Build map of latest record per name, excluding deleted
@@ -96,8 +96,8 @@ export async function listUniqueRecords(
         .one<{
           count: string;
         }>(
-          `SELECT COUNT(*) as count FROM record WHERE stream_pod_name = $(pod_name) AND stream_id = $(stream_id)`,
-          { pod_name: podName, stream_id: streamId },
+          `SELECT COUNT(*) as count FROM record WHERE stream_pod_name = $(pod_name) AND stream_name = $(stream_name)`,
+          { pod_name: podName, stream_name: streamId },
         )
         .then((r) => parseInt(r.count));
 

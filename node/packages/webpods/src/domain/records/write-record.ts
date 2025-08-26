@@ -20,7 +20,7 @@ function mapRecordFromDb(row: RecordDbRow): StreamRecord {
   return {
     id: row.id ? parseInt(row.id) : 0,
     stream_pod_name: row.stream_pod_name,
-    stream_id: row.stream_id,
+    stream_name: row.stream_name,
     index: row.index,
     content: row.content,
     content_type: row.content_type,
@@ -61,10 +61,10 @@ export async function writeRecord(
       const previousRecord = await t.oneOrNone<RecordDbRow>(
         `SELECT * FROM record 
          WHERE stream_pod_name = $(pod_name)
-           AND stream_id = $(stream_id)
+           AND stream_name = $(stream_name)
          ORDER BY index DESC
          LIMIT 1`,
-        { pod_name: podName, stream_id: streamId },
+        { pod_name: podName, stream_name: streamId },
       );
 
       const index = (previousRecord?.index ?? -1) + 1;
@@ -83,7 +83,7 @@ export async function writeRecord(
       // Insert new record with snake_case parameters
       const params = {
         stream_pod_name: podName,
-        stream_id: streamId,
+        stream_name: streamId,
         index: index,
         content: storedContent,
         content_type: contentType,

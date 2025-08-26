@@ -23,8 +23,8 @@ export async function updateStreamPermissions(
     await ctx.db.none(
       `${sql.update("stream", params)}
        WHERE pod_name = $(pod_name)
-         AND stream_id = $(stream_id)`,
-      { ...params, pod_name: podName, stream_id: streamId },
+         AND name = $(name)`,
+      { ...params, pod_name: podName, name: streamId },
     );
 
     logger.info("Stream permissions updated", {

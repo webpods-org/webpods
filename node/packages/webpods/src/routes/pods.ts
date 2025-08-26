@@ -969,7 +969,7 @@ router.get(
         const result = await getRecord(
           { db },
           req.pod_name,
-          streamResult.data.stream_id,
+          streamResult.data.name,
           parsed.start.toString(),
           false,
         );
@@ -1040,7 +1040,7 @@ router.get(
         const result = await getRecordRange(
           { db },
           req.pod_name,
-          streamResult.data.stream_id,
+          streamResult.data.name,
           parsed.start,
           parsed.end!,
         );
@@ -1063,7 +1063,7 @@ router.get(
       const result = await getRecord(
         { db },
         req.pod_name,
-        streamResult.data.stream_id,
+        streamResult.data.name,
         name,
         true,
       );
@@ -1080,14 +1080,14 @@ router.get(
       const tombstones = await db.manyOrNone(
         `SELECT * FROM record
          WHERE stream_pod_name = $(podName)
-           AND stream_id = $(streamId)
+           AND stream_name = $(streamId)
            AND name LIKE $(pattern)
            AND index > $(index)
          ORDER BY index DESC
          LIMIT 1`,
         {
           podName: req.pod_name,
-          streamId: streamResult.data.stream_id,
+          streamId: streamResult.data.name,
           pattern: tombstonePattern,
           index: result.data.index,
         },
@@ -1179,14 +1179,14 @@ router.get(
         ? await listUniqueRecords(
             { db },
             req.pod_name,
-            streamResult.data.stream_id,
+            streamResult.data.name,
             limit,
             after,
           )
         : await listRecords(
             { db },
             req.pod_name,
-            streamResult.data.stream_id,
+            streamResult.data.name,
             limit,
             after,
           );
@@ -1313,11 +1313,11 @@ router.delete(
            SET content = $(content),
                content_type = $(contentType)
            WHERE stream_pod_name = $(podName)
-             AND stream_id = $(streamId)
+             AND stream_name = $(streamId)
              AND name = $(recordName)`,
           {
             podName: req.pod_name,
-            streamId: streamResult.data.stream_id,
+            streamId: streamResult.data.name,
             recordName,
             content: JSON.stringify({
               deleted: true,
@@ -1353,12 +1353,12 @@ router.delete(
         const lastRecord = await db.oneOrNone(
           `SELECT * FROM record
            WHERE stream_pod_name = $(podName)
-             AND stream_id = $(streamId)
+             AND stream_name = $(streamId)
            ORDER BY index DESC
            LIMIT 1`,
           {
             podName: req.pod_name,
-            streamId: streamResult.data.stream_id,
+            streamId: streamResult.data.name,
           },
         );
 
@@ -1375,7 +1375,7 @@ router.delete(
         const writeResult = await writeRecord(
           { db },
           req.pod_name,
-          streamResult.data.stream_id,
+          streamResult.data.name,
           deletionRecord,
           "application/json",
           req.auth.user_id,

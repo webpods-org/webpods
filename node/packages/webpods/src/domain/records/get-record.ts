@@ -18,7 +18,7 @@ function mapRecordFromDb(row: RecordDbRow): StreamRecord {
   return {
     id: row.id ? parseInt(row.id) : 0,
     stream_pod_name: row.stream_pod_name,
-    stream_id: row.stream_id,
+    stream_name: row.stream_name,
     index: row.index,
     content: row.content,
     content_type: row.content_type,
@@ -50,11 +50,11 @@ export async function getRecord(
       record = await ctx.db.oneOrNone<RecordDbRow>(
         `SELECT * FROM record
          WHERE stream_pod_name = $(pod_name)
-           AND stream_id = $(stream_id)
+           AND stream_name = $(stream_name)
            AND name = $(name)
          ORDER BY index DESC
          LIMIT 1`,
-        { pod_name: podName, stream_id: streamId, name: target },
+        { pod_name: podName, stream_name: streamId, name: target },
       );
 
       // If not found as name and target is numeric, try as index
@@ -64,8 +64,8 @@ export async function getRecord(
         // Handle negative indexing
         if (index < 0) {
           const countResult = await ctx.db.one<{ count: string }>(
-            `SELECT COUNT(*) as count FROM record WHERE stream_pod_name = $(pod_name) AND stream_id = $(stream_id)`,
-            { pod_name: podName, stream_id: streamId },
+            `SELECT COUNT(*) as count FROM record WHERE stream_pod_name = $(pod_name) AND stream_name = $(stream_name)`,
+            { pod_name: podName, stream_name: streamId },
           );
 
           index = parseInt(countResult.count) + index;
@@ -77,9 +77,9 @@ export async function getRecord(
         record = await ctx.db.oneOrNone<RecordDbRow>(
           `SELECT * FROM record
            WHERE stream_pod_name = $(pod_name)
-             AND stream_id = $(stream_id)
+             AND stream_name = $(stream_name)
              AND index = $(index)`,
-          { pod_name: podName, stream_id: streamId, index },
+          { pod_name: podName, stream_name: streamId, index },
         );
       }
     } else if (isNumericIndex(target)) {
@@ -89,8 +89,8 @@ export async function getRecord(
       // Handle negative indexing
       if (index < 0) {
         const countResult = await ctx.db.one<{ count: string }>(
-          `SELECT COUNT(*) as count FROM record WHERE stream_pod_name = $(pod_name) AND stream_id = $(stream_id)`,
-          { pod_name: podName, stream_id: streamId },
+          `SELECT COUNT(*) as count FROM record WHERE stream_pod_name = $(pod_name) AND stream_name = $(stream_name)`,
+          { pod_name: podName, stream_name: streamId },
         );
 
         index = parseInt(countResult.count) + index;
@@ -102,20 +102,20 @@ export async function getRecord(
       record = await ctx.db.oneOrNone<RecordDbRow>(
         `SELECT * FROM record
          WHERE stream_pod_name = $(pod_name)
-           AND stream_id = $(stream_id)
+           AND stream_name = $(stream_name)
            AND index = $(index)`,
-        { pod_name: podName, stream_id: streamId, index },
+        { pod_name: podName, stream_name: streamId, index },
       );
     } else {
       // Target is not numeric, treat as name - get the latest record with this name
       record = await ctx.db.oneOrNone<RecordDbRow>(
         `SELECT * FROM record
          WHERE stream_pod_name = $(pod_name)
-           AND stream_id = $(stream_id)
+           AND stream_name = $(stream_name)
            AND name = $(name)
          ORDER BY index DESC
          LIMIT 1`,
-        { pod_name: podName, stream_id: streamId, name: target },
+        { pod_name: podName, stream_name: streamId, name: target },
       );
     }
 

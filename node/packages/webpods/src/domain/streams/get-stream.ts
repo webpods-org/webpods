@@ -17,7 +17,7 @@ const logger = createLogger("webpods:domain:streams");
 function mapStreamFromDb(row: StreamDbRow): Stream {
   return {
     pod_name: row.pod_name,
-    stream_id: row.stream_id,
+    name: row.name,
     user_id: row.user_id,
     access_permission: row.access_permission,
     metadata: row.metadata,
@@ -35,8 +35,8 @@ export async function getStream(
     const stream = await ctx.db.oneOrNone<StreamDbRow>(
       `SELECT * FROM stream
        WHERE pod_name = $(pod_name)
-         AND stream_id = $(stream_id)`,
-      { pod_name: podName, stream_id: streamId },
+         AND name = $(name)`,
+      { pod_name: podName, name: streamId },
     );
 
     if (!stream) {

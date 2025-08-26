@@ -34,7 +34,7 @@ export type PodDbRow = {
 // Stream table
 export type StreamDbRow = {
   pod_name: string; // Part of composite primary key
-  stream_id: string; // Part of composite primary key
+  name: string; // Part of composite primary key (stream name/path)
   user_id: string;
   access_permission: string;
   metadata?: any; // JSONB
@@ -46,7 +46,7 @@ export type StreamDbRow = {
 export type RecordDbRow = {
   id?: string; // bigserial - Optional for inserts
   stream_pod_name: string; // References stream.pod_name
-  stream_id: string; // References stream.stream_id
+  stream_name: string; // References stream.name
   index: number;
   content: string;
   content_type: string;

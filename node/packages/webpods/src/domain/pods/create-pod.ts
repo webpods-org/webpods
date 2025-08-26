@@ -63,7 +63,7 @@ export async function createPod(
       // Create .meta/owner stream with snake_case parameters
       const streamParams = {
         pod_name: pod.name,
-        stream_id: ".meta/owner",
+        name: ".meta/owner",
         user_id: userId,
         access_permission: "private",
         created_at: new Date(),
@@ -81,7 +81,7 @@ export async function createPod(
 
       const recordParams = {
         stream_pod_name: pod.name,
-        stream_id: ".meta/owner",
+        stream_name: ".meta/owner",
         index: 0,
         content: JSON.stringify(ownerContent),
         content_type: "application/json",

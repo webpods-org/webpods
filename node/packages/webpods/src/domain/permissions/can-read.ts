@@ -17,7 +17,7 @@ export async function canRead(
   userId: string | null,
 ): Promise<boolean> {
   logger.info("canRead check", {
-    streamId: stream.stream_id,
+    streamId: stream.name,
     accessPermission: stream.access_permission,
     userId,
     creatorId: stream.user_id,
@@ -54,7 +54,7 @@ export async function canRead(
     logger.info("Checking stream-based permission", {
       streamPath: perm.streamPath,
       userId,
-      streamId: stream.stream_id,
+      streamId: stream.name,
     });
     // Get pod for this stream
     const pod = await ctx.db.oneOrNone<PodDbRow>(

@@ -33,7 +33,7 @@ export async function updateCustomDomains(
       const ownerRecord = await t.oneOrNone<RecordDbRow>(
         `SELECT r.* FROM record r
          WHERE r.stream_pod_name = $(pod_name)
-           AND r.stream_id = '.meta/owner'
+           AND r.stream_name = '.meta/owner'
            AND r.name = 'owner'
          ORDER BY r.index DESC
          LIMIT 1`,
@@ -59,7 +59,7 @@ export async function updateCustomDomains(
       let domainsStream = await t.oneOrNone<StreamDbRow>(
         `SELECT * FROM stream
          WHERE pod_name = $(pod_name)
-           AND stream_id = '.meta/domains'`,
+           AND name = '.meta/domains'`,
         { pod_name: podName },
       );
 
@@ -67,7 +67,7 @@ export async function updateCustomDomains(
         // Create the stream with snake_case parameters
         const streamParams = {
           pod_name: podName,
-          stream_id: ".meta/domains",
+          name: ".meta/domains",
           user_id: userId,
           access_permission: "private",
           created_at: new Date(),
@@ -83,10 +83,10 @@ export async function updateCustomDomains(
       const lastRecord = await t.oneOrNone<RecordDbRow>(
         `SELECT * FROM record
          WHERE stream_pod_name = $(stream_pod_name)
-           AND stream_id = $(stream_id)
+           AND stream_name = $(stream_name)
          ORDER BY index DESC
          LIMIT 1`,
-        { stream_pod_name: podName, stream_id: ".meta/domains" },
+        { stream_pod_name: podName, stream_name: ".meta/domains" },
       );
 
       let index = (lastRecord?.index ?? -1) + 1;
@@ -101,7 +101,7 @@ export async function updateCustomDomains(
 
           const params = {
             stream_pod_name: podName,
-            stream_id: ".meta/domains",
+            stream_name: ".meta/domains",
             index: index,
             content: JSON.stringify(content),
             content_type: "application/json",
@@ -128,7 +128,7 @@ export async function updateCustomDomains(
 
           const params = {
             stream_pod_name: podName,
-            stream_id: ".meta/domains",
+            stream_name: ".meta/domains",
             index: index,
             content: JSON.stringify(content),
             content_type: "application/json",

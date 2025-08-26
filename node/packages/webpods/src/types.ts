@@ -50,7 +50,7 @@ export interface Pod {
 
 export interface Stream {
   pod_name: string; // Part of composite primary key
-  stream_id: string; // Part of composite primary key - Stream path within pod (can include slashes)
+  name: string; // Part of composite primary key - Stream path within pod (can include slashes)
   user_id: string;
   access_permission: string; // 'public', 'private', or '/streamname'
   metadata?: any;
@@ -61,7 +61,7 @@ export interface Stream {
 export interface StreamRecord {
   id: number;
   stream_pod_name: string; // References stream.pod_name
-  stream_id: string; // References stream.stream_id
+  stream_name: string; // References stream.name
   index: number; // Position in stream (0-based)
   content: string | any; // Can be text or JSON
   content_type: string;
@@ -203,7 +203,7 @@ export interface CreatePodInput {
 }
 
 export interface CreateStreamInput {
-  stream_id: string;
+  name: string;
   access_permission?: string;
 }
 

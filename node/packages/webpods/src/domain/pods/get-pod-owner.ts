@@ -18,7 +18,7 @@ export async function getPodOwner(
     const ownerRecord = await ctx.db.oneOrNone<RecordDbRow>(
       `SELECT r.* FROM record r
        WHERE r.stream_pod_name = $(pod_name)
-         AND r.stream_id = '.meta/owner'
+         AND r.stream_name = '.meta/owner'
          AND r.name = 'owner'
        ORDER BY r.index DESC
        LIMIT 1`,

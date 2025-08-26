@@ -28,8 +28,8 @@ export async function deleteStream(
       const stream = await t.oneOrNone<StreamDbRow>(
         `SELECT * FROM stream
          WHERE pod_name = $(pod_name)
-           AND stream_id = $(stream_id)`,
-        { pod_name: podName, stream_id: streamId },
+           AND name = $(name)`,
+        { pod_name: podName, name: streamId },
       );
 
       if (!stream) {
@@ -47,16 +47,16 @@ export async function deleteStream(
       await t.none(
         `DELETE FROM record 
          WHERE stream_pod_name = $(pod_name)
-           AND stream_id = $(stream_id)`,
-        { pod_name: podName, stream_id: streamId },
+           AND stream_name = $(stream_name)`,
+        { pod_name: podName, stream_name: streamId },
       );
 
       // Delete the stream
       await t.none(
         `DELETE FROM stream 
          WHERE pod_name = $(pod_name)
-           AND stream_id = $(stream_id)`,
-        { pod_name: podName, stream_id: streamId },
+           AND name = $(name)`,
+        { pod_name: podName, name: streamId },
       );
 
       logger.info("Stream deleted", {

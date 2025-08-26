@@ -105,13 +105,13 @@ describe("WebPods Rate Limiting", () => {
       // Verify ownership via .meta/owner stream
       const owner1Record = await db.oneOrNone(
         `SELECT r.content FROM record r
-         WHERE r.stream_pod_name = $(pod_name) AND r.stream_id = '.meta/owner'
+         WHERE r.stream_pod_name = $(pod_name) AND r.stream_name = '.meta/owner'
          ORDER BY r.index DESC LIMIT 1`,
         { pod_name: pod1.name },
       );
       const owner2Record = await db.oneOrNone(
         `SELECT r.content FROM record r
-         WHERE r.stream_pod_name = $(pod_name) AND r.stream_id = '.meta/owner'
+         WHERE r.stream_pod_name = $(pod_name) AND r.stream_name = '.meta/owner'
          ORDER BY r.index DESC LIMIT 1`,
         { pod_name: pod2.name },
       );
