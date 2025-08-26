@@ -231,7 +231,9 @@ GET {pod}.webpods.org/{stream}?limit={n}&after={index}&unique={boolean}
 
 Query parameters:
 
-- `limit` - Maximum records to return (default: 100)
+- `limit` - Maximum records to return (default: 100, server-configured max: typically 1000)
+  - If you request more than the server's max limit, it will be automatically capped
+  - No error is returned; the limit is silently adjusted to the maximum allowed
 - `after` - Start after this index (for pagination). Supports negative values to get the last N records:
   - `after=-20` returns the last 20 records
   - `after=-3` returns the last 3 records

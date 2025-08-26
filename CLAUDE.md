@@ -155,6 +155,15 @@ Examples:
 ?unique=true&after=-10 # Last 10 unique named records
 ```
 
+#### Record Limit Configuration
+
+The server enforces a maximum number of records per request:
+
+- **Default max**: 1000 records (configurable via `MAX_RECORD_LIMIT`)
+- **Behavior**: If `limit` exceeds max, it's silently capped (no error)
+- **Configuration**: Set in `config.json` under `rateLimits.maxRecordLimit` or via `MAX_RECORD_LIMIT` env var
+- **Testing**: Test config uses a low limit (10) for easier testing
+
 ## Code Patterns
 
 ### Import Patterns

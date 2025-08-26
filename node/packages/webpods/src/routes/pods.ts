@@ -1149,7 +1149,15 @@ router.get(
       }
     } else {
       // List all records
-      const limit = parseInt(req.query.limit as string) || 100;
+      const config = getConfig();
+      const maxLimit = config.rateLimits.maxRecordLimit;
+      
+      // Parse and cap the limit to maxRecordLimit
+      let limit = parseInt(req.query.limit as string) || 100;
+      if (limit > maxLimit) {
+        limit = maxLimit; // Silently cap to max without erroring
+      }
+      
       const after = req.query.after
         ? parseInt(req.query.after as string)
         : undefined;

@@ -76,6 +76,7 @@ export interface RateLimitsConfig {
   reads: number;
   podCreate: number;
   streamCreate: number;
+  maxRecordLimit: number; // Maximum records that can be fetched in a single request
 }
 
 export interface HydraConfig {
@@ -194,6 +195,9 @@ function resolveEnvVars(obj: any, path: string[] = []): any {
         case "rateLimits.streamCreate":
           defaultValue = 100;
           break;
+        case "rateLimits.maxRecordLimit":
+          defaultValue = 1000; // Default max records per request
+          break;
         case "hydra.adminUrl":
           defaultValue = "http://localhost:4445";
           break;
@@ -260,6 +264,8 @@ function applyDefaults(config: any): any {
     config.rateLimits.podCreate ?? "$RATE_LIMIT_POD_CREATE";
   config.rateLimits.streamCreate =
     config.rateLimits.streamCreate ?? "$RATE_LIMIT_STREAM_CREATE";
+  config.rateLimits.maxRecordLimit =
+    config.rateLimits.maxRecordLimit ?? "$MAX_RECORD_LIMIT";
 
   // Apply defaults for Hydra
   config.hydra.adminUrl = config.hydra.adminUrl ?? "$HYDRA_ADMIN_URL";

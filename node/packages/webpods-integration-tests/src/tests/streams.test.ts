@@ -305,6 +305,29 @@ describe("WebPods Stream Operations", () => {
       expect(response.data.records[0].content).to.equal("First");
       expect(response.data.records[4].content).to.equal("Year 2024");
     });
+
+    it("should enforce maximum record limit from config", async () => {
+      // Create more records than the max limit (config has maxRecordLimit: 10)
+      for (let i = 0; i < 15; i++) {
+        await client.post(`/limit-test/record${i}`, `Content ${i}`);
+      }
+      
+      // Request 20 records (more than max)
+      const response = await client.get("/limit-test?limit=20");
+      expect(response.status).to.equal(200);
+      // Should be capped at 10 (the maxRecordLimit from test config)
+      expect(response.data.records).to.have.lengthOf(10);
+      
+      // Requesting exactly the max should work
+      const response2 = await client.get("/limit-test?limit=10");
+      expect(response2.status).to.equal(200);
+      expect(response2.data.records).to.have.lengthOf(10);
+      
+      // Requesting less than max should work normally
+      const response3 = await client.get("/limit-test?limit=5");
+      expect(response3.status).to.equal(200);
+      expect(response3.data.records).to.have.lengthOf(5);
+    });
   });
 
   describe("System Streams (.meta/)", () => {
