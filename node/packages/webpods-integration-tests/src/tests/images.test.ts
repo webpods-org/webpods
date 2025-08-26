@@ -60,7 +60,7 @@ describe("WebPods Image Support", () => {
 
       expect(response.status).to.equal(201);
       expect(response.data).to.have.property("index", 0);
-      expect(response.data).to.have.property("content_type", "image/png");
+      expect(response.data).to.have.property("contentType", "image/png");
       expect(response.data).to.have.property("name", "main-logo");
       expect(response.data).to.have.property("hash");
     });
@@ -74,7 +74,7 @@ describe("WebPods Image Support", () => {
       );
 
       expect(response.status).to.equal(201);
-      expect(response.data).to.have.property("content_type", "image/png");
+      expect(response.data).to.have.property("contentType", "image/png");
       expect(response.data).to.have.property("name", "user-avatar");
     });
 
@@ -86,7 +86,7 @@ describe("WebPods Image Support", () => {
       });
 
       expect(response.status).to.equal(201);
-      expect(response.data).to.have.property("content_type", "image/svg+xml");
+      expect(response.data).to.have.property("contentType", "image/svg+xml");
       expect(response.data).to.have.property("content", testSvg);
     });
 
@@ -133,7 +133,7 @@ describe("WebPods Image Support", () => {
       });
 
       expect(response.status).to.equal(201);
-      expect(response.data).to.have.property("content_type", "image/jpeg");
+      expect(response.data).to.have.property("contentType", "image/jpeg");
     });
   });
 
@@ -243,7 +243,7 @@ describe("WebPods Image Support", () => {
       });
 
       expect(response.status).to.equal(201);
-      expect(response.data).to.have.property("content_type", "image/webp");
+      expect(response.data).to.have.property("contentType", "image/webp");
     });
 
     it("should support GIF format", async () => {
@@ -258,7 +258,7 @@ describe("WebPods Image Support", () => {
       });
 
       expect(response.status).to.equal(201);
-      expect(response.data).to.have.property("content_type", "image/gif");
+      expect(response.data).to.have.property("contentType", "image/gif");
     });
 
     it("should support favicon (.ico) format", async () => {
@@ -273,7 +273,7 @@ describe("WebPods Image Support", () => {
       });
 
       expect(response.status).to.equal(201);
-      expect(response.data).to.have.property("content_type", "image/x-icon");
+      expect(response.data).to.have.property("contentType", "image/x-icon");
     });
   });
 });

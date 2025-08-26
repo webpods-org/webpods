@@ -1207,8 +1207,8 @@ router.get(
       res.json({
         records: data.records.map(recordToResponse),
         total: data.total,
-        has_more: data.hasMore,
-        next_index:
+        hasMore: data.hasMore,
+        nextIndex:
           data.hasMore && data.records.length > 0
             ? data.records[data.records.length - 1]?.index
             : null,

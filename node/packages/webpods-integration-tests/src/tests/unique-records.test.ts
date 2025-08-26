@@ -158,11 +158,11 @@ describe("Unique Records Listing", () => {
       const page1 = await podClient.get("/pages?unique=true&limit=5");
       expect(page1.status).to.equal(200);
       expect(page1.data.records).to.have.length(5);
-      expect(page1.data.has_more).to.be.true;
+      expect(page1.data.hasMore).to.be.true;
       expect(page1.data.total).to.equal(10);
 
       // Get second page
-      const lastIndex = page1.data.next_index;
+      const lastIndex = page1.data.nextIndex;
       const page2 = await podClient.get(
         `/pages?unique=true&limit=5&after=${lastIndex}`,
       );

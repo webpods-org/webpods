@@ -48,7 +48,7 @@ describe("WebPods Stream Operations", () => {
       expect(response.data).to.have.property("index", 0);
       expect(response.data).to.have.property("content", "Hello WebPods!");
       expect(response.data).to.have.property("hash");
-      expect(response.data).to.have.property("previous_hash", null);
+      expect(response.data).to.have.property("previousHash", null);
       expect(response.data).to.have.property("author", userId);
 
       // Verify pod was created
@@ -134,7 +134,7 @@ describe("WebPods Stream Operations", () => {
       expect(response.status).to.equal(201);
       expect(response.data.index).to.equal(1); // Second write, so index is 1
       expect(response.data.content).to.equal("Plain text message");
-      expect(response.data.content_type).to.equal("text/plain");
+      expect(response.data.contentType).to.equal("text/plain");
     });
 
     it("should write JSON content", async () => {
@@ -143,7 +143,7 @@ describe("WebPods Stream Operations", () => {
 
       expect(response.status).to.equal(201);
       expect(response.data.content).to.deep.equal(data);
-      expect(response.data.content_type).to.equal("application/json");
+      expect(response.data.contentType).to.equal("application/json");
     });
 
     it("should respect X-Content-Type header", async () => {
@@ -152,7 +152,7 @@ describe("WebPods Stream Operations", () => {
       });
 
       expect(response.status).to.equal(201);
-      expect(response.data.content_type).to.equal("text/html");
+      expect(response.data.contentType).to.equal("text/html");
     });
 
     it("should maintain hash chain", async () => {
@@ -160,9 +160,9 @@ describe("WebPods Stream Operations", () => {
       const response2 = await client.post("/hash-test/second", "Second");
       const response3 = await client.post("/hash-test/third", "Third");
 
-      expect(response1.data.previous_hash).to.be.null;
-      expect(response2.data.previous_hash).to.equal(response1.data.hash);
-      expect(response3.data.previous_hash).to.equal(response2.data.hash);
+      expect(response1.data.previousHash).to.be.null;
+      expect(response2.data.previousHash).to.equal(response1.data.hash);
+      expect(response3.data.previousHash).to.equal(response2.data.hash);
 
       // Verify hash format
       expect(response1.data.hash).to.match(/^sha256:[a-f0-9]{64}$/);
@@ -262,12 +262,12 @@ describe("WebPods Stream Operations", () => {
       const response = await client.get("/read-test?limit=2");
       expect(response.status).to.equal(200);
       expect(response.data.records).to.have.lengthOf(2);
-      expect(response.data.has_more).to.be.true;
-      expect(response.data.next_index).to.equal(1);
+      expect(response.data.hasMore).to.be.true;
+      expect(response.data.nextIndex).to.equal(1);
 
       // Get next page
       const page2 = await client.get(
-        `/read-test?limit=2&after=${response.data.next_index}`,
+        `/read-test?limit=2&after=${response.data.nextIndex}`,
       );
       expect(page2.data.records).to.have.lengthOf(2);
     });
