@@ -8,7 +8,8 @@ import {
   Response,
   NextFunction,
 } from "express";
-import type { AuthRequest } from "../types.js";
+import type { AuthRequest, StreamRecord } from "../types.js";
+import type { CodedError } from "../utils/errors.js";
 import { z } from "zod";
 import {
   authenticateHybrid as authenticate,
@@ -28,36 +29,29 @@ import {
   parseDataUrl,
   isValidName,
 } from "../utils.js";
-import { ensureUserExists } from "../domain/users.js";
+import { ensureUserExists } from "../domain/users/ensure-user-exists.js";
 
 // Import domain functions
-import {
-  createPod,
-  deletePod,
-  listPodStreams,
-  transferPodOwnership,
-  getPodOwner,
-} from "../domain/pods.js";
-import {
-  getOrCreateStream,
-  getStream,
-  deleteStream,
-} from "../domain/streams.js";
-import {
-  writeRecord,
-  getRecord,
-  getRecordRange,
-  listRecords,
-  listUniqueRecords,
-  recordToResponse,
-} from "../domain/records.js";
-import { canRead, canWrite } from "../domain/permissions.js";
-import {
-  resolveLink,
-  updateLinks,
-  updateCustomDomains,
-} from "../domain/routing.js";
-import { checkRateLimit } from "../domain/ratelimit.js";
+import { createPod } from "../domain/pods/create-pod.js";
+import { deletePod } from "../domain/pods/delete-pod.js";
+import { listPodStreams } from "../domain/pods/list-pod-streams.js";
+import { transferPodOwnership } from "../domain/pods/transfer-pod-ownership.js";
+import { getPodOwner } from "../domain/pods/get-pod-owner.js";
+import { getOrCreateStream } from "../domain/streams/get-or-create-stream.js";
+import { getStream } from "../domain/streams/get-stream.js";
+import { deleteStream } from "../domain/streams/delete-stream.js";
+import { writeRecord } from "../domain/records/write-record.js";
+import { getRecord } from "../domain/records/get-record.js";
+import { getRecordRange } from "../domain/records/get-record-range.js";
+import { listRecords } from "../domain/records/list-records.js";
+import { listUniqueRecords } from "../domain/records/list-unique-records.js";
+import { recordToResponse } from "../domain/records/record-to-response.js";
+import { canRead } from "../domain/permissions/can-read.js";
+import { canWrite } from "../domain/permissions/can-write.js";
+import { resolveLink } from "../domain/routing/resolve-link.js";
+import { updateLinks } from "../domain/routing/update-links.js";
+import { updateCustomDomains } from "../domain/routing/update-custom-domains.js";
+import { checkRateLimit } from "../domain/ratelimit/check-rate-limit.js";
 
 const logger = createLogger("webpods:routes:pods");
 const router = Router({ mergeParams: true });
@@ -169,9 +163,10 @@ router.get(
     }
 
     const db = getDb();
-    const result = await listPodStreams(db, req.pod_name);
+    const result = await listPodStreams({ db }, req.pod_name);
 
     if (!result.success) {
+      console.error("listPodStreams failed:", result.error);
       res.status(500).json({
         error: result.error,
       });
@@ -206,10 +201,11 @@ router.delete(
     }
 
     const db = getDb();
-    const result = await deletePod(db, req.pod_name, req.auth.user_id);
+    const result = await deletePod({ db }, req.pod_name, req.auth.user_id);
 
     if (!result.success) {
-      const status = result.error.code === "FORBIDDEN" ? 403 : 500;
+      const status =
+        (result.error as CodedError).code === "FORBIDDEN" ? 403 : 500;
       res.status(status).json({
         error: result.error,
       });
@@ -246,14 +242,15 @@ router.post(
       const db = getDb();
 
       const result = await transferPodOwnership(
-        db,
+        { db },
         req.pod_name,
         req.auth.user_id,
         data.owner,
       );
 
       if (!result.success) {
-        const status = result.error.code === "FORBIDDEN" ? 403 : 500;
+        const status =
+          (result.error as CodedError).code === "FORBIDDEN" ? 403 : 500;
         res.status(status).json({
           error: result.error,
         });
@@ -302,7 +299,7 @@ router.post(
       const db = getDb();
 
       // Check ownership
-      const ownerResult = await getPodOwner(db, req.pod_name);
+      const ownerResult = await getPodOwner({ db }, req.pod_name);
       if (!ownerResult.success || ownerResult.data !== req.auth.user_id) {
         res.status(403).json({
           error: {
@@ -314,7 +311,7 @@ router.post(
       }
 
       const result = await updateLinks(
-        db,
+        { db },
         req.pod_name,
         data,
         req.auth.user_id,
@@ -370,7 +367,7 @@ router.post(
       const db = getDb();
 
       // Check ownership
-      const ownerResult = await getPodOwner(db, req.pod_name);
+      const ownerResult = await getPodOwner({ db }, req.pod_name);
       if (!ownerResult.success || ownerResult.data !== req.auth.user_id) {
         res.status(403).json({
           error: {
@@ -382,11 +379,10 @@ router.post(
       }
 
       const result = await updateCustomDomains(
-        db,
+        { db },
         req.pod_name,
-        data.domains,
         req.auth.user_id,
-        req.auth.user_id,
+        { add: data.domains },
       );
 
       if (!result.success) {
@@ -581,7 +577,7 @@ router.post(
       if (!req.pod && req.pod_name) {
         // Check pod creation rate limit first
         const podLimitResult = await checkRateLimit(
-          db,
+          { db },
           req.auth.user_id,
           "pod_create",
         );
@@ -598,7 +594,7 @@ router.post(
 
         // Ensure user exists in database before creating pod
         // This handles cases where JWT is valid but user was deleted (e.g., in tests)
-        const userResult = await ensureUserExists(db, req.auth.user_id);
+        const userResult = await ensureUserExists({ db }, req.auth.user_id);
 
         if (!userResult.success) {
           res.status(500).json({
@@ -610,7 +606,11 @@ router.post(
           return;
         }
 
-        const podResult = await createPod(db, req.auth.user_id, req.pod_name);
+        const podResult = await createPod(
+          { db },
+          req.auth.user_id,
+          req.pod_name,
+        );
         if (!podResult.success) {
           res.status(500).json({
             error: podResult.error,
@@ -621,12 +621,12 @@ router.post(
       }
 
       // Check if stream exists first
-      const existingStream = await getStream(db, req.pod!.id, streamId);
+      const existingStream = await getStream({ db }, req.pod!.id, streamId);
 
       // If stream doesn't exist, check rate limit before creating
       if (!existingStream.success) {
         const streamLimitResult = await checkRateLimit(
-          db,
+          { db },
           req.auth.user_id,
           "stream_create",
         );
@@ -644,7 +644,7 @@ router.post(
 
       // Get or create stream
       const streamResult = await getOrCreateStream(
-        db,
+        { db },
         req.pod!.id,
         streamId,
         req.auth!.user_id,
@@ -660,7 +660,7 @@ router.post(
 
       // Check write permission
       const canWriteResult = await canWrite(
-        db,
+        { db },
         streamResult.data.stream,
         req.auth.user_id,
       );
@@ -676,7 +676,7 @@ router.post(
 
       // Write record
       const recordResult = await writeRecord(
-        db,
+        { db },
         streamResult.data.stream.id,
         content,
         contentType,
@@ -687,9 +687,9 @@ router.post(
       if (!recordResult.success) {
         // Check for specific error codes
         let status = 500;
-        if (recordResult.error.code === "NAME_EXISTS") {
+        if ((recordResult.error as CodedError).code === "NAME_EXISTS") {
           status = 409;
-        } else if (recordResult.error.code === "INVALID_NAME") {
+        } else if ((recordResult.error as CodedError).code === "INVALID_NAME") {
           status = 400;
         }
 
@@ -768,7 +768,7 @@ router.get(
     const db = getDb();
 
     // Check if path "/" is mapped in .meta/links
-    const linkResult = await resolveLink(db, req.pod_name, "/");
+    const linkResult = await resolveLink({ db }, req.pod_name, "/");
 
     if (linkResult.success && linkResult.data) {
       // Redirect to the mapped stream/record
@@ -782,10 +782,10 @@ router.get(
           new URLSearchParams(target.substring(1)),
         );
       } else if (target) {
-        // Handle path targets (e.g., "my-post")
-        req.url = `/${streamId}/${target}`;
+        // Handle path targets (e.g., "/record-name")
+        req.url = `/${streamId}${target}`;
       } else {
-        // Just the stream
+        // Just stream name
         req.url = `/${streamId}`;
       }
 
@@ -856,7 +856,7 @@ router.get(
     const db = getDb();
 
     // First check if this path is mapped in .meta/links
-    const linkResult = await resolveLink(db, req.pod_name, req.path);
+    const linkResult = await resolveLink({ db }, req.pod_name, req.path);
 
     if (linkResult.success && linkResult.data) {
       // Redirect to the mapped stream/record
@@ -870,10 +870,10 @@ router.get(
           new URLSearchParams(target.substring(1)),
         );
       } else if (target) {
-        // Named record
-        req.url = `/${streamId}/${target}`;
+        // Handle path targets (e.g., "/record-name")
+        req.url = `/${streamId}${target}`;
       } else {
-        // Just the stream
+        // Just stream name
         req.url = `/${streamId}`;
       }
 
@@ -895,9 +895,9 @@ router.get(
       // Check if last part could be a name (not using index query)
       // Try to find stream with full path first
       const fullPath = pathParts.join("/");
-      const streamResult = await getStream(db, req.pod!.id, fullPath);
+      const streamResult = await getStream({ db }, req.pod!.id, fullPath);
 
-      if (streamResult.success) {
+      if (streamResult.success && streamResult.data) {
         streamId = fullPath;
       } else {
         // Assume last part is name
@@ -909,9 +909,9 @@ router.get(
     }
 
     // Get stream
-    const streamResult = await getStream(db, req.pod!.id, streamId);
+    const streamResult = await getStream({ db }, req.pod!.id, streamId);
 
-    if (!streamResult.success) {
+    if (!streamResult.success || !streamResult.data) {
       // Provide more informative error message
       const fullPath = req.path.substring(1);
       if (name) {
@@ -936,7 +936,7 @@ router.get(
 
     // Check read permission
     const canReadResult = await canRead(
-      db,
+      { db },
       streamResult.data,
       req.auth?.user_id || null,
     );
@@ -966,8 +966,8 @@ router.get(
       if (parsed.type === "single") {
         // Single record by index (don't prefer name when using ?i=)
         const result = await getRecord(
-          db,
-          streamResult.data.id,
+          { db },
+          streamResult.data!.id,
           parsed.start.toString(),
           false,
         );
@@ -1036,8 +1036,8 @@ router.get(
       } else {
         // Range of records
         const result = await getRecordRange(
-          db,
-          streamResult.data.id,
+          { db },
+          streamResult.data!.id,
           parsed.start,
           parsed.end!,
         );
@@ -1057,7 +1057,7 @@ router.get(
       }
     } else if (name) {
       // Get by name (prefer name over index for path-based access)
-      const result = await getRecord(db, streamResult.data.id, name, true);
+      const result = await getRecord({ db }, streamResult.data!.id, name, true);
 
       if (!result.success) {
         res.status(404).json({
@@ -1149,7 +1149,15 @@ router.get(
       }
     } else {
       // List all records
-      const limit = parseInt(req.query.limit as string) || 100;
+      const config = getConfig();
+      const maxLimit = config.rateLimits.maxRecordLimit;
+      
+      // Parse and cap the limit to maxRecordLimit
+      let limit = parseInt(req.query.limit as string) || 100;
+      if (limit > maxLimit) {
+        limit = maxLimit; // Silently cap to max without erroring
+      }
+      
       const after = req.query.after
         ? parseInt(req.query.after as string)
         : undefined;
@@ -1157,8 +1165,8 @@ router.get(
 
       // Use appropriate listing function based on unique parameter
       const result = unique
-        ? await listUniqueRecords(db, streamResult.data.id, limit, after)
-        : await listRecords(db, streamResult.data.id, limit, after);
+        ? await listUniqueRecords({ db }, streamResult.data.id, limit, after)
+        : await listRecords({ db }, streamResult.data.id, limit, after);
 
       if (!result.success) {
         res.status(500).json({
@@ -1167,13 +1175,20 @@ router.get(
         return;
       }
 
+      // Both listRecords and listUniqueRecords now return the same format
+      const data = result.data as {
+        records: StreamRecord[];
+        total: number;
+        hasMore: boolean;
+      };
       res.json({
-        records: result.data.records.map(recordToResponse),
-        total: result.data.total,
-        has_more: result.data.hasMore,
-        next_index: result.data.hasMore
-          ? result.data.records[result.data.records.length - 1]?.index
-          : null,
+        records: data.records.map(recordToResponse),
+        total: data.total,
+        has_more: data.hasMore,
+        next_index:
+          data.hasMore && data.records.length > 0
+            ? data.records[data.records.length - 1]?.index
+            : null,
       });
     }
   },
@@ -1216,9 +1231,9 @@ router.delete(
 
     if (pathParts.length > 1) {
       const fullPath = pathParts.join("/");
-      const streamResult = await getStream(db, req.pod!.id, fullPath);
+      const streamResult = await getStream({ db }, req.pod!.id, fullPath);
 
-      if (streamResult.success) {
+      if (streamResult.success && streamResult.data) {
         // Full path is a stream, delete the stream
         streamId = fullPath;
       } else {
@@ -1242,7 +1257,7 @@ router.delete(
     }
 
     // Check ownership - only pod owner can delete
-    const ownerResult = await getPodOwner(db, req.pod_name);
+    const ownerResult = await getPodOwner({ db }, req.pod_name);
     if (!ownerResult.success || ownerResult.data !== req.auth.user_id) {
       res.status(403).json({
         error: {
@@ -1255,9 +1270,9 @@ router.delete(
 
     if (recordName) {
       // Delete or purge a record
-      const streamResult = await getStream(db, req.pod!.id, streamId);
+      const streamResult = await getStream({ db }, req.pod!.id, streamId);
 
-      if (!streamResult.success) {
+      if (!streamResult.success || !streamResult.data) {
         const fullPath = req.path.substring(1);
         res.status(404).json({
           error: {
@@ -1277,7 +1292,7 @@ router.delete(
            WHERE stream_id = $(streamId)
              AND name = $(recordName)`,
           {
-            streamId: streamResult.data.id,
+            streamId: streamResult.data!.id,
             recordName,
             content: JSON.stringify({
               deleted: true,
@@ -1315,7 +1330,7 @@ router.delete(
            WHERE stream_id = $(streamId)
            ORDER BY index DESC
            LIMIT 1`,
-          { streamId: streamResult.data.id },
+          { streamId: streamResult.data!.id },
         );
 
         const nextIndex = (lastRecord?.index ?? -1) + 1;
@@ -1329,8 +1344,8 @@ router.delete(
         };
 
         const writeResult = await writeRecord(
-          db,
-          streamResult.data.id,
+          { db },
+          streamResult.data!.id,
           deletionRecord,
           "application/json",
           req.auth.user_id,
@@ -1355,7 +1370,7 @@ router.delete(
     } else {
       // Delete entire stream
       const result = await deleteStream(
-        db,
+        { db },
         req.pod!.id,
         streamId,
         req.auth!.user_id,
@@ -1363,9 +1378,9 @@ router.delete(
 
       if (!result.success) {
         const status =
-          result.error.code === "FORBIDDEN"
+          (result.error as CodedError).code === "FORBIDDEN"
             ? 403
-            : result.error.code === "STREAM_NOT_FOUND"
+            : (result.error as CodedError).code === "NOT_FOUND"
               ? 404
               : 500;
         res.status(status).json({

@@ -136,6 +136,34 @@ Key concepts:
 - **Records**: Immutable entries with hash chains
 - **Permissions**: Unified access control using `access_permission` field
 
+### API Features
+
+#### Pagination with `after` Parameter
+
+The `after` parameter supports both positive and negative values:
+
+- **Positive values**: Skip records up to that index (`after=10` starts at index 11)
+- **Negative values**: Get the last N records (`after=-20` returns last 20 records)
+- Works with both regular listing and `unique=true` mode
+- Negative values are converted relative to total record count
+- If abs(negative value) > total count, returns all records
+
+Examples:
+```bash
+?after=-20           # Last 20 records
+?after=-3&limit=2    # Last 3 records, but limited to 2
+?unique=true&after=-10 # Last 10 unique named records
+```
+
+#### Record Limit Configuration
+
+The server enforces a maximum number of records per request:
+
+- **Default max**: 1000 records (configurable via `MAX_RECORD_LIMIT`)
+- **Behavior**: If `limit` exceeds max, it's silently capped (no error)
+- **Configuration**: Set in `config.json` under `rateLimits.maxRecordLimit` or via `MAX_RECORD_LIMIT` env var
+- **Testing**: Test config uses a low limit (10) for easier testing
+
 ## Code Patterns
 
 ### Import Patterns

@@ -85,6 +85,7 @@
     "writes": "$RATE_LIMIT_WRITES",
     "reads": "$RATE_LIMIT_READS",
     "podCreate": "$RATE_LIMIT_POD_CREATE",
-    "streamCreate": "$RATE_LIMIT_STREAM_CREATE"
+    "streamCreate": "$RATE_LIMIT_STREAM_CREATE",
+    "maxRecordLimit": "$MAX_RECORD_LIMIT"
   }
 }

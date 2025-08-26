@@ -51,7 +51,8 @@
     "writes": 1000,
     "reads": 10000,
     "podCreate": 10,
-    "streamCreate": 100
+    "streamCreate": 100,
+    "maxRecordLimit": 10
   },
   "hydra": {
     "adminUrl": "http://localhost:4445",

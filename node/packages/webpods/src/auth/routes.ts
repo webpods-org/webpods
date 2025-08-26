@@ -6,7 +6,7 @@ import { Router, Request, Response } from "express";
 import { getDb } from "../db/index.js";
 import { createLogger } from "../logger.js";
 import { getConfig } from "../config-loader.js";
-import { findOrCreateUser } from "../domain/users.js";
+import { findOrCreateUser } from "../domain/users/find-or-create-user.js";
 import { verifyHydraToken } from "../oauth/jwt-validator.js";
 import type { OAuthProvider as OAuthProviderType } from "../types.js";
 import {
@@ -490,7 +490,7 @@ router.get("/:provider/callback", async (req: Request, res: Response) => {
       clientSecret: providerConfigData.clientSecret,
     };
 
-    const userResult = await findOrCreateUser(db, providerConfig, userInfo);
+    const userResult = await findOrCreateUser({ db }, providerConfig, userInfo);
 
     if (!userResult.success) {
       logger.error("Failed to create/find user", {

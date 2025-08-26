@@ -1,0 +1,56 @@
+/**
+ * List all streams in a pod
+ */
+
+import { DataContext } from "../data-context.js";
+import { Result, success, failure } from "../../utils/result.js";
+import { createError } from "../../utils/errors.js";
+import { StreamDbRow, PodDbRow } from "../../db-types.js";
+import { Stream } from "../../types.js";
+import { createLogger } from "../../logger.js";
+
+const logger = createLogger("webpods:domain:pods");
+
+/**
+ * Map database row to domain type
+ */
+function mapStreamFromDb(row: StreamDbRow): Stream {
+  return {
+    id: row.id,
+    pod_id: row.pod_id,
+    stream_id: row.stream_id,
+    user_id: row.user_id,
+    access_permission: row.access_permission,
+    metadata: undefined,
+    created_at: row.created_at,
+    updated_at: row.created_at,
+  };
+}
+
+export async function listPodStreams(
+  ctx: DataContext,
+  podName: string,
+): Promise<Result<Stream[]>> {
+  try {
+    const pod = await ctx.db.oneOrNone<PodDbRow>(
+      `SELECT * FROM pod WHERE name = $(pod_name)`,
+      { pod_name: podName },
+    );
+
+    if (!pod) {
+      return failure(createError("POD_NOT_FOUND", "Pod not found"));
+    }
+
+    const streams = await ctx.db.manyOrNone<StreamDbRow>(
+      `SELECT * FROM stream 
+       WHERE pod_id = $(pod_id)
+       ORDER BY created_at ASC`,
+      { pod_id: pod.id },
+    );
+
+    return success(streams.map(mapStreamFromDb));
+  } catch (error: any) {
+    logger.error("Failed to list pod streams", { error, podName });
+    return failure(createError("DATABASE_ERROR", "Failed to list streams"));
+  }
+}
