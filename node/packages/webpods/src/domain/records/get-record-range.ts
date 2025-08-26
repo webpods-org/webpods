@@ -70,7 +70,11 @@ export async function getRecordRange(
          AND index >= $(start_index)
          AND index < $(end_index)
        ORDER BY index ASC`,
-      { stream_id: streamId, start_index: actualStartIndex, end_index: actualEndIndex },
+      {
+        stream_id: streamId,
+        start_index: actualStartIndex,
+        end_index: actualEndIndex,
+      },
     );
 
     return success(records.map(mapRecordFromDb));

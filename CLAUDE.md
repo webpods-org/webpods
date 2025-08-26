@@ -149,6 +149,7 @@ The `after` parameter supports both positive and negative values:
 - If abs(negative value) > total count, returns all records
 
 Examples:
+
 ```bash
 ?after=-20           # Last 20 records
 ?after=-3&limit=2    # Last 3 records, but limited to 2
