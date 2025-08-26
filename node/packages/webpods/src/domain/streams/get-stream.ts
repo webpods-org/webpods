@@ -1,5 +1,5 @@
 /**
- * Get a stream by ID or by pod and stream ID
+ * Get a stream by pod name and stream ID
  */
 
 import { DataContext } from "../data-context.js";
@@ -16,28 +16,27 @@ const logger = createLogger("webpods:domain:streams");
  */
 function mapStreamFromDb(row: StreamDbRow): Stream {
   return {
-    id: row.id,
-    pod_id: row.pod_id,
+    pod_name: row.pod_name,
     stream_id: row.stream_id,
     user_id: row.user_id,
     access_permission: row.access_permission,
-    metadata: undefined,
+    metadata: row.metadata,
     created_at: row.created_at,
-    updated_at: row.created_at,
+    updated_at: row.updated_at || row.created_at,
   };
 }
 
 export async function getStream(
   ctx: DataContext,
-  podId: string,
+  podName: string,
   streamId: string,
 ): Promise<Result<Stream>> {
   try {
     const stream = await ctx.db.oneOrNone<StreamDbRow>(
       `SELECT * FROM stream
-       WHERE pod_id = $(pod_id)
+       WHERE pod_name = $(pod_name)
          AND stream_id = $(stream_id)`,
-      { pod_id: podId, stream_id: streamId },
+      { pod_name: podName, stream_id: streamId },
     );
 
     if (!stream) {
@@ -46,7 +45,7 @@ export async function getStream(
 
     return success(mapStreamFromDb(stream));
   } catch (error: any) {
-    logger.error("Failed to get stream", { error, podId, streamId });
+    logger.error("Failed to get stream", { error, podName, streamId });
     return failure(createError("DATABASE_ERROR", "Failed to get stream"));
   }
 }

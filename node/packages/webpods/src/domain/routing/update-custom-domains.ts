@@ -29,15 +29,11 @@ export async function updateCustomDomains(
         return failure(new Error("Pod not found"));
       }
 
-      const podId = pod.id;
-
       // Verify ownership
       const ownerRecord = await t.oneOrNone<RecordDbRow>(
         `SELECT r.* FROM record r
-         JOIN stream s ON r.stream_id = s.id
-         JOIN pod p ON p.id = s.pod_id
-         WHERE p.name = $(pod_name)
-           AND s.stream_id = '.meta/owner'
+         WHERE r.stream_pod_name = $(pod_name)
+           AND r.stream_id = '.meta/owner'
            AND r.name = 'owner'
          ORDER BY r.index DESC
          LIMIT 1`,
@@ -62,16 +58,15 @@ export async function updateCustomDomains(
       // Get or create .meta/domains stream
       let domainsStream = await t.oneOrNone<StreamDbRow>(
         `SELECT * FROM stream
-         WHERE pod_id = $(pod_id)
+         WHERE pod_name = $(pod_name)
            AND stream_id = '.meta/domains'`,
-        { pod_id: podId },
+        { pod_name: podName },
       );
 
       if (!domainsStream) {
         // Create the stream with snake_case parameters
         const streamParams = {
-          id: crypto.randomUUID(),
-          pod_id: podId,
+          pod_name: podName,
           stream_id: ".meta/domains",
           user_id: userId,
           access_permission: "private",
@@ -87,10 +82,11 @@ export async function updateCustomDomains(
       // Get the last record for hash chain
       const lastRecord = await t.oneOrNone<RecordDbRow>(
         `SELECT * FROM record
-         WHERE stream_id = $(stream_id)
+         WHERE stream_pod_name = $(stream_pod_name)
+           AND stream_id = $(stream_id)
          ORDER BY index DESC
          LIMIT 1`,
-        { stream_id: domainsStream.id },
+        { stream_pod_name: podName, stream_id: ".meta/domains" },
       );
 
       let index = (lastRecord?.index ?? -1) + 1;
@@ -104,7 +100,8 @@ export async function updateCustomDomains(
           const hash = calculateRecordHash(previousHash, timestamp, content);
 
           const params = {
-            stream_id: domainsStream.id,
+            stream_pod_name: podName,
+            stream_id: ".meta/domains",
             index: index,
             content: JSON.stringify(content),
             content_type: "application/json",
@@ -130,7 +127,8 @@ export async function updateCustomDomains(
           const hash = calculateRecordHash(previousHash, timestamp, content);
 
           const params = {
-            stream_id: domainsStream.id,
+            stream_pod_name: podName,
+            stream_id: ".meta/domains",
             index: index,
             content: JSON.stringify(content),
             content_type: "application/json",

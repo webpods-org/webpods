@@ -19,6 +19,7 @@ const logger = createLogger("webpods:domain:records");
 function mapRecordFromDb(row: RecordDbRow): StreamRecord {
   return {
     id: row.id ? parseInt(row.id) : 0,
+    stream_pod_name: row.stream_pod_name,
     stream_id: row.stream_id,
     index: row.index,
     content: row.content,
@@ -37,6 +38,7 @@ function mapRecordFromDb(row: RecordDbRow): StreamRecord {
 
 export async function writeRecord(
   ctx: DataContext,
+  podName: string,
   streamId: string,
   content: any,
   contentType: string,
@@ -58,10 +60,11 @@ export async function writeRecord(
       // Get the previous record for hash chain
       const previousRecord = await t.oneOrNone<RecordDbRow>(
         `SELECT * FROM record 
-         WHERE stream_id = $(stream_id)
+         WHERE stream_pod_name = $(pod_name)
+           AND stream_id = $(stream_id)
          ORDER BY index DESC
          LIMIT 1`,
-        { stream_id: streamId },
+        { pod_name: podName, stream_id: streamId },
       );
 
       const index = (previousRecord?.index ?? -1) + 1;
@@ -79,6 +82,7 @@ export async function writeRecord(
 
       // Insert new record with snake_case parameters
       const params = {
+        stream_pod_name: podName,
         stream_id: streamId,
         index: index,
         content: storedContent,
@@ -95,11 +99,11 @@ export async function writeRecord(
         params,
       );
 
-      logger.info("Record written", { streamId, index, name, hash });
+      logger.info("Record written", { podName, streamId, index, name, hash });
       return success(mapRecordFromDb(record));
     });
   } catch (error: any) {
-    logger.error("Failed to write record", { error, streamId });
+    logger.error("Failed to write record", { error, podName, streamId });
     // Check if it's a unique constraint violation (duplicate name)
     if (
       error.code === "23505" &&

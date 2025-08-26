@@ -15,7 +15,7 @@ const router = Router();
 
 // OAuth client DB row type
 interface OAuthClientDbRow {
-  id: string;
+  id: string | number; // bigserial - string when returned from DB
   user_id: string;
   client_id: string;
   client_name: string;

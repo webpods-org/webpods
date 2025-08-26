@@ -58,12 +58,12 @@ export async function canRead(
     });
     // Get pod for this stream
     const pod = await ctx.db.oneOrNone<PodDbRow>(
-      `SELECT * FROM pod WHERE id = $(pod_id)`,
-      { pod_id: stream.pod_id },
+      `SELECT * FROM pod WHERE name = $(pod_name)`,
+      { pod_name: stream.pod_name },
     );
 
     if (!pod) {
-      logger.error("Pod not found for stream", { podId: stream.pod_id });
+      logger.error("Pod not found for stream", { podName: stream.pod_name });
       return false;
     }
 

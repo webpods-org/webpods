@@ -16,6 +16,7 @@ const logger = createLogger("webpods:domain:records");
 function mapRecordFromDb(row: RecordDbRow): StreamRecord {
   return {
     id: row.id ? parseInt(row.id) : 0,
+    stream_pod_name: row.stream_pod_name,
     stream_id: row.stream_id,
     index: row.index,
     content: row.content,
@@ -34,6 +35,7 @@ function mapRecordFromDb(row: RecordDbRow): StreamRecord {
 
 export async function getRecordRange(
   ctx: DataContext,
+  podName: string,
   streamId: string,
   startIndex: number,
   endIndex: number,
@@ -45,8 +47,8 @@ export async function getRecordRange(
     // Handle negative indices
     if (startIndex < 0 || endIndex < 0) {
       const countResult = await ctx.db.one<{ count: string }>(
-        `SELECT COUNT(*) as count FROM record WHERE stream_id = $(stream_id)`,
-        { stream_id: streamId },
+        `SELECT COUNT(*) as count FROM record WHERE stream_pod_name = $(pod_name) AND stream_id = $(stream_id)`,
+        { pod_name: podName, stream_id: streamId },
       );
       const totalCount = parseInt(countResult.count);
 
@@ -66,11 +68,13 @@ export async function getRecordRange(
 
     const records = await ctx.db.manyOrNone<RecordDbRow>(
       `SELECT * FROM record
-       WHERE stream_id = $(stream_id)
+       WHERE stream_pod_name = $(pod_name)
+         AND stream_id = $(stream_id)
          AND index >= $(start_index)
          AND index < $(end_index)
        ORDER BY index ASC`,
       {
+        pod_name: podName,
         stream_id: streamId,
         start_index: actualStartIndex,
         end_index: actualEndIndex,
@@ -81,6 +85,7 @@ export async function getRecordRange(
   } catch (error: any) {
     logger.error("Failed to get record range", {
       error,
+      podName,
       streamId,
       startIndex,
       endIndex,

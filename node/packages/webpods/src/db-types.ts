@@ -25,25 +25,28 @@ export type IdentityDbRow = {
 
 // Pod table
 export type PodDbRow = {
-  id: string;
-  name: string;
+  name: string; // Primary key
+  metadata?: any; // JSONB
   created_at: Date;
+  updated_at?: Date | null;
 };
 
 // Stream table
 export type StreamDbRow = {
-  id: string;
-  pod_id: string;
-  stream_id: string;
+  pod_name: string; // Part of composite primary key
+  stream_id: string; // Part of composite primary key
   user_id: string;
   access_permission: string;
+  metadata?: any; // JSONB
   created_at: Date;
+  updated_at?: Date | null;
 };
 
 // Record table
 export type RecordDbRow = {
-  id?: string; // Optional for inserts
-  stream_id: string;
+  id?: string; // bigserial - Optional for inserts
+  stream_pod_name: string; // References stream.pod_name
+  stream_id: string; // References stream.stream_id
   index: number;
   content: string;
   content_type: string;
@@ -72,10 +75,39 @@ export type OAuthStateDbRow = {
 
 // Rate limit table
 export type RateLimitDbRow = {
-  id?: string;
+  id?: string | number; // bigserial
   identifier: string;
   action: string;
   count: number;
   window_start: Date;
   window_end: Date;
+};
+
+// Custom domain table
+export type CustomDomainDbRow = {
+  id?: string | number; // bigserial
+  pod_name: string;
+  domain: string;
+  verified: boolean;
+  ssl_provisioned: boolean;
+  created_at: Date;
+  updated_at?: Date | null;
+};
+
+// OAuth client table
+export type OAuthClientDbRow = {
+  id?: string | number; // bigserial
+  user_id: string;
+  client_id: string;
+  client_name: string;
+  client_secret?: string | null;
+  redirect_uris: string[];
+  requested_pods: string[];
+  grant_types: string[];
+  response_types: string[];
+  token_endpoint_auth_method: string;
+  scope: string;
+  metadata?: any; // JSONB
+  created_at: Date;
+  updated_at?: Date | null;
 };

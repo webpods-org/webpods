@@ -15,12 +15,11 @@ const logger = createLogger("webpods:domain:pods");
  */
 function mapPodFromDb(row: PodDbRow): Pod {
   return {
-    id: row.id,
     name: row.name,
     user_id: "", // Will be populated from .meta/owner stream
-    metadata: undefined,
+    metadata: row.metadata,
     created_at: row.created_at,
-    updated_at: row.created_at,
+    updated_at: row.updated_at || row.created_at,
   };
 }
 
@@ -41,13 +40,12 @@ export async function getPod(
     // Get owner from .meta/owner stream
     const ownerRecord = await ctx.db.oneOrNone<RecordDbRow>(
       `SELECT r.* FROM record r
-       JOIN stream s ON r.stream_id = s.id
-       WHERE s.pod_id = $(pod_id)
-         AND s.stream_id = '.meta/owner'
+       WHERE r.stream_pod_name = $(pod_name)
+         AND r.stream_id = '.meta/owner'
          AND r.name = 'owner'
        ORDER BY r.index DESC
        LIMIT 1`,
-      { pod_id: pod.id },
+      { pod_name: pod.name },
     );
 
     const mappedPod = mapPodFromDb(pod);
