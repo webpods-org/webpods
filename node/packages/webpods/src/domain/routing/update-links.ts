@@ -30,21 +30,19 @@ export async function updateLinks(
         return failure(new Error("Pod not found"));
       }
 
-      const podId = pod.id;
       // Get or create .meta/links stream
       let linksStream = await t.oneOrNone<StreamDbRow>(
         `SELECT * FROM stream
-         WHERE pod_id = $(pod_id)
-           AND stream_id = '.meta/links'`,
-        { pod_id: podId },
+         WHERE pod_name = $(pod_name)
+           AND name = '.meta/links'`,
+        { pod_name: podName },
       );
 
       if (!linksStream) {
         // Create the stream with snake_case parameters
         const streamParams = {
-          id: crypto.randomUUID(),
-          pod_id: podId,
-          stream_id: ".meta/links",
+          pod_name: podName,
+          name: ".meta/links",
           user_id: userId,
           access_permission: "private",
           created_at: new Date(),
@@ -59,10 +57,11 @@ export async function updateLinks(
       // Get previous record for hash chain
       const previousRecord = await t.oneOrNone<RecordDbRow>(
         `SELECT * FROM record
-         WHERE stream_id = $(stream_id)
+         WHERE stream_pod_name = $(stream_pod_name)
+           AND stream_name = $(stream_name)
          ORDER BY index DESC
          LIMIT 1`,
-        { stream_id: linksStream.id },
+        { stream_pod_name: podName, stream_name: ".meta/links" },
       );
 
       const index = (previousRecord?.index ?? -1) + 1;
@@ -74,7 +73,8 @@ export async function updateLinks(
 
       // Write new links record with all links in one record
       const params = {
-        stream_id: linksStream.id,
+        stream_pod_name: podName,
+        stream_name: ".meta/links",
         index: index,
         content: JSON.stringify(links),
         content_type: "application/json",

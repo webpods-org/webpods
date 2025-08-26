@@ -16,14 +16,13 @@ const logger = createLogger("webpods:domain:pods");
  */
 function mapStreamFromDb(row: StreamDbRow): Stream {
   return {
-    id: row.id,
-    pod_id: row.pod_id,
-    stream_id: row.stream_id,
+    pod_name: row.pod_name,
+    name: row.name,
     user_id: row.user_id,
     access_permission: row.access_permission,
-    metadata: undefined,
+    metadata: row.metadata,
     created_at: row.created_at,
-    updated_at: row.created_at,
+    updated_at: row.updated_at || row.created_at,
   };
 }
 
@@ -43,9 +42,9 @@ export async function listPodStreams(
 
     const streams = await ctx.db.manyOrNone<StreamDbRow>(
       `SELECT * FROM stream 
-       WHERE pod_id = $(pod_id)
+       WHERE pod_name = $(pod_name)
        ORDER BY created_at ASC`,
-      { pod_id: pod.id },
+      { pod_name: pod.name },
     );
 
     return success(streams.map(mapStreamFromDb));

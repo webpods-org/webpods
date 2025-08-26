@@ -24,10 +24,8 @@ export async function resolveLink(
     const record = await ctx.db.oneOrNone<RecordDbRow>(
       `SELECT r.*
        FROM record r
-       JOIN stream s ON s.id = r.stream_id
-       JOIN pod p ON p.id = s.pod_id
-       WHERE p.name = $(pod_name)
-         AND s.stream_id = '.meta/links'
+       WHERE r.stream_pod_name = $(pod_name)
+         AND r.stream_name = '.meta/links'
        ORDER BY r.created_at DESC
        LIMIT 1`,
       { pod_name: podName },

@@ -18,20 +18,19 @@ const logger = createLogger("webpods:domain:streams");
  */
 function mapStreamFromDb(row: StreamDbRow): Stream {
   return {
-    id: row.id,
-    pod_id: row.pod_id,
-    stream_id: row.stream_id,
+    pod_name: row.pod_name,
+    name: row.name,
     user_id: row.user_id,
     access_permission: row.access_permission,
-    metadata: undefined,
+    metadata: row.metadata,
     created_at: row.created_at,
-    updated_at: row.created_at,
+    updated_at: row.updated_at || row.created_at,
   };
 }
 
 export async function getOrCreateStream(
   ctx: DataContext,
-  podId: string,
+  podName: string,
   streamId: string,
   userId: string,
   accessPermission?: string,
@@ -47,9 +46,9 @@ export async function getOrCreateStream(
     // Try to find existing stream
     let stream = await ctx.db.oneOrNone<StreamDbRow>(
       `SELECT * FROM stream 
-       WHERE pod_id = $(pod_id) 
-         AND stream_id = $(stream_id)`,
-      { pod_id: podId, stream_id: actualStreamId },
+       WHERE pod_name = $(pod_name) 
+         AND name = $(name)`,
+      { pod_name: podName, name: actualStreamId },
     );
 
     if (stream) {
@@ -58,7 +57,8 @@ export async function getOrCreateStream(
         // Only the creator can update permissions
         if (stream.user_id !== userId) {
           logger.warn("Non-creator attempted to update stream permissions", {
-            streamId: stream.id,
+            podName: stream.pod_name,
+            streamId: stream.name,
             userId,
             creatorId: stream.user_id,
           });
@@ -73,13 +73,15 @@ export async function getOrCreateStream(
         // Update the stream permissions
         const updateResult = await updateStreamPermissions(
           ctx,
-          stream.id,
+          stream.pod_name,
+          stream.name,
           accessPermission,
         );
 
         if (!updateResult.success) {
           logger.error("Failed to update stream permissions", {
-            streamId: stream.id,
+            podName: stream.pod_name,
+            streamId: stream.name,
             error: updateResult.error,
           });
           // Return the existing stream even if update fails
@@ -92,8 +94,10 @@ export async function getOrCreateStream(
 
         // Fetch the updated stream
         stream = await ctx.db.one<StreamDbRow>(
-          `SELECT * FROM stream WHERE id = $(id)`,
-          { id: stream.id },
+          `SELECT * FROM stream 
+           WHERE pod_name = $(pod_name) 
+             AND name = $(name)`,
+          { pod_name: stream.pod_name, name: stream.name },
         );
 
         return success({
@@ -111,9 +115,8 @@ export async function getOrCreateStream(
 
     // Create new stream with snake_case parameters
     const params = {
-      id: crypto.randomUUID(),
-      pod_id: podId,
-      stream_id: actualStreamId,
+      pod_name: podName,
+      name: actualStreamId,
       user_id: userId,
       access_permission: accessPermission || "public",
       created_at: new Date(),
@@ -125,9 +128,8 @@ export async function getOrCreateStream(
     );
 
     logger.info("Stream created", {
-      streamId: stream.id,
-      podId,
-      actualStreamId,
+      podName: stream.pod_name,
+      streamId: stream.name,
       userId,
     });
 
@@ -136,7 +138,11 @@ export async function getOrCreateStream(
       created: true,
     });
   } catch (error: any) {
-    logger.error("Failed to get or create stream", { error, podId, streamId });
+    logger.error("Failed to get or create stream", {
+      error,
+      podName,
+      streamId,
+    });
     return failure(new Error("Failed to get or create stream"));
   }
 }

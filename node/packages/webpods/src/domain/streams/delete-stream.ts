@@ -13,7 +13,7 @@ const logger = createLogger("webpods:domain:streams");
 
 export async function deleteStream(
   ctx: DataContext,
-  podId: string,
+  podName: string,
   streamId: string,
   userId: string,
 ): Promise<Result<void>> {
@@ -27,9 +27,9 @@ export async function deleteStream(
       // Get the stream
       const stream = await t.oneOrNone<StreamDbRow>(
         `SELECT * FROM stream
-         WHERE pod_id = $(pod_id)
-           AND stream_id = $(stream_id)`,
-        { pod_id: podId, stream_id: streamId },
+         WHERE pod_name = $(pod_name)
+           AND name = $(name)`,
+        { pod_name: podName, name: streamId },
       );
 
       if (!stream) {
@@ -44,24 +44,29 @@ export async function deleteStream(
       }
 
       // Delete all records in the stream
-      await t.none(`DELETE FROM record WHERE stream_id = $(stream_id)`, {
-        stream_id: stream.id,
-      });
+      await t.none(
+        `DELETE FROM record 
+         WHERE stream_pod_name = $(pod_name)
+           AND stream_name = $(stream_name)`,
+        { pod_name: podName, stream_name: streamId },
+      );
 
       // Delete the stream
-      await t.none(`DELETE FROM stream WHERE id = $(stream_id)`, {
-        stream_id: stream.id,
-      });
+      await t.none(
+        `DELETE FROM stream 
+         WHERE pod_name = $(pod_name)
+           AND name = $(name)`,
+        { pod_name: podName, name: streamId },
+      );
 
       logger.info("Stream deleted", {
-        streamId: stream.id,
-        podId,
-        streamPath: streamId,
+        podName,
+        streamId,
       });
       return success(undefined);
     });
   } catch (error: any) {
-    logger.error("Failed to delete stream", { error, podId, streamId });
+    logger.error("Failed to delete stream", { error, podName, streamId });
     return failure(new Error("Failed to delete stream"));
   }
 }

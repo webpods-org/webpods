@@ -61,8 +61,8 @@ describe("WebPods Stream Operations", () => {
 
       // Verify stream was created
       const stream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_id = $(podId) AND stream_id = $(streamId)`,
-        { podId: pod.id, streamId: "my-first-stream" },
+        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId)`,
+        { pod_name: pod.name, streamId: "my-first-stream" },
       );
       expect(stream).to.exist;
       expect(stream.user_id).to.equal(userId);
@@ -82,16 +82,16 @@ describe("WebPods Stream Operations", () => {
         { podId: testPodId },
       );
       const stream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_id = $(podId) AND stream_id = $(streamId)`,
-        { podId: pod.id, streamId: "blog/posts/2024" },
+        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId)`,
+        { pod_name: pod.name, streamId: "blog/posts/2024" },
       );
       expect(stream).to.exist;
-      expect(stream.stream_id).to.equal("blog/posts/2024");
+      expect(stream.name).to.equal("blog/posts/2024");
 
       // Verify the record was created with name 'january'
       const record = await db.oneOrNone(
-        `SELECT * FROM record WHERE stream_id = $(streamId) AND name = $(name)`,
-        { streamId: stream.id, name: "january" },
+        `SELECT * FROM record WHERE stream_pod_name = $(pod_name) AND stream_name = $(streamId) AND name = $(name)`,
+        { pod_name: pod.name, streamId: "blog/posts/2024", name: "january" },
       );
       expect(record).to.exist;
     });
@@ -110,8 +110,8 @@ describe("WebPods Stream Operations", () => {
         { podId: testPodId },
       );
       const stream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_id = $(podId) AND stream_id = $(streamId)`,
-        { podId: pod.id, streamId: "private-stream" },
+        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId)`,
+        { pod_name: pod.name, streamId: "private-stream" },
       );
       expect(stream.access_permission).to.equal("private");
     });
@@ -340,8 +340,8 @@ describe("WebPods Stream Operations", () => {
         { podId: testPodId },
       );
       const ownerStream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_id = $(podId) AND stream_id = $(streamId)`,
-        { podId: pod.id, streamId: ".meta/owner" },
+        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId)`,
+        { pod_name: pod.name, streamId: ".meta/owner" },
       );
 
       expect(ownerStream).to.exist;
@@ -349,8 +349,8 @@ describe("WebPods Stream Operations", () => {
 
       // Check owner record
       const ownerRecord = await db.oneOrNone(
-        `SELECT * FROM record WHERE stream_id = $(streamId) ORDER BY index ASC LIMIT 1`,
-        { streamId: ownerStream.id },
+        `SELECT * FROM record WHERE stream_pod_name = $(pod_name) AND stream_name = $(streamId) ORDER BY index ASC LIMIT 1`,
+        { pod_name: pod.name, streamId: ".meta/owner" },
       );
       const content = JSON.parse(ownerRecord.content);
       expect(content.owner).to.equal(userId);
@@ -368,9 +368,7 @@ describe("WebPods Stream Operations", () => {
       expect(response.data.streams).to.be.an("array");
 
       // The post to /nested/stream3/content3 creates stream "nested/stream3" with record "content3"
-      expect(
-        response.data.streams.map((s: any) => s.stream_id),
-      ).to.include.members([
+      expect(response.data.streams.map((s: any) => s.name)).to.include.members([
         "stream1",
         "stream2",
         "nested/stream3",

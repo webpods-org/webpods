@@ -621,7 +621,7 @@ router.post(
       }
 
       // Check if stream exists first
-      const existingStream = await getStream({ db }, req.pod!.id, streamId);
+      const existingStream = await getStream({ db }, req.pod_name, streamId);
 
       // If stream doesn't exist, check rate limit before creating
       if (!existingStream.success) {
@@ -645,7 +645,7 @@ router.post(
       // Get or create stream
       const streamResult = await getOrCreateStream(
         { db },
-        req.pod!.id,
+        req.pod_name,
         streamId,
         req.auth!.user_id,
         accessPermission,
@@ -677,7 +677,8 @@ router.post(
       // Write record
       const recordResult = await writeRecord(
         { db },
-        streamResult.data.stream.id,
+        req.pod_name,
+        streamId,
         content,
         contentType,
         req.auth.user_id,
@@ -895,7 +896,7 @@ router.get(
       // Check if last part could be a name (not using index query)
       // Try to find stream with full path first
       const fullPath = pathParts.join("/");
-      const streamResult = await getStream({ db }, req.pod!.id, fullPath);
+      const streamResult = await getStream({ db }, req.pod_name, fullPath);
 
       if (streamResult.success && streamResult.data) {
         streamId = fullPath;
@@ -909,7 +910,7 @@ router.get(
     }
 
     // Get stream
-    const streamResult = await getStream({ db }, req.pod!.id, streamId);
+    const streamResult = await getStream({ db }, req.pod_name, streamId);
 
     if (!streamResult.success || !streamResult.data) {
       // Provide more informative error message
@@ -967,7 +968,8 @@ router.get(
         // Single record by index (don't prefer name when using ?i=)
         const result = await getRecord(
           { db },
-          streamResult.data!.id,
+          req.pod_name,
+          streamResult.data.name,
           parsed.start.toString(),
           false,
         );
@@ -1037,7 +1039,8 @@ router.get(
         // Range of records
         const result = await getRecordRange(
           { db },
-          streamResult.data!.id,
+          req.pod_name,
+          streamResult.data.name,
           parsed.start,
           parsed.end!,
         );
@@ -1057,7 +1060,13 @@ router.get(
       }
     } else if (name) {
       // Get by name (prefer name over index for path-based access)
-      const result = await getRecord({ db }, streamResult.data!.id, name, true);
+      const result = await getRecord(
+        { db },
+        req.pod_name,
+        streamResult.data.name,
+        name,
+        true,
+      );
 
       if (!result.success) {
         res.status(404).json({
@@ -1070,13 +1079,15 @@ router.get(
       const tombstonePattern = `${name}.deleted.%`;
       const tombstones = await db.manyOrNone(
         `SELECT * FROM record
-         WHERE stream_id = $(streamId)
+         WHERE stream_pod_name = $(podName)
+           AND stream_name = $(streamId)
            AND name LIKE $(pattern)
            AND index > $(index)
          ORDER BY index DESC
          LIMIT 1`,
         {
-          streamId: streamResult.data.id,
+          podName: req.pod_name,
+          streamId: streamResult.data.name,
           pattern: tombstonePattern,
           index: result.data.index,
         },
@@ -1165,8 +1176,20 @@ router.get(
 
       // Use appropriate listing function based on unique parameter
       const result = unique
-        ? await listUniqueRecords({ db }, streamResult.data.id, limit, after)
-        : await listRecords({ db }, streamResult.data.id, limit, after);
+        ? await listUniqueRecords(
+            { db },
+            req.pod_name,
+            streamResult.data.name,
+            limit,
+            after,
+          )
+        : await listRecords(
+            { db },
+            req.pod_name,
+            streamResult.data.name,
+            limit,
+            after,
+          );
 
       if (!result.success) {
         res.status(500).json({
@@ -1231,7 +1254,7 @@ router.delete(
 
     if (pathParts.length > 1) {
       const fullPath = pathParts.join("/");
-      const streamResult = await getStream({ db }, req.pod!.id, fullPath);
+      const streamResult = await getStream({ db }, req.pod_name, fullPath);
 
       if (streamResult.success && streamResult.data) {
         // Full path is a stream, delete the stream
@@ -1270,7 +1293,7 @@ router.delete(
 
     if (recordName) {
       // Delete or purge a record
-      const streamResult = await getStream({ db }, req.pod!.id, streamId);
+      const streamResult = await getStream({ db }, req.pod_name, streamId);
 
       if (!streamResult.success || !streamResult.data) {
         const fullPath = req.path.substring(1);
@@ -1289,10 +1312,12 @@ router.delete(
           `UPDATE record
            SET content = $(content),
                content_type = $(contentType)
-           WHERE stream_id = $(streamId)
+           WHERE stream_pod_name = $(podName)
+             AND stream_name = $(streamId)
              AND name = $(recordName)`,
           {
-            streamId: streamResult.data!.id,
+            podName: req.pod_name,
+            streamId: streamResult.data.name,
             recordName,
             content: JSON.stringify({
               deleted: true,
@@ -1327,10 +1352,14 @@ router.delete(
         // Get the next index for the tombstone
         const lastRecord = await db.oneOrNone(
           `SELECT * FROM record
-           WHERE stream_id = $(streamId)
+           WHERE stream_pod_name = $(podName)
+             AND stream_name = $(streamId)
            ORDER BY index DESC
            LIMIT 1`,
-          { streamId: streamResult.data!.id },
+          {
+            podName: req.pod_name,
+            streamId: streamResult.data.name,
+          },
         );
 
         const nextIndex = (lastRecord?.index ?? -1) + 1;
@@ -1345,7 +1374,8 @@ router.delete(
 
         const writeResult = await writeRecord(
           { db },
-          streamResult.data!.id,
+          req.pod_name,
+          streamResult.data.name,
           deletionRecord,
           "application/json",
           req.auth.user_id,
@@ -1371,7 +1401,7 @@ router.delete(
       // Delete entire stream
       const result = await deleteStream(
         { db },
-        req.pod!.id,
+        req.pod_name,
         streamId,
         req.auth!.user_id,
       );

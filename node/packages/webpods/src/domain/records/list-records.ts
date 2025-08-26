@@ -16,7 +16,8 @@ const logger = createLogger("webpods:domain:records");
 function mapRecordFromDb(row: RecordDbRow): StreamRecord {
   return {
     id: row.id ? parseInt(row.id) : 0,
-    stream_id: row.stream_id,
+    stream_pod_name: row.stream_pod_name,
+    stream_name: row.stream_name,
     index: row.index,
     content: row.content,
     content_type: row.content_type,
@@ -34,6 +35,7 @@ function mapRecordFromDb(row: RecordDbRow): StreamRecord {
 
 export async function listRecords(
   ctx: DataContext,
+  podName: string,
   streamId: string,
   limit: number = 100,
   after?: number,
@@ -41,16 +43,24 @@ export async function listRecords(
   Result<{ records: StreamRecord[]; total: number; hasMore: boolean }>
 > {
   try {
-    let query = `SELECT * FROM record WHERE stream_id = $(stream_id)`;
-    const params: any = { stream_id: streamId, limit: limit + 1 };
+    let query = `SELECT * FROM record 
+                  WHERE stream_pod_name = $(pod_name) 
+                    AND stream_name = $(stream_name)`;
+    const params: any = {
+      pod_name: podName,
+      stream_name: streamId,
+      limit: limit + 1,
+    };
 
     // Handle negative 'after' parameter
     let actualAfter = after;
     if (after !== undefined && after < 0) {
       // Get total count to convert negative index
       const countResult = await ctx.db.one<{ count: string }>(
-        `SELECT COUNT(*) as count FROM record WHERE stream_id = $(stream_id)`,
-        { stream_id: streamId },
+        `SELECT COUNT(*) as count FROM record 
+         WHERE stream_pod_name = $(pod_name) 
+           AND stream_name = $(stream_name)`,
+        { pod_name: podName, stream_name: streamId },
       );
       const totalCount = parseInt(countResult.count);
       // after=-3 means "get the last 3 records", so we skip totalCount-3 records
@@ -73,8 +83,10 @@ export async function listRecords(
     const records = await ctx.db.manyOrNone<RecordDbRow>(query, params);
 
     const countResult = await ctx.db.one<{ count: string }>(
-      `SELECT COUNT(*) as count FROM record WHERE stream_id = $(stream_id)`,
-      { stream_id: streamId },
+      `SELECT COUNT(*) as count FROM record 
+       WHERE stream_pod_name = $(pod_name) 
+         AND stream_name = $(stream_name)`,
+      { pod_name: podName, stream_name: streamId },
     );
 
     const total = parseInt(countResult.count);
@@ -90,7 +102,13 @@ export async function listRecords(
       hasMore,
     });
   } catch (error: any) {
-    logger.error("Failed to list records", { error, streamId, limit, after });
+    logger.error("Failed to list records", {
+      error,
+      podName,
+      streamId,
+      limit,
+      after,
+    });
     return failure(new Error("Failed to list records"));
   }
 }

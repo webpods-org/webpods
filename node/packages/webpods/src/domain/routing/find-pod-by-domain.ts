@@ -4,7 +4,7 @@
 
 import { DataContext } from "../data-context.js";
 import { Result, success } from "../../utils/result.js";
-import { PodDbRow, StreamDbRow, RecordDbRow } from "../../db-types.js";
+import { PodDbRow, RecordDbRow } from "../../db-types.js";
 import { createLogger } from "../../logger.js";
 
 const logger = createLogger("webpods:domain:routing");
@@ -17,24 +17,18 @@ export async function findPodByDomain(
     // Get all pods that have .meta/domains streams
     const pods = await ctx.db.manyOrNone<PodDbRow>(
       `SELECT DISTINCT p.* FROM pod p
-       JOIN stream s ON s.pod_id = p.id
-       WHERE s.stream_id = '.meta/domains'`,
+       JOIN stream s ON s.pod_name = p.name
+       WHERE s.name = '.meta/domains'`,
     );
 
     // Check each pod's domains
     for (const pod of pods) {
-      const domainStream = await ctx.db.one<StreamDbRow>(
-        `SELECT * FROM stream
-         WHERE pod_id = $(pod_id)
-           AND stream_id = '.meta/domains'`,
-        { pod_id: pod.id },
-      );
-
       const records = await ctx.db.manyOrNone<RecordDbRow>(
         `SELECT * FROM record
-         WHERE stream_id = $(stream_id)
+         WHERE stream_pod_name = $(stream_pod_name)
+           AND stream_name = $(stream_name)
          ORDER BY index ASC`,
-        { stream_id: domainStream.id },
+        { stream_pod_name: pod.name, stream_name: ".meta/domains" },
       );
 
       // Build current domain list

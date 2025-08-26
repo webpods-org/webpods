@@ -11,6 +11,7 @@ const logger = createLogger("webpods:domain:streams");
 
 export async function updateStreamPermissions(
   ctx: DataContext,
+  podName: string,
   streamId: string,
   accessPermission: string,
 ): Promise<Result<void>> {
@@ -21,15 +22,21 @@ export async function updateStreamPermissions(
 
     await ctx.db.none(
       `${sql.update("stream", params)}
-       WHERE id = $(stream_id)`,
-      { ...params, stream_id: streamId },
+       WHERE pod_name = $(pod_name)
+         AND name = $(name)`,
+      { ...params, pod_name: podName, name: streamId },
     );
 
-    logger.info("Stream permissions updated", { streamId, accessPermission });
+    logger.info("Stream permissions updated", {
+      podName,
+      streamId,
+      accessPermission,
+    });
     return success(undefined);
   } catch (error: any) {
     logger.error("Failed to update stream permissions", {
       error,
+      podName,
       streamId,
       accessPermission,
     });

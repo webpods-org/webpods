@@ -16,7 +16,8 @@ const logger = createLogger("webpods:domain:records");
 function mapRecordFromDb(row: RecordDbRow): StreamRecord {
   return {
     id: row.id ? parseInt(row.id) : 0,
-    stream_id: row.stream_id,
+    stream_pod_name: row.stream_pod_name,
+    stream_name: row.stream_name,
     index: row.index,
     content: row.content,
     content_type: row.content_type,
@@ -34,6 +35,7 @@ function mapRecordFromDb(row: RecordDbRow): StreamRecord {
 
 export async function listUniqueRecords(
   ctx: DataContext,
+  podName: string,
   streamId: string,
   limit: number = 100,
   after?: number,
@@ -44,10 +46,11 @@ export async function listUniqueRecords(
     // Get all records with names, ordered by index
     const allRecords = await ctx.db.manyOrNone<RecordDbRow>(
       `SELECT * FROM record
-       WHERE stream_id = $(stream_id)
-       AND name IS NOT NULL
+       WHERE stream_pod_name = $(pod_name)
+         AND stream_name = $(stream_name)
+         AND name IS NOT NULL
        ORDER BY index ASC`,
-      { stream_id: streamId },
+      { pod_name: podName, stream_name: streamId },
     );
 
     // Build map of latest record per name, excluding deleted
@@ -93,8 +96,8 @@ export async function listUniqueRecords(
         .one<{
           count: string;
         }>(
-          `SELECT COUNT(*) as count FROM record WHERE stream_id = $(stream_id)`,
-          { stream_id: streamId },
+          `SELECT COUNT(*) as count FROM record WHERE stream_pod_name = $(pod_name) AND stream_name = $(stream_name)`,
+          { pod_name: podName, stream_name: streamId },
         )
         .then((r) => parseInt(r.count));
 
@@ -126,6 +129,7 @@ export async function listUniqueRecords(
   } catch (error: any) {
     logger.error("Failed to list unique records", {
       error,
+      podName,
       streamId,
       limit,
       after,

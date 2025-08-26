@@ -17,12 +17,11 @@ const logger = createLogger("webpods:domain:pods");
  */
 function mapPodFromDb(row: PodDbRow): Pod {
   return {
-    id: row.id,
     name: row.name,
     user_id: "", // Will be populated from .meta/owner stream
-    metadata: undefined,
+    metadata: row.metadata,
     created_at: row.created_at,
-    updated_at: row.created_at,
+    updated_at: row.updated_at || row.created_at,
   };
 }
 
@@ -52,7 +51,6 @@ export async function createPod(
 
       // Create pod with snake_case parameters
       const podParams = {
-        id: crypto.randomUUID(),
         name: podName,
         created_at: new Date(),
       };
@@ -64,15 +62,14 @@ export async function createPod(
 
       // Create .meta/owner stream with snake_case parameters
       const streamParams = {
-        id: crypto.randomUUID(),
-        pod_id: pod.id,
-        stream_id: ".meta/owner",
+        pod_name: pod.name,
+        name: ".meta/owner",
         user_id: userId,
         access_permission: "private",
         created_at: new Date(),
       };
 
-      const ownerStream = await t.one<StreamDbRow>(
+      await t.one<StreamDbRow>(
         `${sql.insert("stream", streamParams)} RETURNING *`,
         streamParams,
       );
@@ -83,7 +80,8 @@ export async function createPod(
       const hash = calculateRecordHash(null, timestamp, ownerContent);
 
       const recordParams = {
-        stream_id: ownerStream.id,
+        stream_pod_name: pod.name,
+        stream_name: ".meta/owner",
         index: 0,
         content: JSON.stringify(ownerContent),
         content_type: "application/json",

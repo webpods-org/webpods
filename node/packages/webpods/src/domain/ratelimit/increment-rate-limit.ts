@@ -33,7 +33,6 @@ export async function incrementRateLimit(
     if (!rateLimitRecord) {
       // Create new window with count 1
       const params = {
-        id: crypto.randomUUID(),
         identifier: identifier,
         action: type,
         count: 1,

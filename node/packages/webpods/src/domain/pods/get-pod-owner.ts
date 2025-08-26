@@ -17,10 +17,8 @@ export async function getPodOwner(
     // Get the latest owner record from .meta/owner stream
     const ownerRecord = await ctx.db.oneOrNone<RecordDbRow>(
       `SELECT r.* FROM record r
-       JOIN stream s ON r.stream_id = s.id
-       JOIN pod p ON p.id = s.pod_id
-       WHERE p.name = $(pod_name)
-         AND s.stream_id = '.meta/owner'
+       WHERE r.stream_pod_name = $(pod_name)
+         AND r.stream_name = '.meta/owner'
          AND r.name = 'owner'
        ORDER BY r.index DESC
        LIMIT 1`,

@@ -105,17 +105,15 @@ describe("WebPods Rate Limiting", () => {
       // Verify ownership via .meta/owner stream
       const owner1Record = await db.oneOrNone(
         `SELECT r.content FROM record r
-         JOIN stream s ON r.stream_id = s.id
-         WHERE s.pod_id = $(podId) AND s.stream_id = '.meta/owner'
+         WHERE r.stream_pod_name = $(pod_name) AND r.stream_name = '.meta/owner'
          ORDER BY r.index DESC LIMIT 1`,
-        { podId: pod1.id },
+        { pod_name: pod1.name },
       );
       const owner2Record = await db.oneOrNone(
         `SELECT r.content FROM record r
-         JOIN stream s ON r.stream_id = s.id
-         WHERE s.pod_id = $(podId) AND s.stream_id = '.meta/owner'
+         WHERE r.stream_pod_name = $(pod_name) AND r.stream_name = '.meta/owner'
          ORDER BY r.index DESC LIMIT 1`,
-        { podId: pod2.id },
+        { pod_name: pod2.name },
       );
 
       expect(owner1Record).to.exist;
@@ -284,10 +282,9 @@ describe("WebPods Rate Limiting", () => {
 
       // Insert an expired window with high count
       await db.none(
-        `INSERT INTO rate_limit (id, identifier, action, count, window_start, window_end)
-         VALUES ($(id), $(identifier), $(action), $(count), $(windowStart), $(windowEnd))`,
+        `INSERT INTO rate_limit (identifier, action, count, window_start, window_end)
+         VALUES ($(identifier), $(action), $(count), $(windowStart), $(windowEnd))`,
         {
-          id: crypto.randomUUID(),
           identifier: userId, // Rate limiting uses user_id
           action: "write",
           count: 999, // Just under limit
@@ -318,18 +315,16 @@ describe("WebPods Rate Limiting", () => {
       // Insert multiple old windows
       const oldDate = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours ago
       await db.none(
-        `INSERT INTO rate_limit (id, identifier, action, count, window_start, window_end)
+        `INSERT INTO rate_limit (identifier, action, count, window_start, window_end)
          VALUES 
-         ($(id1), $(identifier1), $(action1), $(count1), $(windowStart1), $(windowEnd1)),
-         ($(id2), $(identifier2), $(action2), $(count2), $(windowStart2), $(windowEnd2))`,
+         ($(identifier1), $(action1), $(count1), $(windowStart1), $(windowEnd1)),
+         ($(identifier2), $(action2), $(count2), $(windowStart2), $(windowEnd2))`,
         {
-          id1: crypto.randomUUID(),
           identifier1: "old-user-1",
           action1: "write",
           count1: 100,
           windowStart1: new Date(oldDate.getTime() - 60 * 60 * 1000),
           windowEnd1: oldDate,
-          id2: crypto.randomUUID(),
           identifier2: "old-user-2",
           action2: "read",
           count2: 200,
@@ -389,10 +384,9 @@ describe("WebPods Rate Limiting", () => {
 
       // Set a rate limit that's already exceeded
       await db.none(
-        `INSERT INTO rate_limit (id, identifier, action, count, window_start, window_end)
-         VALUES ($(id), $(identifier), $(action), $(count), $(windowStart), $(windowEnd))`,
+        `INSERT INTO rate_limit (identifier, action, count, window_start, window_end)
+         VALUES ($(identifier), $(action), $(count), $(windowStart), $(windowEnd))`,
         {
-          id: crypto.randomUUID(),
           identifier: userId, // Rate limiting uses user_id
           action: "write",
           count: 1001, // Over the default limit of 1000
@@ -443,10 +437,9 @@ describe("WebPods Rate Limiting", () => {
 
       // Set user1 at limit
       await db.none(
-        `INSERT INTO rate_limit (id, identifier, action, count, window_start, window_end)
-         VALUES ($(id), $(identifier), $(action), $(count), $(windowStart), $(windowEnd))`,
+        `INSERT INTO rate_limit (identifier, action, count, window_start, window_end)
+         VALUES ($(identifier), $(action), $(count), $(windowStart), $(windowEnd))`,
         {
-          id: crypto.randomUUID(),
           identifier: userId, // Rate limiting uses user_id
           action: "write",
           count: 1000, // At the limit
@@ -524,18 +517,16 @@ describe("WebPods Rate Limiting", () => {
 
       // Set different counts for different actions
       await db.none(
-        `INSERT INTO rate_limit (id, identifier, action, count, window_start, window_end)
+        `INSERT INTO rate_limit (identifier, action, count, window_start, window_end)
          VALUES 
-         ($(id1), $(identifier1), $(action1), $(count1), $(windowStart1), $(windowEnd1)),
-         ($(id2), $(identifier2), $(action2), $(count2), $(windowStart2), $(windowEnd2))`,
+         ($(identifier1), $(action1), $(count1), $(windowStart1), $(windowEnd1)),
+         ($(identifier2), $(action2), $(count2), $(windowStart2), $(windowEnd2))`,
         {
-          id1: crypto.randomUUID(),
           identifier1: testUserId, // Rate limiting uses user_id
           action1: "stream_create", // Changed from pod_create since we're creating streams
           count1: 97, // Leave room for 3 stream creations (can-write, stream-99, stream-100)
           windowStart1: windowStart,
           windowEnd1: windowEnd,
-          id2: crypto.randomUUID(),
           identifier2: testUserId, // Rate limiting uses user_id
           action2: "write",
           count2: 100, // Well under the limit of 1000

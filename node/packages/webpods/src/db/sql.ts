@@ -12,9 +12,8 @@
  *
  * @example
  * const params = {
- *   id: uuidv4(),
- *   pod_id: podId,
- *   stream_id: streamId,
+ *   pod_name: podName,
+ *   name: streamId,
  *   user_id: userId,
  *   access_permission: 'public',
  *   created_at: new Date()

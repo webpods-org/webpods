@@ -25,12 +25,10 @@ export async function checkPermissionStream(
 
     // First check if the stream exists
     const stream = await ctx.db.oneOrNone<StreamDbRow>(
-      `SELECT s.*
-       FROM stream s
-       JOIN pod p ON p.id = s.pod_id
-       WHERE p.name = $(pod_name)
-         AND s.stream_id = $(stream_id)`,
-      { pod_name: podName, stream_id: streamId },
+      `SELECT * FROM stream
+       WHERE pod_name = $(pod_name)
+         AND name = $(name)`,
+      { pod_name: podName, name: streamId },
     );
 
     if (!stream) {
@@ -39,16 +37,17 @@ export async function checkPermissionStream(
     }
 
     logger.info("Permission stream found", {
-      streamId: stream.stream_id,
-      id: stream.id,
+      streamId: stream.name,
+      podName: stream.pod_name,
     });
 
     // Get ALL records from the permission stream
     const records = await ctx.db.manyOrNone<RecordDbRow>(
       `SELECT * FROM record
-       WHERE stream_id = $(stream_id)
+       WHERE stream_pod_name = $(stream_pod_name)
+         AND stream_name = $(stream_name)
        ORDER BY index ASC`,
-      { stream_id: stream.id },
+      { stream_pod_name: podName, stream_name: streamId },
     );
 
     // Process records in memory to find the latest permission for this user
@@ -74,7 +73,7 @@ export async function checkPermissionStream(
     logger.info("Permission check result", {
       found: !!userPermission,
       userId,
-      streamId: stream.stream_id,
+      streamId: stream.name,
       permission: userPermission,
       recordCount: records.length,
     });

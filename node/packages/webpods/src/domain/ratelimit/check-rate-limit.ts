@@ -57,7 +57,6 @@ export async function checkRateLimit(
     if (!rateLimitRecord) {
       // Create new window with snake_case parameters
       const params = {
-        id: crypto.randomUUID(),
         identifier: identifier,
         action: type,
         count: 0,

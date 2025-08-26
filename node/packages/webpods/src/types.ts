@@ -41,18 +41,16 @@ export interface Identity {
 }
 
 export interface Pod {
-  id: string;
-  name: string; // Subdomain (e.g., 'alice')
-  user_id: string;
+  name: string; // Primary key - Subdomain (e.g., 'alice')
+  user_id: string; // Owner ID from .meta/owner stream
   metadata?: any;
   created_at: Date;
   updated_at: Date;
 }
 
 export interface Stream {
-  id: string;
-  pod_id: string;
-  stream_id: string; // Stream path within pod (can include slashes)
+  pod_name: string; // Part of composite primary key
+  name: string; // Part of composite primary key - Stream path within pod (can include slashes)
   user_id: string;
   access_permission: string; // 'public', 'private', or '/streamname'
   metadata?: any;
@@ -62,7 +60,8 @@ export interface Stream {
 
 export interface StreamRecord {
   id: number;
-  stream_id: string;
+  stream_pod_name: string; // References stream.pod_name
+  stream_name: string; // References stream.name
   index: number; // Position in stream (0-based)
   content: string | any; // Can be text or JSON
   content_type: string;
@@ -75,8 +74,8 @@ export interface StreamRecord {
 }
 
 export interface CustomDomain {
-  id: string;
-  pod_id: string;
+  id: number; // bigserial
+  pod_name: string;
   domain: string;
   ssl_provisioned: boolean;
   created_at: Date;
@@ -84,7 +83,7 @@ export interface CustomDomain {
 }
 
 export interface RateLimit {
-  id: string;
+  id: number; // bigserial
   key: string; // user_id or ip_address
   action: "read" | "write" | "pod_create" | "stream_create";
   count: number;
@@ -204,7 +203,7 @@ export interface CreatePodInput {
 }
 
 export interface CreateStreamInput {
-  stream_id: string;
+  name: string;
   access_permission?: string;
 }
 
