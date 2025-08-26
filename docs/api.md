@@ -232,7 +232,10 @@ GET {pod}.webpods.org/{stream}?limit={n}&after={index}&unique={boolean}
 Query parameters:
 
 - `limit` - Maximum records to return (default: 100)
-- `after` - Start after this index (for pagination)
+- `after` - Start after this index (for pagination). Supports negative values to get the last N records:
+  - `after=-20` returns the last 20 records
+  - `after=-3` returns the last 3 records
+  - Negative values are converted relative to total record count
 - `unique` - When `true`, returns only latest version of each named record, excluding deleted/purged records
 
 Response:
@@ -380,6 +383,41 @@ curl alice.webpods.org/images/logo
 ```
 
 Supported formats: PNG, JPEG, GIF, WebP, SVG, ICO
+
+## Pagination Examples
+
+### Get the last 20 records
+```bash
+# Using negative after parameter
+curl alice.webpods.org/stream?after=-20
+
+# Returns the 20 most recent records
+```
+
+### Get records 10-30
+```bash
+# Using positive after with limit
+curl alice.webpods.org/stream?after=9&limit=21
+
+# Returns records with index 10 through 30
+```
+
+### Get all records from the last 50
+```bash
+# When there are fewer than 50 records, returns all
+curl alice.webpods.org/stream?after=-50
+
+# If stream has 30 records, returns all 30
+# If stream has 100 records, returns last 50
+```
+
+### Paginate through unique records
+```bash
+# Get last 10 unique (named) records
+curl alice.webpods.org/stream?unique=true&after=-10
+
+# Pagination works the same with unique=true
+```
 
 ## SSO (Single Sign-On)
 

@@ -41,12 +41,31 @@ export async function listRecords(
   Result<{ records: StreamRecord[]; total: number; hasMore: boolean }>
 > {
   try {
-    let query = `SELECT * FROM record WHERE stream_id = $(streamId)`;
-    const params: any = { streamId, limit: limit + 1 };
+    let query = `SELECT * FROM record WHERE stream_id = $(stream_id)`;
+    const params: any = { stream_id: streamId, limit: limit + 1 };
 
-    if (after !== undefined) {
+    // Handle negative 'after' parameter
+    let actualAfter = after;
+    if (after !== undefined && after < 0) {
+      // Get total count to convert negative index
+      const countResult = await ctx.db.one<{ count: string }>(
+        `SELECT COUNT(*) as count FROM record WHERE stream_id = $(stream_id)`,
+        { stream_id: streamId },
+      );
+      const totalCount = parseInt(countResult.count);
+      // after=-3 means "get the last 3 records", so we skip totalCount-3 records
+      // This means we want records after index (totalCount + after - 1)
+      actualAfter = totalCount + after - 1; // e.g., 5 + (-3) - 1 = 1, so index > 1 gives indices 2,3,4
+
+      // If still negative after conversion, start from beginning
+      if (actualAfter < 0) {
+        actualAfter = -1; // This will get all records from start
+      }
+    }
+
+    if (actualAfter !== undefined) {
       query += ` AND index > $(after)`;
-      params.after = after;
+      params.after = actualAfter;
     }
 
     query += ` ORDER BY index ASC LIMIT $(limit)`;
@@ -54,8 +73,8 @@ export async function listRecords(
     const records = await ctx.db.manyOrNone<RecordDbRow>(query, params);
 
     const countResult = await ctx.db.one<{ count: string }>(
-      `SELECT COUNT(*) as count FROM record WHERE stream_id = $(streamId)`,
-      { streamId },
+      `SELECT COUNT(*) as count FROM record WHERE stream_id = $(stream_id)`,
+      { stream_id: streamId },
     );
 
     const total = parseInt(countResult.count);

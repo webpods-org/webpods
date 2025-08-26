@@ -192,6 +192,34 @@ describe("Unique Records Listing", () => {
       expect(names).to.include("item2");
     });
 
+    it("should support negative 'after' parameter with unique=true", async () => {
+      // Create multiple named records
+      await podClient.post("/negtest/item1", "First item", {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      await podClient.post("/negtest/item2", "Second item", {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      await podClient.post("/negtest/item3", "Third item", {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      await podClient.post("/negtest/item4", "Fourth item", {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      await podClient.post("/negtest/item5", "Fifth item", {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+
+      // Get last 3 unique records using negative after
+      const response = await podClient.get("/negtest?unique=true&after=-3");
+      expect(response.status).to.equal(200);
+      expect(response.data.records).to.have.length(3);
+      
+      // Should get the last 3 items
+      const names = response.data.records.map((r: any) => r.name);
+      expect(names).to.deep.equal(["item3", "item4", "item5"]);
+    });
+
     it("should handle updates after deletion correctly", async () => {
       // Create, delete, then recreate a record
       await podClient.post("/content/article", "Version 1", {

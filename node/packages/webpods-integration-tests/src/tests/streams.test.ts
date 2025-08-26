@@ -281,6 +281,30 @@ describe("WebPods Stream Operations", () => {
       expect(response.headers["x-timestamp"]).to.exist;
       expect(response.data).to.equal("First");
     });
+
+    it("should support negative 'after' parameter for pagination", async () => {
+      // We have 5 records in read-test: first, second, third, my-name, 2024
+      // Using after=-3 should skip all but the last 3 records
+      const response = await client.get("/read-test?after=-3");
+      expect(response.status).to.equal(200);
+      expect(response.data.records).to.have.lengthOf(3);
+
+      // Should get the last 3 records (indices 2, 3, 4)
+      expect(response.data.records[0].content).to.equal("Third");
+      expect(response.data.records[1].content).to.equal("Named");
+      expect(response.data.records[2].content).to.equal("Year 2024");
+    });
+
+    it("should handle negative 'after' when total < abs(after)", async () => {
+      // We have 5 records, after=-10 should return all records
+      const response = await client.get("/read-test?after=-10");
+      expect(response.status).to.equal(200);
+      expect(response.data.records).to.have.lengthOf(5);
+
+      // Should get all records from the beginning
+      expect(response.data.records[0].content).to.equal("First");
+      expect(response.data.records[4].content).to.equal("Year 2024");
+    });
   });
 
   describe("System Streams (.meta/)", () => {

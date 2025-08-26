@@ -63,8 +63,10 @@ GET {pod}.webpods.org/{stream}?i=0      # First record
 GET {pod}.webpods.org/{stream}?i=-1     # Latest record
 GET {pod}.webpods.org/{stream}?i=0:10   # Range (0-9)
 
-# List all
-GET {pod}.webpods.org/{stream}?limit=100&after=50
+# List with pagination
+GET {pod}.webpods.org/{stream}?limit=100&after=50   # After index 50
+GET {pod}.webpods.org/{stream}?after=-20            # Last 20 records
+GET {pod}.webpods.org/{stream}?unique=true&after=-10 # Last 10 unique
 ```
 
 ### Permissions
