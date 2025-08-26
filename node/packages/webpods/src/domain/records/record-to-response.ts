@@ -9,7 +9,7 @@ export function recordToResponse(record: StreamRecord): StreamRecordResponse {
 
   // Parse JSON content if needed
   if (
-    record.content_type === "application/json" &&
+    record.contentType === "application/json" &&
     typeof content === "string"
   ) {
     try {
@@ -22,11 +22,11 @@ export function recordToResponse(record: StreamRecord): StreamRecordResponse {
   return {
     index: record.index,
     content: content,
-    content_type: record.content_type,
+    contentType: record.contentType,
     name: record.name,
     hash: record.hash,
-    previous_hash: record.previous_hash,
-    author: record.user_id,
-    timestamp: record.created_at.toISOString(),
+    previousHash: record.previousHash,
+    author: record.userId,
+    timestamp: record.createdAt.toISOString(),
   };
 }

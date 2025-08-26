@@ -74,7 +74,7 @@ const domainsSchema = z.object({
  * GET {pod}.webpods.org/login
  */
 router.get("/login", extractPod, (req: ExpressRequest, res: Response) => {
-  if (!req.pod_name) {
+  if (!req.podName) {
     res.status(400).json({
       error: {
         code: "INVALID_POD",
@@ -90,9 +90,9 @@ router.get("/login", extractPod, (req: ExpressRequest, res: Response) => {
   // Redirect to main domain authorization with pod info
   const config = getConfig();
   const publicUrl = config.server.publicUrl || "http://localhost:3000";
-  const authUrl = `${publicUrl}/auth/authorize?pod=${req.pod_name}&redirect=${encodeURIComponent(redirect)}`;
+  const authUrl = `${publicUrl}/auth/authorize?pod=${req.podName}&redirect=${encodeURIComponent(redirect)}`;
 
-  logger.info("Pod login initiated", { pod: req.pod_name, redirect });
+  logger.info("Pod login initiated", { pod: req.podName, redirect });
   res.redirect(authUrl);
 });
 
@@ -108,7 +108,7 @@ router.get(
     const redirect = (req.query.redirect as string) || "/";
 
     logger.info("Auth callback on pod", {
-      pod: req.pod_name,
+      pod: req.podName,
       hasToken: !!token,
       redirect,
     });
@@ -134,10 +134,10 @@ router.get(
       maxAge: 10 * 365 * 24 * 60 * 60 * 1000, // 10 years (effectively unlimited)
       path: "/",
       // Cookie domain cannot have port
-      domain: `.${req.pod_name}.${publicConfig?.hostname || "localhost"}`, // Scoped to pod subdomain
+      domain: `.${req.podName}.${publicConfig?.hostname || "localhost"}`, // Scoped to pod subdomain
     });
 
-    logger.info("Pod auth callback successful", { pod: req.pod_name });
+    logger.info("Pod auth callback successful", { pod: req.podName });
 
     // Redirect to final destination
     res.redirect(redirect);
@@ -152,7 +152,7 @@ router.get(
   "/.meta/streams",
   extractPod,
   async (req: AuthRequest, res: Response) => {
-    if (!req.pod || !req.pod_name) {
+    if (!req.pod || !req.podName) {
       res.status(404).json({
         error: {
           code: "POD_NOT_FOUND",
@@ -163,7 +163,7 @@ router.get(
     }
 
     const db = getDb();
-    const result = await listPodStreams({ db }, req.pod_name);
+    const result = await listPodStreams({ db }, req.podName);
 
     if (!result.success) {
       console.error("listPodStreams failed:", result.error);
@@ -174,7 +174,7 @@ router.get(
     }
 
     res.json({
-      pod: req.pod_name,
+      pod: req.podName,
       streams: result.data,
     });
   },
@@ -190,7 +190,7 @@ router.delete(
   authenticate,
   rateLimit("pod_create"),
   async (req: AuthRequest, res: Response) => {
-    if (!req.pod_name || !req.auth) {
+    if (!req.podName || !req.auth) {
       res.status(404).json({
         error: {
           code: "POD_NOT_FOUND",
@@ -201,7 +201,7 @@ router.delete(
     }
 
     const db = getDb();
-    const result = await deletePod({ db }, req.pod_name, req.auth.user_id);
+    const result = await deletePod({ db }, req.podName, req.auth.user_id);
 
     if (!result.success) {
       const status =
@@ -227,7 +227,7 @@ router.post(
   extractPod,
   authenticate,
   async (req: AuthRequest, res: Response) => {
-    if (!req.pod_name || !req.auth) {
+    if (!req.podName || !req.auth) {
       res.status(404).json({
         error: {
           code: "POD_NOT_FOUND",
@@ -243,7 +243,7 @@ router.post(
 
       const result = await transferPodOwnership(
         { db },
-        req.pod_name,
+        req.podName,
         req.auth.user_id,
         data.owner,
       );
@@ -284,7 +284,7 @@ router.post(
   extractPod,
   authenticate,
   async (req: AuthRequest, res: Response) => {
-    if (!req.pod_name || !req.auth) {
+    if (!req.podName || !req.auth) {
       res.status(404).json({
         error: {
           code: "POD_NOT_FOUND",
@@ -299,7 +299,7 @@ router.post(
       const db = getDb();
 
       // Check ownership
-      const ownerResult = await getPodOwner({ db }, req.pod_name);
+      const ownerResult = await getPodOwner({ db }, req.podName);
       if (!ownerResult.success || ownerResult.data !== req.auth.user_id) {
         res.status(403).json({
           error: {
@@ -312,7 +312,7 @@ router.post(
 
       const result = await updateLinks(
         { db },
-        req.pod_name,
+        req.podName,
         data,
         req.auth.user_id,
         req.auth.user_id,
@@ -352,7 +352,7 @@ router.post(
   extractPod,
   authenticate,
   async (req: AuthRequest, res: Response) => {
-    if (!req.pod_name || !req.auth) {
+    if (!req.podName || !req.auth) {
       res.status(404).json({
         error: {
           code: "POD_NOT_FOUND",
@@ -367,7 +367,7 @@ router.post(
       const db = getDb();
 
       // Check ownership
-      const ownerResult = await getPodOwner({ db }, req.pod_name);
+      const ownerResult = await getPodOwner({ db }, req.podName);
       if (!ownerResult.success || ownerResult.data !== req.auth.user_id) {
         res.status(403).json({
           error: {
@@ -380,7 +380,7 @@ router.post(
 
       const result = await updateCustomDomains(
         { db },
-        req.pod_name,
+        req.podName,
         req.auth.user_id,
         { add: data.domains },
       );
@@ -426,7 +426,7 @@ router.post(
   rateLimit("write"),
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     // If no pod_id was extracted, this is the main domain - skip to next handler
-    if (!req.pod_name) {
+    if (!req.podName) {
       return next();
     }
 
@@ -574,7 +574,7 @@ router.post(
       const db = getDb();
 
       // Create pod if it doesn't exist
-      if (!req.pod && req.pod_name) {
+      if (!req.pod && req.podName) {
         // Check pod creation rate limit first
         const podLimitResult = await checkRateLimit(
           { db },
@@ -609,7 +609,7 @@ router.post(
         const podResult = await createPod(
           { db },
           req.auth.user_id,
-          req.pod_name,
+          req.podName,
         );
         if (!podResult.success) {
           res.status(500).json({
@@ -621,7 +621,7 @@ router.post(
       }
 
       // Check if stream exists first
-      const existingStream = await getStream({ db }, req.pod_name, streamId);
+      const existingStream = await getStream({ db }, req.podName, streamId);
 
       // If stream doesn't exist, check rate limit before creating
       if (!existingStream.success) {
@@ -645,7 +645,7 @@ router.post(
       // Get or create stream
       const streamResult = await getOrCreateStream(
         { db },
-        req.pod_name,
+        req.podName,
         streamId,
         req.auth!.user_id,
         accessPermission,
@@ -677,7 +677,7 @@ router.post(
       // Write record
       const recordResult = await writeRecord(
         { db },
-        req.pod_name,
+        req.podName,
         streamId,
         content,
         contentType,
@@ -733,7 +733,7 @@ router.get(
   optionalAuth,
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     // If no pod_id was extracted, this is the main domain - skip to next handler
-    if (!req.pod_name) {
+    if (!req.podName) {
       return next();
     }
 
@@ -769,7 +769,7 @@ router.get(
     const db = getDb();
 
     // Check if path "/" is mapped in .meta/links
-    const linkResult = await resolveLink({ db }, req.pod_name, "/");
+    const linkResult = await resolveLink({ db }, req.podName, "/");
 
     if (linkResult.success && linkResult.data) {
       // Redirect to the mapped stream/record
@@ -820,7 +820,7 @@ router.get(
   rateLimit("read"),
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     // If no pod_id was extracted, this is the main domain - skip to next handler
-    if (!req.pod_name) {
+    if (!req.podName) {
       return next();
     }
 
@@ -857,7 +857,7 @@ router.get(
     const db = getDb();
 
     // First check if this path is mapped in .meta/links
-    const linkResult = await resolveLink({ db }, req.pod_name, req.path);
+    const linkResult = await resolveLink({ db }, req.podName, req.path);
 
     if (linkResult.success && linkResult.data) {
       // Redirect to the mapped stream/record
@@ -896,7 +896,7 @@ router.get(
       // Check if last part could be a name (not using index query)
       // Try to find stream with full path first
       const fullPath = pathParts.join("/");
-      const streamResult = await getStream({ db }, req.pod_name, fullPath);
+      const streamResult = await getStream({ db }, req.podName, fullPath);
 
       if (streamResult.success && streamResult.data) {
         streamId = fullPath;
@@ -910,7 +910,7 @@ router.get(
     }
 
     // Get stream
-    const streamResult = await getStream({ db }, req.pod_name, streamId);
+    const streamResult = await getStream({ db }, req.podName, streamId);
 
     if (!streamResult.success || !streamResult.data) {
       // Provide more informative error message
@@ -968,7 +968,7 @@ router.get(
         // Single record by index (don't prefer name when using ?i=)
         const result = await getRecord(
           { db },
-          req.pod_name,
+          req.podName,
           streamResult.data.name,
           parsed.start.toString(),
           false,
@@ -986,7 +986,7 @@ router.get(
         try {
           const content =
             typeof record.content === "string" &&
-            record.content_type === "application/json"
+            record.contentType === "application/json"
               ? JSON.parse(record.content)
               : record.content;
 
@@ -1010,20 +1010,20 @@ router.get(
         // Return raw content for single records
         // Set headers
         res.setHeader("X-Hash", record.hash);
-        res.setHeader("X-Previous-Hash", record.previous_hash || "");
-        res.setHeader("X-Author", record.user_id);
-        res.setHeader("X-Timestamp", record.created_at.toISOString());
+        res.setHeader("X-Previous-Hash", record.previousHash || "");
+        res.setHeader("X-Author", record.userId);
+        res.setHeader("X-Timestamp", record.createdAt.toISOString());
 
         // Set content type and send response
-        res.type(record.content_type);
+        res.type(record.contentType);
 
         // Handle different content types
-        if (isBinaryContentType(record.content_type)) {
+        if (isBinaryContentType(record.contentType)) {
           // Decode base64 for binary content
           const buffer = Buffer.from(record.content, "base64");
           res.send(buffer);
         } else if (
-          record.content_type === "application/json" &&
+          record.contentType === "application/json" &&
           typeof record.content === "string"
         ) {
           // Parse JSON content if needed
@@ -1039,7 +1039,7 @@ router.get(
         // Range of records
         const result = await getRecordRange(
           { db },
-          req.pod_name,
+          req.podName,
           streamResult.data.name,
           parsed.start,
           parsed.end!,
@@ -1062,7 +1062,7 @@ router.get(
       // Get by name (prefer name over index for path-based access)
       const result = await getRecord(
         { db },
-        req.pod_name,
+        req.podName,
         streamResult.data.name,
         name,
         true,
@@ -1086,7 +1086,7 @@ router.get(
          ORDER BY index DESC
          LIMIT 1`,
         {
-          podName: req.pod_name,
+          podName: req.podName,
           streamId: streamResult.data.name,
           pattern: tombstonePattern,
           index: result.data.index,
@@ -1109,7 +1109,7 @@ router.get(
       try {
         const content =
           typeof record.content === "string" &&
-          record.content_type === "application/json"
+          record.contentType === "application/json"
             ? JSON.parse(record.content)
             : record.content;
 
@@ -1133,20 +1133,20 @@ router.get(
       // Return raw content for single records
       // Set headers
       res.setHeader("X-Hash", record.hash);
-      res.setHeader("X-Previous-Hash", record.previous_hash || "");
-      res.setHeader("X-Author", record.user_id);
-      res.setHeader("X-Timestamp", record.created_at.toISOString());
+      res.setHeader("X-Previous-Hash", record.previousHash || "");
+      res.setHeader("X-Author", record.userId);
+      res.setHeader("X-Timestamp", record.createdAt.toISOString());
 
       // Set content type and send response
-      res.type(record.content_type);
+      res.type(record.contentType);
 
       // Handle different content types
-      if (isBinaryContentType(record.content_type)) {
+      if (isBinaryContentType(record.contentType)) {
         // Decode base64 for binary content
         const buffer = Buffer.from(record.content, "base64");
         res.send(buffer);
       } else if (
-        record.content_type === "application/json" &&
+        record.contentType === "application/json" &&
         typeof record.content === "string"
       ) {
         // Parse JSON content if needed
@@ -1178,14 +1178,14 @@ router.get(
       const result = unique
         ? await listUniqueRecords(
             { db },
-            req.pod_name,
+            req.podName,
             streamResult.data.name,
             limit,
             after,
           )
         : await listRecords(
             { db },
-            req.pod_name,
+            req.podName,
             streamResult.data.name,
             limit,
             after,
@@ -1229,7 +1229,7 @@ router.delete(
   authenticate,
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     // If no pod_id was extracted, this is the main domain - skip to next handler
-    if (!req.pod_name) {
+    if (!req.podName) {
       return next();
     }
 
@@ -1254,7 +1254,7 @@ router.delete(
 
     if (pathParts.length > 1) {
       const fullPath = pathParts.join("/");
-      const streamResult = await getStream({ db }, req.pod_name, fullPath);
+      const streamResult = await getStream({ db }, req.podName, fullPath);
 
       if (streamResult.success && streamResult.data) {
         // Full path is a stream, delete the stream
@@ -1280,7 +1280,7 @@ router.delete(
     }
 
     // Check ownership - only pod owner can delete
-    const ownerResult = await getPodOwner({ db }, req.pod_name);
+    const ownerResult = await getPodOwner({ db }, req.podName);
     if (!ownerResult.success || ownerResult.data !== req.auth.user_id) {
       res.status(403).json({
         error: {
@@ -1293,7 +1293,7 @@ router.delete(
 
     if (recordName) {
       // Delete or purge a record
-      const streamResult = await getStream({ db }, req.pod_name, streamId);
+      const streamResult = await getStream({ db }, req.podName, streamId);
 
       if (!streamResult.success || !streamResult.data) {
         const fullPath = req.path.substring(1);
@@ -1316,7 +1316,7 @@ router.delete(
              AND stream_name = $(streamId)
              AND name = $(recordName)`,
           {
-            podName: req.pod_name,
+            podName: req.podName,
             streamId: streamResult.data.name,
             recordName,
             content: JSON.stringify({
@@ -1341,7 +1341,7 @@ router.delete(
         }
 
         logger.info("Record purged", {
-          podId: req.pod_name,
+          podId: req.podName,
           streamId,
           recordName,
           userId: req.auth.user_id,
@@ -1357,7 +1357,7 @@ router.delete(
            ORDER BY index DESC
            LIMIT 1`,
           {
-            podName: req.pod_name,
+            podName: req.podName,
             streamId: streamResult.data.name,
           },
         );
@@ -1374,7 +1374,7 @@ router.delete(
 
         const writeResult = await writeRecord(
           { db },
-          req.pod_name,
+          req.podName,
           streamResult.data.name,
           deletionRecord,
           "application/json",
@@ -1390,7 +1390,7 @@ router.delete(
         }
 
         logger.info("Record soft deleted", {
-          podId: req.pod_name,
+          podId: req.podName,
           streamId,
           recordName,
           userId: req.auth.user_id,
@@ -1401,7 +1401,7 @@ router.delete(
       // Delete entire stream
       const result = await deleteStream(
         { db },
-        req.pod_name,
+        req.podName,
         streamId,
         req.auth!.user_id,
       );

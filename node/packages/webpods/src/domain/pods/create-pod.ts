@@ -18,10 +18,10 @@ const logger = createLogger("webpods:domain:pods");
 function mapPodFromDb(row: PodDbRow): Pod {
   return {
     name: row.name,
-    user_id: "", // Will be populated from .meta/owner stream
+    userId: "", // Will be populated from .meta/owner stream
     metadata: row.metadata,
-    created_at: row.created_at,
-    updated_at: row.updated_at || row.created_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at || row.created_at,
   };
 }
 
@@ -96,7 +96,7 @@ export async function createPod(
 
       logger.info("Pod created", { podName, userId });
       const mappedPod = mapPodFromDb(pod);
-      mappedPod.user_id = userId; // Set owner from what we just wrote
+      mappedPod.userId = userId; // Set owner from what we just wrote
       return success(mappedPod);
     });
   } catch (error: any) {

@@ -18,24 +18,24 @@ export async function canRead(
 ): Promise<boolean> {
   logger.info("canRead check", {
     streamId: stream.name,
-    accessPermission: stream.access_permission,
+    accessPermission: stream.accessPermission,
     userId,
-    creatorId: stream.user_id,
+    creatorId: stream.userId,
   });
 
   // Creator always has access
-  if (userId && userId === stream.user_id) {
+  if (userId && userId === stream.userId) {
     return true;
   }
 
   // Public read access - anyone can read
-  if (stream.access_permission === "public") {
+  if (stream.accessPermission === "public") {
     return true;
   }
 
   // Private access - only creator
-  if (stream.access_permission === "private") {
-    return userId === stream.user_id;
+  if (stream.accessPermission === "private") {
+    return userId === stream.userId;
   }
 
   // No auth means no access for non-public
@@ -44,10 +44,10 @@ export async function canRead(
   }
 
   // Parse permission
-  const perm = parsePermission(stream.access_permission);
+  const perm = parsePermission(stream.accessPermission);
   logger.debug("Parsed permission", {
     perm,
-    accessPermission: stream.access_permission,
+    accessPermission: stream.accessPermission,
   });
 
   if (perm.type === "stream" && perm.streamPath) {
@@ -59,11 +59,11 @@ export async function canRead(
     // Get pod for this stream
     const pod = await ctx.db.oneOrNone<PodDbRow>(
       `SELECT * FROM pod WHERE name = $(pod_name)`,
-      { pod_name: stream.pod_name },
+      { pod_name: stream.podName },
     );
 
     if (!pod) {
-      logger.error("Pod not found for stream", { podName: stream.pod_name });
+      logger.error("Pod not found for stream", { podName: stream.podName });
       return false;
     }
 

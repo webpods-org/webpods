@@ -16,10 +16,10 @@ const logger = createLogger("webpods:domain:pods");
 function mapPodFromDb(row: PodDbRow): Pod {
   return {
     name: row.name,
-    user_id: "", // Will be populated from .meta/owner stream
+    userId: "", // Will be populated from .meta/owner stream
     metadata: row.metadata,
-    created_at: row.created_at,
-    updated_at: row.updated_at || row.created_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at || row.created_at,
   };
 }
 
@@ -52,7 +52,7 @@ export async function getPod(
     if (ownerRecord) {
       try {
         const content = JSON.parse(ownerRecord.content);
-        mappedPod.user_id = content.owner || "";
+        mappedPod.userId = content.owner || "";
       } catch {
         logger.warn("Failed to parse owner record", { podName });
       }

@@ -14,28 +14,28 @@ export async function canWrite(
   userId: string,
 ): Promise<boolean> {
   // Creator always has access
-  if (userId === stream.user_id) {
+  if (userId === stream.userId) {
     return true;
   }
 
   // Public write access - authenticated users can write
-  if (stream.access_permission === "public") {
+  if (stream.accessPermission === "public") {
     return true;
   }
 
   // Private access - only creator
-  if (stream.access_permission === "private") {
-    return userId === stream.user_id;
+  if (stream.accessPermission === "private") {
+    return userId === stream.userId;
   }
 
   // Parse permission
-  const perm = parsePermission(stream.access_permission);
+  const perm = parsePermission(stream.accessPermission);
 
   if (perm.type === "stream" && perm.streamPath) {
     // Get pod for this stream
     const pod = await ctx.db.oneOrNone<PodDbRow>(
       `SELECT * FROM pod WHERE name = $(pod_name)`,
-      { pod_name: stream.pod_name },
+      { pod_name: stream.podName },
     );
 
     if (!pod) return false;
