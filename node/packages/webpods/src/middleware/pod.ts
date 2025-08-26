@@ -17,7 +17,7 @@ const logger = createLogger("webpods:pod");
 declare module "express-serve-static-core" {
   interface Request {
     pod?: Pod;
-    pod_name?: string;
+    podName?: string;
   }
 }
 
@@ -31,7 +31,7 @@ export async function extractPod(
 ): Promise<void> {
   try {
     // If pod_name is already set (e.g., by rootPod handler), skip extraction
-    if (req.pod_name) {
+    if (req.podName) {
       next();
       return;
     }
@@ -66,7 +66,7 @@ export async function extractPod(
     }
 
     // Store the pod_name even if pod doesn't exist yet
-    req.pod_name = podName;
+    req.podName = podName;
 
     // Try to get the pod (may not exist yet)
     const podResult = await getPod({ db }, podName);
@@ -122,7 +122,7 @@ export async function optionalExtractPod(
 
       if (podResult.success) {
         req.pod = podResult.data;
-        req.pod_name = podName;
+        req.podName = podName;
       }
     }
 

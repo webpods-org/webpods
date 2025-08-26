@@ -16,13 +16,13 @@ const logger = createLogger("webpods:domain:pods");
  */
 function mapStreamFromDb(row: StreamDbRow): Stream {
   return {
-    pod_name: row.pod_name,
+    podName: row.pod_name,
     name: row.name,
-    user_id: row.user_id,
-    access_permission: row.access_permission,
+    userId: row.user_id,
+    accessPermission: row.access_permission,
     metadata: row.metadata,
-    created_at: row.created_at,
-    updated_at: row.updated_at || row.created_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at || row.created_at,
   };
 }
 

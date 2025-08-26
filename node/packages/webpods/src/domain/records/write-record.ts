@@ -19,17 +19,17 @@ const logger = createLogger("webpods:domain:records");
 function mapRecordFromDb(row: RecordDbRow): StreamRecord {
   return {
     id: row.id ? parseInt(row.id) : 0,
-    pod_name: row.pod_name,
-    stream_name: row.stream_name,
+    podName: row.pod_name,
+    streamName: row.stream_name,
     index: row.index,
     content: row.content,
-    content_type: row.content_type,
+    contentType: row.content_type,
     name: row.name || "",
     hash: row.hash,
-    previous_hash: row.previous_hash || null,
-    user_id: row.user_id,
+    previousHash: row.previous_hash || null,
+    userId: row.user_id,
     metadata: undefined,
-    created_at:
+    createdAt:
       typeof row.created_at === "string"
         ? new Date(row.created_at)
         : row.created_at,
