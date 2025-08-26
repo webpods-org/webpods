@@ -210,11 +210,29 @@ for (const record of records) {
 
 ## Testing
 
-```bash
-# Run all tests
-npm test
+### Test Output Strategy for Full Test Suites
 
-# Run specific test suite with grep (from root directory)
+**IMPORTANT**: When running the full test suite (which takes 3+ minutes), always save output to a file for efficient analysis:
+
+```bash
+# Create .tests directory if it doesn't exist (gitignored)
+mkdir -p .tests
+
+# Run full test suite and save output
+npm test > .tests/run-$(date +%s).txt 2>&1
+
+# Then analyze the saved output multiple times without re-running tests:
+grep "failing" .tests/run-*.txt
+tail -50 .tests/run-*.txt
+grep -A10 "specific test name" .tests/run-*.txt
+```
+
+This strategy prevents the need to re-run lengthy test suites when you need different information from the output. The `.tests/` directory is gitignored to keep test outputs from cluttering the repository.
+
+**Note**: This approach is NOT needed for selective test runs, which complete quickly:
+
+```bash
+# For specific tests, run directly without saving (they're fast)
 npm run test:grep -- "pattern to match"
 
 # Examples:
