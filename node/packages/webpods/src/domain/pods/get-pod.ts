@@ -30,8 +30,8 @@ export async function getPod(
 ): Promise<Result<Pod>> {
   try {
     const pod = await ctx.db.oneOrNone<PodDbRow>(
-      `SELECT * FROM pod WHERE name = $(podName)`,
-      { podName },
+      `SELECT * FROM pod WHERE name = $(pod_name)`,
+      { pod_name: podName },
     );
 
     if (!pod) {
@@ -42,12 +42,12 @@ export async function getPod(
     const ownerRecord = await ctx.db.oneOrNone<RecordDbRow>(
       `SELECT r.* FROM record r
        JOIN stream s ON r.stream_id = s.id
-       WHERE s.pod_id = $(podId)
+       WHERE s.pod_id = $(pod_id)
          AND s.stream_id = '.meta/owner'
          AND r.name = 'owner'
        ORDER BY r.index DESC
        LIMIT 1`,
-      { podId: pod.id },
+      { pod_id: pod.id },
     );
 
     const mappedPod = mapPodFromDb(pod);

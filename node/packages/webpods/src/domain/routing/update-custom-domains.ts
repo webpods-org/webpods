@@ -21,8 +21,8 @@ export async function updateCustomDomains(
     return await ctx.db.tx(async (t) => {
       // Get pod
       const pod = await t.oneOrNone<PodDbRow>(
-        `SELECT * FROM pod WHERE name = $(podName)`,
-        { podName },
+        `SELECT * FROM pod WHERE name = $(pod_name)`,
+        { pod_name: podName },
       );
 
       if (!pod) {
@@ -36,12 +36,12 @@ export async function updateCustomDomains(
         `SELECT r.* FROM record r
          JOIN stream s ON r.stream_id = s.id
          JOIN pod p ON p.id = s.pod_id
-         WHERE p.name = $(podName)
+         WHERE p.name = $(pod_name)
            AND s.stream_id = '.meta/owner'
            AND r.name = 'owner'
          ORDER BY r.index DESC
          LIMIT 1`,
-        { podName },
+        { pod_name: podName },
       );
 
       if (!ownerRecord) {
@@ -62,9 +62,9 @@ export async function updateCustomDomains(
       // Get or create .meta/domains stream
       let domainsStream = await t.oneOrNone<StreamDbRow>(
         `SELECT * FROM stream
-         WHERE pod_id = $(podId)
+         WHERE pod_id = $(pod_id)
            AND stream_id = '.meta/domains'`,
-        { podId },
+        { pod_id: podId },
       );
 
       if (!domainsStream) {
@@ -87,10 +87,10 @@ export async function updateCustomDomains(
       // Get the last record for hash chain
       const lastRecord = await t.oneOrNone<RecordDbRow>(
         `SELECT * FROM record
-         WHERE stream_id = $(streamId)
+         WHERE stream_id = $(stream_id)
          ORDER BY index DESC
          LIMIT 1`,
-        { streamId: domainsStream.id },
+        { stream_id: domainsStream.id },
       );
 
       let index = (lastRecord?.index ?? -1) + 1;

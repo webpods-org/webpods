@@ -19,8 +19,8 @@ export async function deletePod(
     return await ctx.db.tx(async (t) => {
       // Verify the pod exists
       const pod = await t.oneOrNone<PodDbRow>(
-        `SELECT * FROM pod WHERE name = $(podName)`,
-        { podName },
+        `SELECT * FROM pod WHERE name = $(pod_name)`,
+        { pod_name: podName },
       );
 
       if (!pod) {
@@ -31,12 +31,12 @@ export async function deletePod(
       const ownerRecord = await t.oneOrNone<RecordDbRow>(
         `SELECT r.* FROM record r
          JOIN stream s ON r.stream_id = s.id
-         WHERE s.pod_id = $(podId)
+         WHERE s.pod_id = $(pod_id)
            AND s.stream_id = '.meta/owner'
            AND r.name = 'owner'
          ORDER BY r.index DESC
          LIMIT 1`,
-        { podId: pod.id },
+        { pod_id: pod.id },
       );
 
       if (!ownerRecord) {
@@ -58,18 +58,18 @@ export async function deletePod(
       await t.none(
         `DELETE FROM record
          WHERE stream_id IN (
-           SELECT id FROM stream WHERE pod_id = $(podId)
+           SELECT id FROM stream WHERE pod_id = $(pod_id)
          )`,
-        { podId: pod.id },
+        { pod_id: pod.id },
       );
 
       // Delete all streams
-      await t.none(`DELETE FROM stream WHERE pod_id = $(podId)`, {
-        podId: pod.id,
+      await t.none(`DELETE FROM stream WHERE pod_id = $(pod_id)`, {
+        pod_id: pod.id,
       });
 
       // Delete the pod
-      await t.none(`DELETE FROM pod WHERE id = $(podId)`, { podId: pod.id });
+      await t.none(`DELETE FROM pod WHERE id = $(pod_id)`, { pod_id: pod.id });
 
       logger.info("Pod deleted", { podName, userId });
       return success(undefined);

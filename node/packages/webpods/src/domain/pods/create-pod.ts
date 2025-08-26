@@ -42,8 +42,8 @@ export async function createPod(
     return await ctx.db.tx(async (t) => {
       // Check if pod already exists
       const existing = await t.oneOrNone<PodDbRow>(
-        `SELECT * FROM pod WHERE name = $(podName)`,
-        { podName },
+        `SELECT * FROM pod WHERE name = $(pod_name)`,
+        { pod_name: podName },
       );
 
       if (existing) {

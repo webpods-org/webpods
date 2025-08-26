@@ -34,8 +34,8 @@ export async function canWrite(
   if (perm.type === "stream" && perm.streamPath) {
     // Get pod for this stream
     const pod = await ctx.db.oneOrNone<PodDbRow>(
-      `SELECT * FROM pod WHERE id = $(podId)`,
-      { podId: stream.pod_id },
+      `SELECT * FROM pod WHERE id = $(pod_id)`,
+      { pod_id: stream.pod_id },
     );
 
     if (!pod) return false;

@@ -49,8 +49,8 @@ export async function findOrCreateUser(
     // First check if we have an identity for this provider
     const existingIdentityRow = await ctx.db.oneOrNone<IdentityDbRow>(
       `SELECT * FROM identity 
-       WHERE provider = $(provider) AND provider_id = $(providerId)`,
-      { provider: provider.provider, providerId },
+       WHERE provider = $(provider) AND provider_id = $(provider_id)`,
+      { provider: provider.provider, provider_id: providerId },
     );
 
     if (existingIdentityRow) {
@@ -58,8 +58,8 @@ export async function findOrCreateUser(
 
       // Get the associated user
       const userRow = await ctx.db.one<UserDbRow>(
-        `SELECT * FROM "user" WHERE id = $(userId)`,
-        { userId: existingIdentity.userId },
+        `SELECT * FROM "user" WHERE id = $(user_id)`,
+        { user_id: existingIdentity.userId },
       );
 
       const user = mapUserFromDb(userRow);
@@ -77,8 +77,8 @@ export async function findOrCreateUser(
 
         await ctx.db.none(
           `${sql.update("identity", updateParams)}
-           WHERE provider = $(provider) AND provider_id = $(providerId)`,
-          { ...updateParams, provider: provider.provider, providerId },
+           WHERE provider = $(provider) AND provider_id = $(provider_id)`,
+          { ...updateParams, provider: provider.provider, provider_id: providerId },
         );
       }
 

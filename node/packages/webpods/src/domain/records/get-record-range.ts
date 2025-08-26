@@ -45,8 +45,8 @@ export async function getRecordRange(
     // Handle negative indices
     if (startIndex < 0 || endIndex < 0) {
       const countResult = await ctx.db.one<{ count: string }>(
-        `SELECT COUNT(*) as count FROM record WHERE stream_id = $(streamId)`,
-        { streamId },
+        `SELECT COUNT(*) as count FROM record WHERE stream_id = $(stream_id)`,
+        { stream_id: streamId },
       );
       const totalCount = parseInt(countResult.count);
 
@@ -66,11 +66,11 @@ export async function getRecordRange(
 
     const records = await ctx.db.manyOrNone<RecordDbRow>(
       `SELECT * FROM record
-       WHERE stream_id = $(streamId)
-         AND index >= $(startIndex)
-         AND index < $(endIndex)
+       WHERE stream_id = $(stream_id)
+         AND index >= $(start_index)
+         AND index < $(end_index)
        ORDER BY index ASC`,
-      { streamId, startIndex: actualStartIndex, endIndex: actualEndIndex },
+      { stream_id: streamId, start_index: actualStartIndex, end_index: actualEndIndex },
     );
 
     return success(records.map(mapRecordFromDb));

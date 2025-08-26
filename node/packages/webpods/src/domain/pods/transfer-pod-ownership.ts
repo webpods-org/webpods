@@ -24,9 +24,9 @@ export async function transferPodOwnership(
       const ownerStream = await t.oneOrNone<StreamDbRow>(
         `SELECT s.* FROM stream s
          JOIN pod p ON p.id = s.pod_id
-         WHERE p.name = $(podName)
+         WHERE p.name = $(pod_name)
            AND s.stream_id = '.meta/owner'`,
-        { podName },
+        { pod_name: podName },
       );
 
       if (!ownerStream) {
@@ -36,11 +36,11 @@ export async function transferPodOwnership(
       // Verify current owner
       const currentOwnerRecord = await t.oneOrNone<RecordDbRow>(
         `SELECT * FROM record
-         WHERE stream_id = $(streamId)
+         WHERE stream_id = $(stream_id)
            AND name = 'owner'
          ORDER BY index DESC
          LIMIT 1`,
-        { streamId: ownerStream.id },
+        { stream_id: ownerStream.id },
       );
 
       if (!currentOwnerRecord) {
@@ -64,10 +64,10 @@ export async function transferPodOwnership(
       // Get the previous record for hash chain
       const previousRecord = await t.oneOrNone<RecordDbRow>(
         `SELECT * FROM record
-         WHERE stream_id = $(streamId)
+         WHERE stream_id = $(stream_id)
          ORDER BY index DESC
          LIMIT 1`,
-        { streamId: ownerStream.id },
+        { stream_id: ownerStream.id },
       );
 
       const index = (previousRecord?.index ?? -1) + 1;

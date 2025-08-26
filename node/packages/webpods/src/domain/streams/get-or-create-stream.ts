@@ -47,9 +47,9 @@ export async function getOrCreateStream(
     // Try to find existing stream
     let stream = await ctx.db.oneOrNone<StreamDbRow>(
       `SELECT * FROM stream 
-       WHERE pod_id = $(podId) 
-         AND stream_id = $(streamId)`,
-      { podId, streamId: actualStreamId },
+       WHERE pod_id = $(pod_id) 
+         AND stream_id = $(stream_id)`,
+      { pod_id: podId, stream_id: actualStreamId },
     );
 
     if (stream) {

@@ -21,8 +21,8 @@ export async function updateStreamPermissions(
 
     await ctx.db.none(
       `${sql.update("stream", params)}
-       WHERE id = $(streamId)`,
-      { ...params, streamId },
+       WHERE id = $(stream_id)`,
+      { ...params, stream_id: streamId },
     );
 
     logger.info("Stream permissions updated", { streamId, accessPermission });

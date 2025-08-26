@@ -47,11 +47,11 @@ export async function getRecord(
       // Try to get by name first - get the latest record with this name
       record = await ctx.db.oneOrNone<RecordDbRow>(
         `SELECT * FROM record
-         WHERE stream_id = $(streamId)
+         WHERE stream_id = $(stream_id)
            AND name = $(name)
          ORDER BY index DESC
          LIMIT 1`,
-        { streamId, name: target },
+        { stream_id: streamId, name: target },
       );
 
       // If not found as name and target is numeric, try as index
@@ -61,8 +61,8 @@ export async function getRecord(
         // Handle negative indexing
         if (index < 0) {
           const countResult = await ctx.db.one<{ count: string }>(
-            `SELECT COUNT(*) as count FROM record WHERE stream_id = $(streamId)`,
-            { streamId },
+            `SELECT COUNT(*) as count FROM record WHERE stream_id = $(stream_id)`,
+            { stream_id: streamId },
           );
 
           index = parseInt(countResult.count) + index;
@@ -73,9 +73,9 @@ export async function getRecord(
 
         record = await ctx.db.oneOrNone<RecordDbRow>(
           `SELECT * FROM record
-           WHERE stream_id = $(streamId)
+           WHERE stream_id = $(stream_id)
              AND index = $(index)`,
-          { streamId, index },
+          { stream_id: streamId, index },
         );
       }
     } else if (isNumericIndex(target)) {
@@ -105,11 +105,11 @@ export async function getRecord(
       // Target is not numeric, treat as name - get the latest record with this name
       record = await ctx.db.oneOrNone<RecordDbRow>(
         `SELECT * FROM record
-         WHERE stream_id = $(streamId)
+         WHERE stream_id = $(stream_id)
            AND name = $(name)
          ORDER BY index DESC
          LIMIT 1`,
-        { streamId, name: target },
+        { stream_id: streamId, name: target },
       );
     }
 

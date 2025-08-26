@@ -35,9 +35,9 @@ export async function getStream(
   try {
     const stream = await ctx.db.oneOrNone<StreamDbRow>(
       `SELECT * FROM stream
-       WHERE pod_id = $(podId)
-         AND stream_id = $(streamId)`,
-      { podId, streamId },
+       WHERE pod_id = $(pod_id)
+         AND stream_id = $(stream_id)`,
+      { pod_id: podId, stream_id: streamId },
     );
 
     if (!stream) {

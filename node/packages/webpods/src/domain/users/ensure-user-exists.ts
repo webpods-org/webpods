@@ -28,8 +28,8 @@ export async function ensureUserExists(
   try {
     // Check if user exists
     const existingUsers = await ctx.db.manyOrNone<UserDbRow>(
-      `SELECT * FROM "user" WHERE id = $(userId)`,
-      { userId },
+      `SELECT * FROM "user" WHERE id = $(user_id)`,
+      { user_id: userId },
     );
 
     if (existingUsers && existingUsers.length > 0) {

@@ -58,10 +58,10 @@ export async function writeRecord(
       // Get the previous record for hash chain
       const previousRecord = await t.oneOrNone<RecordDbRow>(
         `SELECT * FROM record 
-         WHERE stream_id = $(streamId)
+         WHERE stream_id = $(stream_id)
          ORDER BY index DESC
          LIMIT 1`,
-        { streamId },
+        { stream_id: streamId },
       );
 
       const index = (previousRecord?.index ?? -1) + 1;

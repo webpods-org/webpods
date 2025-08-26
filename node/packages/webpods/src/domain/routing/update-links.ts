@@ -22,8 +22,8 @@ export async function updateLinks(
     return await ctx.db.tx(async (t) => {
       // Get pod
       const pod = await t.oneOrNone<PodDbRow>(
-        `SELECT * FROM pod WHERE name = $(podName)`,
-        { podName },
+        `SELECT * FROM pod WHERE name = $(pod_name)`,
+        { pod_name: podName },
       );
 
       if (!pod) {
@@ -34,9 +34,9 @@ export async function updateLinks(
       // Get or create .meta/links stream
       let linksStream = await t.oneOrNone<StreamDbRow>(
         `SELECT * FROM stream
-         WHERE pod_id = $(podId)
+         WHERE pod_id = $(pod_id)
            AND stream_id = '.meta/links'`,
-        { podId },
+        { pod_id: podId },
       );
 
       if (!linksStream) {
@@ -59,10 +59,10 @@ export async function updateLinks(
       // Get previous record for hash chain
       const previousRecord = await t.oneOrNone<RecordDbRow>(
         `SELECT * FROM record
-         WHERE stream_id = $(streamId)
+         WHERE stream_id = $(stream_id)
          ORDER BY index DESC
          LIMIT 1`,
-        { streamId: linksStream.id },
+        { stream_id: linksStream.id },
       );
 
       const index = (previousRecord?.index ?? -1) + 1;

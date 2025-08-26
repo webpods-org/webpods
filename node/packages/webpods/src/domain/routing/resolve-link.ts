@@ -26,11 +26,11 @@ export async function resolveLink(
        FROM record r
        JOIN stream s ON s.id = r.stream_id
        JOIN pod p ON p.id = s.pod_id
-       WHERE p.name = $(podName)
+       WHERE p.name = $(pod_name)
          AND s.stream_id = '.meta/links'
        ORDER BY r.created_at DESC
        LIMIT 1`,
-      { podName },
+      { pod_name: podName },
     );
 
     if (!record) {

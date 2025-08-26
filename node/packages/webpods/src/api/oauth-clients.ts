@@ -151,28 +151,28 @@ router.post(
           scope,
           metadata
         ) VALUES (
-          $(userId),
-          $(clientId),
-          $(clientName),
-          $(clientSecret),
-          $(redirectUris),
-          $(requestedPods),
-          $(grantTypes),
-          $(responseTypes),
-          $(tokenEndpointAuthMethod),
+          $(user_id),
+          $(client_id),
+          $(client_name),
+          $(client_secret),
+          $(redirect_uris),
+          $(requested_pods),
+          $(grant_types),
+          $(response_types),
+          $(token_endpoint_auth_method),
           $(scope),
           $(metadata)
         ) RETURNING *`,
           {
-            userId,
-            clientId,
-            clientName: clientData.client_name,
-            clientSecret,
-            redirectUris: clientData.redirect_uris,
-            requestedPods: clientData.requested_pods,
-            grantTypes: clientData.grant_types,
-            responseTypes: clientData.response_types,
-            tokenEndpointAuthMethod: clientData.token_endpoint_auth_method,
+            user_id: userId,
+            client_id: clientId,
+            client_name: clientData.client_name,
+            client_secret: clientSecret,
+            redirect_uris: clientData.redirect_uris,
+            requested_pods: clientData.requested_pods,
+            grant_types: clientData.grant_types,
+            response_types: clientData.response_types,
+            token_endpoint_auth_method: clientData.token_endpoint_auth_method,
             scope: clientData.scope,
             metadata: JSON.stringify({}),
           },
@@ -251,9 +251,9 @@ router.get(
 
       const clients = await db.manyOrNone<OAuthClientDbRow>(
         `SELECT * FROM oauth_client 
-       WHERE user_id = $(userId)
+       WHERE user_id = $(user_id)
        ORDER BY created_at DESC`,
-        { userId },
+        { user_id: userId },
       );
 
       // Don't return client secrets in list
@@ -305,8 +305,8 @@ router.get(
 
       const client = await db.oneOrNone<OAuthClientDbRow>(
         `SELECT * FROM oauth_client 
-       WHERE client_id = $(clientId) AND user_id = $(userId)`,
-        { clientId, userId },
+       WHERE client_id = $(client_id) AND user_id = $(user_id)`,
+        { client_id: clientId, user_id: userId },
       );
 
       if (!client) {
@@ -365,8 +365,8 @@ router.delete(
       // Check if client exists and belongs to user
       const client = await db.oneOrNone<OAuthClientDbRow>(
         `SELECT * FROM oauth_client 
-       WHERE client_id = $(clientId) AND user_id = $(userId)`,
-        { clientId, userId },
+       WHERE client_id = $(client_id) AND user_id = $(user_id)`,
+        { client_id: clientId, user_id: userId },
       );
 
       if (!client) {
@@ -406,8 +406,8 @@ router.delete(
       // Delete from our database
       await db.none(
         `DELETE FROM oauth_client 
-       WHERE client_id = $(clientId) AND user_id = $(userId)`,
-        { clientId, userId },
+       WHERE client_id = $(client_id) AND user_id = $(user_id)`,
+        { client_id: clientId, user_id: userId },
       );
 
       logger.info("Deleted OAuth client", { clientId, userId });

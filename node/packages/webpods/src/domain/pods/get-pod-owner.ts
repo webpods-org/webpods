@@ -19,12 +19,12 @@ export async function getPodOwner(
       `SELECT r.* FROM record r
        JOIN stream s ON r.stream_id = s.id
        JOIN pod p ON p.id = s.pod_id
-       WHERE p.name = $(podName)
+       WHERE p.name = $(pod_name)
          AND s.stream_id = '.meta/owner'
          AND r.name = 'owner'
        ORDER BY r.index DESC
        LIMIT 1`,
-      { podName },
+      { pod_name: podName },
     );
 
     if (!ownerRecord) {

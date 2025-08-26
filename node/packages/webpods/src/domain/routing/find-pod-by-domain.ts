@@ -25,16 +25,16 @@ export async function findPodByDomain(
     for (const pod of pods) {
       const domainStream = await ctx.db.one<StreamDbRow>(
         `SELECT * FROM stream
-         WHERE pod_id = $(podId)
+         WHERE pod_id = $(pod_id)
            AND stream_id = '.meta/domains'`,
-        { podId: pod.id },
+        { pod_id: pod.id },
       );
 
       const records = await ctx.db.manyOrNone<RecordDbRow>(
         `SELECT * FROM record
-         WHERE stream_id = $(streamId)
+         WHERE stream_id = $(stream_id)
          ORDER BY index ASC`,
-        { streamId: domainStream.id },
+        { stream_id: domainStream.id },
       );
 
       // Build current domain list
