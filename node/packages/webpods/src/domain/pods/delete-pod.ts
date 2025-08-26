@@ -30,7 +30,7 @@ export async function deletePod(
       // Verify ownership
       const ownerRecord = await t.oneOrNone<RecordDbRow>(
         `SELECT r.* FROM record r
-         WHERE r.stream_pod_name = $(pod_name)
+         WHERE r.pod_name = $(pod_name)
            AND r.stream_name = '.meta/owner'
            AND r.name = 'owner'
          ORDER BY r.index DESC
@@ -56,7 +56,7 @@ export async function deletePod(
       // Delete all records in all streams
       await t.none(
         `DELETE FROM record
-         WHERE stream_pod_name = $(pod_name)`,
+         WHERE pod_name = $(pod_name)`,
         { pod_name: pod.name },
       );
 

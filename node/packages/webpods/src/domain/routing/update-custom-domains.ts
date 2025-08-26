@@ -32,7 +32,7 @@ export async function updateCustomDomains(
       // Verify ownership
       const ownerRecord = await t.oneOrNone<RecordDbRow>(
         `SELECT r.* FROM record r
-         WHERE r.stream_pod_name = $(pod_name)
+         WHERE r.pod_name = $(pod_name)
            AND r.stream_name = '.meta/owner'
            AND r.name = 'owner'
          ORDER BY r.index DESC
@@ -82,11 +82,11 @@ export async function updateCustomDomains(
       // Get the last record for hash chain
       const lastRecord = await t.oneOrNone<RecordDbRow>(
         `SELECT * FROM record
-         WHERE stream_pod_name = $(stream_pod_name)
+         WHERE pod_name = $(pod_name)
            AND stream_name = $(stream_name)
          ORDER BY index DESC
          LIMIT 1`,
-        { stream_pod_name: podName, stream_name: ".meta/domains" },
+        { pod_name: podName, stream_name: ".meta/domains" },
       );
 
       let index = (lastRecord?.index ?? -1) + 1;
@@ -100,7 +100,7 @@ export async function updateCustomDomains(
           const hash = calculateRecordHash(previousHash, timestamp, content);
 
           const params = {
-            stream_pod_name: podName,
+            pod_name: podName,
             stream_name: ".meta/domains",
             index: index,
             content: JSON.stringify(content),
@@ -127,7 +127,7 @@ export async function updateCustomDomains(
           const hash = calculateRecordHash(previousHash, timestamp, content);
 
           const params = {
-            stream_pod_name: podName,
+            pod_name: podName,
             stream_name: ".meta/domains",
             index: index,
             content: JSON.stringify(content),

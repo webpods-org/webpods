@@ -80,7 +80,7 @@ export async function createPod(
       const hash = calculateRecordHash(null, timestamp, ownerContent);
 
       const recordParams = {
-        stream_pod_name: pod.name,
+        pod_name: pod.name,
         stream_name: ".meta/owner",
         index: 0,
         content: JSON.stringify(ownerContent),

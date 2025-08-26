@@ -16,7 +16,7 @@ const logger = createLogger("webpods:domain:records");
 function mapRecordFromDb(row: RecordDbRow): StreamRecord {
   return {
     id: row.id ? parseInt(row.id) : 0,
-    stream_pod_name: row.stream_pod_name,
+    pod_name: row.pod_name,
     stream_name: row.stream_name,
     index: row.index,
     content: row.content,
@@ -47,7 +47,7 @@ export async function getRecordRange(
     // Handle negative indices
     if (startIndex < 0 || endIndex < 0) {
       const countResult = await ctx.db.one<{ count: string }>(
-        `SELECT COUNT(*) as count FROM record WHERE stream_pod_name = $(pod_name) AND stream_name = $(stream_name)`,
+        `SELECT COUNT(*) as count FROM record WHERE pod_name = $(pod_name) AND stream_name = $(stream_name)`,
         { pod_name: podName, stream_name: streamId },
       );
       const totalCount = parseInt(countResult.count);
@@ -68,7 +68,7 @@ export async function getRecordRange(
 
     const records = await ctx.db.manyOrNone<RecordDbRow>(
       `SELECT * FROM record
-       WHERE stream_pod_name = $(pod_name)
+       WHERE pod_name = $(pod_name)
          AND stream_name = $(stream_name)
          AND index >= $(start_index)
          AND index < $(end_index)

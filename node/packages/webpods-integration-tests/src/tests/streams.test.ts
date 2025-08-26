@@ -90,7 +90,7 @@ describe("WebPods Stream Operations", () => {
 
       // Verify the record was created with name 'january'
       const record = await db.oneOrNone(
-        `SELECT * FROM record WHERE stream_pod_name = $(pod_name) AND stream_name = $(streamId) AND name = $(name)`,
+        `SELECT * FROM record WHERE pod_name = $(pod_name) AND stream_name = $(streamId) AND name = $(name)`,
         { pod_name: pod.name, streamId: "blog/posts/2024", name: "january" },
       );
       expect(record).to.exist;
@@ -349,7 +349,7 @@ describe("WebPods Stream Operations", () => {
 
       // Check owner record
       const ownerRecord = await db.oneOrNone(
-        `SELECT * FROM record WHERE stream_pod_name = $(pod_name) AND stream_name = $(streamId) ORDER BY index ASC LIMIT 1`,
+        `SELECT * FROM record WHERE pod_name = $(pod_name) AND stream_name = $(streamId) ORDER BY index ASC LIMIT 1`,
         { pod_name: pod.name, streamId: ".meta/owner" },
       );
       const content = JSON.parse(ownerRecord.content);

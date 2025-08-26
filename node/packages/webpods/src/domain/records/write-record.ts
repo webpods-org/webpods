@@ -19,7 +19,7 @@ const logger = createLogger("webpods:domain:records");
 function mapRecordFromDb(row: RecordDbRow): StreamRecord {
   return {
     id: row.id ? parseInt(row.id) : 0,
-    stream_pod_name: row.stream_pod_name,
+    pod_name: row.pod_name,
     stream_name: row.stream_name,
     index: row.index,
     content: row.content,
@@ -60,7 +60,7 @@ export async function writeRecord(
       // Get the previous record for hash chain
       const previousRecord = await t.oneOrNone<RecordDbRow>(
         `SELECT * FROM record 
-         WHERE stream_pod_name = $(pod_name)
+         WHERE pod_name = $(pod_name)
            AND stream_name = $(stream_name)
          ORDER BY index DESC
          LIMIT 1`,
@@ -82,7 +82,7 @@ export async function writeRecord(
 
       // Insert new record with snake_case parameters
       const params = {
-        stream_pod_name: podName,
+        pod_name: podName,
         stream_name: streamId,
         index: index,
         content: storedContent,

@@ -87,7 +87,7 @@ export async function createTestPod(
   const hash = crypto.createHash("sha256").update(content).digest("hex");
 
   await db.none(
-    `INSERT INTO record (stream_pod_name, stream_name, index, content, content_type, name, hash, previous_hash, user_id, created_at)
+    `INSERT INTO record (pod_name, stream_name, index, content, content_type, name, hash, previous_hash, user_id, created_at)
      VALUES ($(podName), '.meta/owner', 0, $(content), 'application/json', 'owner', $(hash), NULL, $(ownerId), NOW())`,
     { podName, content, hash, ownerId },
   );

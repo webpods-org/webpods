@@ -35,7 +35,7 @@ export async function transferPodOwnership(
       // Verify current owner
       const currentOwnerRecord = await t.oneOrNone<RecordDbRow>(
         `SELECT * FROM record
-         WHERE stream_pod_name = $(pod_name)
+         WHERE pod_name = $(pod_name)
            AND stream_name = '.meta/owner'
            AND name = 'owner'
          ORDER BY index DESC
@@ -64,7 +64,7 @@ export async function transferPodOwnership(
       // Get the previous record for hash chain
       const previousRecord = await t.oneOrNone<RecordDbRow>(
         `SELECT * FROM record
-         WHERE stream_pod_name = $(pod_name)
+         WHERE pod_name = $(pod_name)
            AND stream_name = '.meta/owner'
          ORDER BY index DESC
          LIMIT 1`,
@@ -85,7 +85,7 @@ export async function transferPodOwnership(
 
       // Insert new owner record with snake_case parameters
       const params = {
-        stream_pod_name: podName,
+        pod_name: podName,
         stream_name: ".meta/owner",
         index: index,
         content: JSON.stringify(newOwnerContent),

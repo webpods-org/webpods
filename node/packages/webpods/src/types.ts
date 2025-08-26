@@ -60,7 +60,7 @@ export interface Stream {
 
 export interface StreamRecord {
   id: number;
-  stream_pod_name: string; // References stream.pod_name
+  pod_name: string; // References stream.pod_name
   stream_name: string; // References stream.name
   index: number; // Position in stream (0-based)
   content: string | any; // Can be text or JSON

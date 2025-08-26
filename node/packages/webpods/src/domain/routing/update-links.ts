@@ -57,11 +57,11 @@ export async function updateLinks(
       // Get previous record for hash chain
       const previousRecord = await t.oneOrNone<RecordDbRow>(
         `SELECT * FROM record
-         WHERE stream_pod_name = $(stream_pod_name)
+         WHERE pod_name = $(pod_name)
            AND stream_name = $(stream_name)
          ORDER BY index DESC
          LIMIT 1`,
-        { stream_pod_name: podName, stream_name: ".meta/links" },
+        { pod_name: podName, stream_name: ".meta/links" },
       );
 
       const index = (previousRecord?.index ?? -1) + 1;
@@ -73,7 +73,7 @@ export async function updateLinks(
 
       // Write new links record with all links in one record
       const params = {
-        stream_pod_name: podName,
+        pod_name: podName,
         stream_name: ".meta/links",
         index: index,
         content: JSON.stringify(links),

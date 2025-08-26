@@ -46,7 +46,7 @@ export async function deleteStream(
       // Delete all records in the stream
       await t.none(
         `DELETE FROM record 
-         WHERE stream_pod_name = $(pod_name)
+         WHERE pod_name = $(pod_name)
            AND stream_name = $(stream_name)`,
         { pod_name: podName, stream_name: streamId },
       );

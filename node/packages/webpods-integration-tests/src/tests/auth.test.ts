@@ -232,7 +232,7 @@ describe("WebPods Authentication", () => {
         { pod_name: pod.name, streamId: "tracked" },
       );
       const record = await db.oneOrNone(
-        `SELECT * FROM record WHERE stream_pod_name = $(pod_name) AND stream_name = $(streamId) ORDER BY index ASC LIMIT 1`,
+        `SELECT * FROM record WHERE pod_name = $(pod_name) AND stream_name = $(streamId) ORDER BY index ASC LIMIT 1`,
         { pod_name: pod.name, streamId: "tracked" },
       );
 
@@ -499,7 +499,7 @@ describe("WebPods Authentication", () => {
         { pod_name: pod1.name, streamId: ".meta/owner" },
       );
       const owner1Record = await db.oneOrNone(
-        `SELECT * FROM record WHERE stream_pod_name = $(pod_name) AND stream_name = $(streamId) ORDER BY index ASC LIMIT 1`,
+        `SELECT * FROM record WHERE pod_name = $(pod_name) AND stream_name = $(streamId) ORDER BY index ASC LIMIT 1`,
         { pod_name: pod1.name, streamId: ".meta/owner" },
       );
       expect(JSON.parse(owner1Record.content).owner).to.equal(userId);
@@ -509,7 +509,7 @@ describe("WebPods Authentication", () => {
         { pod_name: pod2.name, streamId: ".meta/owner" },
       );
       const owner2Record = await db.oneOrNone(
-        `SELECT * FROM record WHERE stream_pod_name = $(pod_name) AND stream_name = $(streamId) ORDER BY index ASC LIMIT 1`,
+        `SELECT * FROM record WHERE pod_name = $(pod_name) AND stream_name = $(streamId) ORDER BY index ASC LIMIT 1`,
         { pod_name: pod2.name, streamId: ".meta/owner" },
       );
       expect(JSON.parse(owner2Record.content).owner).to.equal(userId);

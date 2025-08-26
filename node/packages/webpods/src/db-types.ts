@@ -45,7 +45,7 @@ export type StreamDbRow = {
 // Record table
 export type RecordDbRow = {
   id?: string; // bigserial - Optional for inserts
-  stream_pod_name: string; // References stream.pod_name
+  pod_name: string; // References stream.pod_name
   stream_name: string; // References stream.name
   index: number;
   content: string;

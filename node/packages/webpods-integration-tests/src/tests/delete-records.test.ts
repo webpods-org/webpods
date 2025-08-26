@@ -87,7 +87,7 @@ describe("WebPods Record Deletion", () => {
       // Check for tombstone record
       const tombstones = await db.manyOrNone(
         `SELECT * FROM record 
-         WHERE stream_pod_name = $(pod_name)
+         WHERE pod_name = $(pod_name)
          AND stream_name = $(streamId) 
          AND name LIKE 'report.deleted.%'
          ORDER BY index DESC`,
@@ -166,7 +166,7 @@ describe("WebPods Record Deletion", () => {
         { pod_name: pod.name, streamId: "secrets" },
       );
       const record = await db.oneOrNone(
-        `SELECT * FROM record WHERE stream_pod_name = $(pod_name) AND stream_name = $(streamId) AND name = $(name)`,
+        `SELECT * FROM record WHERE pod_name = $(pod_name) AND stream_name = $(streamId) AND name = $(name)`,
         { pod_name: pod.name, streamId: "secrets", name: "password" },
       );
 

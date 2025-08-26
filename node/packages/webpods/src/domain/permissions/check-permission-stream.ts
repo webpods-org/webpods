@@ -44,10 +44,10 @@ export async function checkPermissionStream(
     // Get ALL records from the permission stream
     const records = await ctx.db.manyOrNone<RecordDbRow>(
       `SELECT * FROM record
-       WHERE stream_pod_name = $(stream_pod_name)
+       WHERE pod_name = $(pod_name)
          AND stream_name = $(stream_name)
        ORDER BY index ASC`,
-      { stream_pod_name: podName, stream_name: streamId },
+      { pod_name: podName, stream_name: streamId },
     );
 
     // Process records in memory to find the latest permission for this user

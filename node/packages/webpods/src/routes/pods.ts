@@ -1079,7 +1079,7 @@ router.get(
       const tombstonePattern = `${name}.deleted.%`;
       const tombstones = await db.manyOrNone(
         `SELECT * FROM record
-         WHERE stream_pod_name = $(podName)
+         WHERE pod_name = $(podName)
            AND stream_name = $(streamId)
            AND name LIKE $(pattern)
            AND index > $(index)
@@ -1312,7 +1312,7 @@ router.delete(
           `UPDATE record
            SET content = $(content),
                content_type = $(contentType)
-           WHERE stream_pod_name = $(podName)
+           WHERE pod_name = $(podName)
              AND stream_name = $(streamId)
              AND name = $(recordName)`,
           {
@@ -1352,7 +1352,7 @@ router.delete(
         // Get the next index for the tombstone
         const lastRecord = await db.oneOrNone(
           `SELECT * FROM record
-           WHERE stream_pod_name = $(podName)
+           WHERE pod_name = $(podName)
              AND stream_name = $(streamId)
            ORDER BY index DESC
            LIMIT 1`,

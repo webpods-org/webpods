@@ -61,7 +61,7 @@ export async function up(knex) {
   // Record table - append-only records with hash chain
   await knex.schema.createTable('record', (table) => {
     table.bigIncrements('id').primary();
-    table.string('stream_pod_name', 63).notNullable();
+    table.string('pod_name', 63).notNullable();
     table.string('stream_name', 256).notNullable();
     table.integer('index').notNullable(); // Position in stream (0-based)
     table.text('content'); // Can be text or JSON
@@ -73,11 +73,11 @@ export async function up(knex) {
     table.timestamp('created_at').defaultTo(knex.fn.now());
     
     // Foreign key to stream composite primary key
-    table.foreign(['stream_pod_name', 'stream_name']).references(['pod_name', 'name']).inTable('stream').onDelete('CASCADE');
+    table.foreign(['pod_name', 'stream_name']).references(['pod_name', 'name']).inTable('stream').onDelete('CASCADE');
     
-    table.unique(['stream_pod_name', 'stream_name', 'index']);
-    table.index(['stream_pod_name', 'stream_name', 'index']);
-    table.index(['stream_pod_name', 'stream_name', 'name']);
+    table.unique(['pod_name', 'stream_name', 'index']);
+    table.index(['pod_name', 'stream_name', 'index']);
+    table.index(['pod_name', 'stream_name', 'name']);
     table.index('user_id');
     table.index('hash');
   });
