@@ -74,7 +74,7 @@ export async function findOrCreateUser(
           name: name,
           updated_at: new Date(),
         };
-        
+
         await ctx.db.none(
           `${sql.update("identity", updateParams)}
            WHERE provider = $(provider) AND provider_id = $(providerId)`,
@@ -121,7 +121,7 @@ export async function findOrCreateUser(
           `${sql.insert('"user"', userParams)} RETURNING *`,
           userParams,
         );
-        
+
         user = mapUserFromDb(newUserRow);
         userId = user.id;
         logger.info("Created new user", { userId });

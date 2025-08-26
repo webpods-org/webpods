@@ -40,21 +40,15 @@ export async function incrementRateLimit(
         window_start: actualWindowStart,
         window_end: windowEnd,
       };
-      
-      await ctx.db.none(
-        sql.insert("rate_limit", params),
-        params,
-      );
+
+      await ctx.db.none(sql.insert("rate_limit", params), params);
     } else {
       // Increment existing counter
-      const updateParams = {
-        count: rateLimitRecord.count + 1,
-      };
-      
       await ctx.db.none(
-        `${sql.update("rate_limit", updateParams)}
+        `UPDATE rate_limit 
+         SET count = count + 1
          WHERE id = $(id)`,
-        { ...updateParams, id: rateLimitRecord.id },
+        { id: rateLimitRecord.id },
       );
     }
   } catch (error) {

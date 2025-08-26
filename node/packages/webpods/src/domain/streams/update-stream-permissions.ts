@@ -18,7 +18,7 @@ export async function updateStreamPermissions(
     const params = {
       access_permission: accessPermission,
     };
-    
+
     await ctx.db.none(
       `${sql.update("stream", params)}
        WHERE id = $(streamId)`,

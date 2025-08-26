@@ -4,6 +4,7 @@
 
 import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
+import { createError } from "../../utils/errors.js";
 import { RecordDbRow } from "../../db-types.js";
 import { StreamRecord } from "../../types.js";
 import { calculateRecordHash, isValidName } from "../../utils.js";
@@ -44,9 +45,12 @@ export async function writeRecord(
 ): Promise<Result<StreamRecord>> {
   // Validate name (required)
   if (!isValidName(name)) {
-    return failure(new Error(
-      "Name can only contain letters, numbers, hyphens, underscores, and periods. Cannot start or end with a period."
-    ));
+    return failure(
+      createError(
+        "INVALID_NAME",
+        "Name can only contain letters, numbers, hyphens, underscores, and periods. Cannot start or end with a period.",
+      ),
+    );
   }
 
   try {
@@ -96,6 +100,15 @@ export async function writeRecord(
     });
   } catch (error: any) {
     logger.error("Failed to write record", { error, streamId });
-    return failure(new Error("Failed to write record"));
+    // Check if it's a unique constraint violation (duplicate name)
+    if (
+      error.code === "23505" &&
+      error.constraint === "record_stream_name_key"
+    ) {
+      return failure(
+        createError("NAME_EXISTS", "Record with this name already exists"),
+      );
+    }
+    return failure(error);
   }
 }

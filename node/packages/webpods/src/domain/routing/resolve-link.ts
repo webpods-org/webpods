@@ -1,81 +1,84 @@
 /**
- * Resolve a path using .meta/links stream
+ * Resolve a path using .meta/links configuration
  */
 
 import { DataContext } from "../data-context.js";
 import { Result, success } from "../../utils/result.js";
-import { StreamDbRow, RecordDbRow } from "../../db-types.js";
+import { RecordDbRow } from "../../db-types.js";
 import { createLogger } from "../../logger.js";
 
 const logger = createLogger("webpods:domain:routing");
 
 interface LinkMapping {
-  [path: string]: string;
+  streamId: string;
+  target: string;
 }
 
 export async function resolveLink(
   ctx: DataContext,
-  podId: string,
+  podName: string,
   path: string,
-): Promise<Result<string | null>> {
+): Promise<Result<LinkMapping | null>> {
   try {
-    // Get the .meta/links stream
-    const linksStream = await ctx.db.oneOrNone<StreamDbRow>(
-      `SELECT * FROM stream
-       WHERE pod_id = $(podId)
-         AND stream_id = '.meta/links'`,
-      { podId },
+    // Get the latest .meta/links record
+    const record = await ctx.db.oneOrNone<RecordDbRow>(
+      `SELECT r.*
+       FROM record r
+       JOIN stream s ON s.id = r.stream_id
+       JOIN pod p ON p.id = s.pod_id
+       WHERE p.name = $(podName)
+         AND s.stream_id = '.meta/links'
+       ORDER BY r.created_at DESC
+       LIMIT 1`,
+      { podName },
     );
 
-    if (!linksStream) {
+    if (!record) {
       return success(null);
     }
 
-    // Get all link records
-    const records = await ctx.db.manyOrNone<RecordDbRow>(
-      `SELECT * FROM record
-       WHERE stream_id = $(streamId)
-       ORDER BY index ASC`,
-      { streamId: linksStream.id },
-    );
+    const links =
+      typeof record.content === "string"
+        ? JSON.parse(record.content)
+        : record.content;
 
-    // Build the current link mapping
-    const links: LinkMapping = {};
-    for (const record of records) {
-      try {
-        const content = JSON.parse(record.content);
-        if (content.path && content.target) {
-          if (content.action === "delete") {
-            delete links[content.path];
-          } else {
-            links[content.path] = content.target;
-          }
-        }
-      } catch {
-        // Skip invalid JSON
-      }
+    if (!links[path]) {
+      return success(null);
     }
 
-    // Exact match
-    if (links[path]) {
-      return success(links[path]);
+    // Parse the mapping (e.g., "homepage/-1", "blog/my-post", or "homepage?i=-1")
+    const mapping = links[path];
+
+    // Check if it has query parameters
+    if (mapping.includes("?")) {
+      // Handle format like "homepage?i=-1"
+      const [streamId, query] = mapping.split("?");
+      return success({
+        streamId: streamId!,
+        target: query ? `?${query}` : "",
+      });
     }
 
-    // Check for wildcard patterns (e.g., /blog/* -> /posts)
-    for (const [pattern, target] of Object.entries(links)) {
-      if (pattern.endsWith("/*")) {
-        const basePath = pattern.slice(0, -2);
-        if (path.startsWith(basePath)) {
-          // Replace the matched part with the target
-          const remainingPath = path.slice(basePath.length);
-          return success(target + remainingPath);
-        }
-      }
+    // Handle format like "homepage/-1" or "homepage/my-post"
+    const parts = mapping.split("/");
+
+    if (parts.length === 1) {
+      // Just stream name, no target
+      return success({
+        streamId: parts[0]!,
+        target: "",
+      });
     }
 
-    return success(null);
-  } catch (error) {
-    logger.error("Failed to resolve link", { error, podId, path });
+    // Stream name with record name/index
+    const streamId = parts[0]!;
+    const recordTarget = parts.slice(1).join("/");
+    return success({
+      streamId,
+      target: `/${recordTarget}`,
+    });
+  } catch (error: any) {
+    logger.error("Failed to resolve link", { error, podName, path });
     return success(null);
   }
 }

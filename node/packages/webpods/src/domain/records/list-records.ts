@@ -36,20 +36,42 @@ export async function listRecords(
   ctx: DataContext,
   streamId: string,
   limit: number = 100,
-  offset: number = 0,
-): Promise<Result<StreamRecord[]>> {
+  after?: number,
+): Promise<
+  Result<{ records: StreamRecord[]; total: number; hasMore: boolean }>
+> {
   try {
-    const records = await ctx.db.manyOrNone<RecordDbRow>(
-      `SELECT * FROM record
-       WHERE stream_id = $(streamId)
-       ORDER BY index ASC
-       LIMIT $(limit) OFFSET $(offset)`,
-      { streamId, limit, offset },
+    let query = `SELECT * FROM record WHERE stream_id = $(streamId)`;
+    const params: any = { streamId, limit: limit + 1 };
+
+    if (after !== undefined) {
+      query += ` AND index > $(after)`;
+      params.after = after;
+    }
+
+    query += ` ORDER BY index ASC LIMIT $(limit)`;
+
+    const records = await ctx.db.manyOrNone<RecordDbRow>(query, params);
+
+    const countResult = await ctx.db.one<{ count: string }>(
+      `SELECT COUNT(*) as count FROM record WHERE stream_id = $(streamId)`,
+      { streamId },
     );
 
-    return success(records.map(mapRecordFromDb));
+    const total = parseInt(countResult.count);
+    const hasMore = records.length > limit;
+
+    if (hasMore) {
+      records.pop(); // Remove the extra record
+    }
+
+    return success({
+      records: records.map(mapRecordFromDb),
+      total,
+      hasMore,
+    });
   } catch (error: any) {
-    logger.error("Failed to list records", { error, streamId, limit, offset });
+    logger.error("Failed to list records", { error, streamId, limit, after });
     return failure(new Error("Failed to list records"));
   }
 }

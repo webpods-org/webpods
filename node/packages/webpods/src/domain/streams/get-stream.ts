@@ -4,6 +4,7 @@
 
 import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
+import { createError } from "../../utils/errors.js";
 import { StreamDbRow } from "../../db-types.js";
 import { Stream } from "../../types.js";
 import { createLogger } from "../../logger.js";
@@ -30,7 +31,7 @@ export async function getStream(
   ctx: DataContext,
   podId: string,
   streamId: string,
-): Promise<Result<Stream | null>> {
+): Promise<Result<Stream>> {
   try {
     const stream = await ctx.db.oneOrNone<StreamDbRow>(
       `SELECT * FROM stream
@@ -40,12 +41,12 @@ export async function getStream(
     );
 
     if (!stream) {
-      return success(null);
+      return failure(createError("STREAM_NOT_FOUND", "Stream not found"));
     }
 
     return success(mapStreamFromDb(stream));
   } catch (error: any) {
     logger.error("Failed to get stream", { error, podId, streamId });
-    return failure(new Error("Failed to get stream"));
+    return failure(createError("DATABASE_ERROR", "Failed to get stream"));
   }
 }

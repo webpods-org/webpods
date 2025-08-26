@@ -14,9 +14,9 @@ export function parsePermission(permission: string): {
     return { type: "private" };
   }
 
-  // Handle stream-based permissions (e.g., "stream:.meta/permissions")
-  if (permission.startsWith("stream:")) {
-    const streamPath = permission.slice(7); // Remove "stream:" prefix
+  // Handle stream-based permissions (e.g., "/members", "/.meta/permissions")
+  if (permission.startsWith("/")) {
+    const streamPath = permission.substring(1); // Remove "/" prefix
     return { type: "stream", streamPath };
   }
 

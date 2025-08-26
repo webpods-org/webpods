@@ -3,118 +3,86 @@
  */
 
 import { DataContext } from "../data-context.js";
-import { PodDbRow, StreamDbRow, RecordDbRow } from "../../db-types.js";
+import { Stream } from "../../types.js";
+import { PodDbRow } from "../../db-types.js";
 import { createLogger } from "../../logger.js";
 import { parsePermission } from "./parse-permission.js";
+import { checkPermissionStream } from "./check-permission-stream.js";
 
 const logger = createLogger("webpods:domain:permissions");
 
 export async function canRead(
   ctx: DataContext,
-  podId: string,
-  streamId: string,
+  stream: Stream,
   userId: string | null,
 ): Promise<boolean> {
-  try {
-    // Get pod
+  logger.info("canRead check", {
+    streamId: stream.stream_id,
+    accessPermission: stream.access_permission,
+    userId,
+    creatorId: stream.user_id,
+  });
+
+  // Creator always has access
+  if (userId && userId === stream.user_id) {
+    return true;
+  }
+
+  // Public read access - anyone can read
+  if (stream.access_permission === "public") {
+    return true;
+  }
+
+  // Private access - only creator
+  if (stream.access_permission === "private") {
+    return userId === stream.user_id;
+  }
+
+  // No auth means no access for non-public
+  if (!userId) {
+    return false;
+  }
+
+  // Parse permission
+  const perm = parsePermission(stream.access_permission);
+  logger.debug("Parsed permission", {
+    perm,
+    accessPermission: stream.access_permission,
+  });
+
+  if (perm.type === "stream" && perm.streamPath) {
+    logger.info("Checking stream-based permission", {
+      streamPath: perm.streamPath,
+      userId,
+      streamId: stream.stream_id,
+    });
+    // Get pod for this stream
     const pod = await ctx.db.oneOrNone<PodDbRow>(
       `SELECT * FROM pod WHERE id = $(podId)`,
-      { podId },
+      { podId: stream.pod_id },
     );
 
     if (!pod) {
+      logger.error("Pod not found for stream", { podId: stream.pod_id });
       return false;
     }
 
-    // Get stream
-    const stream = await ctx.db.oneOrNone<StreamDbRow>(
-      `SELECT * FROM stream
-       WHERE pod_id = $(podId)
-         AND stream_id = $(streamId)`,
-      { podId, streamId },
+    // Check if user has read permission in the permission stream
+    const result = await checkPermissionStream(
+      ctx,
+      pod.name,
+      perm.streamPath,
+      userId,
+      "read",
     );
-
-    if (!stream) {
-      return false;
-    }
-
-    // Parse the permission
-    const permission = parsePermission(stream.access_permission);
-
-    // Public streams are readable by anyone
-    if (permission.type === "public") {
-      return true;
-    }
-
-    // Private streams require authentication
-    if (!userId) {
-      return false;
-    }
-
-    // Private streams are only readable by the creator
-    if (permission.type === "private") {
-      return stream.user_id === userId;
-    }
-
-    // Stream-based permissions
-    if (permission.type === "stream" && permission.streamPath) {
-      // Get the permission stream
-      const permissionStream = await ctx.db.oneOrNone<StreamDbRow>(
-        `SELECT * FROM stream
-         WHERE pod_id = $(podId)
-           AND stream_id = $(streamPath)`,
-        { podId, streamPath: permission.streamPath },
-      );
-
-      if (!permissionStream) {
-        // If permission stream doesn't exist, default to creator-only
-        return stream.user_id === userId;
-      }
-
-      // Get all records from the permission stream
-      const records = await ctx.db.manyOrNone<RecordDbRow>(
-        `SELECT * FROM record
-         WHERE stream_id = $(streamId)
-         ORDER BY index ASC`,
-        { streamId: permissionStream.id },
-      );
-
-      // Process records to determine current permission state
-      let userPermission: any = null;
-      for (const record of records) {
-        try {
-          const content = JSON.parse(record.content);
-          if (content.id === userId) {
-            userPermission = content;
-          }
-        } catch {
-          // Skip invalid JSON
-        }
-      }
-
-      // Check permission
-      if (userPermission) {
-        if (userPermission.action === "deny") {
-          return false;
-        }
-        if (userPermission.action === "allow" && userPermission.permission === "read") {
-          return true;
-        }
-      }
-
-      // Default to creator-only if not explicitly allowed
-      return stream.user_id === userId;
-    }
-
-    // Default to denying access
-    return false;
-  } catch (error) {
-    logger.error("Failed to check read permission", {
-      error,
-      podId,
-      streamId,
+    logger.info("Stream permission check result", {
+      allowed: result,
+      podName: pod.name,
+      streamPath: perm.streamPath,
       userId,
     });
-    return false;
+    return result;
   }
+
+  return false;
 }

@@ -11,12 +11,15 @@ export function toSnakeCase<T extends Record<string, any>>(
   obj: T,
 ): Record<string, any> {
   const result: Record<string, any> = {};
-  
+
   for (const [key, value] of Object.entries(obj)) {
-    const snakeKey = key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+    const snakeKey = key.replace(
+      /[A-Z]/g,
+      (letter) => `_${letter.toLowerCase()}`,
+    );
     result[snakeKey] = value;
   }
-  
+
   return result;
 }
 
@@ -28,11 +31,13 @@ export function toCamelCase<T extends Record<string, any>>(
   obj: T,
 ): Record<string, any> {
   const result: Record<string, any> = {};
-  
+
   for (const [key, value] of Object.entries(obj)) {
-    const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+    const camelKey = key.replace(/_([a-z])/g, (_, letter) =>
+      letter.toUpperCase(),
+    );
     result[camelKey] = value;
   }
-  
+
   return result;
 }

@@ -115,7 +115,7 @@ export async function getOrCreateStream(
       pod_id: podId,
       stream_id: actualStreamId,
       user_id: userId,
-      access_permission: accessPermission || "private",
+      access_permission: accessPermission || "public",
       created_at: new Date(),
     };
 

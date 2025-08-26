@@ -64,7 +64,7 @@ export async function checkRateLimit(
         window_start: actualWindowStart,
         window_end: windowEnd,
       };
-      
+
       rateLimitRecord = await ctx.db.one<RateLimitDbRow>(
         `${sql.insert("rate_limit", params)} RETURNING *`,
         params,
@@ -89,14 +89,11 @@ export async function checkRateLimit(
     }
 
     // Increment counter only if allowed
-    const updateParams = {
-      count: rateLimitRecord.count + 1,
-    };
-    
     await ctx.db.none(
-      `${sql.update("rate_limit", updateParams)}
+      `UPDATE rate_limit 
+       SET count = count + 1
        WHERE id = $(id)`,
-      { ...updateParams, id: rateLimitRecord.id },
+      { id: rateLimitRecord.id },
     );
 
     return success({

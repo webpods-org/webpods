@@ -33,7 +33,9 @@ export async function createPod(
 ): Promise<Result<Pod>> {
   // Validate pod name
   if (!isValidPodName(podName)) {
-    return failure(new Error("Pod name must be lowercase alphanumeric with hyphens"));
+    return failure(
+      new Error("Pod name must be lowercase alphanumeric with hyphens"),
+    );
   }
 
   try {

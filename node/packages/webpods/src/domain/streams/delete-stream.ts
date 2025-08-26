@@ -4,6 +4,7 @@
 
 import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
+import { createError } from "../../utils/errors.js";
 import { StreamDbRow } from "../../db-types.js";
 import { isSystemStream } from "../../utils.js";
 import { createLogger } from "../../logger.js";
@@ -32,27 +33,31 @@ export async function deleteStream(
       );
 
       if (!stream) {
-        return failure(new Error("Stream not found"));
+        return failure(createError("NOT_FOUND", "Stream not found"));
       }
 
       // Only the creator can delete a stream
       if (stream.user_id !== userId) {
-        return failure(new Error("Forbidden: Only the creator can delete a stream"));
+        return failure(
+          createError("FORBIDDEN", "Only the creator can delete a stream"),
+        );
       }
 
       // Delete all records in the stream
-      await t.none(
-        `DELETE FROM record WHERE stream_id = $(streamId)`,
-        { streamId: stream.id },
-      );
+      await t.none(`DELETE FROM record WHERE stream_id = $(streamId)`, {
+        streamId: stream.id,
+      });
 
       // Delete the stream
-      await t.none(
-        `DELETE FROM stream WHERE id = $(streamId)`,
-        { streamId: stream.id },
-      );
+      await t.none(`DELETE FROM stream WHERE id = $(streamId)`, {
+        streamId: stream.id,
+      });
 
-      logger.info("Stream deleted", { streamId: stream.id, podId, streamPath: streamId });
+      logger.info("Stream deleted", {
+        streamId: stream.id,
+        podId,
+        streamPath: streamId,
+      });
       return success(undefined);
     });
   } catch (error: any) {
