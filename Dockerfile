@@ -13,7 +13,7 @@ COPY node/packages/webpods-test-utils/package*.json ./node/packages/webpods-test
 COPY node/packages/webpods/package*.json ./node/packages/webpods/
 
 # Copy build scripts
-COPY build.sh clean.sh ./
+COPY build.sh clean.sh format-all.sh ./
 
 # Copy TypeScript config
 COPY tsconfig.base.json ./
@@ -24,8 +24,8 @@ COPY node ./node
 COPY database ./database
 
 # Install dependencies and build
-RUN chmod +x build.sh clean.sh && \
-    ./build.sh --install
+RUN chmod +x build.sh clean.sh format-all.sh && \
+    ./build.sh --install --no-format
 
 # Runtime stage - Ubuntu minimal
 FROM ubuntu:24.04 AS runtime
@@ -54,9 +54,16 @@ COPY --from=builder --chown=webpods:root /app/package*.json ./
 COPY --from=builder --chown=webpods:root /app/node_modules ./node_modules
 COPY --from=builder --chown=webpods:root /app/knexfile.js ./
 
-# Copy start script and entrypoint
-COPY --chown=webpods:root start.sh docker-entrypoint.sh ./
-RUN chmod +x start.sh docker-entrypoint.sh
+# Copy config files (example config for reference)
+COPY --chown=webpods:root config.example.json ./
+
+# Copy Docker-specific files from scripts/docker
+COPY --chown=webpods:root scripts/docker/config.docker.json ./
+COPY --chown=webpods:root scripts/docker/docker-start.sh ./
+
+# Copy Docker entrypoint
+COPY --chown=webpods:root docker-entrypoint.sh ./
+RUN chmod +x docker-start.sh docker-entrypoint.sh
 
 # Switch to non-root user
 USER webpods
@@ -75,4 +82,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
 
 # Use entrypoint for automatic setup
 ENTRYPOINT ["./docker-entrypoint.sh"]
-CMD ["./start.sh"]
+CMD ["./docker-start.sh"]

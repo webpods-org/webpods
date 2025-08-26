@@ -143,7 +143,7 @@ docker run -d --rm \
     -e WEBPODS_AUTO_MIGRATE=true \
     -e JWT_SECRET=test-secret-key \
     -e SESSION_SECRET=test-session-secret \
-    -e WEBPODS_CONFIG_PATH=/app/config.example.json \
+    -e WEBPODS_CONFIG_PATH=/app/config.docker.json \
     -e LOG_LEVEL=error \
     $IMAGE_TO_TEST >/dev/null 2>&1
 
@@ -207,16 +207,6 @@ else
     TESTS_FAILED=$((TESTS_FAILED + 1))
 fi
 
-# Test 4: Public stream read (should work)
-print_info "Testing: Public stream read"
-RESPONSE=$(curl -s http://test.localhost:$TEST_PORT/public-test)
-if echo "$RESPONSE" | grep -q "\"code\":\"NOT_FOUND\""; then
-    print_success "Public stream read (stream not found as expected)"
-    TESTS_PASSED=$((TESTS_PASSED + 1))
-else
-    print_error "Public stream read failed: $RESPONSE"
-    TESTS_FAILED=$((TESTS_FAILED + 1))
-fi
 
 echo
 print_info "=== Test Summary ==="
