@@ -1,0 +1,40 @@
+{
+  "name": "webpods-cli",
+  "version": "0.0.1",
+  "description": "WebPods command line interface",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "rm -rf dist && npx tsc",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix"
+  },
+  "bin": {
+    "pod": "dist/index.js"
+  },
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/webpods-org/webpods.git"
+  },
+  "keywords": [
+    "webpods",
+    "cli",
+    "append-only",
+    "logs"
+  ],
+  "license": "MIT",
+  "author": "WebPods",
+  "bugs": {
+    "url": "https://github.com/webpods-org/webpods/issues"
+  },
+  "homepage": "https://github.com/webpods-org/webpods#readme",
+  "dependencies": {
+    "@types/node": "^22.10.10",
+    "@types/yargs": "^17.0.33",
+    "node-fetch": "^3.3.2",
+    "yargs": "^17.7.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  }
+}

@@ -14,6 +14,7 @@ echo "=== Building WebPods ==="
 PACKAGES=(
   "webpods-test-utils"
   "webpods"
+  "webpods-cli"
   "webpods-integration-tests"
 )
 
