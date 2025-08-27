@@ -93,7 +93,9 @@ router.post("/register", async (req: Request, res: Response) => {
       token_endpoint_auth_method: client.token_endpoint_auth_method,
     });
   } catch (error) {
-    const err = error as Error & {response?: {status?: number; data?: unknown}};
+    const err = error as Error & {
+      response?: { status?: number; data?: unknown };
+    };
     logger.error("Client registration failed", {
       error: err.message,
       details: err.response?.data,
@@ -134,14 +136,14 @@ router.get("/client/:clientId", async (req: Request, res: Response) => {
     res.json({
       client_id: client.client_id,
       client_name: client.client_name,
-      logo_uri: (client.metadata as {logo_uri?: string})?.logo_uri,
-      client_uri: (client.metadata as {client_uri?: string})?.client_uri,
-      policy_uri: (client.metadata as {policy_uri?: string})?.policy_uri,
-      tos_uri: (client.metadata as {tos_uri?: string})?.tos_uri,
+      logo_uri: (client.metadata as { logo_uri?: string })?.logo_uri,
+      client_uri: (client.metadata as { client_uri?: string })?.client_uri,
+      policy_uri: (client.metadata as { policy_uri?: string })?.policy_uri,
+      tos_uri: (client.metadata as { tos_uri?: string })?.tos_uri,
       scope: client.scope,
     });
   } catch (error) {
-    const err = error as Error & {response?: {status?: number}};
+    const err = error as Error & { response?: { status?: number } };
     if (err.response?.status === 404) {
       res.status(404).json({
         error: {

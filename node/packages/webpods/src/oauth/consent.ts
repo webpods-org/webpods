@@ -25,14 +25,13 @@ function parseRequestedPods(
 
   // Check state from original OAuth request (preserved through the flow)
   // Try to get state from various possible locations
-  const consentReq = consentRequest as {state?: string; request_url?: string};
+  const consentReq = consentRequest as { state?: string; request_url?: string };
   const possibleState =
     consentReq.state ||
     (consentReq.request_url?.includes("state=")
-      ? new URL(
-          consentReq.request_url,
-          "http://example.com",
-        ).searchParams.get("state")
+      ? new URL(consentReq.request_url, "http://example.com").searchParams.get(
+          "state",
+        )
       : null);
 
   if (possibleState) {

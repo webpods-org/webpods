@@ -7,7 +7,18 @@ import {
   getOAuthClient,
   getProviderConfig,
   isProviderConfigured,
+  OAuthProviderConfig,
 } from "./oauth-config.js";
+
+// Type for user info returned from OAuth providers
+export interface OAuthUserInfo {
+  id: string | number;
+  email?: string;
+  name?: string;
+  username?: string;
+  picture?: string;
+  raw: Record<string, unknown>;
+}
 
 /**
  * Generate PKCE challenge
@@ -87,19 +98,19 @@ export async function exchangeCodeForTokens(
 export async function getUserInfo(
   providerId: string,
   accessToken: string,
-): Promise<Record<string, unknown>> {
+): Promise<OAuthUserInfo> {
   const client = await getOAuthClient(providerId);
   const config = getProviderConfig(providerId)!;
 
   // If provider has a custom userinfo URL, use it directly
   if (!config.issuer && config.userinfoUrl) {
-    return await getCustomUserInfo(accessToken, config as unknown as Record<string, unknown>);
+    return await getCustomUserInfo(accessToken, config);
   }
 
   // Standard OIDC userinfo endpoint
   try {
     const userinfo = await client.userinfo(accessToken);
-    return normalizeUserInfo(userinfo, config as unknown as Record<string, unknown>);
+    return normalizeUserInfo(userinfo, config);
   } catch (error) {
     // Fallback to manual API call if userinfo fails
     if (config.userinfoUrl) {
@@ -114,8 +125,8 @@ export async function getUserInfo(
         throw new Error(`Failed to get user info from ${providerId}`);
       }
 
-      const data = await response.json() as Record<string, unknown>;
-      return normalizeUserInfo(data, config as unknown as Record<string, unknown>);
+      const data = (await response.json()) as Record<string, unknown>;
+      return normalizeUserInfo(data, config);
     }
 
     throw error;
@@ -127,16 +138,13 @@ export async function getUserInfo(
  */
 async function getCustomUserInfo(
   accessToken: string,
-  config: Record<string, unknown>,
-): Promise<Record<string, unknown>> {
-  const userinfoUrl = config.userinfoUrl as string | undefined;
-  const id = config.id as string;
-  
-  if (!userinfoUrl) {
-    throw new Error(`Provider ${id} missing userinfo URL`);
+  config: OAuthProviderConfig,
+): Promise<OAuthUserInfo> {
+  if (!config.userinfoUrl) {
+    throw new Error(`Provider ${config.id} missing userinfo URL`);
   }
 
-  const response = await fetch(userinfoUrl, {
+  const response = await fetch(config.userinfoUrl, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
       Accept: "application/json",
@@ -144,18 +152,15 @@ async function getCustomUserInfo(
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to get user info from ${id}`);
+    throw new Error(`Failed to get user info from ${config.id}`);
   }
 
-  const data = await response.json() as Record<string, unknown>;
+  const data = (await response.json()) as Record<string, unknown>;
 
   // Some providers may have a separate email endpoint
   // This can be configured in config.json if needed
-  const emailUrl = config.emailUrl as string | undefined;
-  const emailField = config.emailField as string;
-  
-  if (emailUrl && !data[emailField]) {
-    const emailResponse = await fetch(emailUrl, {
+  if (config.emailUrl && !data[config.emailField]) {
+    const emailResponse = await fetch(config.emailUrl, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
         Accept: "application/json",
@@ -163,19 +168,24 @@ async function getCustomUserInfo(
     });
 
     if (emailResponse.ok) {
-      const emailData = await emailResponse.json() as Array<{primary?: boolean; verified?: boolean; email?: string; value?: string}> | Record<string, unknown>;
+      const emailData = (await emailResponse.json()) as
+        | Array<{
+            primary?: boolean;
+            verified?: boolean;
+            email?: string;
+            value?: string;
+          }>
+        | Record<string, unknown>;
       // Handle array of emails (some providers return multiple)
       if (Array.isArray(emailData)) {
-        const primaryEmail = emailData.find(
-          (e) => e.primary || e.verified,
-        );
+        const primaryEmail = emailData.find((e) => e.primary || e.verified);
         if (primaryEmail) {
-          data[emailField] = primaryEmail.email || primaryEmail.value;
+          data[config.emailField] = primaryEmail.email || primaryEmail.value;
         }
       } else {
         const emailDataObj = emailData as Record<string, unknown>;
-        data[emailField] =
-          emailDataObj[emailField] || emailDataObj.email;
+        data[config.emailField] =
+          emailDataObj[config.emailField] || emailDataObj.email;
       }
     }
   }
@@ -186,24 +196,25 @@ async function getCustomUserInfo(
 /**
  * Normalize user info based on provider config field mappings
  */
-function normalizeUserInfo(data: Record<string, unknown>, config: Record<string, unknown>): Record<string, unknown> {
+function normalizeUserInfo(
+  data: Record<string, unknown>,
+  config: OAuthProviderConfig,
+): OAuthUserInfo {
   // Extract fields based on config mappings
-  const userIdField = (config.userIdField as string) || "id";
-  const emailField = (config.emailField as string) || "email";
-  const nameField = (config.nameField as string) || "name";
-  
-  const userId = data[userIdField] || data.id || data.sub;
-  const email = data[emailField] || data.email;
+  const userId = data[config.userIdField] || data.id || data.sub;
+  const email = data[config.emailField] || data.email;
   const name =
-    data[nameField] || data.name || data.username || data.login;
+    data[config.nameField] || data.name || data.username || data.login;
 
   // Standard normalized format
   return {
-    id: userId,
-    email: email,
-    name: name,
-    username: data.username || data.login,
-    picture: data.picture || data.avatar_url || data.avatar,
+    id: userId as string | number,
+    email: email as string | undefined,
+    name: name as string | undefined,
+    username: (data.username || data.login) as string | undefined,
+    picture: (data.picture || data.avatar_url || data.avatar) as
+      | string
+      | undefined,
     raw: data, // Include raw data for debugging
   };
 }

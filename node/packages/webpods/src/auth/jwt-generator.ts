@@ -127,7 +127,7 @@ export function verifyWebPodsToken(token: string): Result<WebPodsTokenPayload> {
       data: decoded,
     };
   } catch (error) {
-    const err = error as Error & {name: string};
+    const err = error as Error & { name: string };
     logger.error("Token verification failed", {
       error: err.message,
       name: err.name,
@@ -167,7 +167,9 @@ export function verifyWebPodsToken(token: string): Result<WebPodsTokenPayload> {
 export function isWebPodsToken(token: string): boolean {
   try {
     // Decode without verification to check type
-    const decoded = jwt.decode(token, { complete: true }) as {payload?: {type?: string}} | null;
+    const decoded = jwt.decode(token, { complete: true }) as {
+      payload?: { type?: string };
+    } | null;
     if (!decoded) {
       return false;
     }

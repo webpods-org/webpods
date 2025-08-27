@@ -7,6 +7,7 @@ import { Result, User, Identity } from "../types.js";
 import { createLogger } from "../logger.js";
 import type { OAuthProvider } from "../types.js";
 import type { UserDbRow, IdentityDbRow } from "../db-types.js";
+import type { OAuthUserInfo } from "../auth/oauth-handlers.js";
 
 const logger = createLogger("webpods:users");
 
@@ -85,12 +86,11 @@ export async function ensureUserExists(
 export async function findOrCreateUser(
   db: Database,
   provider: OAuthProvider,
-  profile: Record<string, unknown>,
+  profile: OAuthUserInfo,
 ): Promise<Result<{ user: User; identity: Identity }>> {
-  const providerId = profile.id;
-  const emails = profile.emails as Array<{value?: string}> | undefined;
-  const email = profile.email || emails?.[0]?.value;
-  const name = profile.displayName || profile.name || profile.username;
+  const providerId = String(profile.id);
+  const email = profile.email;
+  const name = profile.name || profile.username;
 
   try {
     // First check if we have an identity for this provider

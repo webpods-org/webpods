@@ -193,7 +193,9 @@ router.post(
           created_at: clientRecord.created_at,
         });
       } catch (error) {
-        const err = error as Error & {response?: {data?: unknown; status?: number; statusText?: string}};
+        const err = error as Error & {
+          response?: { data?: unknown; status?: number; statusText?: string };
+        };
         logger.error("Failed to create OAuth client in Hydra", {
           error: err.message,
           details: err.response?.data,
@@ -388,7 +390,7 @@ router.delete(
         logger.info("Deleted OAuth client from Hydra", { clientId, userId });
       } catch (error) {
         // If already deleted from Hydra, continue
-        const httpErr = error as Error & {response?: {status?: number}};
+        const httpErr = error as Error & { response?: { status?: number } };
         if (httpErr.response?.status !== 404) {
           logger.error("Failed to delete from Hydra", {
             error: (error as Error).message,

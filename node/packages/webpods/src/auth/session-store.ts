@@ -67,7 +67,11 @@ export function getSessionConfig(): session.SessionOptions {
 /**
  * List all active sessions for a user
  */
-export async function getUserSessions(userId: string): Promise<Array<{id: string; created?: Date | null; expires: Date; user?: unknown}>> {
+export async function getUserSessions(
+  userId: string,
+): Promise<
+  Array<{ id: string; created?: Date | null; expires: Date; user?: unknown }>
+> {
   const db = getDb();
 
   const sessions = await db.manyOrNone<{

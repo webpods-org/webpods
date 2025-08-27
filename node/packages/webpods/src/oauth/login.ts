@@ -45,7 +45,7 @@ router.get("/login", async (req: Request, res: Response) => {
 
     // Extract pods from the original OAuth request if present
     let requestedPods: string[] = [];
-    const requestUrl = (loginRequest as {request_url?: string}).request_url;
+    const requestUrl = (loginRequest as { request_url?: string }).request_url;
     if (requestUrl) {
       try {
         const url = new URL(requestUrl, "http://example.com");
@@ -96,14 +96,22 @@ router.get("/login", async (req: Request, res: Response) => {
     }
 
     // Check if user has existing WebPods session
-    const session = (req as Request & {session?: {user?: {id?: string; email?: string; name?: string}}}).session;
+    const session = (
+      req as Request & {
+        session?: { user?: { id?: string; email?: string; name?: string } };
+      }
+    ).session;
 
     // Also check for WebPods JWT in cookies or headers
     let webpodsUser = null;
 
     if (session?.user?.id) {
       // User has session
-      webpodsUser = session.user as {id: string; email?: string; name?: string};
+      webpodsUser = session.user as {
+        id: string;
+        email?: string;
+        name?: string;
+      };
       logger.info("User has existing session", { userId: webpodsUser.id });
     } else {
       // JWT tokens removed - using Hydra OAuth only
@@ -139,7 +147,13 @@ router.get("/login", async (req: Request, res: Response) => {
       const publicUrl = config.server.publicUrl || "http://localhost:3000";
 
       // Store challenge and pods in session to return after auth
-      const sessionReq = req as Request & {session: {loginChallenge?: string; requestedPods?: string[]; save?: (callback: (err: unknown) => void) => void}};
+      const sessionReq = req as Request & {
+        session: {
+          loginChallenge?: string;
+          requestedPods?: string[];
+          save?: (callback: (err: unknown) => void) => void;
+        };
+      };
       if (!sessionReq.session) {
         sessionReq.session = {} as typeof sessionReq.session;
       }

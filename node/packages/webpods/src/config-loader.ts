@@ -93,6 +93,14 @@ export interface AppConfig {
   rootPod?: string; // Optional pod to serve on main domain
 }
 
+// Type for config as loaded from JSON (before defaults applied)
+// Can contain environment variable references as strings
+type PartialDeep<T> = {
+  [P in keyof T]?: T[P] extends object ? PartialDeep<T[P]> : T[P] | string;
+};
+
+type RawConfig = PartialDeep<AppConfig>;
+
 /**
  * Resolve environment variable references in a value
  * Supports format: $VAR_NAME
@@ -225,46 +233,59 @@ function resolveEnvVars(obj: unknown, path: string[] = []): unknown {
 /**
  * Apply default values to missing config fields
  */
-function applyDefaults(config: unknown): unknown {
-  const cfg = config as Record<string, Record<string, unknown>>;
+function applyDefaults(config: RawConfig): RawConfig {
   // Ensure base structure exists
-  cfg.server = cfg.server || {};
-  cfg.database = cfg.database || {};
-  cfg.auth = cfg.auth || {};
-  cfg.rateLimits = cfg.rateLimits || {};
-  cfg.hydra = cfg.hydra || {};
+  const cfg: RawConfig = {
+    oauth: config.oauth || { providers: [] },
+    server: config.server || {},
+    database: config.database || {},
+    auth: config.auth || {},
+    rateLimits: config.rateLimits || {},
+    hydra: config.hydra || {},
+    rootPod: config.rootPod,
+  };
 
   // Apply defaults for server (using env var references)
-  cfg.server.host = cfg.server.host ?? "$HOST";
-  cfg.server.port = cfg.server.port ?? "$PORT";
-  cfg.server.publicUrl = cfg.server.publicUrl ?? "$PUBLIC_URL";
-  cfg.server.corsOrigin = cfg.server.corsOrigin ?? "$CORS_ORIGIN";
-  cfg.server.maxPayloadSize =
-    cfg.server.maxPayloadSize ?? "$MAX_PAYLOAD_SIZE";
+  if (cfg.server) {
+    cfg.server.host = cfg.server.host ?? "$HOST";
+    cfg.server.port = cfg.server.port ?? "$PORT";
+    cfg.server.publicUrl = cfg.server.publicUrl ?? "$PUBLIC_URL";
+    cfg.server.corsOrigin = cfg.server.corsOrigin ?? "$CORS_ORIGIN";
+    cfg.server.maxPayloadSize =
+      cfg.server.maxPayloadSize ?? "$MAX_PAYLOAD_SIZE";
+  }
 
   // Apply defaults for database
-  cfg.database.host = cfg.database.host ?? "$WEBPODS_DB_HOST";
-  cfg.database.port = cfg.database.port ?? "$WEBPODS_DB_PORT";
-  cfg.database.database = cfg.database.database ?? "$WEBPODS_DB_NAME";
-  cfg.database.user = cfg.database.user ?? "$WEBPODS_DB_USER";
-  cfg.database.password = cfg.database.password ?? "$WEBPODS_DB_PASSWORD";
+  if (cfg.database) {
+    cfg.database.host = cfg.database.host ?? "$WEBPODS_DB_HOST";
+    cfg.database.port = cfg.database.port ?? "$WEBPODS_DB_PORT";
+    cfg.database.database = cfg.database.database ?? "$WEBPODS_DB_NAME";
+    cfg.database.user = cfg.database.user ?? "$WEBPODS_DB_USER";
+    cfg.database.password = cfg.database.password ?? "$WEBPODS_DB_PASSWORD";
+  }
 
   // Apply defaults for auth
-  cfg.auth.jwtSecret = cfg.auth.jwtSecret ?? "$JWT_SECRET";
-  cfg.auth.jwtExpiry = cfg.auth.jwtExpiry ?? "$JWT_EXPIRY";
-  cfg.auth.sessionSecret = cfg.auth.sessionSecret ?? "$SESSION_SECRET";
+  if (cfg.auth) {
+    cfg.auth.jwtSecret = cfg.auth.jwtSecret ?? "$JWT_SECRET";
+    cfg.auth.jwtExpiry = cfg.auth.jwtExpiry ?? "$JWT_EXPIRY";
+    cfg.auth.sessionSecret = cfg.auth.sessionSecret ?? "$SESSION_SECRET";
+  }
 
   // Apply defaults for rate limits
-  cfg.rateLimits.writes = cfg.rateLimits.writes ?? "$RATE_LIMIT_WRITES";
-  cfg.rateLimits.reads = cfg.rateLimits.reads ?? "$RATE_LIMIT_READS";
-  cfg.rateLimits.podCreate =
-    cfg.rateLimits.podCreate ?? "$RATE_LIMIT_POD_CREATE";
-  cfg.rateLimits.streamCreate =
-    cfg.rateLimits.streamCreate ?? "$RATE_LIMIT_STREAM_CREATE";
+  if (cfg.rateLimits) {
+    cfg.rateLimits.writes = cfg.rateLimits.writes ?? "$RATE_LIMIT_WRITES";
+    cfg.rateLimits.reads = cfg.rateLimits.reads ?? "$RATE_LIMIT_READS";
+    cfg.rateLimits.podCreate =
+      cfg.rateLimits.podCreate ?? "$RATE_LIMIT_POD_CREATE";
+    cfg.rateLimits.streamCreate =
+      cfg.rateLimits.streamCreate ?? "$RATE_LIMIT_STREAM_CREATE";
+  }
 
   // Apply defaults for Hydra
-  cfg.hydra.adminUrl = cfg.hydra.adminUrl ?? "$HYDRA_ADMIN_URL";
-  cfg.hydra.publicUrl = cfg.hydra.publicUrl ?? "$HYDRA_PUBLIC_URL";
+  if (cfg.hydra) {
+    cfg.hydra.adminUrl = cfg.hydra.adminUrl ?? "$HYDRA_ADMIN_URL";
+    cfg.hydra.publicUrl = cfg.hydra.publicUrl ?? "$HYDRA_PUBLIC_URL";
+  }
 
   return cfg;
 }
@@ -334,7 +355,9 @@ export function loadConfig(configPath?: string): AppConfig {
 
     return config;
   } catch (error) {
-    logger.error("Failed to load configuration", { error: (error as Error).message });
+    logger.error("Failed to load configuration", {
+      error: (error as Error).message,
+    });
     throw error;
   }
 }

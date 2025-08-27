@@ -244,7 +244,7 @@ router.get("/success", (req: Request, res: Response) => {
  */
 router.get("/whoami", async (req: Request, res: Response) => {
   const token =
-    (req as Request & {cookies?: {token?: string}}).cookies?.token ||
+    (req as Request & { cookies?: { token?: string } }).cookies?.token ||
     req.headers.authorization?.replace("Bearer ", "");
 
   if (!token) {
@@ -303,7 +303,7 @@ router.get("/authorize", async (req: Request, res: Response) => {
   }
 
   // Check if user has a valid session (SSO)
-  if ((req as Request & {session?: {user?: unknown}}).session?.user) {
+  if ((req as Request & { session?: { user?: unknown } }).session?.user) {
     try {
       // WebPods JWT tokens removed - using Hydra OAuth
       // Sessions are used for SSO across pods
@@ -321,7 +321,8 @@ router.get("/authorize", async (req: Request, res: Response) => {
 
       logger.info("SSO authorization successful", {
         pod,
-        userId: ((req as Request & {session?: {user?: {id?: string}}}).session?.user?.id),
+        userId: (req as Request & { session?: { user?: { id?: string } } })
+          .session?.user?.id,
       });
       res.redirect(callbackUrl);
     } catch (error) {
@@ -468,7 +469,7 @@ router.get("/:provider/callback", async (req: Request, res: Response) => {
       logger.error("No access token received from provider", { provider });
       res.status(500).json({
         error: {
-          code: "OAUTH_ERROR", 
+          code: "OAUTH_ERROR",
           message: "Failed to obtain access token",
         },
       });
@@ -476,7 +477,10 @@ router.get("/:provider/callback", async (req: Request, res: Response) => {
     }
 
     // Get user info
-    const userInfo = await getUserInfo(provider, tokenSet.access_token as string);
+    const userInfo = await getUserInfo(
+      provider,
+      tokenSet.access_token as string,
+    );
 
     // Find or create user
     const db = getDb();
@@ -515,7 +519,13 @@ router.get("/:provider/callback", async (req: Request, res: Response) => {
     }
 
     // Store user in session for SSO
-    const sessionReq = req as Request & {session: {user?: unknown; identity?: unknown; save?: (callback: (err: unknown) => void) => void}};
+    const sessionReq = req as Request & {
+      session: {
+        user?: unknown;
+        identity?: unknown;
+        save?: (callback: (err: unknown) => void) => void;
+      };
+    };
     sessionReq.session = sessionReq.session || {};
     sessionReq.session.user = userResult.data.user;
     sessionReq.session.identity = userResult.data.identity;
@@ -582,14 +592,18 @@ router.get("/:provider/callback", async (req: Request, res: Response) => {
         ? undefined // Don't set domain for localhost
         : `.${config.server.public?.hostname}`; // Set to .webpods.org for SSO
 
-      res.cookie("webpods_session", (sessionReq.session as {id?: string}).id, {
-        httpOnly: true,
-        secure: isSecure,
-        sameSite: isSecure ? "strict" : "lax",
-        maxAge: 10 * 365 * 24 * 60 * 60 * 1000, // 10 years (effectively unlimited)
-        path: "/",
-        domain: cookieDomain,
-      });
+      res.cookie(
+        "webpods_session",
+        (sessionReq.session as { id?: string }).id,
+        {
+          httpOnly: true,
+          secure: isSecure,
+          sameSite: isSecure ? "strict" : "lax",
+          maxAge: 10 * 365 * 24 * 60 * 60 * 1000, // 10 years (effectively unlimited)
+          path: "/",
+          domain: cookieDomain,
+        },
+      );
 
       logger.info("User authenticated", {
         userId: userResult.data.user.id,

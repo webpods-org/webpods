@@ -17,11 +17,20 @@ const logger = createLogger("webpods:auth:hybrid");
 function extractToken(req: Request, currentPod?: string): string | null {
   // For pod requests, prefer pod_token cookie
   let token = currentPod
-    ? (req as AuthRequest & {cookies?: {pod_token?: string; token?: string}}).cookies?.pod_token
-    : (req as AuthRequest & {cookies?: {pod_token?: string; token?: string}}).cookies?.token;
+    ? (
+        req as AuthRequest & {
+          cookies?: { pod_token?: string; token?: string };
+        }
+      ).cookies?.pod_token
+    : (
+        req as AuthRequest & {
+          cookies?: { pod_token?: string; token?: string };
+        }
+      ).cookies?.token;
 
   if (!token) {
-    token = (req as AuthRequest & {cookies?: {token?: string}}).cookies?.token; // Fallback to regular token
+    token = (req as AuthRequest & { cookies?: { token?: string } }).cookies
+      ?.token; // Fallback to regular token
   }
 
   if (!token) {
@@ -117,7 +126,9 @@ export async function authenticateHybrid(
       // Check both audience and ext.pods claims
       // Handle nested ext structure from Hydra (ext.ext.pods)
       const allowedPods =
-        payload.ext?.pods || (payload.ext as {ext?: {pods?: string[]}})?.ext?.pods || [];
+        payload.ext?.pods ||
+        (payload.ext as { ext?: { pods?: string[] } })?.ext?.pods ||
+        [];
       const audience = payload.aud || [];
 
       // For testing/development, accept both localhost and webpods.com audiences
