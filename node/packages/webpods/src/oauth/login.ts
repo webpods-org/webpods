@@ -45,7 +45,7 @@ router.get("/login", async (req: Request, res: Response) => {
 
     // Extract pods from the original OAuth request if present
     let requestedPods: string[] = [];
-    const requestUrl = (loginRequest as any).request_url;
+    const requestUrl = (loginRequest as { request_url?: string }).request_url;
     if (requestUrl) {
       try {
         const url = new URL(requestUrl, "http://example.com");
@@ -96,7 +96,7 @@ router.get("/login", async (req: Request, res: Response) => {
     }
 
     // Check if user has existing WebPods session
-    const session = (req as any).session;
+    const session = (req as { session?: { user?: { id: string; email?: string; name?: string; provider?: string } } }).session;
 
     // Also check for WebPods JWT in cookies or headers
     let webpodsUser = null;
@@ -139,20 +139,25 @@ router.get("/login", async (req: Request, res: Response) => {
       const publicUrl = config.server.publicUrl || "http://localhost:3000";
 
       // Store challenge and pods in session to return after auth
-      if (!session) {
-        (req as any).session = {};
+      const sessionReq = req as unknown as { session?: { [key: string]: unknown; save?: (callback: (err?: Error) => void) => void } };
+      if (!sessionReq.session) {
+        sessionReq.session = {};
       }
-      (req as any).session.loginChallenge = loginChallenge;
+      sessionReq.session.loginChallenge = loginChallenge;
       if (requestedPods.length > 0) {
-        (req as any).session.requestedPods = requestedPods;
+        sessionReq.session.requestedPods = requestedPods;
       }
 
       // Save session
       await new Promise<void>((resolve, reject) => {
-        (req as any).session.save((err: any) => {
-          if (err) reject(err);
-          else resolve();
-        });
+        if (sessionReq.session?.save) {
+          sessionReq.session.save((err?: Error) => {
+            if (err) reject(err);
+            else resolve();
+          });
+        } else {
+          resolve();
+        }
       });
 
       // Redirect to OAuth provider (using default or configured)
@@ -171,9 +176,9 @@ router.get("/login", async (req: Request, res: Response) => {
       logger.info("Redirecting to authentication", { authUrl });
       res.redirect(authUrl);
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Login handler error", {
-      error: error.message,
+      error: (error as Error).message,
       challenge: loginChallenge,
     });
 

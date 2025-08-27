@@ -46,7 +46,7 @@ export async function listRecords(
     let query = `SELECT * FROM record 
                   WHERE pod_name = $(pod_name) 
                     AND stream_name = $(stream_name)`;
-    const params: any = {
+    const params: Record<string, unknown> = {
       pod_name: podName,
       stream_name: streamId,
       limit: limit + 1,
@@ -101,7 +101,7 @@ export async function listRecords(
       total,
       hasMore,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Failed to list records", {
       error,
       podName,

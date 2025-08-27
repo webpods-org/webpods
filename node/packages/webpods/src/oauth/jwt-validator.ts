@@ -20,7 +20,10 @@ const client = jwksClient({
 });
 
 // Promisify the getSigningKey function
-function getKey(header: any, callback: any) {
+function getKey(header: { kid?: string }, callback: (err: Error | null, key?: string) => void) {
+  if (!header.kid) {
+    return callback(new Error("Missing kid in JWT header"));
+  }
   client.getSigningKey(header.kid, (err, key) => {
     if (err) {
       logger.error("Failed to get signing key", {
@@ -61,7 +64,7 @@ export async function verifyHydraToken(
         algorithms: ["RS256"],
         issuer: getHydraPublicUrl() + "/",
       },
-      (err, decoded) => {
+      (err: jwt.VerifyErrors | null, decoded: unknown) => {
         if (err) {
           logger.error("Token verification failed", {
             error: err.message,
@@ -119,7 +122,7 @@ export async function verifyHydraToken(
 export function isHydraToken(token: string): boolean {
   try {
     // Decode without verification to check issuer
-    const decoded = jwt.decode(token, { complete: true }) as any;
+    const decoded = jwt.decode(token, { complete: true }) as { payload: { iss?: string } } | null;
     if (!decoded) {
       return false;
     }
@@ -132,7 +135,7 @@ export function isHydraToken(token: string): boolean {
     // We need to check both with and without trailing slash
     const isHydra = iss?.startsWith(hydraUrl);
 
-    return isHydra;
+    return !!isHydra;
   } catch {
     return false;
   }

@@ -126,7 +126,7 @@ export async function listUniqueRecords(
       total,
       hasMore,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Failed to list unique records", {
       error,
       podName,

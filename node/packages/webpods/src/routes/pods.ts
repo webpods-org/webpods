@@ -1020,7 +1020,8 @@ router.get(
         // Handle different content types
         if (isBinaryContentType(record.contentType)) {
           // Decode base64 for binary content
-          const buffer = Buffer.from(record.content, "base64");
+          const contentStr = typeof record.content === "string" ? record.content : String(record.content);
+          const buffer = Buffer.from(contentStr, "base64");
           res.send(buffer);
         } else if (
           record.contentType === "application/json" &&
@@ -1143,7 +1144,8 @@ router.get(
       // Handle different content types
       if (isBinaryContentType(record.contentType)) {
         // Decode base64 for binary content
-        const buffer = Buffer.from(record.content, "base64");
+        const contentStr = typeof record.content === "string" ? record.content : String(record.content);
+        const buffer = Buffer.from(contentStr, "base64");
         res.send(buffer);
       } else if (
         record.contentType === "application/json" &&

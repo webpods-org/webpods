@@ -82,7 +82,7 @@ export async function getRecordRange(
     );
 
     return success(records.map(mapRecordFromDb));
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Failed to get record range", {
       error,
       podName,

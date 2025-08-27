@@ -26,9 +26,8 @@ export function rateLimit(
       const db = getDb();
 
       // Use user ID if authenticated, otherwise IP address with prefix
-      const key = (req as any).auth
-        ? (req as any).auth.user_id
-        : `ip:${getIpAddress(req)}`;
+      const authReq = req as { auth?: { user_id?: string } };
+      const key = authReq.auth?.user_id || `ip:${getIpAddress(req)}`;
 
       const result = await checkRateLimit({ db }, key, action);
 

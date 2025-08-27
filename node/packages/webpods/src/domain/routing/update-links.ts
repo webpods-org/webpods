@@ -93,7 +93,7 @@ export async function updateLinks(
       });
       return success(undefined);
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Failed to update links", { error, podName });
     return failure(new Error("Failed to update links"));
   }

@@ -18,7 +18,7 @@ export type IdentityDbRow = {
   provider_id: string;
   email?: string | null;
   name?: string | null;
-  metadata?: any; // JSONB
+  metadata?: Record<string, unknown>; // JSONB
   created_at: Date;
   updated_at?: Date | null;
 };
@@ -26,7 +26,7 @@ export type IdentityDbRow = {
 // Pod table
 export type PodDbRow = {
   name: string; // Primary key
-  metadata?: any; // JSONB
+  metadata?: Record<string, unknown>; // JSONB
   created_at: Date;
   updated_at?: Date | null;
 };
@@ -37,7 +37,7 @@ export type StreamDbRow = {
   name: string; // Part of composite primary key (stream name/path)
   user_id: string;
   access_permission: string;
-  metadata?: any; // JSONB
+  metadata?: Record<string, unknown>; // JSONB
   created_at: Date;
   updated_at?: Date | null;
 };
@@ -60,7 +60,7 @@ export type RecordDbRow = {
 // Session table
 export type SessionDbRow = {
   sid: string;
-  sess: any; // JSON
+  sess: Record<string, unknown>; // JSON
   expire: Date;
 };
 
@@ -107,7 +107,7 @@ export type OAuthClientDbRow = {
   response_types: string[];
   token_endpoint_auth_method: string;
   scope: string;
-  metadata?: any; // JSONB
+  metadata?: Record<string, unknown>; // JSONB
   created_at: Date;
   updated_at?: Date | null;
 };

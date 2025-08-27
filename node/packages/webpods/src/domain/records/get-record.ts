@@ -124,7 +124,7 @@ export async function getRecord(
     }
 
     return success(mapRecordFromDb(record));
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Failed to get record", { error, podName, streamId, target });
     return failure(new Error("Failed to get record"));
   }

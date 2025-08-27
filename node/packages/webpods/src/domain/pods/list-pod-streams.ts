@@ -48,7 +48,7 @@ export async function listPodStreams(
     );
 
     return success(streams.map(mapStreamFromDb));
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Failed to list pod streams", { error, podName });
     return failure(createError("DATABASE_ERROR", "Failed to list streams"));
   }

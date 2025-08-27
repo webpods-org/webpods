@@ -33,7 +33,7 @@ export async function updateStreamPermissions(
       accessPermission,
     });
     return success(undefined);
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Failed to update stream permissions", {
       error,
       podName,

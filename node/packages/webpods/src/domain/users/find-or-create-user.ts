@@ -39,11 +39,12 @@ function mapIdentityFromDb(row: IdentityDbRow): Identity {
 export async function findOrCreateUser(
   ctx: DataContext,
   provider: OAuthProvider,
-  profile: any,
+  profile: Record<string, unknown>,
 ): Promise<Result<{ user: User; identity: Identity }>> {
-  const providerId = profile.id;
-  const email = profile.email || profile.emails?.[0]?.value;
-  const name = profile.displayName || profile.name || profile.username;
+  const providerId = String(profile.id || "");
+  const emails = profile.emails as { value?: string }[] | undefined;
+  const email = String(profile.email || emails?.[0]?.value || "");
+  const name = String(profile.displayName || profile.name || profile.username || "");
 
   try {
     // First check if we have an identity for this provider

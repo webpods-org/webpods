@@ -153,7 +153,7 @@ export async function updateCustomDomains(
       });
       return success(undefined);
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Failed to update custom domains", { error, podName });
     return failure(new Error("Failed to update custom domains"));
   }

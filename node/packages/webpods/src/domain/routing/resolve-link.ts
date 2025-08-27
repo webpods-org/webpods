@@ -75,7 +75,7 @@ export async function resolveLink(
       streamId,
       target: `/${recordTarget}`,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Failed to resolve link", { error, podName, path });
     return success(null);
   }

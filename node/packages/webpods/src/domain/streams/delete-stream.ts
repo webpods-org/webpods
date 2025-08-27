@@ -65,7 +65,7 @@ export async function deleteStream(
       });
       return success(undefined);
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Failed to delete stream", { error, podName, streamId });
     return failure(new Error("Failed to delete stream"));
   }
