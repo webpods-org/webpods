@@ -6,7 +6,7 @@
 export interface DomainError {
   code: string;
   message: string;
-  details?: any;
+  details?: unknown;
 }
 
 export type Result<T, E = DomainError> =
@@ -35,7 +35,7 @@ export interface Identity {
   providerId: string; // ID from the provider
   email: string | null;
   name: string | null;
-  metadata?: any;
+  metadata?: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -44,7 +44,7 @@ export interface Pod {
   id: string;
   name: string; // Subdomain (e.g., 'alice')
   user_id: string;
-  metadata?: any;
+  metadata?: Record<string, unknown>;
   created_at: Date;
   updated_at: Date;
 }
@@ -55,7 +55,7 @@ export interface Stream {
   stream_id: string; // Stream path within pod (can include slashes)
   user_id: string;
   access_permission: string; // 'public', 'private', or '/streamname'
-  metadata?: any;
+  metadata?: Record<string, unknown>;
   created_at: Date;
   updated_at: Date;
 }
@@ -64,13 +64,13 @@ export interface StreamRecord {
   id: number;
   stream_id: string;
   index: number; // Position in stream (0-based)
-  content: string | any; // Can be text or JSON
+  content: string | unknown; // Can be text or JSON
   content_type: string;
   name: string; // Required name (like a filename)
   hash: string;
   previous_hash: string | null;
   user_id: string; // User ID who created the record
-  metadata?: any;
+  metadata?: Record<string, unknown>;
   created_at: Date;
 }
 
@@ -95,7 +95,7 @@ export interface RateLimit {
 // API types
 export interface StreamRecordResponse {
   index: number; // Position in stream (0-based)
-  content: any;
+  content: unknown;
   content_type: string;
   name: string;
   hash: string;
@@ -198,6 +198,36 @@ export interface AuthRequest extends Request {
   ip_address?: string;
 }
 
+// Express session types
+export interface SessionData {
+  user?: {
+    id: string;
+    email?: string | null;
+    name?: string | null;
+    provider?: string;
+  };
+  [key: string]: unknown;
+}
+
+export interface SessionRequest {
+  session: SessionData & {
+    id: string;
+    cookie: {
+      originalMaxAge: number | null;
+      maxAge: number;
+      expires: Date | null;
+      httpOnly: boolean;
+      secure: boolean;
+      sameSite?: boolean | "lax" | "strict" | "none";
+    };
+    destroy: (callback: (err?: Error) => void) => void;
+    save: (callback?: (err?: Error) => void) => void;
+    reload: (callback: (err?: Error) => void) => void;
+    regenerate: (callback: (err?: Error) => void) => void;
+    touch: () => void;
+  };
+}
+
 // Input types
 export interface CreatePodInput {
   name: string;
@@ -209,7 +239,7 @@ export interface CreateStreamInput {
 }
 
 export interface WriteRecordInput {
-  content: any;
+  content: unknown;
   content_type?: string;
   name: string;
 }
@@ -224,6 +254,6 @@ export interface ErrorResponse {
   error: {
     code: string;
     message: string;
-    details?: any;
+    details?: unknown;
   };
 }

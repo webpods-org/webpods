@@ -20,7 +20,7 @@ const client = jwksClient({
 });
 
 // Promisify the getSigningKey function
-function getKey(header: any, callback: any) {
+function getKey(header: {kid?: string}, callback: (err: Error | null, key?: string) => void) {
   client.getSigningKey(header.kid, (err, key) => {
     if (err) {
       logger.error("Failed to get signing key", {
@@ -119,7 +119,7 @@ export async function verifyHydraToken(
 export function isHydraToken(token: string): boolean {
   try {
     // Decode without verification to check issuer
-    const decoded = jwt.decode(token, { complete: true }) as any;
+    const decoded = jwt.decode(token, { complete: true }) as {payload?: {iss?: string}} | null;
     if (!decoded) {
       return false;
     }
@@ -130,7 +130,7 @@ export function isHydraToken(token: string): boolean {
 
     // The token issuer is "http://localhost:4444/" but hydraUrl is "http://localhost:4444"
     // We need to check both with and without trailing slash
-    const isHydra = iss?.startsWith(hydraUrl);
+    const isHydra = iss?.startsWith(hydraUrl) || false;
 
     return isHydra;
   } catch {

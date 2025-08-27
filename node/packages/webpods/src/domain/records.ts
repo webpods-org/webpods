@@ -38,7 +38,7 @@ function mapRecordFromDb(row: RecordDbRow): StreamRecord {
 export async function writeRecord(
   db: Database,
   streamId: string,
-  content: any,
+  content: unknown,
   contentType: string,
   authorId: string,
   name: string,
@@ -100,7 +100,7 @@ export async function writeRecord(
       logger.info("Record written", { streamId, index, name, hash });
       return { success: true, data: mapRecordFromDb(record) };
     });
-  } catch (error: any) {
+  } catch (error) {
     logger.error("Failed to write record", { error, streamId });
     return {
       success: false,
@@ -222,7 +222,7 @@ export async function getRecord(
     }
 
     return { success: true, data: mapRecordFromDb(record) };
-  } catch (error: any) {
+  } catch (error) {
     logger.error("Failed to get record", { error, streamId, target });
     return {
       success: false,
@@ -277,7 +277,7 @@ export async function getRecordRange(
     );
 
     return { success: true, data: records.map(mapRecordFromDb) };
-  } catch (error: any) {
+  } catch (error) {
     logger.error("Failed to get record range", { error, streamId, start, end });
     return {
       success: false,
@@ -302,7 +302,7 @@ export async function listRecords(
 > {
   try {
     let query = `SELECT * FROM record WHERE stream_id = $(streamId)`;
-    const params: any = { streamId, limit: limit + 1 };
+    const params: Record<string, unknown> = { streamId, limit: limit + 1 };
 
     if (after !== undefined) {
       query += ` AND index > $(after)`;
@@ -333,7 +333,7 @@ export async function listRecords(
         hasMore,
       },
     };
-  } catch (error: any) {
+  } catch (error) {
     logger.error("Failed to list records", { error, streamId });
     return {
       success: false,
@@ -421,7 +421,7 @@ export async function listUniqueRecords(
         hasMore,
       },
     };
-  } catch (error: any) {
+  } catch (error) {
     logger.error("Failed to list unique records", { error, streamId });
     return {
       success: false,

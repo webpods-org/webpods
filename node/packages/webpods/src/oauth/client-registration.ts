@@ -92,13 +92,14 @@ router.post("/register", async (req: Request, res: Response) => {
       scope: client.scope,
       token_endpoint_auth_method: client.token_endpoint_auth_method,
     });
-  } catch (error: any) {
+  } catch (error) {
+    const err = error as Error & {response?: {status?: number; data?: unknown}};
     logger.error("Client registration failed", {
-      error: error.message,
-      details: error.response?.data,
+      error: err.message,
+      details: err.response?.data,
     });
 
-    if (error.response?.status === 409) {
+    if (err.response?.status === 409) {
       res.status(409).json({
         error: {
           code: "CLIENT_EXISTS",
@@ -133,14 +134,15 @@ router.get("/client/:clientId", async (req: Request, res: Response) => {
     res.json({
       client_id: client.client_id,
       client_name: client.client_name,
-      logo_uri: (client.metadata as any)?.logo_uri,
-      client_uri: (client.metadata as any)?.client_uri,
-      policy_uri: (client.metadata as any)?.policy_uri,
-      tos_uri: (client.metadata as any)?.tos_uri,
+      logo_uri: (client.metadata as {logo_uri?: string})?.logo_uri,
+      client_uri: (client.metadata as {client_uri?: string})?.client_uri,
+      policy_uri: (client.metadata as {policy_uri?: string})?.policy_uri,
+      tos_uri: (client.metadata as {tos_uri?: string})?.tos_uri,
       scope: client.scope,
     });
-  } catch (error: any) {
-    if (error.response?.status === 404) {
+  } catch (error) {
+    const err = error as Error & {response?: {status?: number}};
+    if (err.response?.status === 404) {
       res.status(404).json({
         error: {
           code: "CLIENT_NOT_FOUND",
@@ -148,7 +150,7 @@ router.get("/client/:clientId", async (req: Request, res: Response) => {
         },
       });
     } else {
-      logger.error("Failed to get client", { error: error.message, clientId });
+      logger.error("Failed to get client", { error: err.message, clientId });
       res.status(500).json({
         error: {
           code: "SERVER_ERROR",

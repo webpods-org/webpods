@@ -3,6 +3,7 @@
  */
 
 import { Request, Response, NextFunction } from "express";
+import { AuthRequest } from "../types.js";
 import { checkRateLimit, getRateLimitStatus } from "../domain/ratelimit.js";
 import { getDb } from "../db.js";
 import { createLogger } from "../logger.js";
@@ -25,9 +26,10 @@ export function rateLimit(
       const db = getDb();
 
       // Use user ID if authenticated, otherwise IP address with prefix
-      const key = (req as any).auth
-        ? (req as any).auth.user_id
-        : `ip:${getIpAddress(req)}`;
+      const authReq = req as AuthRequest;
+      const key = authReq.auth
+        ? authReq.auth?.user_id
+        : `ip:${getIpAddress(authReq)}`;
 
       const result = await checkRateLimit(db, key, action);
 

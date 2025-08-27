@@ -143,7 +143,7 @@ export async function getOrCreateStream(
       success: true,
       data: { stream: mapStreamFromDb(stream), created: true },
     };
-  } catch (error: any) {
+  } catch (error) {
     logger.error("Failed to get/create stream", { error, podId, streamId });
     return {
       success: false,
@@ -182,7 +182,7 @@ export async function getStream(
     }
 
     return { success: true, data: mapStreamFromDb(stream) };
-  } catch (error: any) {
+  } catch (error) {
     logger.error("Failed to get stream", { error, podId, streamId });
     return {
       success: false,
@@ -250,7 +250,7 @@ export async function deleteStream(
 
     logger.info("Stream deleted", { podId, streamId, userId });
     return { success: true, data: undefined };
-  } catch (error: any) {
+  } catch (error) {
     logger.error("Failed to delete stream", { error, podId, streamId });
     return {
       success: false,
@@ -290,7 +290,7 @@ export async function updateStreamPermissions(
     }
 
     return { success: true, data: mapStreamFromDb(stream) };
-  } catch (error: any) {
+  } catch (error) {
     logger.error("Failed to update stream permissions", { error, streamId });
     return {
       success: false,

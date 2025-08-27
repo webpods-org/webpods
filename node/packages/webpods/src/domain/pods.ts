@@ -115,7 +115,7 @@ export async function createPod(
       mappedPod.user_id = userId; // Set owner from what we just wrote
       return { success: true, data: mappedPod };
     });
-  } catch (error: any) {
+  } catch (error) {
     logger.error("Failed to create pod", { error, podName });
     return {
       success: false,
@@ -159,7 +159,7 @@ export async function getPod(
     }
 
     return { success: true, data: mappedPod };
-  } catch (error: any) {
+  } catch (error) {
     logger.error("Failed to get pod", { error, podName });
     return {
       success: false,
@@ -207,7 +207,7 @@ export async function getPodOwner(
         : record.content;
 
     return { success: true, data: content.owner };
-  } catch (error: any) {
+  } catch (error) {
     logger.error("Failed to get pod owner", { error, podName });
     return {
       success: false,
@@ -231,7 +231,7 @@ export async function transferPodOwnership(
   try {
     return await db.tx(async (t) => {
       // Check current ownership
-      const ownerResult = await getPodOwner(t as any, podName);
+      const ownerResult = await getPodOwner(t as unknown as Database, podName);
       if (!ownerResult.success || ownerResult.data !== currentUserId) {
         return {
           success: false,
@@ -302,7 +302,7 @@ export async function transferPodOwnership(
       });
       return { success: true, data: undefined };
     });
-  } catch (error: any) {
+  } catch (error) {
     logger.error("Failed to transfer pod ownership", { error, podName });
     return {
       success: false,
@@ -325,7 +325,7 @@ export async function deletePod(
   try {
     return await db.tx(async (t) => {
       // Check ownership
-      const ownerResult = await getPodOwner(t as any, podName);
+      const ownerResult = await getPodOwner(t as unknown as Database, podName);
       if (!ownerResult.success || ownerResult.data !== userId) {
         return {
           success: false,
@@ -363,7 +363,7 @@ export async function deletePod(
       logger.info("Pod deleted", { podName, userId });
       return { success: true, data: undefined };
     });
-  } catch (error: any) {
+  } catch (error) {
     logger.error("Failed to delete pod", { error, podName });
     return {
       success: false,
@@ -406,7 +406,7 @@ export async function listPodStreams(
     );
 
     return { success: true, data: streams.map(mapStreamFromDb) };
-  } catch (error: any) {
+  } catch (error) {
     logger.error("Failed to list pod streams", { error, podName });
     return {
       success: false,

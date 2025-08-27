@@ -40,7 +40,7 @@ export async function getAuthorizationUrl(
   const client = await getOAuthClient(providerId);
   const config = getProviderConfig(providerId)!;
 
-  const params: any = {
+  const params: Record<string, string> = {
     state,
     code_challenge: codeChallenge,
     code_challenge_method: "S256",
@@ -57,7 +57,7 @@ export async function exchangeCodeForTokens(
   providerId: string,
   code: string,
   codeVerifier: string,
-): Promise<any> {
+): Promise<Record<string, unknown>> {
   const client = await getOAuthClient(providerId);
   const config = getProviderConfig(providerId)!;
 
@@ -87,19 +87,19 @@ export async function exchangeCodeForTokens(
 export async function getUserInfo(
   providerId: string,
   accessToken: string,
-): Promise<any> {
+): Promise<Record<string, unknown>> {
   const client = await getOAuthClient(providerId);
   const config = getProviderConfig(providerId)!;
 
   // If provider has a custom userinfo URL, use it directly
   if (!config.issuer && config.userinfoUrl) {
-    return await getCustomUserInfo(accessToken, config);
+    return await getCustomUserInfo(accessToken, config as unknown as Record<string, unknown>);
   }
 
   // Standard OIDC userinfo endpoint
   try {
     const userinfo = await client.userinfo(accessToken);
-    return normalizeUserInfo(userinfo, config);
+    return normalizeUserInfo(userinfo, config as unknown as Record<string, unknown>);
   } catch (error) {
     // Fallback to manual API call if userinfo fails
     if (config.userinfoUrl) {
@@ -114,8 +114,8 @@ export async function getUserInfo(
         throw new Error(`Failed to get user info from ${providerId}`);
       }
 
-      const data = await response.json();
-      return normalizeUserInfo(data, config);
+      const data = await response.json() as Record<string, unknown>;
+      return normalizeUserInfo(data, config as unknown as Record<string, unknown>);
     }
 
     throw error;
@@ -127,13 +127,16 @@ export async function getUserInfo(
  */
 async function getCustomUserInfo(
   accessToken: string,
-  config: any,
-): Promise<any> {
-  if (!config.userinfoUrl) {
-    throw new Error(`Provider ${config.id} missing userinfo URL`);
+  config: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const userinfoUrl = config.userinfoUrl as string | undefined;
+  const id = config.id as string;
+  
+  if (!userinfoUrl) {
+    throw new Error(`Provider ${id} missing userinfo URL`);
   }
 
-  const response = await fetch(config.userinfoUrl, {
+  const response = await fetch(userinfoUrl, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
       Accept: "application/json",
@@ -141,15 +144,18 @@ async function getCustomUserInfo(
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to get user info from ${config.id}`);
+    throw new Error(`Failed to get user info from ${id}`);
   }
 
-  const data: any = await response.json();
+  const data = await response.json() as Record<string, unknown>;
 
   // Some providers may have a separate email endpoint
   // This can be configured in config.json if needed
-  if (config.emailUrl && !data[config.emailField]) {
-    const emailResponse = await fetch(config.emailUrl, {
+  const emailUrl = config.emailUrl as string | undefined;
+  const emailField = config.emailField as string;
+  
+  if (emailUrl && !data[emailField]) {
+    const emailResponse = await fetch(emailUrl, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
         Accept: "application/json",
@@ -157,18 +163,19 @@ async function getCustomUserInfo(
     });
 
     if (emailResponse.ok) {
-      const emailData: any = await emailResponse.json();
+      const emailData = await emailResponse.json() as Array<{primary?: boolean; verified?: boolean; email?: string; value?: string}> | Record<string, unknown>;
       // Handle array of emails (some providers return multiple)
       if (Array.isArray(emailData)) {
         const primaryEmail = emailData.find(
-          (e: any) => e.primary || e.verified,
+          (e) => e.primary || e.verified,
         );
         if (primaryEmail) {
-          data[config.emailField] = primaryEmail.email || primaryEmail.value;
+          data[emailField] = primaryEmail.email || primaryEmail.value;
         }
       } else {
-        data[config.emailField] =
-          emailData[config.emailField] || emailData.email;
+        const emailDataObj = emailData as Record<string, unknown>;
+        data[emailField] =
+          emailDataObj[emailField] || emailDataObj.email;
       }
     }
   }
@@ -179,12 +186,16 @@ async function getCustomUserInfo(
 /**
  * Normalize user info based on provider config field mappings
  */
-function normalizeUserInfo(data: any, config: any): any {
+function normalizeUserInfo(data: Record<string, unknown>, config: Record<string, unknown>): Record<string, unknown> {
   // Extract fields based on config mappings
-  const userId = data[config.userIdField] || data.id || data.sub;
-  const email = data[config.emailField] || data.email;
+  const userIdField = (config.userIdField as string) || "id";
+  const emailField = (config.emailField as string) || "email";
+  const nameField = (config.nameField as string) || "name";
+  
+  const userId = data[userIdField] || data.id || data.sub;
+  const email = data[emailField] || data.email;
   const name =
-    data[config.nameField] || data.name || data.username || data.login;
+    data[nameField] || data.name || data.username || data.login;
 
   // Standard normalized format
   return {

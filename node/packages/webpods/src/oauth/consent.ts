@@ -18,21 +18,22 @@ const router = Router();
  */
 function parseRequestedPods(
   _req: Request,
-  consentRequest: any,
+  consentRequest: Record<string, unknown>,
   scopes: string[],
 ): Set<string> {
   const pods = new Set<string>();
 
   // Check state from original OAuth request (preserved through the flow)
   // Try to get state from various possible locations
+  const consentReq = consentRequest as {state?: string; request_url?: string};
   const possibleState =
-    (consentRequest as any).state ||
-    (consentRequest as any).request_url?.includes("state=")
+    consentReq.state ||
+    (consentReq.request_url?.includes("state=")
       ? new URL(
-          (consentRequest as any).request_url,
+          consentReq.request_url,
           "http://example.com",
         ).searchParams.get("state")
-      : null;
+      : null);
 
   if (possibleState) {
     try {
@@ -149,7 +150,7 @@ router.get("/consent", async (req: Request, res: Response) => {
       const pods = Array.from(
         parseRequestedPods(
           req,
-          consentRequest,
+          consentRequest as unknown as Record<string, unknown>,
           consentRequest.requested_scope || [],
         ),
       );
@@ -189,7 +190,7 @@ router.get("/consent", async (req: Request, res: Response) => {
       const pods = Array.from(
         parseRequestedPods(
           req,
-          consentRequest,
+          consentRequest as unknown as Record<string, unknown>,
           consentRequest.requested_scope || [],
         ),
       );
@@ -225,7 +226,7 @@ router.get("/consent", async (req: Request, res: Response) => {
     // Parse requested pod permissions
     const requestedPods = parseRequestedPods(
       req,
-      consentRequest,
+      consentRequest as unknown as Record<string, unknown>,
       consentRequest.requested_scope || [],
     );
 
@@ -390,9 +391,9 @@ router.get("/consent", async (req: Request, res: Response) => {
 </html>`;
 
     res.send(html);
-  } catch (error: any) {
+  } catch (error) {
     logger.error("Consent handler error", {
-      error: error.message,
+      error: (error as Error).message,
       challenge: consentChallenge,
     });
 
@@ -489,9 +490,9 @@ router.post("/consent", async (req: Request, res: Response) => {
 
       res.redirect(rejectResponse.redirect_to!);
     }
-  } catch (error: any) {
+  } catch (error) {
     logger.error("Consent decision error", {
-      error: error.message,
+      error: (error as Error).message,
       challenge,
       action,
     });

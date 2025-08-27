@@ -147,7 +147,7 @@ export async function checkRateLimit(
         resetAt: windowEnd,
       },
     };
-  } catch (error: any) {
+  } catch (error) {
     logger.error("Failed to check rate limit", { error, identifier, type });
     // Allow request on error to avoid blocking users
     return {
@@ -201,7 +201,7 @@ export async function getRateLimitStatus(
         resetAt,
       },
     };
-  } catch (error: any) {
+  } catch (error) {
     logger.error("Failed to get rate limit status", {
       error,
       identifier,

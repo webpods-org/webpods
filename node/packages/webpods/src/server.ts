@@ -226,19 +226,20 @@ export function createApp(): Express {
   });
 
   // Error handler
-  app.use((err: any, req: any, res: any, _next: any) => {
+  app.use((err: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    const error = err as Error & {status?: number; stack?: string};
     logger.error("Unhandled error", {
-      error: err.message,
-      stack: err.stack,
+      error: error.message,
+      stack: error.stack,
       url: req.url,
       method: req.method,
     });
 
     const showDetails = process.env.LOG_LEVEL === "debug";
-    res.status(err.status || 500).json({
+    res.status(error.status || 500).json({
       error: {
         code: "INTERNAL_ERROR",
-        message: showDetails ? err.message : "An error occurred",
+        message: showDetails ? error.message : "An error occurred",
       },
     });
   });

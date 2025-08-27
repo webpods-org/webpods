@@ -26,7 +26,7 @@ interface OAuthClientDbRow {
   response_types: string[];
   token_endpoint_auth_method: string;
   scope: string;
-  metadata: any;
+  metadata: Record<string, unknown>;
   created_at: Date;
   updated_at: Date;
 }
@@ -192,20 +192,21 @@ router.post(
           scope: clientData.scope,
           created_at: clientRecord.created_at,
         });
-      } catch (error: any) {
+      } catch (error) {
+        const err = error as Error & {response?: {data?: unknown; status?: number; statusText?: string}};
         logger.error("Failed to create OAuth client in Hydra", {
-          error: error.message,
-          details: error.response?.data,
-          status: error.response?.status,
-          statusText: error.response?.statusText,
+          error: err.message,
+          details: err.response?.data,
+          status: err.response?.status,
+          statusText: err.response?.statusText,
           userId,
           clientId,
           clientName: clientData.client_name,
-          hydraError: error.response?.data || error.message,
+          hydraError: err.response?.data || err.message,
         });
 
         // If Hydra creation fails, don't create in our DB
-        if (error.response?.status === 409) {
+        if (err.response?.status === 409) {
           res.status(409).json({
             error: {
               code: "CLIENT_EXISTS",
@@ -221,9 +222,9 @@ router.post(
           });
         }
       }
-    } catch (error: any) {
+    } catch (error) {
       logger.error("OAuth client creation error", {
-        error: error.message,
+        error: (error as Error).message,
         userId: req.user?.id,
       });
 
@@ -274,9 +275,9 @@ router.get(
         clients: clientList,
         total: clientList.length,
       });
-    } catch (error: any) {
+    } catch (error) {
       logger.error("Failed to list OAuth clients", {
-        error: error.message,
+        error: (error as Error).message,
         userId: req.user?.id,
       });
 
@@ -332,9 +333,9 @@ router.get(
         created_at: client.created_at,
         updated_at: client.updated_at,
       });
-    } catch (error: any) {
+    } catch (error) {
       logger.error("Failed to get OAuth client", {
-        error: error.message,
+        error: (error as Error).message,
         userId: req.user?.id,
         clientId: req.params.clientId,
       });
@@ -383,13 +384,14 @@ router.delete(
       const hydraAdmin = getHydraAdmin();
 
       try {
-        await hydraAdmin.deleteOAuth2Client({ id: clientId || "" });
+        await hydraAdmin.deleteOAuth2Client({ id: clientId! });
         logger.info("Deleted OAuth client from Hydra", { clientId, userId });
-      } catch (error: any) {
+      } catch (error) {
         // If already deleted from Hydra, continue
-        if (error.response?.status !== 404) {
+        const httpErr = error as Error & {response?: {status?: number}};
+        if (httpErr.response?.status !== 404) {
           logger.error("Failed to delete from Hydra", {
-            error: error.message,
+            error: (error as Error).message,
             clientId,
           });
           res.status(500).json({
@@ -413,9 +415,9 @@ router.delete(
       logger.info("Deleted OAuth client", { clientId, userId });
 
       res.status(204).send();
-    } catch (error: any) {
+    } catch (error) {
       logger.error("Failed to delete OAuth client", {
-        error: error.message,
+        error: (error as Error).message,
         userId: req.user?.id,
         clientId: req.params.clientId,
       });

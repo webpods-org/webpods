@@ -30,7 +30,7 @@ interface OAuthClientDbRow {
   response_types: string[];
   token_endpoint_auth_method: string;
   scope: string;
-  metadata: any;
+  metadata: Record<string, unknown>;
   created_at: Date;
   updated_at: Date;
 }
@@ -106,9 +106,9 @@ router.get("/", async (req: Request, res: Response) => {
 
     // Redirect to Hydra
     res.redirect(hydraUrl.toString());
-  } catch (error: any) {
+  } catch (error) {
     logger.error("Connect endpoint error", {
-      error: error.message,
+      error: (error as Error).message,
       clientId,
     });
 

@@ -3,7 +3,7 @@
  */
 
 import { Router, Request as ExpressRequest, Response } from "express";
-import type { AuthRequest } from "../types.js";
+import type { AuthRequest, SessionRequest } from "../types.js";
 import { createLogger } from "../logger.js";
 import { authenticateHybrid as authenticate } from "../middleware/hybrid-auth.js";
 import {
@@ -20,7 +20,7 @@ const router = Router();
  * GET /auth/session
  */
 router.get("/session", (req: ExpressRequest, res: Response) => {
-  const session = (req as any).session;
+  const session = (req as unknown as SessionRequest).session;
 
   if (!session || !session.user) {
     res.status(401).json({
@@ -70,7 +70,7 @@ router.get(
         sessions,
         count: sessions.length,
       });
-    } catch (error: any) {
+    } catch (error) {
       logger.error("Failed to list sessions", {
         error,
         userId: req.auth!.user_id,
@@ -149,7 +149,7 @@ router.delete(
           },
         });
       }
-    } catch (error: any) {
+    } catch (error) {
       logger.error("Failed to revoke session", {
         error,
         sessionId,
@@ -193,7 +193,7 @@ router.delete(
         message: `Revoked ${count} session(s)`,
         count,
       });
-    } catch (error: any) {
+    } catch (error) {
       logger.error("Failed to revoke all sessions", {
         error,
         userId: req.auth!.user_id,
@@ -213,7 +213,7 @@ router.delete(
  * POST /auth/logout
  */
 router.post("/logout", (req: ExpressRequest, res: Response) => {
-  const session = (req as any).session;
+  const session = (req as unknown as SessionRequest).session;
 
   if (!session) {
     res.json({
@@ -223,7 +223,7 @@ router.post("/logout", (req: ExpressRequest, res: Response) => {
     return;
   }
 
-  session.destroy((err: any) => {
+  session.destroy((err?: Error) => {
     if (err) {
       logger.error("Failed to destroy session", {
         error: err?.message || err,
@@ -252,7 +252,7 @@ router.post("/logout", (req: ExpressRequest, res: Response) => {
  * GET /auth/logout
  */
 router.get("/logout", (req: ExpressRequest, res: Response) => {
-  const session = (req as any).session;
+  const session = (req as unknown as SessionRequest).session;
   const redirect = (req.query.redirect as string) || "/";
 
   if (!session) {
@@ -260,7 +260,7 @@ router.get("/logout", (req: ExpressRequest, res: Response) => {
     return;
   }
 
-  session.destroy((err: any) => {
+  session.destroy((err?: Error) => {
     if (err) {
       logger.error("Failed to destroy session", {
         error: err?.message || err,

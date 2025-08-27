@@ -90,7 +90,7 @@ export async function resolveLink(
       logger.warn("Invalid link mapping", { podName, path, mapping });
       return { success: true, data: null };
     }
-  } catch (error: any) {
+  } catch (error) {
     logger.error("Failed to resolve link", { error, podName, path });
     return {
       success: false,
@@ -182,7 +182,7 @@ export async function updateLinks(
       logger.info("Links updated", { podName, paths: Object.keys(links) });
       return { success: true, data: undefined };
     });
-  } catch (error: any) {
+  } catch (error) {
     logger.error("Failed to update links", { error, podName });
     return {
       success: false,
@@ -223,7 +223,7 @@ export async function findPodByDomain(
     }
 
     return { success: true, data: pod.name };
-  } catch (error: any) {
+  } catch (error) {
     logger.error("Failed to find pod by domain", { error, domain });
     return {
       success: false,
@@ -341,7 +341,7 @@ export async function updateCustomDomains(
       logger.info("Custom domains updated", { podName, domains });
       return { success: true, data: undefined };
     });
-  } catch (error: any) {
+  } catch (error) {
     logger.error("Failed to update custom domains", { error, podName });
     return {
       success: false,

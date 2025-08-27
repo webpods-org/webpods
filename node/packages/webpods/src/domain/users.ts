@@ -85,10 +85,11 @@ export async function ensureUserExists(
 export async function findOrCreateUser(
   db: Database,
   provider: OAuthProvider,
-  profile: any,
+  profile: Record<string, unknown>,
 ): Promise<Result<{ user: User; identity: Identity }>> {
   const providerId = profile.id;
-  const email = profile.email || profile.emails?.[0]?.value;
+  const emails = profile.emails as Array<{value?: string}> | undefined;
+  const email = profile.email || emails?.[0]?.value;
   const name = profile.displayName || profile.name || profile.username;
 
   try {

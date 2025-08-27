@@ -97,7 +97,7 @@ export interface AppConfig {
  * Resolve environment variable references in a value
  * Supports format: $VAR_NAME
  */
-function resolveEnvValue(value: any, defaultValue?: any): any {
+function resolveEnvValue(value: unknown, defaultValue?: unknown): unknown {
   if (typeof value !== "string") {
     return value;
   }
@@ -132,7 +132,7 @@ function resolveEnvValue(value: any, defaultValue?: any): any {
 /**
  * Recursively resolve environment variables in an object with context-aware defaults
  */
-function resolveEnvVars(obj: any, path: string[] = []): any {
+function resolveEnvVars(obj: unknown, path: string[] = []): unknown {
   if (obj === null || obj === undefined) {
     return obj;
   }
@@ -144,13 +144,13 @@ function resolveEnvVars(obj: any, path: string[] = []): any {
   }
 
   if (typeof obj === "object") {
-    const resolved: any = {};
+    const resolved: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(obj)) {
       const currentPath = [...path, key];
       const fullPath = currentPath.join(".");
 
       // Determine default value based on path
-      let defaultValue: any;
+      let defaultValue: unknown;
       switch (fullPath) {
         case "server.host":
           defaultValue = "0.0.0.0";
@@ -225,47 +225,48 @@ function resolveEnvVars(obj: any, path: string[] = []): any {
 /**
  * Apply default values to missing config fields
  */
-function applyDefaults(config: any): any {
+function applyDefaults(config: unknown): unknown {
+  const cfg = config as Record<string, Record<string, unknown>>;
   // Ensure base structure exists
-  config.server = config.server || {};
-  config.database = config.database || {};
-  config.auth = config.auth || {};
-  config.rateLimits = config.rateLimits || {};
-  config.hydra = config.hydra || {};
+  cfg.server = cfg.server || {};
+  cfg.database = cfg.database || {};
+  cfg.auth = cfg.auth || {};
+  cfg.rateLimits = cfg.rateLimits || {};
+  cfg.hydra = cfg.hydra || {};
 
   // Apply defaults for server (using env var references)
-  config.server.host = config.server.host ?? "$HOST";
-  config.server.port = config.server.port ?? "$PORT";
-  config.server.publicUrl = config.server.publicUrl ?? "$PUBLIC_URL";
-  config.server.corsOrigin = config.server.corsOrigin ?? "$CORS_ORIGIN";
-  config.server.maxPayloadSize =
-    config.server.maxPayloadSize ?? "$MAX_PAYLOAD_SIZE";
+  cfg.server.host = cfg.server.host ?? "$HOST";
+  cfg.server.port = cfg.server.port ?? "$PORT";
+  cfg.server.publicUrl = cfg.server.publicUrl ?? "$PUBLIC_URL";
+  cfg.server.corsOrigin = cfg.server.corsOrigin ?? "$CORS_ORIGIN";
+  cfg.server.maxPayloadSize =
+    cfg.server.maxPayloadSize ?? "$MAX_PAYLOAD_SIZE";
 
   // Apply defaults for database
-  config.database.host = config.database.host ?? "$WEBPODS_DB_HOST";
-  config.database.port = config.database.port ?? "$WEBPODS_DB_PORT";
-  config.database.database = config.database.database ?? "$WEBPODS_DB_NAME";
-  config.database.user = config.database.user ?? "$WEBPODS_DB_USER";
-  config.database.password = config.database.password ?? "$WEBPODS_DB_PASSWORD";
+  cfg.database.host = cfg.database.host ?? "$WEBPODS_DB_HOST";
+  cfg.database.port = cfg.database.port ?? "$WEBPODS_DB_PORT";
+  cfg.database.database = cfg.database.database ?? "$WEBPODS_DB_NAME";
+  cfg.database.user = cfg.database.user ?? "$WEBPODS_DB_USER";
+  cfg.database.password = cfg.database.password ?? "$WEBPODS_DB_PASSWORD";
 
   // Apply defaults for auth
-  config.auth.jwtSecret = config.auth.jwtSecret ?? "$JWT_SECRET";
-  config.auth.jwtExpiry = config.auth.jwtExpiry ?? "$JWT_EXPIRY";
-  config.auth.sessionSecret = config.auth.sessionSecret ?? "$SESSION_SECRET";
+  cfg.auth.jwtSecret = cfg.auth.jwtSecret ?? "$JWT_SECRET";
+  cfg.auth.jwtExpiry = cfg.auth.jwtExpiry ?? "$JWT_EXPIRY";
+  cfg.auth.sessionSecret = cfg.auth.sessionSecret ?? "$SESSION_SECRET";
 
   // Apply defaults for rate limits
-  config.rateLimits.writes = config.rateLimits.writes ?? "$RATE_LIMIT_WRITES";
-  config.rateLimits.reads = config.rateLimits.reads ?? "$RATE_LIMIT_READS";
-  config.rateLimits.podCreate =
-    config.rateLimits.podCreate ?? "$RATE_LIMIT_POD_CREATE";
-  config.rateLimits.streamCreate =
-    config.rateLimits.streamCreate ?? "$RATE_LIMIT_STREAM_CREATE";
+  cfg.rateLimits.writes = cfg.rateLimits.writes ?? "$RATE_LIMIT_WRITES";
+  cfg.rateLimits.reads = cfg.rateLimits.reads ?? "$RATE_LIMIT_READS";
+  cfg.rateLimits.podCreate =
+    cfg.rateLimits.podCreate ?? "$RATE_LIMIT_POD_CREATE";
+  cfg.rateLimits.streamCreate =
+    cfg.rateLimits.streamCreate ?? "$RATE_LIMIT_STREAM_CREATE";
 
   // Apply defaults for Hydra
-  config.hydra.adminUrl = config.hydra.adminUrl ?? "$HYDRA_ADMIN_URL";
-  config.hydra.publicUrl = config.hydra.publicUrl ?? "$HYDRA_PUBLIC_URL";
+  cfg.hydra.adminUrl = cfg.hydra.adminUrl ?? "$HYDRA_ADMIN_URL";
+  cfg.hydra.publicUrl = cfg.hydra.publicUrl ?? "$HYDRA_PUBLIC_URL";
 
-  return config;
+  return cfg;
 }
 
 /**
@@ -304,7 +305,7 @@ export function loadConfig(configPath?: string): AppConfig {
     const configWithDefaults = applyDefaults(rawConfig);
 
     // Resolve environment variables
-    const config = resolveEnvVars(configWithDefaults) as AppConfig;
+    const config = resolveEnvVars(configWithDefaults) as unknown as AppConfig;
 
     // Parse publicUrl to extract components
     if (config.server?.publicUrl) {
@@ -332,8 +333,8 @@ export function loadConfig(configPath?: string): AppConfig {
     });
 
     return config;
-  } catch (error: any) {
-    logger.error("Failed to load configuration", { error: error.message });
+  } catch (error) {
+    logger.error("Failed to load configuration", { error: (error as Error).message });
     throw error;
   }
 }

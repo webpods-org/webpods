@@ -1018,6 +1018,15 @@ router.get(
         // Handle different content types
         if (isBinaryContentType(record.content_type)) {
           // Decode base64 for binary content
+          if (typeof record.content !== "string") {
+            res.status(500).json({
+              error: {
+                code: "INVALID_CONTENT",
+                message: "Binary content must be base64 encoded string",
+              },
+            });
+            return;
+          }
           const buffer = Buffer.from(record.content, "base64");
           res.send(buffer);
         } else if (
@@ -1132,6 +1141,15 @@ router.get(
       // Handle different content types
       if (isBinaryContentType(record.content_type)) {
         // Decode base64 for binary content
+        if (typeof record.content !== "string") {
+          res.status(500).json({
+            error: {
+              code: "INVALID_CONTENT",
+              message: "Binary content must be base64 encoded string",
+            },
+          });
+          return;
+        }
         const buffer = Buffer.from(record.content, "base64");
         res.send(buffer);
       } else if (
