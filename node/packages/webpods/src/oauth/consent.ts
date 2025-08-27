@@ -28,8 +28,11 @@ function parseRequestedPods(
   const consent = consentRequest as Record<string, unknown>;
   const possibleState =
     (consent.state as string) ||
-    (typeof consent.request_url === "string" && consent.request_url.includes("state=")
-      ? new URL(consent.request_url, "http://example.com").searchParams.get("state")
+    (typeof consent.request_url === "string" &&
+    consent.request_url.includes("state=")
+      ? new URL(consent.request_url, "http://example.com").searchParams.get(
+          "state",
+        )
       : null);
 
   if (possibleState) {

@@ -114,7 +114,10 @@ export async function writeRecord(
       );
     }
     return failure(
-      createError("WRITE_ERROR", (error as Error).message || "Failed to write record"),
+      createError(
+        "WRITE_ERROR",
+        (error as Error).message || "Failed to write record",
+      ),
     );
   }
 }

@@ -5,7 +5,7 @@
 import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
 import { UserDbRow, IdentityDbRow } from "../../db-types.js";
-import { User, Identity, OAuthProvider } from "../../types.js";
+import { User, Identity, OAuthProvider, OAuthUserInfo } from "../../types.js";
 import { createLogger } from "../../logger.js";
 import { sql } from "../../db/index.js";
 
@@ -39,12 +39,16 @@ function mapIdentityFromDb(row: IdentityDbRow): Identity {
 export async function findOrCreateUser(
   ctx: DataContext,
   provider: OAuthProvider,
-  profile: Record<string, unknown>,
+  profile: OAuthUserInfo,
 ): Promise<Result<{ user: User; identity: Identity }>> {
   const providerId = String(profile.id || "");
-  const emails = profile.emails as { value?: string }[] | undefined;
+  // OAuth user info may have raw data with additional fields
+  const rawProfile = profile.raw || {};
+  const emails = rawProfile.emails as { value?: string }[] | undefined;
   const email = String(profile.email || emails?.[0]?.value || "");
-  const name = String(profile.displayName || profile.name || profile.username || "");
+  const name = String(
+    profile.name || profile.username || rawProfile.displayName || "",
+  );
 
   try {
     // First check if we have an identity for this provider

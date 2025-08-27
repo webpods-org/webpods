@@ -20,7 +20,10 @@ const client = jwksClient({
 });
 
 // Promisify the getSigningKey function
-function getKey(header: { kid?: string }, callback: (err: Error | null, key?: string) => void) {
+function getKey(
+  header: { kid?: string },
+  callback: (err: Error | null, key?: string) => void,
+) {
   if (!header.kid) {
     return callback(new Error("Missing kid in JWT header"));
   }
@@ -122,7 +125,9 @@ export async function verifyHydraToken(
 export function isHydraToken(token: string): boolean {
   try {
     // Decode without verification to check issuer
-    const decoded = jwt.decode(token, { complete: true }) as { payload: { iss?: string } } | null;
+    const decoded = jwt.decode(token, { complete: true }) as {
+      payload: { iss?: string };
+    } | null;
     if (!decoded) {
       return false;
     }

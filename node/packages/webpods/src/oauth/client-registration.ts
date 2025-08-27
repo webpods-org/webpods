@@ -98,7 +98,9 @@ router.post("/register", async (req: Request, res: Response) => {
       details: (error as { response?: { data?: unknown } })?.response?.data,
     });
 
-    if ((error as { response?: { status?: number } })?.response?.status === 409) {
+    if (
+      (error as { response?: { status?: number } })?.response?.status === 409
+    ) {
       res.status(409).json({
         error: {
           code: "CLIENT_EXISTS",
@@ -133,14 +135,20 @@ router.get("/client/:clientId", async (req: Request, res: Response) => {
     res.json({
       client_id: client.client_id,
       client_name: client.client_name,
-      logo_uri: (client.metadata as Record<string, unknown> | undefined)?.logo_uri as string | undefined,
-      client_uri: (client.metadata as Record<string, unknown> | undefined)?.client_uri as string | undefined,
-      policy_uri: (client.metadata as Record<string, unknown> | undefined)?.policy_uri as string | undefined,
-      tos_uri: (client.metadata as Record<string, unknown> | undefined)?.tos_uri as string | undefined,
+      logo_uri: (client.metadata as Record<string, unknown> | undefined)
+        ?.logo_uri as string | undefined,
+      client_uri: (client.metadata as Record<string, unknown> | undefined)
+        ?.client_uri as string | undefined,
+      policy_uri: (client.metadata as Record<string, unknown> | undefined)
+        ?.policy_uri as string | undefined,
+      tos_uri: (client.metadata as Record<string, unknown> | undefined)
+        ?.tos_uri as string | undefined,
       scope: client.scope,
     });
   } catch (error: unknown) {
-    if ((error as { response?: { status?: number } })?.response?.status === 404) {
+    if (
+      (error as { response?: { status?: number } })?.response?.status === 404
+    ) {
       res.status(404).json({
         error: {
           code: "CLIENT_NOT_FOUND",
@@ -148,7 +156,10 @@ router.get("/client/:clientId", async (req: Request, res: Response) => {
         },
       });
     } else {
-      logger.error("Failed to get client", { error: (error as Error).message, clientId });
+      logger.error("Failed to get client", {
+        error: (error as Error).message,
+        clientId,
+      });
       res.status(500).json({
         error: {
           code: "SERVER_ERROR",

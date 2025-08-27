@@ -96,7 +96,18 @@ router.get("/login", async (req: Request, res: Response) => {
     }
 
     // Check if user has existing WebPods session
-    const session = (req as { session?: { user?: { id: string; email?: string; name?: string; provider?: string } } }).session;
+    const session = (
+      req as {
+        session?: {
+          user?: {
+            id: string;
+            email?: string;
+            name?: string;
+            provider?: string;
+          };
+        };
+      }
+    ).session;
 
     // Also check for WebPods JWT in cookies or headers
     let webpodsUser = null;
@@ -139,7 +150,12 @@ router.get("/login", async (req: Request, res: Response) => {
       const publicUrl = config.server.publicUrl || "http://localhost:3000";
 
       // Store challenge and pods in session to return after auth
-      const sessionReq = req as unknown as { session?: { [key: string]: unknown; save?: (callback: (err?: Error) => void) => void } };
+      const sessionReq = req as unknown as {
+        session?: {
+          [key: string]: unknown;
+          save?: (callback: (err?: Error) => void) => void;
+        };
+      };
       if (!sessionReq.session) {
         sessionReq.session = {};
       }

@@ -59,7 +59,9 @@ export async function getAuthorizationUrl(
 
   // authorizationUrl expects AuthorizationParameters which has an index signature
   // We use our typed params and cast to the expected type
-  return client.authorizationUrl(params as Parameters<typeof client.authorizationUrl>[0]);
+  return client.authorizationUrl(
+    params as Parameters<typeof client.authorizationUrl>[0],
+  );
 }
 
 /**
@@ -126,7 +128,7 @@ export async function getUserInfo(
         throw new Error(`Failed to get user info from ${providerId}`);
       }
 
-      const data = await response.json() as Record<string, unknown>;
+      const data = (await response.json()) as Record<string, unknown>;
       return normalizeUserInfo(data, config);
     }
 
@@ -156,7 +158,10 @@ async function getCustomUserInfo(
     throw new Error(`Failed to get user info from ${config.id}`);
   }
 
-  const data: Record<string, unknown> = await response.json() as Record<string, unknown>;
+  const data: Record<string, unknown> = (await response.json()) as Record<
+    string,
+    unknown
+  >;
 
   // Some providers may have a separate email endpoint
   // This can be configured in config.json if needed
@@ -180,8 +185,7 @@ async function getCustomUserInfo(
         }
       } else {
         const emailObj = emailData as Record<string, unknown>;
-        data[config.emailField] =
-          emailObj[config.emailField] || emailObj.email;
+        data[config.emailField] = emailObj[config.emailField] || emailObj.email;
       }
     }
   }
@@ -192,7 +196,10 @@ async function getCustomUserInfo(
 /**
  * Normalize user info based on provider config field mappings
  */
-function normalizeUserInfo(data: Record<string, unknown>, config: OAuthProviderConfig): OAuthUserInfo {
+function normalizeUserInfo(
+  data: Record<string, unknown>,
+  config: OAuthProviderConfig,
+): OAuthUserInfo {
   // Extract fields based on config mappings
   const userId = data[config.userIdField] || data.id || data.sub;
   const email = data[config.emailField] || data.email;
@@ -204,8 +211,18 @@ function normalizeUserInfo(data: Record<string, unknown>, config: OAuthProviderC
     id: String(userId),
     email: email ? String(email) : null,
     name: name ? String(name) : null,
-    username: data.username ? String(data.username) : data.login ? String(data.login) : undefined,
-    picture: data.picture ? String(data.picture) : data.avatar_url ? String(data.avatar_url) : data.avatar ? String(data.avatar) : undefined,
+    username: data.username
+      ? String(data.username)
+      : data.login
+        ? String(data.login)
+        : undefined,
+    picture: data.picture
+      ? String(data.picture)
+      : data.avatar_url
+        ? String(data.avatar_url)
+        : data.avatar
+          ? String(data.avatar)
+          : undefined,
     raw: data, // Include raw data for debugging
   };
 }

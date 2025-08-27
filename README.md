@@ -165,7 +165,7 @@ WebPods requires OAuth providers for user authentication. Edit `config.json`:
 Environment variables:
 
 - `JWT_SECRET` - Required for token signing
-- `SESSION_SECRET` - Required for session management  
+- `SESSION_SECRET` - Required for session management
 - `WEBPODS_DB_HOST` - PostgreSQL host (default: localhost)
 - `WEBPODS_DB_PORT` - PostgreSQL port (default: 5432)
 - `WEBPODS_DB_NAME` - Database name (default: webpodsdb)

@@ -275,8 +275,12 @@ export type RequestWithSession = Request & {
 
 // Helper to make all properties optional and allow string values for env vars
 type DeepPartialWithEnvVars<T> = {
-  [P in keyof T]?: T[P] extends object ? DeepPartialWithEnvVars<T[P]> : T[P] | string;
+  [P in keyof T]?: T[P] extends object
+    ? DeepPartialWithEnvVars<T[P]>
+    : T[P] | string;
 };
 
 // Raw configuration type for JSON parsing (before env var resolution and defaults)
-export type RawConfig = DeepPartialWithEnvVars<import("./config-loader.js").AppConfig>;
+export type RawConfig = DeepPartialWithEnvVars<
+  import("./config-loader.js").AppConfig
+>;

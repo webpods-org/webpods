@@ -41,7 +41,8 @@ router.get("/session", (req: ExpressRequest, res: Response) => {
         : Date.now(),
     ),
     expiresAt:
-      session.cookie.expires || new Date(Date.now() + (session.cookie.maxAge || 0)),
+      session.cookie.expires ||
+      new Date(Date.now() + (session.cookie.maxAge || 0)),
   });
 });
 

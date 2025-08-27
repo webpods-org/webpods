@@ -8,7 +8,10 @@ import { createLogger } from "../logger.js";
 import { getConfig } from "../config-loader.js";
 import { findOrCreateUser } from "../domain/users/find-or-create-user.js";
 import { verifyHydraToken } from "../oauth/jwt-validator.js";
-import type { OAuthProvider as OAuthProviderType, RequestWithSession } from "../types.js";
+import type {
+  OAuthProvider as OAuthProviderType,
+  RequestWithSession,
+} from "../types.js";
 import {
   getAuthorizationUrl,
   exchangeCodeForTokens,
@@ -303,7 +306,8 @@ router.get("/authorize", async (req: Request, res: Response) => {
   }
 
   // Check if user has a valid session (SSO)
-  if ((req as { session?: { user?: unknown } }).session?.user) {
+  const reqWithSession = req as RequestWithSession;
+  if (reqWithSession.session?.user) {
     try {
       // WebPods JWT tokens removed - using Hydra OAuth
       // Sessions are used for SSO across pods
@@ -321,11 +325,14 @@ router.get("/authorize", async (req: Request, res: Response) => {
 
       logger.info("SSO authorization successful", {
         pod,
-        userId: (req as RequestWithSession).session?.user?.id,
+        userId: reqWithSession.session.user.id,
       });
       res.redirect(callbackUrl);
     } catch (error) {
-      logger.error("Failed to generate pod token", { error: (error as Error).message, pod });
+      logger.error("Failed to generate pod token", {
+        error: (error as Error).message,
+        pod,
+      });
       res.status(500).json({
         error: {
           code: "TOKEN_ERROR",
@@ -415,7 +422,10 @@ router.get("/:provider", async (req: Request, res: Response) => {
     logger.info("OAuth flow initiated", { provider, state });
     res.redirect(authUrl);
   } catch (error) {
-    logger.error("Failed to initiate OAuth", { error: (error as Error).message, provider });
+    logger.error("Failed to initiate OAuth", {
+      error: (error as Error).message,
+      provider,
+    });
     res.status(500).json({
       error: {
         code: "OAUTH_ERROR",
@@ -465,7 +475,19 @@ router.get("/:provider/callback", async (req: Request, res: Response) => {
     );
 
     // Get user info
-    const tokenSetTyped = tokenSet as { access_token: string };
+    const tokenSetTyped = tokenSet as Record<string, unknown>;
+    if (
+      !tokenSetTyped.access_token ||
+      typeof tokenSetTyped.access_token !== "string"
+    ) {
+      logger.error("Invalid token response from OAuth provider", {
+        provider,
+        tokenStructure: Object.keys(tokenSetTyped),
+      });
+      throw new Error(
+        `Invalid token response: missing or invalid access_token from ${provider}`,
+      );
+    }
     const userInfo = await getUserInfo(provider, tokenSetTyped.access_token);
 
     // Find or create user
@@ -491,7 +513,7 @@ router.get("/:provider/callback", async (req: Request, res: Response) => {
       clientSecret: providerConfigData.clientSecret,
     };
 
-    const userResult = await findOrCreateUser({ db }, providerConfig, userInfo as unknown as Record<string, unknown>);
+    const userResult = await findOrCreateUser({ db }, providerConfig, userInfo);
 
     if (!userResult.success) {
       logger.error("Failed to create/find user", {
@@ -573,7 +595,16 @@ router.get("/:provider/callback", async (req: Request, res: Response) => {
         ? undefined // Don't set domain for localhost
         : `.${config.server.public?.hostname}`; // Set to .webpods.org for SSO
 
-      res.cookie("webpods_session", (req as { session: { id: string } }).session.id, {
+      const sessionId = reqWithSession.session?.id;
+      if (!sessionId) {
+        logger.error("Session ID missing after authentication", {
+          userId: userResult.data.user.id,
+          provider,
+        });
+        throw new Error("Failed to create session: no session ID");
+      }
+
+      res.cookie("webpods_session", sessionId, {
         httpOnly: true,
         secure: isSecure,
         sameSite: isSecure ? "strict" : "lax",
@@ -596,7 +627,10 @@ router.get("/:provider/callback", async (req: Request, res: Response) => {
       res.redirect(successUrl);
     }
   } catch (error) {
-    logger.error("OAuth callback error", { error: (error as Error).message, provider });
+    logger.error("OAuth callback error", {
+      error: (error as Error).message,
+      provider,
+    });
     res.status(500).json({
       error: {
         code: "OAUTH_ERROR",

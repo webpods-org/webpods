@@ -340,7 +340,9 @@ export function loadConfig(configPath?: string): AppConfig {
 
     return config;
   } catch (error) {
-    logger.error("Failed to load configuration", { error: (error as Error).message });
+    logger.error("Failed to load configuration", {
+      error: (error as Error).message,
+    });
     throw error;
   }
 }

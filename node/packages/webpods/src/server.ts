@@ -235,7 +235,8 @@ export function createApp(): Express {
     });
 
     const showDetails = process.env.LOG_LEVEL === "debug";
-    const statusCode = "status" in err && typeof err.status === "number" ? err.status : 500;
+    const statusCode =
+      "status" in err && typeof err.status === "number" ? err.status : 500;
     res.status(statusCode).json({
       error: {
         code: "INTERNAL_ERROR",

@@ -117,7 +117,9 @@ export async function authenticateHybrid(
       // Check both audience and ext.pods claims
       // Handle nested ext structure from Hydra (ext.ext.pods)
       const allowedPods =
-        payload.ext?.pods || (payload.ext as { ext?: { pods?: string[] } })?.ext?.pods || [];
+        payload.ext?.pods ||
+        (payload.ext as { ext?: { pods?: string[] } })?.ext?.pods ||
+        [];
       const audience = payload.aud || [];
 
       // For testing/development, accept both localhost and webpods.com audiences
