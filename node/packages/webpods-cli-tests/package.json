@@ -1,0 +1,27 @@
+{
+  "name": "webpods-cli-tests",
+  "version": "0.0.1",
+  "description": "Integration tests for WebPods CLI",
+  "type": "module",
+  "scripts": {
+    "test": "mocha",
+    "test:watch": "mocha --watch",
+    "build": "tsc --noEmit",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "@types/chai": "^5.0.1",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^22.10.10",
+    "chai": "^5.1.2",
+    "jsonwebtoken": "^9.0.2",
+    "mocha": "^11.0.1",
+    "node-fetch": "^3.3.2",
+    "webpods-test-utils": "file:../webpods-test-utils"
+  },
+  "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.7",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}

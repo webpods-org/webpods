@@ -17,6 +17,7 @@ PACKAGES=(
   "webpods"
   "webpods-cli"
   "webpods-integration-tests"
+  "webpods-cli-tests"
 )
 
 # 1 ▸ clean first

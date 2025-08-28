@@ -173,9 +173,35 @@ Environment variables:
 - `WEBPODS_DB_PASSWORD` - Database password (required)
 - OAuth secrets referenced in config.json (e.g., `GITHUB_OAUTH_SECRET`)
 
+## CLI
+
+WebPods includes a command-line interface for managing pods and data:
+
+```bash
+# Install CLI globally
+npm install -g webpods-cli
+
+# Authenticate
+pod login
+pod token set <token>
+
+# Create and manage pods
+pod create my-pod
+pod list
+pod delete my-pod
+
+# Work with data
+pod write my-pod notes/today "My note"
+pod read my-pod notes/today
+pod list my-pod notes
+```
+
+See [CLI Documentation](node/packages/webpods-cli/README.md) for complete usage.
+
 ## Documentation
 
 - [API Reference](docs/api.md) - Complete API documentation
+- [CLI Reference](node/packages/webpods-cli/README.md) - Command-line interface
 - [Configuration Guide](docs/configuration.md) - OAuth and server setup
 - [Architecture](docs/architecture.md) - System design and data model
 - [Deployment](docs/deployment.md) - Production deployment guide

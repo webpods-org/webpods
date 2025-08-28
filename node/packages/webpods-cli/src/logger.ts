@@ -11,9 +11,10 @@ export function createLogger(name: string): Logger {
   const logLevel = process.env.LOG_LEVEL || "info";
   const levels = ["debug", "info", "warn", "error"];
   const currentLevelIndex = levels.indexOf(logLevel);
+  const silent = process.env.CLI_SILENT === "true";
 
   const shouldLog = (level: string): boolean => {
-    return levels.indexOf(level) >= currentLevelIndex;
+    return !silent && levels.indexOf(level) >= currentLevelIndex;
   };
 
   const formatMessage = (

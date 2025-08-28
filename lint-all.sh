@@ -19,6 +19,7 @@ PACKAGES=(
   "webpods"
   "webpods-cli"
   "webpods-integration-tests"
+  "webpods-cli-tests"
 )
 
 # Track overall success
