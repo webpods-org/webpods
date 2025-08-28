@@ -149,3 +149,4 @@ devenv/pgdata/
 test-output.txt
 test-results.json
 test-results.txt
+.tests/

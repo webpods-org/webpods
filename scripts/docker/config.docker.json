@@ -1,0 +1,45 @@
+{
+  "oauth": {
+    "providers": [
+      {
+        "id": "test",
+        "clientId": "test-client-id",
+        "clientSecret": "test-client-secret",
+        "authUrl": "https://example.com/oauth/authorize",
+        "tokenUrl": "https://example.com/oauth/token",
+        "userinfoUrl": "https://example.com/oauth/userinfo",
+        "scope": "openid email profile",
+        "userIdField": "id",
+        "emailField": "email",
+        "nameField": "name"
+      }
+    ],
+    "defaultProvider": "test"
+  },
+  "server": {
+    "host": "0.0.0.0",
+    "port": 3000,
+    "publicUrl": "http://localhost:3000",
+    "corsOrigin": "*",
+    "maxPayloadSize": "10mb"
+  },
+  "database": {
+    "host": "$WEBPODS_DB_HOST",
+    "port": "$WEBPODS_DB_PORT",
+    "database": "$WEBPODS_DB_NAME",
+    "user": "$WEBPODS_DB_USER",
+    "password": "$WEBPODS_DB_PASSWORD"
+  },
+  "auth": {
+    "jwtSecret": "$JWT_SECRET",
+    "jwtExpiry": "7d",
+    "sessionSecret": "$SESSION_SECRET"
+  },
+  "rateLimits": {
+    "writes": 1000,
+    "reads": 10000,
+    "podCreate": 10,
+    "streamCreate": 100,
+    "maxRecordLimit": 1000
+  }
+}

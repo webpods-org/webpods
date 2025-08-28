@@ -3,8 +3,9 @@
  */
 
 import { Request, Response, NextFunction } from "express";
-import { checkRateLimit, getRateLimitStatus } from "../domain/ratelimit.js";
-import { getDb } from "../db.js";
+import { checkRateLimit } from "../domain/ratelimit/check-rate-limit.js";
+import { getRateLimitStatus } from "../domain/ratelimit/get-rate-limit-status.js";
+import { getDb } from "../db/index.js";
 import { createLogger } from "../logger.js";
 import { getIpAddress } from "../utils.js";
 
@@ -25,11 +26,10 @@ export function rateLimit(
       const db = getDb();
 
       // Use user ID if authenticated, otherwise IP address with prefix
-      const key = (req as any).auth
-        ? (req as any).auth.user_id
-        : `ip:${getIpAddress(req)}`;
+      const authReq = req as { auth?: { user_id?: string } };
+      const key = authReq.auth?.user_id || `ip:${getIpAddress(req)}`;
 
-      const result = await checkRateLimit(db, key, action);
+      const result = await checkRateLimit({ db }, key, action);
 
       if (!result.success) {
         logger.error("Rate limit check failed", { error: result.error });
@@ -43,7 +43,7 @@ export function rateLimit(
       }
 
       // Get the limit for headers
-      const statusResult = await getRateLimitStatus(db, key, action);
+      const statusResult = await getRateLimitStatus({ db }, key, action);
       const limit = statusResult.success ? statusResult.data.limit : 1000;
 
       // Set rate limit headers

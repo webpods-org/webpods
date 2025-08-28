@@ -8,7 +8,8 @@ import {
   Response,
   NextFunction,
 } from "express";
-import type { AuthRequest } from "../types.js";
+import type { AuthRequest, StreamRecord } from "../types.js";
+import type { CodedError } from "../utils/errors.js";
 import { z } from "zod";
 import {
   authenticateHybrid as authenticate,
@@ -16,7 +17,7 @@ import {
 } from "../middleware/hybrid-auth.js";
 import { extractPod } from "../middleware/pod.js";
 import { rateLimit } from "../middleware/ratelimit.js";
-import { getDb } from "../db.js";
+import { getDb } from "../db/index.js";
 import { createLogger } from "../logger.js";
 import { getConfig } from "../config-loader.js";
 import {
@@ -28,36 +29,29 @@ import {
   parseDataUrl,
   isValidName,
 } from "../utils.js";
-import { ensureUserExists } from "../domain/users.js";
+import { ensureUserExists } from "../domain/users/ensure-user-exists.js";
 
 // Import domain functions
-import {
-  createPod,
-  deletePod,
-  listPodStreams,
-  transferPodOwnership,
-  getPodOwner,
-} from "../domain/pods.js";
-import {
-  getOrCreateStream,
-  getStream,
-  deleteStream,
-} from "../domain/streams.js";
-import {
-  writeRecord,
-  getRecord,
-  getRecordRange,
-  listRecords,
-  listUniqueRecords,
-  recordToResponse,
-} from "../domain/records.js";
-import { canRead, canWrite } from "../domain/permissions.js";
-import {
-  resolveLink,
-  updateLinks,
-  updateCustomDomains,
-} from "../domain/routing.js";
-import { checkRateLimit } from "../domain/ratelimit.js";
+import { createPod } from "../domain/pods/create-pod.js";
+import { deletePod } from "../domain/pods/delete-pod.js";
+import { listPodStreams } from "../domain/pods/list-pod-streams.js";
+import { transferPodOwnership } from "../domain/pods/transfer-pod-ownership.js";
+import { getPodOwner } from "../domain/pods/get-pod-owner.js";
+import { getOrCreateStream } from "../domain/streams/get-or-create-stream.js";
+import { getStream } from "../domain/streams/get-stream.js";
+import { deleteStream } from "../domain/streams/delete-stream.js";
+import { writeRecord } from "../domain/records/write-record.js";
+import { getRecord } from "../domain/records/get-record.js";
+import { getRecordRange } from "../domain/records/get-record-range.js";
+import { listRecords } from "../domain/records/list-records.js";
+import { listUniqueRecords } from "../domain/records/list-unique-records.js";
+import { recordToResponse } from "../domain/records/record-to-response.js";
+import { canRead } from "../domain/permissions/can-read.js";
+import { canWrite } from "../domain/permissions/can-write.js";
+import { resolveLink } from "../domain/routing/resolve-link.js";
+import { updateLinks } from "../domain/routing/update-links.js";
+import { updateCustomDomains } from "../domain/routing/update-custom-domains.js";
+import { checkRateLimit } from "../domain/ratelimit/check-rate-limit.js";
 
 const logger = createLogger("webpods:routes:pods");
 const router = Router({ mergeParams: true });
@@ -80,7 +74,7 @@ const domainsSchema = z.object({
  * GET {pod}.webpods.org/login
  */
 router.get("/login", extractPod, (req: ExpressRequest, res: Response) => {
-  if (!req.pod_name) {
+  if (!req.podName) {
     res.status(400).json({
       error: {
         code: "INVALID_POD",
@@ -96,9 +90,9 @@ router.get("/login", extractPod, (req: ExpressRequest, res: Response) => {
   // Redirect to main domain authorization with pod info
   const config = getConfig();
   const publicUrl = config.server.publicUrl || "http://localhost:3000";
-  const authUrl = `${publicUrl}/auth/authorize?pod=${req.pod_name}&redirect=${encodeURIComponent(redirect)}`;
+  const authUrl = `${publicUrl}/auth/authorize?pod=${req.podName}&redirect=${encodeURIComponent(redirect)}`;
 
-  logger.info("Pod login initiated", { pod: req.pod_name, redirect });
+  logger.info("Pod login initiated", { pod: req.podName, redirect });
   res.redirect(authUrl);
 });
 
@@ -114,7 +108,7 @@ router.get(
     const redirect = (req.query.redirect as string) || "/";
 
     logger.info("Auth callback on pod", {
-      pod: req.pod_name,
+      pod: req.podName,
       hasToken: !!token,
       redirect,
     });
@@ -140,10 +134,10 @@ router.get(
       maxAge: 10 * 365 * 24 * 60 * 60 * 1000, // 10 years (effectively unlimited)
       path: "/",
       // Cookie domain cannot have port
-      domain: `.${req.pod_name}.${publicConfig?.hostname || "localhost"}`, // Scoped to pod subdomain
+      domain: `.${req.podName}.${publicConfig?.hostname || "localhost"}`, // Scoped to pod subdomain
     });
 
-    logger.info("Pod auth callback successful", { pod: req.pod_name });
+    logger.info("Pod auth callback successful", { pod: req.podName });
 
     // Redirect to final destination
     res.redirect(redirect);
@@ -158,7 +152,7 @@ router.get(
   "/.meta/streams",
   extractPod,
   async (req: AuthRequest, res: Response) => {
-    if (!req.pod || !req.pod_name) {
+    if (!req.pod || !req.podName) {
       res.status(404).json({
         error: {
           code: "POD_NOT_FOUND",
@@ -169,9 +163,10 @@ router.get(
     }
 
     const db = getDb();
-    const result = await listPodStreams(db, req.pod_name);
+    const result = await listPodStreams({ db }, req.podName);
 
     if (!result.success) {
+      console.error("listPodStreams failed:", result.error);
       res.status(500).json({
         error: result.error,
       });
@@ -179,7 +174,7 @@ router.get(
     }
 
     res.json({
-      pod: req.pod_name,
+      pod: req.podName,
       streams: result.data,
     });
   },
@@ -195,7 +190,7 @@ router.delete(
   authenticate,
   rateLimit("pod_create"),
   async (req: AuthRequest, res: Response) => {
-    if (!req.pod_name || !req.auth) {
+    if (!req.podName || !req.auth) {
       res.status(404).json({
         error: {
           code: "POD_NOT_FOUND",
@@ -206,10 +201,11 @@ router.delete(
     }
 
     const db = getDb();
-    const result = await deletePod(db, req.pod_name, req.auth.user_id);
+    const result = await deletePod({ db }, req.podName, req.auth.user_id);
 
     if (!result.success) {
-      const status = result.error.code === "FORBIDDEN" ? 403 : 500;
+      const status =
+        (result.error as CodedError).code === "FORBIDDEN" ? 403 : 500;
       res.status(status).json({
         error: result.error,
       });
@@ -231,7 +227,7 @@ router.post(
   extractPod,
   authenticate,
   async (req: AuthRequest, res: Response) => {
-    if (!req.pod_name || !req.auth) {
+    if (!req.podName || !req.auth) {
       res.status(404).json({
         error: {
           code: "POD_NOT_FOUND",
@@ -246,14 +242,15 @@ router.post(
       const db = getDb();
 
       const result = await transferPodOwnership(
-        db,
-        req.pod_name,
+        { db },
+        req.podName,
         req.auth.user_id,
         data.owner,
       );
 
       if (!result.success) {
-        const status = result.error.code === "FORBIDDEN" ? 403 : 500;
+        const status =
+          (result.error as CodedError).code === "FORBIDDEN" ? 403 : 500;
         res.status(status).json({
           error: result.error,
         });
@@ -287,7 +284,7 @@ router.post(
   extractPod,
   authenticate,
   async (req: AuthRequest, res: Response) => {
-    if (!req.pod_name || !req.auth) {
+    if (!req.podName || !req.auth) {
       res.status(404).json({
         error: {
           code: "POD_NOT_FOUND",
@@ -302,7 +299,7 @@ router.post(
       const db = getDb();
 
       // Check ownership
-      const ownerResult = await getPodOwner(db, req.pod_name);
+      const ownerResult = await getPodOwner({ db }, req.podName);
       if (!ownerResult.success || ownerResult.data !== req.auth.user_id) {
         res.status(403).json({
           error: {
@@ -314,8 +311,8 @@ router.post(
       }
 
       const result = await updateLinks(
-        db,
-        req.pod_name,
+        { db },
+        req.podName,
         data,
         req.auth.user_id,
         req.auth.user_id,
@@ -355,7 +352,7 @@ router.post(
   extractPod,
   authenticate,
   async (req: AuthRequest, res: Response) => {
-    if (!req.pod_name || !req.auth) {
+    if (!req.podName || !req.auth) {
       res.status(404).json({
         error: {
           code: "POD_NOT_FOUND",
@@ -370,7 +367,7 @@ router.post(
       const db = getDb();
 
       // Check ownership
-      const ownerResult = await getPodOwner(db, req.pod_name);
+      const ownerResult = await getPodOwner({ db }, req.podName);
       if (!ownerResult.success || ownerResult.data !== req.auth.user_id) {
         res.status(403).json({
           error: {
@@ -382,11 +379,10 @@ router.post(
       }
 
       const result = await updateCustomDomains(
-        db,
-        req.pod_name,
-        data.domains,
+        { db },
+        req.podName,
         req.auth.user_id,
-        req.auth.user_id,
+        { add: data.domains },
       );
 
       if (!result.success) {
@@ -430,7 +426,7 @@ router.post(
   rateLimit("write"),
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     // If no pod_id was extracted, this is the main domain - skip to next handler
-    if (!req.pod_name) {
+    if (!req.podName) {
       return next();
     }
 
@@ -578,10 +574,10 @@ router.post(
       const db = getDb();
 
       // Create pod if it doesn't exist
-      if (!req.pod && req.pod_name) {
+      if (!req.pod && req.podName) {
         // Check pod creation rate limit first
         const podLimitResult = await checkRateLimit(
-          db,
+          { db },
           req.auth.user_id,
           "pod_create",
         );
@@ -598,7 +594,7 @@ router.post(
 
         // Ensure user exists in database before creating pod
         // This handles cases where JWT is valid but user was deleted (e.g., in tests)
-        const userResult = await ensureUserExists(db, req.auth.user_id);
+        const userResult = await ensureUserExists({ db }, req.auth.user_id);
 
         if (!userResult.success) {
           res.status(500).json({
@@ -610,7 +606,11 @@ router.post(
           return;
         }
 
-        const podResult = await createPod(db, req.auth.user_id, req.pod_name);
+        const podResult = await createPod(
+          { db },
+          req.auth.user_id,
+          req.podName,
+        );
         if (!podResult.success) {
           res.status(500).json({
             error: podResult.error,
@@ -621,12 +621,12 @@ router.post(
       }
 
       // Check if stream exists first
-      const existingStream = await getStream(db, req.pod!.id, streamId);
+      const existingStream = await getStream({ db }, req.podName, streamId);
 
       // If stream doesn't exist, check rate limit before creating
       if (!existingStream.success) {
         const streamLimitResult = await checkRateLimit(
-          db,
+          { db },
           req.auth.user_id,
           "stream_create",
         );
@@ -644,8 +644,8 @@ router.post(
 
       // Get or create stream
       const streamResult = await getOrCreateStream(
-        db,
-        req.pod!.id,
+        { db },
+        req.podName,
         streamId,
         req.auth!.user_id,
         accessPermission,
@@ -660,7 +660,7 @@ router.post(
 
       // Check write permission
       const canWriteResult = await canWrite(
-        db,
+        { db },
         streamResult.data.stream,
         req.auth.user_id,
       );
@@ -676,8 +676,9 @@ router.post(
 
       // Write record
       const recordResult = await writeRecord(
-        db,
-        streamResult.data.stream.id,
+        { db },
+        req.podName,
+        streamId,
         content,
         contentType,
         req.auth.user_id,
@@ -687,9 +688,9 @@ router.post(
       if (!recordResult.success) {
         // Check for specific error codes
         let status = 500;
-        if (recordResult.error.code === "NAME_EXISTS") {
+        if ((recordResult.error as CodedError).code === "NAME_EXISTS") {
           status = 409;
-        } else if (recordResult.error.code === "INVALID_NAME") {
+        } else if ((recordResult.error as CodedError).code === "INVALID_NAME") {
           status = 400;
         }
 
@@ -732,7 +733,7 @@ router.get(
   optionalAuth,
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     // If no pod_id was extracted, this is the main domain - skip to next handler
-    if (!req.pod_name) {
+    if (!req.podName) {
       return next();
     }
 
@@ -768,7 +769,7 @@ router.get(
     const db = getDb();
 
     // Check if path "/" is mapped in .meta/links
-    const linkResult = await resolveLink(db, req.pod_name, "/");
+    const linkResult = await resolveLink({ db }, req.podName, "/");
 
     if (linkResult.success && linkResult.data) {
       // Redirect to the mapped stream/record
@@ -782,10 +783,10 @@ router.get(
           new URLSearchParams(target.substring(1)),
         );
       } else if (target) {
-        // Handle path targets (e.g., "my-post")
-        req.url = `/${streamId}/${target}`;
+        // Handle path targets (e.g., "/record-name")
+        req.url = `/${streamId}${target}`;
       } else {
-        // Just the stream
+        // Just stream name
         req.url = `/${streamId}`;
       }
 
@@ -819,7 +820,7 @@ router.get(
   rateLimit("read"),
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     // If no pod_id was extracted, this is the main domain - skip to next handler
-    if (!req.pod_name) {
+    if (!req.podName) {
       return next();
     }
 
@@ -856,7 +857,7 @@ router.get(
     const db = getDb();
 
     // First check if this path is mapped in .meta/links
-    const linkResult = await resolveLink(db, req.pod_name, req.path);
+    const linkResult = await resolveLink({ db }, req.podName, req.path);
 
     if (linkResult.success && linkResult.data) {
       // Redirect to the mapped stream/record
@@ -870,10 +871,10 @@ router.get(
           new URLSearchParams(target.substring(1)),
         );
       } else if (target) {
-        // Named record
-        req.url = `/${streamId}/${target}`;
+        // Handle path targets (e.g., "/record-name")
+        req.url = `/${streamId}${target}`;
       } else {
-        // Just the stream
+        // Just stream name
         req.url = `/${streamId}`;
       }
 
@@ -895,9 +896,9 @@ router.get(
       // Check if last part could be a name (not using index query)
       // Try to find stream with full path first
       const fullPath = pathParts.join("/");
-      const streamResult = await getStream(db, req.pod!.id, fullPath);
+      const streamResult = await getStream({ db }, req.podName, fullPath);
 
-      if (streamResult.success) {
+      if (streamResult.success && streamResult.data) {
         streamId = fullPath;
       } else {
         // Assume last part is name
@@ -909,9 +910,9 @@ router.get(
     }
 
     // Get stream
-    const streamResult = await getStream(db, req.pod!.id, streamId);
+    const streamResult = await getStream({ db }, req.podName, streamId);
 
-    if (!streamResult.success) {
+    if (!streamResult.success || !streamResult.data) {
       // Provide more informative error message
       const fullPath = req.path.substring(1);
       if (name) {
@@ -936,7 +937,7 @@ router.get(
 
     // Check read permission
     const canReadResult = await canRead(
-      db,
+      { db },
       streamResult.data,
       req.auth?.user_id || null,
     );
@@ -966,8 +967,9 @@ router.get(
       if (parsed.type === "single") {
         // Single record by index (don't prefer name when using ?i=)
         const result = await getRecord(
-          db,
-          streamResult.data.id,
+          { db },
+          req.podName,
+          streamResult.data.name,
           parsed.start.toString(),
           false,
         );
@@ -984,7 +986,7 @@ router.get(
         try {
           const content =
             typeof record.content === "string" &&
-            record.content_type === "application/json"
+            record.contentType === "application/json"
               ? JSON.parse(record.content)
               : record.content;
 
@@ -1008,20 +1010,24 @@ router.get(
         // Return raw content for single records
         // Set headers
         res.setHeader("X-Hash", record.hash);
-        res.setHeader("X-Previous-Hash", record.previous_hash || "");
-        res.setHeader("X-Author", record.user_id);
-        res.setHeader("X-Timestamp", record.created_at.toISOString());
+        res.setHeader("X-Previous-Hash", record.previousHash || "");
+        res.setHeader("X-Author", record.userId);
+        res.setHeader("X-Timestamp", record.createdAt.toISOString());
 
         // Set content type and send response
-        res.type(record.content_type);
+        res.type(record.contentType);
 
         // Handle different content types
-        if (isBinaryContentType(record.content_type)) {
+        if (isBinaryContentType(record.contentType)) {
           // Decode base64 for binary content
-          const buffer = Buffer.from(record.content, "base64");
+          const contentStr =
+            typeof record.content === "string"
+              ? record.content
+              : String(record.content);
+          const buffer = Buffer.from(contentStr, "base64");
           res.send(buffer);
         } else if (
-          record.content_type === "application/json" &&
+          record.contentType === "application/json" &&
           typeof record.content === "string"
         ) {
           // Parse JSON content if needed
@@ -1036,8 +1042,9 @@ router.get(
       } else {
         // Range of records
         const result = await getRecordRange(
-          db,
-          streamResult.data.id,
+          { db },
+          req.podName,
+          streamResult.data.name,
           parsed.start,
           parsed.end!,
         );
@@ -1057,7 +1064,13 @@ router.get(
       }
     } else if (name) {
       // Get by name (prefer name over index for path-based access)
-      const result = await getRecord(db, streamResult.data.id, name, true);
+      const result = await getRecord(
+        { db },
+        req.podName,
+        streamResult.data.name,
+        name,
+        true,
+      );
 
       if (!result.success) {
         res.status(404).json({
@@ -1070,13 +1083,15 @@ router.get(
       const tombstonePattern = `${name}.deleted.%`;
       const tombstones = await db.manyOrNone(
         `SELECT * FROM record
-         WHERE stream_id = $(streamId)
+         WHERE pod_name = $(podName)
+           AND stream_name = $(streamId)
            AND name LIKE $(pattern)
            AND index > $(index)
          ORDER BY index DESC
          LIMIT 1`,
         {
-          streamId: streamResult.data.id,
+          podName: req.podName,
+          streamId: streamResult.data.name,
           pattern: tombstonePattern,
           index: result.data.index,
         },
@@ -1098,7 +1113,7 @@ router.get(
       try {
         const content =
           typeof record.content === "string" &&
-          record.content_type === "application/json"
+          record.contentType === "application/json"
             ? JSON.parse(record.content)
             : record.content;
 
@@ -1122,20 +1137,24 @@ router.get(
       // Return raw content for single records
       // Set headers
       res.setHeader("X-Hash", record.hash);
-      res.setHeader("X-Previous-Hash", record.previous_hash || "");
-      res.setHeader("X-Author", record.user_id);
-      res.setHeader("X-Timestamp", record.created_at.toISOString());
+      res.setHeader("X-Previous-Hash", record.previousHash || "");
+      res.setHeader("X-Author", record.userId);
+      res.setHeader("X-Timestamp", record.createdAt.toISOString());
 
       // Set content type and send response
-      res.type(record.content_type);
+      res.type(record.contentType);
 
       // Handle different content types
-      if (isBinaryContentType(record.content_type)) {
+      if (isBinaryContentType(record.contentType)) {
         // Decode base64 for binary content
-        const buffer = Buffer.from(record.content, "base64");
+        const contentStr =
+          typeof record.content === "string"
+            ? record.content
+            : String(record.content);
+        const buffer = Buffer.from(contentStr, "base64");
         res.send(buffer);
       } else if (
-        record.content_type === "application/json" &&
+        record.contentType === "application/json" &&
         typeof record.content === "string"
       ) {
         // Parse JSON content if needed
@@ -1149,7 +1168,15 @@ router.get(
       }
     } else {
       // List all records
-      const limit = parseInt(req.query.limit as string) || 100;
+      const config = getConfig();
+      const maxLimit = config.rateLimits.maxRecordLimit;
+
+      // Parse and cap the limit to maxRecordLimit
+      let limit = parseInt(req.query.limit as string) || 100;
+      if (limit > maxLimit) {
+        limit = maxLimit; // Silently cap to max without erroring
+      }
+
       const after = req.query.after
         ? parseInt(req.query.after as string)
         : undefined;
@@ -1157,8 +1184,20 @@ router.get(
 
       // Use appropriate listing function based on unique parameter
       const result = unique
-        ? await listUniqueRecords(db, streamResult.data.id, limit, after)
-        : await listRecords(db, streamResult.data.id, limit, after);
+        ? await listUniqueRecords(
+            { db },
+            req.podName,
+            streamResult.data.name,
+            limit,
+            after,
+          )
+        : await listRecords(
+            { db },
+            req.podName,
+            streamResult.data.name,
+            limit,
+            after,
+          );
 
       if (!result.success) {
         res.status(500).json({
@@ -1167,13 +1206,20 @@ router.get(
         return;
       }
 
+      // Both listRecords and listUniqueRecords now return the same format
+      const data = result.data as {
+        records: StreamRecord[];
+        total: number;
+        hasMore: boolean;
+      };
       res.json({
-        records: result.data.records.map(recordToResponse),
-        total: result.data.total,
-        has_more: result.data.hasMore,
-        next_index: result.data.hasMore
-          ? result.data.records[result.data.records.length - 1]?.index
-          : null,
+        records: data.records.map(recordToResponse),
+        total: data.total,
+        hasMore: data.hasMore,
+        nextIndex:
+          data.hasMore && data.records.length > 0
+            ? data.records[data.records.length - 1]?.index
+            : null,
       });
     }
   },
@@ -1191,7 +1237,7 @@ router.delete(
   authenticate,
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     // If no pod_id was extracted, this is the main domain - skip to next handler
-    if (!req.pod_name) {
+    if (!req.podName) {
       return next();
     }
 
@@ -1216,9 +1262,9 @@ router.delete(
 
     if (pathParts.length > 1) {
       const fullPath = pathParts.join("/");
-      const streamResult = await getStream(db, req.pod!.id, fullPath);
+      const streamResult = await getStream({ db }, req.podName, fullPath);
 
-      if (streamResult.success) {
+      if (streamResult.success && streamResult.data) {
         // Full path is a stream, delete the stream
         streamId = fullPath;
       } else {
@@ -1242,7 +1288,7 @@ router.delete(
     }
 
     // Check ownership - only pod owner can delete
-    const ownerResult = await getPodOwner(db, req.pod_name);
+    const ownerResult = await getPodOwner({ db }, req.podName);
     if (!ownerResult.success || ownerResult.data !== req.auth.user_id) {
       res.status(403).json({
         error: {
@@ -1255,9 +1301,9 @@ router.delete(
 
     if (recordName) {
       // Delete or purge a record
-      const streamResult = await getStream(db, req.pod!.id, streamId);
+      const streamResult = await getStream({ db }, req.podName, streamId);
 
-      if (!streamResult.success) {
+      if (!streamResult.success || !streamResult.data) {
         const fullPath = req.path.substring(1);
         res.status(404).json({
           error: {
@@ -1274,10 +1320,12 @@ router.delete(
           `UPDATE record
            SET content = $(content),
                content_type = $(contentType)
-           WHERE stream_id = $(streamId)
+           WHERE pod_name = $(podName)
+             AND stream_name = $(streamId)
              AND name = $(recordName)`,
           {
-            streamId: streamResult.data.id,
+            podName: req.podName,
+            streamId: streamResult.data.name,
             recordName,
             content: JSON.stringify({
               deleted: true,
@@ -1301,7 +1349,7 @@ router.delete(
         }
 
         logger.info("Record purged", {
-          podId: req.pod_name,
+          podId: req.podName,
           streamId,
           recordName,
           userId: req.auth.user_id,
@@ -1312,10 +1360,14 @@ router.delete(
         // Get the next index for the tombstone
         const lastRecord = await db.oneOrNone(
           `SELECT * FROM record
-           WHERE stream_id = $(streamId)
+           WHERE pod_name = $(podName)
+             AND stream_name = $(streamId)
            ORDER BY index DESC
            LIMIT 1`,
-          { streamId: streamResult.data.id },
+          {
+            podName: req.podName,
+            streamId: streamResult.data.name,
+          },
         );
 
         const nextIndex = (lastRecord?.index ?? -1) + 1;
@@ -1329,8 +1381,9 @@ router.delete(
         };
 
         const writeResult = await writeRecord(
-          db,
-          streamResult.data.id,
+          { db },
+          req.podName,
+          streamResult.data.name,
           deletionRecord,
           "application/json",
           req.auth.user_id,
@@ -1345,7 +1398,7 @@ router.delete(
         }
 
         logger.info("Record soft deleted", {
-          podId: req.pod_name,
+          podId: req.podName,
           streamId,
           recordName,
           userId: req.auth.user_id,
@@ -1355,17 +1408,17 @@ router.delete(
     } else {
       // Delete entire stream
       const result = await deleteStream(
-        db,
-        req.pod!.id,
+        { db },
+        req.podName,
         streamId,
         req.auth!.user_id,
       );
 
       if (!result.success) {
         const status =
-          result.error.code === "FORBIDDEN"
+          (result.error as CodedError).code === "FORBIDDEN"
             ? 403
-            : result.error.code === "STREAM_NOT_FOUND"
+            : (result.error as CodedError).code === "NOT_FOUND"
               ? 404
               : 500;
         res.status(status).json({

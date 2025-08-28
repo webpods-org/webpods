@@ -4,9 +4,9 @@
 
 import { Request, Response, NextFunction } from "express";
 import { extractPodName, isMainDomain } from "../utils.js";
-import { findPodByDomain } from "../domain/routing.js";
-import { getPod } from "../domain/pods.js";
-import { getDb } from "../db.js";
+import { findPodByDomain } from "../domain/routing/find-pod-by-domain.js";
+import { getPod } from "../domain/pods/get-pod.js";
+import { getDb } from "../db/index.js";
 import { createLogger } from "../logger.js";
 import { Pod } from "../types.js";
 import { getConfig } from "../config-loader.js";
@@ -17,7 +17,7 @@ const logger = createLogger("webpods:pod");
 declare module "express-serve-static-core" {
   interface Request {
     pod?: Pod;
-    pod_name?: string;
+    podName?: string;
   }
 }
 
@@ -31,7 +31,7 @@ export async function extractPod(
 ): Promise<void> {
   try {
     // If pod_name is already set (e.g., by rootPod handler), skip extraction
-    if (req.pod_name) {
+    if (req.podName) {
       next();
       return;
     }
@@ -48,9 +48,9 @@ export async function extractPod(
 
     // If not found, check custom domains
     if (!podName) {
-      const result = await findPodByDomain(db, hostname);
+      const result = await findPodByDomain({ db }, hostname);
       if (result.success && result.data) {
-        podName = result.data;
+        podName = result.data.name;
       }
     }
 
@@ -66,10 +66,10 @@ export async function extractPod(
     }
 
     // Store the pod_name even if pod doesn't exist yet
-    req.pod_name = podName;
+    req.podName = podName;
 
     // Try to get the pod (may not exist yet)
-    const podResult = await getPod(db, podName);
+    const podResult = await getPod({ db }, podName);
 
     if (podResult.success) {
       req.pod = podResult.data;
@@ -110,19 +110,19 @@ export async function optionalExtractPod(
 
     // If not found, check custom domains
     if (!podName) {
-      const result = await findPodByDomain(db, hostname);
+      const result = await findPodByDomain({ db }, hostname);
       if (result.success && result.data) {
-        podName = result.data;
+        podName = result.data.name;
       }
     }
 
     if (podName) {
       // Get the pod
-      const podResult = await getPod(db, podName);
+      const podResult = await getPod({ db }, podName);
 
       if (podResult.success) {
         req.pod = podResult.data;
-        req.pod_name = podName;
+        req.podName = podName;
       }
     }
 

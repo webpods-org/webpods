@@ -48,7 +48,7 @@ describe("WebPods Stream Operations", () => {
       expect(response.data).to.have.property("index", 0);
       expect(response.data).to.have.property("content", "Hello WebPods!");
       expect(response.data).to.have.property("hash");
-      expect(response.data).to.have.property("previous_hash", null);
+      expect(response.data).to.have.property("previousHash", null);
       expect(response.data).to.have.property("author", userId);
 
       // Verify pod was created
@@ -61,8 +61,8 @@ describe("WebPods Stream Operations", () => {
 
       // Verify stream was created
       const stream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_id = $(podId) AND stream_id = $(streamId)`,
-        { podId: pod.id, streamId: "my-first-stream" },
+        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId)`,
+        { pod_name: pod.name, streamId: "my-first-stream" },
       );
       expect(stream).to.exist;
       expect(stream.user_id).to.equal(userId);
@@ -82,16 +82,16 @@ describe("WebPods Stream Operations", () => {
         { podId: testPodId },
       );
       const stream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_id = $(podId) AND stream_id = $(streamId)`,
-        { podId: pod.id, streamId: "blog/posts/2024" },
+        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId)`,
+        { pod_name: pod.name, streamId: "blog/posts/2024" },
       );
       expect(stream).to.exist;
-      expect(stream.stream_id).to.equal("blog/posts/2024");
+      expect(stream.name).to.equal("blog/posts/2024");
 
       // Verify the record was created with name 'january'
       const record = await db.oneOrNone(
-        `SELECT * FROM record WHERE stream_id = $(streamId) AND name = $(name)`,
-        { streamId: stream.id, name: "january" },
+        `SELECT * FROM record WHERE pod_name = $(pod_name) AND stream_name = $(streamId) AND name = $(name)`,
+        { pod_name: pod.name, streamId: "blog/posts/2024", name: "january" },
       );
       expect(record).to.exist;
     });
@@ -110,8 +110,8 @@ describe("WebPods Stream Operations", () => {
         { podId: testPodId },
       );
       const stream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_id = $(podId) AND stream_id = $(streamId)`,
-        { podId: pod.id, streamId: "private-stream" },
+        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId)`,
+        { pod_name: pod.name, streamId: "private-stream" },
       );
       expect(stream.access_permission).to.equal("private");
     });
@@ -134,7 +134,7 @@ describe("WebPods Stream Operations", () => {
       expect(response.status).to.equal(201);
       expect(response.data.index).to.equal(1); // Second write, so index is 1
       expect(response.data.content).to.equal("Plain text message");
-      expect(response.data.content_type).to.equal("text/plain");
+      expect(response.data.contentType).to.equal("text/plain");
     });
 
     it("should write JSON content", async () => {
@@ -143,7 +143,7 @@ describe("WebPods Stream Operations", () => {
 
       expect(response.status).to.equal(201);
       expect(response.data.content).to.deep.equal(data);
-      expect(response.data.content_type).to.equal("application/json");
+      expect(response.data.contentType).to.equal("application/json");
     });
 
     it("should respect X-Content-Type header", async () => {
@@ -152,7 +152,7 @@ describe("WebPods Stream Operations", () => {
       });
 
       expect(response.status).to.equal(201);
-      expect(response.data.content_type).to.equal("text/html");
+      expect(response.data.contentType).to.equal("text/html");
     });
 
     it("should maintain hash chain", async () => {
@@ -160,9 +160,9 @@ describe("WebPods Stream Operations", () => {
       const response2 = await client.post("/hash-test/second", "Second");
       const response3 = await client.post("/hash-test/third", "Third");
 
-      expect(response1.data.previous_hash).to.be.null;
-      expect(response2.data.previous_hash).to.equal(response1.data.hash);
-      expect(response3.data.previous_hash).to.equal(response2.data.hash);
+      expect(response1.data.previousHash).to.be.null;
+      expect(response2.data.previousHash).to.equal(response1.data.hash);
+      expect(response3.data.previousHash).to.equal(response2.data.hash);
 
       // Verify hash format
       expect(response1.data.hash).to.match(/^sha256:[a-f0-9]{64}$/);
@@ -262,12 +262,12 @@ describe("WebPods Stream Operations", () => {
       const response = await client.get("/read-test?limit=2");
       expect(response.status).to.equal(200);
       expect(response.data.records).to.have.lengthOf(2);
-      expect(response.data.has_more).to.be.true;
-      expect(response.data.next_index).to.equal(1);
+      expect(response.data.hasMore).to.be.true;
+      expect(response.data.nextIndex).to.equal(1);
 
       // Get next page
       const page2 = await client.get(
-        `/read-test?limit=2&after=${response.data.next_index}`,
+        `/read-test?limit=2&after=${response.data.nextIndex}`,
       );
       expect(page2.data.records).to.have.lengthOf(2);
     });
@@ -281,6 +281,53 @@ describe("WebPods Stream Operations", () => {
       expect(response.headers["x-timestamp"]).to.exist;
       expect(response.data).to.equal("First");
     });
+
+    it("should support negative 'after' parameter for pagination", async () => {
+      // We have 5 records in read-test: first, second, third, my-name, 2024
+      // Using after=-3 should skip all but the last 3 records
+      const response = await client.get("/read-test?after=-3");
+      expect(response.status).to.equal(200);
+      expect(response.data.records).to.have.lengthOf(3);
+
+      // Should get the last 3 records (indices 2, 3, 4)
+      expect(response.data.records[0].content).to.equal("Third");
+      expect(response.data.records[1].content).to.equal("Named");
+      expect(response.data.records[2].content).to.equal("Year 2024");
+    });
+
+    it("should handle negative 'after' when total < abs(after)", async () => {
+      // We have 5 records, after=-10 should return all records
+      const response = await client.get("/read-test?after=-10");
+      expect(response.status).to.equal(200);
+      expect(response.data.records).to.have.lengthOf(5);
+
+      // Should get all records from the beginning
+      expect(response.data.records[0].content).to.equal("First");
+      expect(response.data.records[4].content).to.equal("Year 2024");
+    });
+
+    it("should enforce maximum record limit from config", async () => {
+      // Create more records than the max limit (config has maxRecordLimit: 10)
+      for (let i = 0; i < 15; i++) {
+        await client.post(`/limit-test/record${i}`, `Content ${i}`);
+      }
+
+      // Request 20 records (more than max)
+      const response = await client.get("/limit-test?limit=20");
+      expect(response.status).to.equal(200);
+      // Should be capped at 10 (the maxRecordLimit from test config)
+      expect(response.data.records).to.have.lengthOf(10);
+
+      // Requesting exactly the max should work
+      const response2 = await client.get("/limit-test?limit=10");
+      expect(response2.status).to.equal(200);
+      expect(response2.data.records).to.have.lengthOf(10);
+
+      // Requesting less than max should work normally
+      const response3 = await client.get("/limit-test?limit=5");
+      expect(response3.status).to.equal(200);
+      expect(response3.data.records).to.have.lengthOf(5);
+    });
   });
 
   describe("System Streams (.meta/)", () => {
@@ -293,8 +340,8 @@ describe("WebPods Stream Operations", () => {
         { podId: testPodId },
       );
       const ownerStream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_id = $(podId) AND stream_id = $(streamId)`,
-        { podId: pod.id, streamId: ".meta/owner" },
+        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId)`,
+        { pod_name: pod.name, streamId: ".meta/owner" },
       );
 
       expect(ownerStream).to.exist;
@@ -302,8 +349,8 @@ describe("WebPods Stream Operations", () => {
 
       // Check owner record
       const ownerRecord = await db.oneOrNone(
-        `SELECT * FROM record WHERE stream_id = $(streamId) ORDER BY index ASC LIMIT 1`,
-        { streamId: ownerStream.id },
+        `SELECT * FROM record WHERE pod_name = $(pod_name) AND stream_name = $(streamId) ORDER BY index ASC LIMIT 1`,
+        { pod_name: pod.name, streamId: ".meta/owner" },
       );
       const content = JSON.parse(ownerRecord.content);
       expect(content.owner).to.equal(userId);
@@ -321,9 +368,7 @@ describe("WebPods Stream Operations", () => {
       expect(response.data.streams).to.be.an("array");
 
       // The post to /nested/stream3/content3 creates stream "nested/stream3" with record "content3"
-      expect(
-        response.data.streams.map((s: any) => s.stream_id),
-      ).to.include.members([
+      expect(response.data.streams.map((s: any) => s.name)).to.include.members([
         "stream1",
         "stream2",
         "nested/stream3",

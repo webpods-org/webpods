@@ -227,13 +227,13 @@ describe("WebPods Authentication", () => {
         `SELECT * FROM pod WHERE name = $(podId)`,
         { podId: testPodId },
       );
-      const stream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_id = $(podId) AND stream_id = $(streamId)`,
-        { podId: pod.id, streamId: "tracked" },
+      await db.oneOrNone(
+        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId)`,
+        { pod_name: pod.name, streamId: "tracked" },
       );
       const record = await db.oneOrNone(
-        `SELECT * FROM record WHERE stream_id = $(streamId) ORDER BY index ASC LIMIT 1`,
-        { streamId: stream.id },
+        `SELECT * FROM record WHERE pod_name = $(pod_name) AND stream_name = $(streamId) ORDER BY index ASC LIMIT 1`,
+        { pod_name: pod.name, streamId: "tracked" },
       );
 
       expect(record.user_id).to.equal(userId);
@@ -494,23 +494,23 @@ describe("WebPods Authentication", () => {
       expect(pod2).to.exist;
 
       // Check .meta/owner for both pods
-      const owner1Stream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_id = $(podId) AND stream_id = $(streamId)`,
-        { podId: pod1.id, streamId: ".meta/owner" },
+      await db.oneOrNone(
+        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId)`,
+        { pod_name: pod1.name, streamId: ".meta/owner" },
       );
       const owner1Record = await db.oneOrNone(
-        `SELECT * FROM record WHERE stream_id = $(streamId) ORDER BY index ASC LIMIT 1`,
-        { streamId: owner1Stream.id },
+        `SELECT * FROM record WHERE pod_name = $(pod_name) AND stream_name = $(streamId) ORDER BY index ASC LIMIT 1`,
+        { pod_name: pod1.name, streamId: ".meta/owner" },
       );
       expect(JSON.parse(owner1Record.content).owner).to.equal(userId);
 
-      const owner2Stream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_id = $(podId) AND stream_id = $(streamId)`,
-        { podId: pod2.id, streamId: ".meta/owner" },
+      await db.oneOrNone(
+        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId)`,
+        { pod_name: pod2.name, streamId: ".meta/owner" },
       );
       const owner2Record = await db.oneOrNone(
-        `SELECT * FROM record WHERE stream_id = $(streamId) ORDER BY index ASC LIMIT 1`,
-        { streamId: owner2Stream.id },
+        `SELECT * FROM record WHERE pod_name = $(pod_name) AND stream_name = $(streamId) ORDER BY index ASC LIMIT 1`,
+        { pod_name: pod2.name, streamId: ".meta/owner" },
       );
       expect(JSON.parse(owner2Record.content).owner).to.equal(userId);
     });

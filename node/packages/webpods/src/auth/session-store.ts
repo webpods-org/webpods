@@ -4,7 +4,7 @@
 
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
-import { getDb } from "../db.js";
+import { getDb } from "../db/index.js";
 import { createLogger } from "../logger.js";
 import { getConfig } from "../config-loader.js";
 
@@ -67,12 +67,19 @@ export function getSessionConfig(): session.SessionOptions {
 /**
  * List all active sessions for a user
  */
-export async function getUserSessions(userId: string): Promise<any[]> {
+export async function getUserSessions(userId: string): Promise<
+  {
+    id: string;
+    user: { id: string; email?: string; name?: string; provider?: string };
+    createdAt: Date | null;
+    expiresAt: Date;
+  }[]
+> {
   const db = getDb();
 
   const sessions = await db.manyOrNone<{
     sid: string;
-    sess: any;
+    sess: Record<string, unknown>;
     expire: Date;
   }>(
     `SELECT sid, sess, expire 

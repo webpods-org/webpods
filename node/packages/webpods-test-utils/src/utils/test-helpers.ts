@@ -68,21 +68,18 @@ export async function createTestPod(
   podName: string,
   ownerId: string,
 ): Promise<void> {
-  const podUuid = crypto.randomUUID();
-  const streamUuid = crypto.randomUUID();
-
   // Create pod
   await db.none(
-    `INSERT INTO pod (id, name, created_at, updated_at) 
-     VALUES ($(podUuid), $(podName), NOW(), NOW())`,
-    { podUuid, podName },
+    `INSERT INTO pod (name, created_at, updated_at) 
+     VALUES ($(podName), NOW(), NOW())`,
+    { podName },
   );
 
   // Create .meta/owner stream
   await db.none(
-    `INSERT INTO stream (id, pod_id, stream_id, user_id, access_permission, created_at, updated_at)
-     VALUES ($(streamUuid), $(podUuid), '.meta/owner', $(ownerId), 'private', NOW(), NOW())`,
-    { streamUuid, podUuid, ownerId },
+    `INSERT INTO stream (pod_name, name, user_id, access_permission, created_at, updated_at)
+     VALUES ($(podName), '.meta/owner', $(ownerId), 'private', NOW(), NOW())`,
+    { podName, ownerId },
   );
 
   // Add ownership record
@@ -90,8 +87,8 @@ export async function createTestPod(
   const hash = crypto.createHash("sha256").update(content).digest("hex");
 
   await db.none(
-    `INSERT INTO record (stream_id, index, content, content_type, name, hash, previous_hash, user_id, created_at)
-     VALUES ($(streamUuid), 0, $(content), 'application/json', 'owner', $(hash), NULL, $(ownerId), NOW())`,
-    { streamUuid, content, hash, ownerId },
+    `INSERT INTO record (pod_name, stream_name, index, content, content_type, name, hash, previous_hash, user_id, created_at)
+     VALUES ($(podName), '.meta/owner', 0, $(content), 'application/json', 'owner', $(hash), NULL, $(ownerId), NOW())`,
+    { podName, content, hash, ownerId },
   );
 }

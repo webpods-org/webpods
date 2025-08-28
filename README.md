@@ -63,8 +63,10 @@ GET {pod}.webpods.org/{stream}?i=0      # First record
 GET {pod}.webpods.org/{stream}?i=-1     # Latest record
 GET {pod}.webpods.org/{stream}?i=0:10   # Range (0-9)
 
-# List all
-GET {pod}.webpods.org/{stream}?limit=100&after=50
+# List with pagination
+GET {pod}.webpods.org/{stream}?limit=100&after=50   # After index 50
+GET {pod}.webpods.org/{stream}?after=-20            # Last 20 records
+GET {pod}.webpods.org/{stream}?unique=true&after=-10 # Last 10 unique
 ```
 
 ### Permissions
@@ -111,8 +113,14 @@ Users will be redirected to your callback URL with an authorization code. Exchan
 
 ```bash
 docker run -p 3000:3000 \
-  -e DATABASE_URL=postgresql://... \
-  -e JWT_SECRET=... \
+  -e WEBPODS_DB_HOST=postgres \
+  -e WEBPODS_DB_PORT=5432 \
+  -e WEBPODS_DB_NAME=webpodsdb \
+  -e WEBPODS_DB_USER=postgres \
+  -e WEBPODS_DB_PASSWORD=yourpassword \
+  -e JWT_SECRET=your-secret-key \
+  -e SESSION_SECRET=your-session-secret \
+  -e GITHUB_OAUTH_SECRET=your-github-secret \
   -v ./config.json:/app/config.json \
   webpods/webpods
 ```
@@ -158,8 +166,12 @@ Environment variables:
 
 - `JWT_SECRET` - Required for token signing
 - `SESSION_SECRET` - Required for session management
-- `DATABASE_URL` - PostgreSQL connection string
-- OAuth secrets referenced in config.json
+- `WEBPODS_DB_HOST` - PostgreSQL host (default: localhost)
+- `WEBPODS_DB_PORT` - PostgreSQL port (default: 5432)
+- `WEBPODS_DB_NAME` - Database name (default: webpodsdb)
+- `WEBPODS_DB_USER` - Database user (default: postgres)
+- `WEBPODS_DB_PASSWORD` - Database password (required)
+- OAuth secrets referenced in config.json (e.g., `GITHUB_OAUTH_SECRET`)
 
 ## Documentation
 

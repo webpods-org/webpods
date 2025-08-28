@@ -3,8 +3,8 @@
  */
 
 import pgPromise from "pg-promise";
-import { createLogger } from "./logger.js";
-import { getConfig } from "./config-loader.js";
+import { createLogger } from "../logger.js";
+import { getConfig } from "../config-loader.js";
 
 const logger = createLogger("webpods:db");
 
@@ -73,3 +73,6 @@ export async function checkDbConnection(): Promise<boolean> {
 
 // Export pgp for use in transactions and helpers
 export { pgp };
+
+// Export SQL helper functions
+export * as sql from "./sql.js";

@@ -5,7 +5,7 @@
 import { Router, Request, Response } from "express";
 import { getHydraAdmin } from "./hydra-client.js";
 import { isTestModeAllowed } from "./test-mode-guard.js";
-import { getDb } from "../db.js";
+import { getDb } from "../db/index.js";
 import { createLogger } from "../logger.js";
 
 const logger = createLogger("webpods:oauth:consent");
@@ -18,21 +18,22 @@ const router = Router();
  */
 function parseRequestedPods(
   _req: Request,
-  consentRequest: any,
+  consentRequest: unknown,
   scopes: string[],
 ): Set<string> {
   const pods = new Set<string>();
 
   // Check state from original OAuth request (preserved through the flow)
   // Try to get state from various possible locations
+  const consent = consentRequest as Record<string, unknown>;
   const possibleState =
-    (consentRequest as any).state ||
-    (consentRequest as any).request_url?.includes("state=")
-      ? new URL(
-          (consentRequest as any).request_url,
-          "http://example.com",
-        ).searchParams.get("state")
-      : null;
+    (consent.state as string) ||
+    (typeof consent.request_url === "string" &&
+    consent.request_url.includes("state=")
+      ? new URL(consent.request_url, "http://example.com").searchParams.get(
+          "state",
+        )
+      : null);
 
   if (possibleState) {
     try {
@@ -75,16 +76,16 @@ async function getUserOwnedPods(userId: string): Promise<string[]> {
        FROM pod p
        WHERE EXISTS (
          SELECT 1 FROM stream s
-         JOIN record r ON r.stream_id = s.id
-         WHERE s.pod_id = p.id
-         AND s.stream_id = '.meta/owner'
-         AND r.content::jsonb->>'owner' = $(userId)
+         JOIN record r ON r.pod_name = s.pod_name AND r.stream_name = s.name
+         WHERE s.pod_name = p.name
+         AND s.name = '.meta/owner'
+         AND r.content::jsonb->>'owner' = $(user_id)
          AND r.index = (
            SELECT MAX(r2.index) FROM record r2
-           WHERE r2.stream_id = s.id
+           WHERE r2.pod_name = s.pod_name AND r2.stream_name = s.name
          )
        )`,
-      { userId },
+      { user_id: userId },
     );
 
     return pods.map((p) => p.name);
@@ -390,9 +391,9 @@ router.get("/consent", async (req: Request, res: Response) => {
 </html>`;
 
     res.send(html);
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Consent handler error", {
-      error: error.message,
+      error: (error as Error).message,
       challenge: consentChallenge,
     });
 
@@ -489,9 +490,9 @@ router.post("/consent", async (req: Request, res: Response) => {
 
       res.redirect(rejectResponse.redirect_to!);
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Consent decision error", {
-      error: error.message,
+      error: (error as Error).message,
       challenge,
       action,
     });

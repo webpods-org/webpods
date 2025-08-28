@@ -5,7 +5,7 @@
 import { Router, Request, Response } from "express";
 import { z } from "zod";
 import crypto from "crypto";
-import { getDb } from "../db.js";
+import { getDb } from "../db/index.js";
 import { getHydraAdmin } from "../oauth/hydra-client.js";
 import { requireWebPodsJWT } from "../middleware/webpods-jwt.js";
 import { createLogger } from "../logger.js";
@@ -15,7 +15,7 @@ const router = Router();
 
 // OAuth client DB row type
 interface OAuthClientDbRow {
-  id: string;
+  id: string | number; // bigserial - string when returned from DB
   user_id: string;
   client_id: string;
   client_name: string;
@@ -26,7 +26,7 @@ interface OAuthClientDbRow {
   response_types: string[];
   token_endpoint_auth_method: string;
   scope: string;
-  metadata: any;
+  metadata: Record<string, unknown>;
   created_at: Date;
   updated_at: Date;
 }
@@ -151,28 +151,28 @@ router.post(
           scope,
           metadata
         ) VALUES (
-          $(userId),
-          $(clientId),
-          $(clientName),
-          $(clientSecret),
-          $(redirectUris),
-          $(requestedPods),
-          $(grantTypes),
-          $(responseTypes),
-          $(tokenEndpointAuthMethod),
+          $(user_id),
+          $(client_id),
+          $(client_name),
+          $(client_secret),
+          $(redirect_uris),
+          $(requested_pods),
+          $(grant_types),
+          $(response_types),
+          $(token_endpoint_auth_method),
           $(scope),
           $(metadata)
         ) RETURNING *`,
           {
-            userId,
-            clientId,
-            clientName: clientData.client_name,
-            clientSecret,
-            redirectUris: clientData.redirect_uris,
-            requestedPods: clientData.requested_pods,
-            grantTypes: clientData.grant_types,
-            responseTypes: clientData.response_types,
-            tokenEndpointAuthMethod: clientData.token_endpoint_auth_method,
+            user_id: userId,
+            client_id: clientId,
+            client_name: clientData.client_name,
+            client_secret: clientSecret,
+            redirect_uris: clientData.redirect_uris,
+            requested_pods: clientData.requested_pods,
+            grant_types: clientData.grant_types,
+            response_types: clientData.response_types,
+            token_endpoint_auth_method: clientData.token_endpoint_auth_method,
             scope: clientData.scope,
             metadata: JSON.stringify({}),
           },
@@ -192,20 +192,27 @@ router.post(
           scope: clientData.scope,
           created_at: clientRecord.created_at,
         });
-      } catch (error: any) {
+      } catch (error) {
         logger.error("Failed to create OAuth client in Hydra", {
-          error: error.message,
-          details: error.response?.data,
-          status: error.response?.status,
-          statusText: error.response?.statusText,
+          error: (error as Error).message,
+          details: (error as { response?: { data?: unknown } })?.response?.data,
+          status: (error as { response?: { status?: number } })?.response
+            ?.status,
+          statusText: (error as { response?: { statusText?: string } })
+            ?.response?.statusText,
           userId,
           clientId,
           clientName: clientData.client_name,
-          hydraError: error.response?.data || error.message,
+          hydraError:
+            (error as { response?: { data?: unknown } })?.response?.data ||
+            (error as Error).message,
         });
 
         // If Hydra creation fails, don't create in our DB
-        if (error.response?.status === 409) {
+        if (
+          (error as { response?: { status?: number } })?.response?.status ===
+          409
+        ) {
           res.status(409).json({
             error: {
               code: "CLIENT_EXISTS",
@@ -221,9 +228,9 @@ router.post(
           });
         }
       }
-    } catch (error: any) {
+    } catch (error) {
       logger.error("OAuth client creation error", {
-        error: error.message,
+        error: (error as Error).message,
         userId: req.user?.id,
       });
 
@@ -251,9 +258,9 @@ router.get(
 
       const clients = await db.manyOrNone<OAuthClientDbRow>(
         `SELECT * FROM oauth_client 
-       WHERE user_id = $(userId)
+       WHERE user_id = $(user_id)
        ORDER BY created_at DESC`,
-        { userId },
+        { user_id: userId },
       );
 
       // Don't return client secrets in list
@@ -274,9 +281,9 @@ router.get(
         clients: clientList,
         total: clientList.length,
       });
-    } catch (error: any) {
+    } catch (error) {
       logger.error("Failed to list OAuth clients", {
-        error: error.message,
+        error: (error as Error).message,
         userId: req.user?.id,
       });
 
@@ -305,8 +312,8 @@ router.get(
 
       const client = await db.oneOrNone<OAuthClientDbRow>(
         `SELECT * FROM oauth_client 
-       WHERE client_id = $(clientId) AND user_id = $(userId)`,
-        { clientId, userId },
+       WHERE client_id = $(client_id) AND user_id = $(user_id)`,
+        { client_id: clientId, user_id: userId },
       );
 
       if (!client) {
@@ -332,9 +339,9 @@ router.get(
         created_at: client.created_at,
         updated_at: client.updated_at,
       });
-    } catch (error: any) {
+    } catch (error) {
       logger.error("Failed to get OAuth client", {
-        error: error.message,
+        error: (error as Error).message,
         userId: req.user?.id,
         clientId: req.params.clientId,
       });
@@ -365,8 +372,8 @@ router.delete(
       // Check if client exists and belongs to user
       const client = await db.oneOrNone<OAuthClientDbRow>(
         `SELECT * FROM oauth_client 
-       WHERE client_id = $(clientId) AND user_id = $(userId)`,
-        { clientId, userId },
+       WHERE client_id = $(client_id) AND user_id = $(user_id)`,
+        { client_id: clientId, user_id: userId },
       );
 
       if (!client) {
@@ -385,11 +392,14 @@ router.delete(
       try {
         await hydraAdmin.deleteOAuth2Client({ id: clientId || "" });
         logger.info("Deleted OAuth client from Hydra", { clientId, userId });
-      } catch (error: any) {
+      } catch (error) {
         // If already deleted from Hydra, continue
-        if (error.response?.status !== 404) {
+        if (
+          (error as { response?: { status?: number } })?.response?.status !==
+          404
+        ) {
           logger.error("Failed to delete from Hydra", {
-            error: error.message,
+            error: (error as Error).message,
             clientId,
           });
           res.status(500).json({
@@ -406,16 +416,16 @@ router.delete(
       // Delete from our database
       await db.none(
         `DELETE FROM oauth_client 
-       WHERE client_id = $(clientId) AND user_id = $(userId)`,
-        { clientId, userId },
+       WHERE client_id = $(client_id) AND user_id = $(user_id)`,
+        { client_id: clientId, user_id: userId },
       );
 
       logger.info("Deleted OAuth client", { clientId, userId });
 
       res.status(204).send();
-    } catch (error: any) {
+    } catch (error) {
       logger.error("Failed to delete OAuth client", {
-        error: error.message,
+        error: (error as Error).message,
         userId: req.user?.id,
         clientId: req.params.clientId,
       });

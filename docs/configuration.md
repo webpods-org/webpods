@@ -132,6 +132,13 @@ HYDRA_PUBLIC_URL=http://localhost:4444
 
 # Limits
 MAX_PAYLOAD_SIZE=10mb
+MAX_RECORD_LIMIT=1000  # Max records per request (default: 1000)
+
+# Rate Limits (per hour)
+RATE_LIMIT_WRITES=1000        # Write operations per hour
+RATE_LIMIT_READS=10000        # Read operations per hour
+RATE_LIMIT_POD_CREATE=10      # Pod creations per hour
+RATE_LIMIT_STREAM_CREATE=100  # Stream creations per hour
 ```
 
 ## Setting Up OAuth Providers

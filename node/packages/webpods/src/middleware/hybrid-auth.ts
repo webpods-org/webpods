@@ -17,11 +17,11 @@ const logger = createLogger("webpods:auth:hybrid");
 function extractToken(req: Request, currentPod?: string): string | null {
   // For pod requests, prefer pod_token cookie
   let token = currentPod
-    ? (req as any).cookies?.pod_token
-    : (req as any).cookies?.token;
+    ? (req as { cookies?: Record<string, string> }).cookies?.pod_token
+    : (req as { cookies?: Record<string, string> }).cookies?.token;
 
   if (!token) {
-    token = (req as any).cookies?.token; // Fallback to regular token
+    token = (req as { cookies?: Record<string, string> }).cookies?.token; // Fallback to regular token
   }
 
   if (!token) {
@@ -35,7 +35,7 @@ function extractToken(req: Request, currentPod?: string): string | null {
     }
   }
 
-  return token;
+  return token || null;
 }
 
 /**
@@ -47,7 +47,7 @@ export async function authenticateHybrid(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const currentPod = req.pod_name || undefined;
+    const currentPod = req.podName || undefined;
     const token = extractToken(req, currentPod);
 
     if (!token) {
@@ -60,7 +60,7 @@ export async function authenticateHybrid(
       return;
     }
 
-    req.ip_address = getIpAddress(req);
+    req.ipAddress = getIpAddress(req);
 
     // Determine token type and verify accordingly
     logger.debug("Attempting to verify token", {
@@ -85,7 +85,7 @@ export async function authenticateHybrid(
         pods: [], // Empty means all pods
         scope: "full_access",
       } as HydraAuth;
-      req.auth_type = "webpods";
+      req.authType = "webpods";
 
       // Also set req.user for compatibility with WebPods JWT middleware
       req.user = {
@@ -117,7 +117,9 @@ export async function authenticateHybrid(
       // Check both audience and ext.pods claims
       // Handle nested ext structure from Hydra (ext.ext.pods)
       const allowedPods =
-        payload.ext?.pods || (payload.ext as any)?.ext?.pods || [];
+        payload.ext?.pods ||
+        (payload.ext as { ext?: { pods?: string[] } })?.ext?.pods ||
+        [];
       const audience = payload.aud || [];
 
       // For testing/development, accept both localhost and webpods.com audiences
@@ -161,7 +163,7 @@ export async function authenticateHybrid(
       pods: payload.ext?.pods,
       scope: payload.scope,
     } as HydraAuth;
-    req.auth_type = "hydra";
+    req.authType = "hydra";
 
     logger.debug("Hydra token authenticated", {
       userId: payload.sub,
@@ -190,7 +192,7 @@ export async function optionalAuthHybrid(
   next: NextFunction,
 ): Promise<void> {
   try {
-    req.ip_address = getIpAddress(req);
+    req.ipAddress = getIpAddress(req);
 
     const token = extractToken(req);
     if (!token) {
@@ -208,7 +210,7 @@ export async function optionalAuthHybrid(
           pods: [], // Empty means all pods
           scope: "full_access",
         } as HydraAuth;
-        req.auth_type = "webpods";
+        req.authType = "webpods";
       }
     } else {
       // Try Hydra token
@@ -221,7 +223,7 @@ export async function optionalAuthHybrid(
           pods: payload.ext?.pods,
           scope: payload.scope,
         } as HydraAuth;
-        req.auth_type = "hydra";
+        req.authType = "hydra";
       }
     }
 

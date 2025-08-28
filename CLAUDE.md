@@ -87,8 +87,9 @@ When the user asks you to commit and push:
 
 ```bash
 # Build entire project (from root)
-./build.sh              # Standard build
+./build.sh              # Standard build with formatting
 ./build.sh --migrate    # Build + run DB migrations
+./build.sh --no-format  # Skip prettier formatting (faster builds during development)
 
 # Clean build artifacts
 ./clean.sh
@@ -135,6 +136,35 @@ Key concepts:
 - **Records**: Immutable entries with hash chains
 - **Permissions**: Unified access control using `access_permission` field
 
+### API Features
+
+#### Pagination with `after` Parameter
+
+The `after` parameter supports both positive and negative values:
+
+- **Positive values**: Skip records up to that index (`after=10` starts at index 11)
+- **Negative values**: Get the last N records (`after=-20` returns last 20 records)
+- Works with both regular listing and `unique=true` mode
+- Negative values are converted relative to total record count
+- If abs(negative value) > total count, returns all records
+
+Examples:
+
+```bash
+?after=-20           # Last 20 records
+?after=-3&limit=2    # Last 3 records, but limited to 2
+?unique=true&after=-10 # Last 10 unique named records
+```
+
+#### Record Limit Configuration
+
+The server enforces a maximum number of records per request:
+
+- **Default max**: 1000 records (configurable via `MAX_RECORD_LIMIT`)
+- **Behavior**: If `limit` exceeds max, it's silently capped (no error)
+- **Configuration**: Set in `config.json` under `rateLimits.maxRecordLimit` or via `MAX_RECORD_LIMIT` env var
+- **Testing**: Test config uses a low limit (10) for easier testing
+
 ## Code Patterns
 
 ### Import Patterns
@@ -180,11 +210,29 @@ for (const record of records) {
 
 ## Testing
 
-```bash
-# Run all tests
-npm test
+### Test Output Strategy for Full Test Suites
 
-# Run specific test suite with grep (from root directory)
+**IMPORTANT**: When running the full test suite (which takes 3+ minutes), always save output to a file for efficient analysis:
+
+```bash
+# Create .tests directory if it doesn't exist (gitignored)
+mkdir -p .tests
+
+# Run full test suite and save output
+npm test > .tests/run-$(date +%s).txt 2>&1
+
+# Then analyze the saved output multiple times without re-running tests:
+grep "failing" .tests/run-*.txt
+tail -50 .tests/run-*.txt
+grep -A10 "specific test name" .tests/run-*.txt
+```
+
+This strategy prevents the need to re-run lengthy test suites when you need different information from the output. The `.tests/` directory is gitignored to keep test outputs from cluttering the repository.
+
+**Note**: This approach is NOT needed for selective test runs, which complete quickly:
+
+```bash
+# For specific tests, run directly without saving (they're fast)
 npm run test:grep -- "pattern to match"
 
 # Examples:
@@ -199,6 +247,16 @@ npm run test:grep -- "permission"
 - NEVER use `2>&1` redirection with mocha commands - it will cause errors
 - Use plain `npm test` or `npx mocha` without stderr redirection
 - If you need to capture output, use `| tee` or similar tools instead
+
+### Optimizing Build Speed During Debugging
+
+**TIP**: Use `./build.sh --no-format` during debugging sessions to skip prettier formatting. This:
+
+- Reduces build time significantly
+- Minimizes output that gets sent to the AI model (reducing token count)
+- Makes the debugging cycle faster
+
+Only use the standard `./build.sh` (with formatting) for final builds before committing.
 
 ## Git Workflow
 

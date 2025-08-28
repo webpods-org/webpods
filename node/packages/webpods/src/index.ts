@@ -4,7 +4,7 @@
 
 import { config } from "dotenv";
 import { createLogger } from "./logger.js";
-import { closeDb, checkDbConnection } from "./db.js";
+import { closeDb, checkDbConnection } from "./db/index.js";
 import { cleanupExpiredStates } from "./auth/pkce-store.js";
 import { createApp } from "./server.js";
 import { getConfig } from "./config-loader.js";
@@ -86,8 +86,8 @@ export async function start() {
         process.exit(0);
       });
     });
-  } catch (error: any) {
-    console.error(`\nError: ${error.message}`);
+  } catch (error: unknown) {
+    console.error(`\nError: ${(error as Error).message}`);
     process.exit(1);
   }
 }

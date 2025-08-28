@@ -66,9 +66,9 @@ export function generateWebPodsToken(userId: string): Result<string> {
       success: true,
       data: token,
     };
-  } catch (error: any) {
+  } catch (error) {
     logger.error("Failed to generate JWT", {
-      error: error.message,
+      error: (error as Error).message,
       userId,
     });
 
@@ -126,13 +126,13 @@ export function verifyWebPodsToken(token: string): Result<WebPodsTokenPayload> {
       success: true,
       data: decoded,
     };
-  } catch (error: any) {
+  } catch (error) {
     logger.error("Token verification failed", {
-      error: error.message,
-      name: error.name,
+      error: (error as Error).message,
+      name: (error as Error).name,
     });
 
-    if (error.name === "TokenExpiredError") {
+    if ((error as Error).name === "TokenExpiredError") {
       return {
         success: false,
         error: {
@@ -140,7 +140,7 @@ export function verifyWebPodsToken(token: string): Result<WebPodsTokenPayload> {
           message: "Token has expired",
         },
       };
-    } else if (error.name === "JsonWebTokenError") {
+    } else if ((error as Error).name === "JsonWebTokenError") {
       return {
         success: false,
         error: {
@@ -153,7 +153,7 @@ export function verifyWebPodsToken(token: string): Result<WebPodsTokenPayload> {
         success: false,
         error: {
           code: "TOKEN_ERROR",
-          message: error.message || "Token verification failed",
+          message: (error as Error).message || "Token verification failed",
         },
       };
     }
@@ -166,7 +166,9 @@ export function verifyWebPodsToken(token: string): Result<WebPodsTokenPayload> {
 export function isWebPodsToken(token: string): boolean {
   try {
     // Decode without verification to check type
-    const decoded = jwt.decode(token, { complete: true }) as any;
+    const decoded = jwt.decode(token, { complete: true }) as {
+      payload?: { type?: string };
+    } | null;
     if (!decoded) {
       return false;
     }

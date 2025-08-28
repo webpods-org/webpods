@@ -6,7 +6,7 @@
 export interface DomainError {
   code: string;
   message: string;
-  details?: any;
+  details?: unknown;
 }
 
 export type Result<T, E = DomainError> =
@@ -35,71 +35,70 @@ export interface Identity {
   providerId: string; // ID from the provider
   email: string | null;
   name: string | null;
-  metadata?: any;
+  metadata?: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
 }
 
 export interface Pod {
-  id: string;
-  name: string; // Subdomain (e.g., 'alice')
-  user_id: string;
-  metadata?: any;
-  created_at: Date;
-  updated_at: Date;
+  name: string; // Primary key - Subdomain (e.g., 'alice')
+  userId: string; // Owner ID from .meta/owner stream
+  metadata?: Record<string, unknown>;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface Stream {
-  id: string;
-  pod_id: string;
-  stream_id: string; // Stream path within pod (can include slashes)
-  user_id: string;
-  access_permission: string; // 'public', 'private', or '/streamname'
-  metadata?: any;
-  created_at: Date;
-  updated_at: Date;
+  podName: string; // Part of composite primary key
+  name: string; // Part of composite primary key - Stream path within pod (can include slashes)
+  userId: string;
+  accessPermission: string; // 'public', 'private', or '/streamname'
+  metadata?: Record<string, unknown>;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface StreamRecord {
   id: number;
-  stream_id: string;
+  podName: string; // References stream.podName
+  streamName: string; // References stream.name
   index: number; // Position in stream (0-based)
-  content: string | any; // Can be text or JSON
-  content_type: string;
+  content: string | unknown; // Can be text or JSON
+  contentType: string;
   name: string; // Required name (like a filename)
   hash: string;
-  previous_hash: string | null;
-  user_id: string; // User ID who created the record
-  metadata?: any;
-  created_at: Date;
+  previousHash: string | null;
+  userId: string; // User ID who created the record
+  metadata?: Record<string, unknown>;
+  createdAt: Date;
 }
 
 export interface CustomDomain {
-  id: string;
-  pod_id: string;
+  id: number; // bigserial
+  podName: string;
   domain: string;
-  ssl_provisioned: boolean;
-  created_at: Date;
-  updated_at: Date;
+  sslProvisioned: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface RateLimit {
-  id: string;
-  key: string; // user_id or ip_address
+  id: number; // bigserial
+  key: string; // userId or ipAddress
   action: "read" | "write" | "pod_create" | "stream_create";
   count: number;
-  window_start: Date;
-  window_end: Date;
+  windowStart: Date;
+  windowEnd: Date;
 }
 
 // API types
 export interface StreamRecordResponse {
   index: number; // Position in stream (0-based)
-  content: any;
-  content_type: string;
+  content: unknown;
+  contentType: string;
   name: string;
   hash: string;
-  previous_hash: string | null;
+  previousHash: string | null;
   author: string;
   timestamp: string;
 }
@@ -107,8 +106,8 @@ export interface StreamRecordResponse {
 export interface StreamListResponse {
   records: StreamRecordResponse[];
   total: number;
-  has_more: boolean;
-  next_index: number | null; // Next index to fetch
+  hasMore: boolean;
+  nextIndex: number | null; // Next index to fetch
 }
 
 export interface PodListResponse {
@@ -126,7 +125,7 @@ export interface AuthResponse {
 }
 
 export interface WhoAmIResponse {
-  user_id: string;
+  userId: string;
   email: string | null;
   name: string | null;
   provider: string;
@@ -189,13 +188,13 @@ export interface HydraAuth {
 export type AuthPayload = JWTPayload | HydraAuth;
 
 // Express extensions
-import { Request } from "express";
+import type { Request } from "express";
 export interface AuthRequest extends Request {
   auth?: AuthPayload;
-  auth_type?: "webpods" | "hydra";
+  authType?: "webpods" | "hydra";
   pod?: Pod;
-  pod_name?: string;
-  ip_address?: string;
+  podName?: string;
+  ipAddress?: string;
 }
 
 // Input types
@@ -204,13 +203,13 @@ export interface CreatePodInput {
 }
 
 export interface CreateStreamInput {
-  stream_id: string;
-  access_permission?: string;
+  name: string;
+  accessPermission?: string;
 }
 
 export interface WriteRecordInput {
-  content: any;
-  content_type?: string;
+  content: unknown;
+  contentType?: string;
   name: string;
 }
 
@@ -224,6 +223,64 @@ export interface ErrorResponse {
   error: {
     code: string;
     message: string;
-    details?: any;
+    details?: unknown;
   };
 }
+
+// OAuth types
+export interface OAuthUserInfo {
+  id: string;
+  email?: string | null;
+  name?: string | null;
+  username?: string;
+  picture?: string;
+  raw?: Record<string, unknown>;
+}
+
+// Session types
+export interface SessionData {
+  user?: {
+    id: string;
+    email?: string | null;
+    name?: string | null;
+    provider?: string;
+  };
+  identity?: {
+    id: string;
+    userId: string;
+    provider: string;
+    providerId: string;
+    email: string | null;
+    name: string | null;
+  };
+  id?: string;
+  cookie?: {
+    maxAge?: number;
+    originalMaxAge?: number;
+    expires?: Date;
+  };
+  save?: (callback: (err?: Error) => void) => void;
+  destroy?: (callback: (err?: Error) => void) => void;
+  [key: string]: unknown;
+}
+
+// Enhanced Request type with session
+export type RequestWithSession = Request & {
+  session?: SessionData;
+  cookies?: Record<string, string>;
+};
+
+// Note: Express Request already has session property for express-session,
+// we just define the SessionData structure separately
+
+// Helper to make all properties optional and allow string values for env vars
+type DeepPartialWithEnvVars<T> = {
+  [P in keyof T]?: T[P] extends object
+    ? DeepPartialWithEnvVars<T[P]>
+    : T[P] | string;
+};
+
+// Raw configuration type for JSON parsing (before env var resolution and defaults)
+export type RawConfig = DeepPartialWithEnvVars<
+  import("./config-loader.js").AppConfig
+>;
