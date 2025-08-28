@@ -19,51 +19,53 @@ export interface RequestOptions {
  */
 export async function apiRequest<T>(
   endpoint: string,
-  options: RequestOptions = {}
+  options: RequestOptions = {},
 ): Promise<Result<T>> {
   try {
     const config = await loadConfig();
     const server = options.server || config.server;
     const token = options.token || config.token;
-    
-    const url = endpoint.startsWith("http") 
-      ? endpoint 
+
+    const url = endpoint.startsWith("http")
+      ? endpoint
       : `${server}${endpoint.startsWith("/") ? "" : "/"}${endpoint}`;
-    
+
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
       ...options.headers,
     };
-    
+
     if (token) {
       headers.Authorization = `Bearer ${token}`;
     }
-    
-    const body = options.body 
-      ? (typeof options.body === "string" ? options.body : JSON.stringify(options.body))
+
+    const body = options.body
+      ? typeof options.body === "string"
+        ? options.body
+        : JSON.stringify(options.body)
       : undefined;
-    
+
     const response = await fetch(url, {
       method: options.method || "GET",
       headers,
       body,
     });
-    
+
     const contentType = response.headers.get("content-type") || "";
-    
+
     if (response.ok) {
       if (contentType.includes("application/json")) {
-        const data = await response.json() as T;
+        const data = (await response.json()) as T;
         return success(data);
       } else {
-        const data = await response.text() as unknown as T;
+        const data = (await response.text()) as unknown as T;
         return success(data);
       }
     } else {
       let errorData: ErrorResponse;
-      
+
       if (contentType.includes("application/json")) {
-        errorData = await response.json() as ErrorResponse;
+        errorData = (await response.json()) as ErrorResponse;
       } else {
         const text = await response.text();
         errorData = {
@@ -73,7 +75,7 @@ export async function apiRequest<T>(
           },
         };
       }
-      
+
       return failure(errorData.error);
     }
   } catch (error: any) {
@@ -90,17 +92,17 @@ export async function apiRequest<T>(
 export async function podRequest<T>(
   podName: string,
   path: string,
-  options: RequestOptions = {}
+  options: RequestOptions = {},
 ): Promise<Result<T>> {
   const config = await loadConfig();
   const server = options.server || config.server;
-  
+
   // Extract the base domain from the server URL
   const serverUrl = new URL(server);
   const podUrl = `${serverUrl.protocol}//${podName}.${serverUrl.host}`;
-  
+
   const endpoint = `${podUrl}${path.startsWith("/") ? "" : "/"}${path}`;
-  
+
   return apiRequest<T>(endpoint, options);
 }
 
@@ -113,7 +115,7 @@ export async function uploadFile(
   recordName: string,
   content: string | Buffer,
   contentType: string,
-  options: RequestOptions = {}
+  options: RequestOptions = {},
 ): Promise<Result<any>> {
   return podRequest(podName, `${streamPath}/${recordName}`, {
     ...options,
@@ -133,7 +135,7 @@ export async function downloadContent(
   podName: string,
   streamPath: string,
   recordName: string,
-  options: RequestOptions = {}
+  options: RequestOptions = {},
 ): Promise<Result<string>> {
   return podRequest<string>(podName, `${streamPath}/${recordName}`, options);
 }

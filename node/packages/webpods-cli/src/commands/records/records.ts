@@ -4,7 +4,11 @@
 
 import { promises as fs } from "fs";
 import { podRequest } from "../../http/index.js";
-import { StreamRecord, StreamListResponse, GlobalOptions } from "../../types.js";
+import {
+  StreamRecord,
+  StreamListResponse,
+  GlobalOptions,
+} from "../../types.js";
 import { createLogger, createCliOutput } from "../../logger.js";
 
 const logger = createLogger("webpods:cli:records");
@@ -39,13 +43,17 @@ interface ListOptions extends GlobalOptions {
  */
 export async function write(options: WriteOptions): Promise<void> {
   const output = createCliOutput(options.quiet);
-  
+
   try {
-    logger.debug("Writing record", { pod: options.pod, stream: options.stream, name: options.name });
-    
+    logger.debug("Writing record", {
+      pod: options.pod,
+      stream: options.stream,
+      name: options.name,
+    });
+
     let content: string;
     let contentType = "text/plain";
-    
+
     // Get content from various sources
     if (options.file) {
       try {
@@ -62,8 +70,13 @@ export async function write(options: WriteOptions): Promise<void> {
           contentType = "application/javascript";
         }
       } catch (error) {
-        output.error(`Error reading file '${options.file}': ${(error as Error).message}`);
-        logger.error("File read failed", { file: options.file, error: (error as Error).message });
+        output.error(
+          `Error reading file '${options.file}': ${(error as Error).message}`,
+        );
+        logger.error("File read failed", {
+          file: options.file,
+          error: (error as Error).message,
+        });
         process.exit(1);
       }
     } else if (options.data === "-") {
@@ -89,15 +102,18 @@ export async function write(options: WriteOptions): Promise<void> {
       logger.error("No data provided for write operation");
       process.exit(1);
     }
-    
-    logger.debug("Content prepared", { contentType, contentLength: content.length });
-    
+
+    logger.debug("Content prepared", {
+      contentType,
+      contentLength: content.length,
+    });
+
     // Construct URL with permission query param if provided
     let path = `/${options.stream}/${options.name}`;
     if (options.permission) {
       path += `?access=${encodeURIComponent(options.permission)}`;
     }
-    
+
     const result = await podRequest<StreamRecord>(options.pod, path, {
       method: "POST",
       headers: {
@@ -107,24 +123,41 @@ export async function write(options: WriteOptions): Promise<void> {
       token: options.token,
       server: options.server,
     });
-    
+
     if (!result.success) {
       output.error("Error: " + result.error.message);
-      logger.error("Record write failed", { pod: options.pod, stream: options.stream, name: options.name, error: result.error });
+      logger.error("Record write failed", {
+        pod: options.pod,
+        stream: options.stream,
+        name: options.name,
+        error: result.error,
+      });
       process.exit(1);
     }
-    
-    output.success(`Written to ${options.pod}/${options.stream}/${options.name}`);
+
+    output.success(
+      `Written to ${options.pod}/${options.stream}/${options.name}`,
+    );
     output.print(`Index: ${result.data.index}`);
     output.print(`Hash: ${result.data.hash}`);
-    
+
     if (options.permission) {
       output.print(`Permission: ${options.permission}`);
     }
-    
-    logger.info("Record written successfully", { pod: options.pod, stream: options.stream, name: options.name, index: result.data.index });
+
+    logger.info("Record written successfully", {
+      pod: options.pod,
+      stream: options.stream,
+      name: options.name,
+      index: result.data.index,
+    });
   } catch (error: any) {
-    logger.error("Write command failed", { pod: options.pod, stream: options.stream, name: options.name, error: error.message });
+    logger.error("Write command failed", {
+      pod: options.pod,
+      stream: options.stream,
+      name: options.name,
+      error: error.message,
+    });
     output.error("Error: " + error.message);
     process.exit(1);
   }
@@ -135,12 +168,17 @@ export async function write(options: WriteOptions): Promise<void> {
  */
 export async function read(options: ReadOptions): Promise<void> {
   const output = createCliOutput(options.quiet);
-  
+
   try {
-    logger.debug("Reading record", { pod: options.pod, stream: options.stream, name: options.name, index: options.index });
-    
+    logger.debug("Reading record", {
+      pod: options.pod,
+      stream: options.stream,
+      name: options.name,
+      index: options.index,
+    });
+
     let path: string;
-    
+
     if (options.index) {
       // Handle index parameter (could be single index, negative, or range)
       if (options.index.includes(":")) {
@@ -160,30 +198,42 @@ export async function read(options: ReadOptions): Promise<void> {
       logger.error("No index or name specified for read operation");
       process.exit(1);
     }
-    
+
     const result = await podRequest<string | StreamRecord | StreamRecord[]>(
       options.pod,
       path,
       {
         token: options.token,
         server: options.server,
-      }
+      },
     );
-    
+
     if (!result.success) {
       if (result.error.code === "RECORD_NOT_FOUND") {
         output.error("Record not found.");
-        logger.warn("Record not found", { pod: options.pod, stream: options.stream, path });
+        logger.warn("Record not found", {
+          pod: options.pod,
+          stream: options.stream,
+          path,
+        });
       } else {
         output.error("Error: " + result.error.message);
-        logger.error("Record read failed", { pod: options.pod, stream: options.stream, path, error: result.error });
+        logger.error("Record read failed", {
+          pod: options.pod,
+          stream: options.stream,
+          path,
+          error: result.error,
+        });
       }
       process.exit(1);
     }
-    
+
     const content = result.data;
-    logger.debug("Record retrieved", { contentType: typeof content, isArray: Array.isArray(content) });
-    
+    logger.debug("Record retrieved", {
+      contentType: typeof content,
+      isArray: Array.isArray(content),
+    });
+
     if (options.output) {
       // Save to file
       logger.debug("Saving to file", { output: options.output });
@@ -193,16 +243,22 @@ export async function read(options: ReadOptions): Promise<void> {
       } else if (Array.isArray(content)) {
         outputContent = JSON.stringify(content, null, 2);
       } else {
-        outputContent = typeof content === "object" ? JSON.stringify(content, null, 2) : String(content);
+        outputContent =
+          typeof content === "object"
+            ? JSON.stringify(content, null, 2)
+            : String(content);
       }
-      
+
       try {
         await fs.writeFile(options.output, outputContent);
         output.success(`Saved to ${options.output}`);
         logger.info("Record saved to file", { output: options.output });
       } catch (error) {
         output.error(`Error saving file: ${(error as Error).message}`);
-        logger.error("File save failed", { output: options.output, error: (error as Error).message });
+        logger.error("File save failed", {
+          output: options.output,
+          error: (error as Error).message,
+        });
         process.exit(1);
       }
     } else {
@@ -212,10 +268,17 @@ export async function read(options: ReadOptions): Promise<void> {
       } else {
         output.print(JSON.stringify(content, null, 2));
       }
-      logger.info("Record displayed", { pod: options.pod, stream: options.stream });
+      logger.info("Record displayed", {
+        pod: options.pod,
+        stream: options.stream,
+      });
     }
   } catch (error: any) {
-    logger.error("Read command failed", { pod: options.pod, stream: options.stream, error: error.message });
+    logger.error("Read command failed", {
+      pod: options.pod,
+      stream: options.stream,
+      error: error.message,
+    });
     output.error("Error: " + error.message);
     process.exit(1);
   }
@@ -226,51 +289,65 @@ export async function read(options: ReadOptions): Promise<void> {
  */
 export async function list(options: ListOptions): Promise<void> {
   const output = createCliOutput(options.quiet);
-  
+
   try {
-    logger.debug("Listing records", { pod: options.pod, stream: options.stream, limit: options.limit, after: options.after, unique: options.unique });
-    
+    logger.debug("Listing records", {
+      pod: options.pod,
+      stream: options.stream,
+      limit: options.limit,
+      after: options.after,
+      unique: options.unique,
+    });
+
     let path = `/${options.stream}`;
     const params = new URLSearchParams();
-    
+
     if (options.limit) {
       params.set("limit", String(options.limit));
     }
-    
+
     if (options.after !== undefined) {
       params.set("after", String(options.after));
     }
-    
+
     if (options.unique) {
       params.set("unique", "true");
     }
-    
+
     if (params.toString()) {
       path += `?${params.toString()}`;
     }
-    
+
     logger.debug("Constructed request path", { path });
-    
+
     const result = await podRequest<StreamListResponse>(options.pod, path, {
       token: options.token,
       server: options.server,
     });
-    
+
     if (!result.success) {
       output.error("Error: " + result.error.message);
-      logger.error("Record list failed", { pod: options.pod, stream: options.stream, error: result.error });
+      logger.error("Record list failed", {
+        pod: options.pod,
+        stream: options.stream,
+        error: result.error,
+      });
       process.exit(1);
     }
-    
+
     const response = result.data;
     const format = options.format || "table";
-    logger.debug("Retrieved records", { count: response.records.length, total: response.total, format });
-    
+    logger.debug("Retrieved records", {
+      count: response.records.length,
+      total: response.total,
+      format,
+    });
+
     if (response.records.length === 0) {
       output.print("No records found in this stream.");
       return;
     }
-    
+
     switch (format) {
       case "json":
         output.print(JSON.stringify(response, null, 2));
@@ -288,30 +365,49 @@ export async function list(options: ListOptions): Promise<void> {
         break;
       case "csv":
         output.print("index,name,content_type,hash,timestamp,author");
-        response.records.forEach(record => {
-          output.print(`${record.index},"${record.name}","${record.content_type}","${record.hash}","${record.timestamp}","${record.author}"`);
+        response.records.forEach((record) => {
+          output.print(
+            `${record.index},"${record.name}","${record.content_type}","${record.hash}","${record.timestamp}","${record.author}"`,
+          );
         });
         break;
       default: // table
         output.print(`Records in ${options.pod}/${options.stream}:`);
         output.print("─".repeat(60));
-        response.records.forEach(record => {
-          const contentPreview = typeof record.content === "string" 
-            ? record.content.slice(0, 30) + (record.content.length > 30 ? "..." : "")
-            : JSON.stringify(record.content).slice(0, 30) + "...";
-          
-          output.print(`[${record.index.toString().padStart(3)}] ${record.name.padEnd(20)} ${record.content_type.padEnd(15)} ${contentPreview}`);
+        response.records.forEach((record) => {
+          const contentPreview =
+            typeof record.content === "string"
+              ? record.content.slice(0, 30) +
+                (record.content.length > 30 ? "..." : "")
+              : JSON.stringify(record.content).slice(0, 30) + "...";
+
+          output.print(
+            `[${record.index.toString().padStart(3)}] ${record.name.padEnd(20)} ${record.content_type.padEnd(15)} ${contentPreview}`,
+          );
         });
         output.print("─".repeat(60));
-        output.print(`Total: ${response.total} record${response.total === 1 ? "" : "s"}`);
+        output.print(
+          `Total: ${response.total} record${response.total === 1 ? "" : "s"}`,
+        );
         if (response.has_more) {
-          output.print(`More records available. Use --after ${response.records[response.records.length - 1].index} to continue.`);
+          output.print(
+            `More records available. Use --after ${response.records[response.records.length - 1].index} to continue.`,
+          );
         }
     }
-    
-    logger.info("Records listed successfully", { pod: options.pod, stream: options.stream, count: response.records.length, format });
+
+    logger.info("Records listed successfully", {
+      pod: options.pod,
+      stream: options.stream,
+      count: response.records.length,
+      format,
+    });
   } catch (error: any) {
-    logger.error("List command failed", { pod: options.pod, stream: options.stream, error: error.message });
+    logger.error("List command failed", {
+      pod: options.pod,
+      stream: options.stream,
+      error: error.message,
+    });
     output.error("Error: " + error.message);
     process.exit(1);
   }

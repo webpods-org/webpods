@@ -26,39 +26,50 @@ interface InfoPodOptions extends GlobalOptions {
  */
 export async function createPod(options: CreatePodOptions): Promise<void> {
   const output = createCliOutput(options.quiet);
-  
+
   try {
     logger.debug("Creating pod", { name: options.name });
-    
+
     // Validate pod name
     if (!/^[a-z0-9-]+$/.test(options.name)) {
-      output.error("Invalid pod name. Use only lowercase letters, numbers, and hyphens.");
+      output.error(
+        "Invalid pod name. Use only lowercase letters, numbers, and hyphens.",
+      );
       logger.warn("Invalid pod name format", { name: options.name });
       process.exit(1);
     }
-    
+
     if (options.name.length < 2 || options.name.length > 63) {
       output.error("Pod name must be between 2 and 63 characters.");
-      logger.warn("Invalid pod name length", { name: options.name, length: options.name.length });
+      logger.warn("Invalid pod name length", {
+        name: options.name,
+        length: options.name.length,
+      });
       process.exit(1);
     }
-    
+
     const result = await apiRequest<Pod>("/api/pods", {
       method: "POST",
       body: { name: options.name },
       token: options.token,
       server: options.server,
     });
-    
+
     if (!result.success) {
       output.error("Error: " + result.error.message);
-      logger.error("Pod creation failed", { name: options.name, error: result.error });
+      logger.error("Pod creation failed", {
+        name: options.name,
+        error: result.error,
+      });
       process.exit(1);
     }
-    
+
     output.success(`Pod '${options.name}' created successfully!`);
     output.print(`Access it at: https://${options.name}.webpods.org`);
-    logger.info("Pod created successfully", { name: options.name, podId: result.data.id });
+    logger.info("Pod created successfully", {
+      name: options.name,
+      podId: result.data.id,
+    });
   } catch (error: any) {
     logger.error("Pod creation command failed", { error: error.message });
     output.error("Error: " + error.message);
@@ -71,32 +82,32 @@ export async function createPod(options: CreatePodOptions): Promise<void> {
  */
 export async function listPods(options: GlobalOptions): Promise<void> {
   const output = createCliOutput(options.quiet);
-  
+
   try {
     logger.debug("Listing pods");
-    
+
     const result = await apiRequest<Pod[]>("/api/pods", {
       token: options.token,
       server: options.server,
     });
-    
+
     if (!result.success) {
       output.error("Error: " + result.error.message);
       logger.error("Pod listing failed", { error: result.error });
       process.exit(1);
     }
-    
+
     const pods = result.data;
     logger.debug("Retrieved pods", { count: pods.length });
-    
+
     if (pods.length === 0) {
       output.print("No pods found. Create one with 'pod create <name>'");
       return;
     }
-    
+
     const format = options.format || "table";
     logger.debug("Displaying pods", { format });
-    
+
     switch (format) {
       case "json":
         output.print(JSON.stringify(pods, null, 2));
@@ -111,19 +122,23 @@ export async function listPods(options: GlobalOptions): Promise<void> {
         break;
       case "csv":
         output.print("name,id,created_at");
-        pods.forEach(pod => {
+        pods.forEach((pod) => {
           output.print(`${pod.name},${pod.id},${pod.created_at}`);
         });
         break;
       default: // table
         output.print("Pods:");
         output.print("─────");
-        pods.forEach(pod => {
-          output.print(`${pod.name.padEnd(20)} https://${pod.name}.webpods.org`);
+        pods.forEach((pod) => {
+          output.print(
+            `${pod.name.padEnd(20)} https://${pod.name}.webpods.org`,
+          );
         });
-        output.print(`\nTotal: ${pods.length} pod${pods.length === 1 ? "" : "s"}`);
+        output.print(
+          `\nTotal: ${pods.length} pod${pods.length === 1 ? "" : "s"}`,
+        );
     }
-    
+
     logger.info("Pods listed successfully", { count: pods.length, format });
   } catch (error: any) {
     logger.error("List pods command failed", { error: error.message });
@@ -137,40 +152,50 @@ export async function listPods(options: GlobalOptions): Promise<void> {
  */
 export async function deletePod(options: DeletePodOptions): Promise<void> {
   const output = createCliOutput(options.quiet);
-  
+
   try {
     logger.debug("Deleting pod", { pod: options.pod, force: options.force });
-    
+
     if (!options.force) {
       // In a real CLI, we'd use a proper prompt library
-      output.print(`WARNING: This will permanently delete pod '${options.pod}' and ALL its data.`);
+      output.print(
+        `WARNING: This will permanently delete pod '${options.pod}' and ALL its data.`,
+      );
       output.print("This action cannot be undone!");
       output.print("Use --force to skip this confirmation.");
-      logger.info("Pod deletion cancelled - confirmation required", { pod: options.pod });
+      logger.info("Pod deletion cancelled - confirmation required", {
+        pod: options.pod,
+      });
       process.exit(0);
     }
-    
+
     const result = await apiRequest<void>(`/api/pods/${options.pod}`, {
       method: "DELETE",
       token: options.token,
       server: options.server,
     });
-    
+
     if (!result.success) {
       if (result.error.code === "NOT_FOUND") {
         output.error(`Pod '${options.pod}' not found.`);
         logger.warn("Pod not found for deletion", { pod: options.pod });
       } else {
         output.error("Error: " + result.error.message);
-        logger.error("Pod deletion failed", { pod: options.pod, error: result.error });
+        logger.error("Pod deletion failed", {
+          pod: options.pod,
+          error: result.error,
+        });
       }
       process.exit(1);
     }
-    
+
     output.success(`Pod '${options.pod}' deleted successfully.`);
     logger.info("Pod deleted successfully", { pod: options.pod });
   } catch (error: any) {
-    logger.error("Delete pod command failed", { pod: options.pod, error: error.message });
+    logger.error("Delete pod command failed", {
+      pod: options.pod,
+      error: error.message,
+    });
     output.error("Error: " + error.message);
     process.exit(1);
   }
@@ -181,30 +206,33 @@ export async function deletePod(options: DeletePodOptions): Promise<void> {
  */
 export async function infoPod(options: InfoPodOptions): Promise<void> {
   const output = createCliOutput(options.quiet);
-  
+
   try {
     logger.debug("Getting pod info", { pod: options.pod });
-    
+
     const result = await apiRequest<any>(`/api/pods/${options.pod}/info`, {
       token: options.token,
       server: options.server,
     });
-    
+
     if (!result.success) {
       if (result.error.code === "NOT_FOUND") {
         output.error(`Pod '${options.pod}' not found.`);
         logger.warn("Pod not found for info", { pod: options.pod });
       } else {
         output.error("Error: " + result.error.message);
-        logger.error("Pod info failed", { pod: options.pod, error: result.error });
+        logger.error("Pod info failed", {
+          pod: options.pod,
+          error: result.error,
+        });
       }
       process.exit(1);
     }
-    
+
     const info = result.data;
     const format = options.format || "table";
     logger.debug("Displaying pod info", { pod: options.pod, format });
-    
+
     switch (format) {
       case "json":
         output.print(JSON.stringify(info, null, 2));
@@ -230,10 +258,13 @@ export async function infoPod(options: InfoPodOptions): Promise<void> {
         output.print(`Records:     ${info.record_count || 0}`);
         output.print(`Size:        ${info.total_size || "Unknown"}`);
     }
-    
+
     logger.info("Pod info displayed", { pod: options.pod, format });
   } catch (error: any) {
-    logger.error("Info pod command failed", { pod: options.pod, error: error.message });
+    logger.error("Info pod command failed", {
+      pod: options.pod,
+      error: error.message,
+    });
     output.error("Error: " + error.message);
     process.exit(1);
   }

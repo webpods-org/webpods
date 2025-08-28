@@ -49,7 +49,7 @@ export async function loadConfig(): Promise<WebPodsConfig> {
     const configPath = getConfigPath();
     const configData = await fs.readFile(configPath, "utf-8");
     const config = JSON.parse(configData) as Partial<WebPodsConfig>;
-    
+
     return {
       ...DEFAULT_CONFIG,
       ...config,
@@ -65,14 +65,14 @@ export async function loadConfig(): Promise<WebPodsConfig> {
 export async function saveConfig(config: WebPodsConfig): Promise<void> {
   const configDir = getConfigDir();
   const configPath = getConfigPath();
-  
+
   // Ensure config directory exists
   try {
     await fs.mkdir(configDir, { recursive: true });
   } catch {
     // Directory might already exist
   }
-  
+
   await fs.writeFile(configPath, JSON.stringify(config, null, 2));
 }
 
@@ -81,7 +81,7 @@ export async function saveConfig(config: WebPodsConfig): Promise<void> {
  */
 export async function updateConfig(
   key: keyof WebPodsConfig,
-  value: any
+  value: any,
 ): Promise<void> {
   const config = await loadConfig();
   (config as any)[key] = value;
@@ -93,7 +93,7 @@ export async function updateConfig(
  */
 export async function getConfigValue<K extends keyof WebPodsConfig>(
   key: K,
-  fallback?: WebPodsConfig[K]
+  fallback?: WebPodsConfig[K],
 ): Promise<WebPodsConfig[K]> {
   const config = await loadConfig();
   return config[key] ?? fallback ?? DEFAULT_CONFIG[key];

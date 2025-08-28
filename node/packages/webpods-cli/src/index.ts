@@ -6,20 +6,32 @@ import type { ArgumentsCamelCase, Argv } from "yargs";
 import process from "node:process";
 
 // Command imports
-import { login, logout, whoami, token, tokenSet } from "./commands/auth/index.js";
-import { createPod, listPods, deletePod, infoPod } from "./commands/pods/index.js";
+import {
+  login,
+  logout,
+  whoami,
+  token,
+  tokenSet,
+} from "./commands/auth/index.js";
+import {
+  createPod,
+  listPods,
+  deletePod,
+  infoPod,
+} from "./commands/pods/index.js";
 import { write, read, list } from "./commands/records/index.js";
 import { streams, deleteStream } from "./commands/streams/index.js";
 import { permissions } from "./commands/permissions/index.js";
-import { oauthRegister, oauthList, oauthDelete, oauthInfo } from "./commands/oauth/index.js";
+import {
+  oauthRegister,
+  oauthList,
+  oauthDelete,
+  oauthInfo,
+} from "./commands/oauth/index.js";
 import { config, configSet, configServer } from "./commands/utils/index.js";
 
 // Types and utilities
-import { 
-  LoginArgs,
-  ConfigArgs,
-  GlobalOptions
-} from "./types.js";
+import { LoginArgs, ConfigArgs, GlobalOptions } from "./types.js";
 
 export * as config from "./config/index.js";
 export * as http from "./http/index.js";
@@ -52,7 +64,7 @@ export async function main() {
           }),
       async (argv: ArgumentsCamelCase<LoginArgs>) => {
         await login(argv);
-      }
+      },
     )
     .command(
       "logout",
@@ -60,7 +72,7 @@ export async function main() {
       {},
       async (argv: ArgumentsCamelCase<GlobalOptions>) => {
         await logout(argv);
-      }
+      },
     )
     .command(
       "whoami",
@@ -82,7 +94,7 @@ export async function main() {
           }),
       async (argv: any) => {
         await whoami(argv);
-      }
+      },
     )
     .command(
       "token",
@@ -90,7 +102,7 @@ export async function main() {
       {},
       async (argv: ArgumentsCamelCase<GlobalOptions>) => {
         await token(argv);
-      }
+      },
     )
     .command(
       "token set <token>",
@@ -103,7 +115,7 @@ export async function main() {
         }),
       async (argv: any) => {
         await tokenSet(argv);
-      }
+      },
     )
 
     // Pod Management
@@ -127,7 +139,7 @@ export async function main() {
           }),
       async (argv: any) => {
         await createPod(argv);
-      }
+      },
     )
     .command(
       "list",
@@ -149,7 +161,7 @@ export async function main() {
           }),
       async (argv: any) => {
         await listPods(argv);
-      }
+      },
     )
     .command(
       "delete <pod>",
@@ -175,7 +187,7 @@ export async function main() {
           }),
       async (argv: any) => {
         await deletePod(argv);
-      }
+      },
     )
     .command(
       "info <pod>",
@@ -202,10 +214,10 @@ export async function main() {
           }),
       async (argv: any) => {
         await infoPod(argv);
-      }
+      },
     )
 
-    // Stream & Record Operations  
+    // Stream & Record Operations
     .command(
       "write <pod> <stream> <name> [data]",
       "Write data to a stream record",
@@ -249,7 +261,7 @@ export async function main() {
           }),
       async (argv: any) => {
         await write(argv);
-      }
+      },
     )
     .command(
       "read <pod> <stream> [name]",
@@ -290,7 +302,7 @@ export async function main() {
           }),
       async (argv: any) => {
         await read(argv);
-      }
+      },
     )
     .command(
       "list <pod> <stream>",
@@ -335,7 +347,7 @@ export async function main() {
           }),
       async (argv: any) => {
         await list(argv);
-      }
+      },
     )
 
     // Stream Management
@@ -364,7 +376,7 @@ export async function main() {
           }),
       async (argv: any) => {
         await streams(argv);
-      }
+      },
     )
     .command(
       "delete-stream <pod> <stream>",
@@ -395,7 +407,7 @@ export async function main() {
           }),
       async (argv: any) => {
         await deleteStream(argv);
-      }
+      },
     )
 
     // Permission Management
@@ -443,7 +455,7 @@ export async function main() {
           }),
       async (argv: any) => {
         await permissions(argv);
-      }
+      },
     )
 
     // OAuth Client Management
@@ -476,7 +488,7 @@ export async function main() {
           }),
       async (argv: any) => {
         await oauthRegister(argv);
-      }
+      },
     )
     .command(
       "oauth list",
@@ -498,7 +510,7 @@ export async function main() {
           }),
       async (argv: any) => {
         await oauthList(argv);
-      }
+      },
     )
     .command(
       "oauth delete <clientId>",
@@ -524,7 +536,7 @@ export async function main() {
           }),
       async (argv: any) => {
         await oauthDelete(argv);
-      }
+      },
     )
     .command(
       "oauth info <clientId>",
@@ -551,7 +563,7 @@ export async function main() {
           }),
       async (argv: any) => {
         await oauthInfo(argv);
-      }
+      },
     )
 
     // Utility Commands
@@ -574,7 +586,7 @@ export async function main() {
         } else {
           await config(argv);
         }
-      }
+      },
     )
     .command(
       "config server <url>",
@@ -587,7 +599,7 @@ export async function main() {
         }),
       async (argv: any) => {
         await configServer(argv);
-      }
+      },
     )
 
     // Global options

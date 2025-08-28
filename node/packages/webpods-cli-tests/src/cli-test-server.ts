@@ -47,7 +47,7 @@ export class CliTestServer {
       });
 
       let started = false;
-      
+
       const checkStartup = (data: Buffer) => {
         const message = data.toString();
         if (!started && message.includes("WebPods server started")) {
@@ -87,9 +87,9 @@ export class CliTestServer {
           this.process = null;
           resolve();
         });
-        
+
         this.process!.kill("SIGTERM");
-        
+
         // Force kill after 5 seconds
         setTimeout(() => {
           if (this.process) {

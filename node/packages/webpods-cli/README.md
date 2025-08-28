@@ -35,25 +35,33 @@ pod read my-pod notes/today
 ## Authentication
 
 ### Login
+
 Start the OAuth authentication flow:
+
 ```bash
 pod login [--provider github]
 ```
+
 This will print a URL to visit in your browser. After authenticating, copy the token from the success page.
 
 ### Set Token
+
 Store your authentication token:
+
 ```bash
 pod token set <token>
 ```
 
 ### Check Current User
+
 ```bash
 pod whoami
 ```
 
 ### Logout
+
 Clear stored authentication:
+
 ```bash
 pod logout
 ```
@@ -61,31 +69,39 @@ pod logout
 ## Pod Management
 
 ### Create a Pod
+
 ```bash
 pod create <name>
 ```
+
 Pod names must be lowercase letters, numbers, and hyphens only.
 
 ### List Your Pods
+
 ```bash
 pod list [--format json|yaml|table|csv]
 ```
 
 ### Get Pod Information
+
 ```bash
 pod info <pod-name>
 ```
 
 ### Delete a Pod
+
 ```bash
 pod delete <pod-name> [--force]
 ```
+
 ⚠️ This will delete all data in the pod!
 
 ## Working with Streams and Records
 
 ### Write Data
+
 Write data to a stream record:
+
 ```bash
 # Write inline data
 pod write <pod> <stream> <record-name> '{"data": "value"}'
@@ -98,6 +114,7 @@ pod write <pod> <stream> <record-name> '{"data": "value"}' --permission public
 ```
 
 ### Read Data
+
 ```bash
 # Read specific record by name
 pod read <pod> <stream> <record-name>
@@ -116,6 +133,7 @@ pod read <pod> <stream> <record-name> --output data.json
 ```
 
 ### List Records
+
 ```bash
 # List all records
 pod list <pod> <stream>
@@ -134,11 +152,13 @@ pod list <pod> <stream> --format json
 ```
 
 ### List Streams
+
 ```bash
 pod streams <pod>
 ```
 
 ### Delete Stream
+
 ```bash
 pod delete-stream <pod> <stream> [--force]
 ```
@@ -146,32 +166,38 @@ pod delete-stream <pod> <stream> [--force]
 ## Permissions
 
 WebPods supports three permission modes:
+
 - `private` - Only the pod owner can access
 - `public` - Anyone can read (write still requires auth)
 - `/stream-path` - Permission controlled by another stream
 
 ### View Permissions
+
 ```bash
 pod permissions <pod> <stream> view
 ```
 
 ### Set Permission Mode
+
 ```bash
 pod permissions <pod> <stream> set --mode public
 pod permissions <pod> <stream> set --mode /permissions/readers
 ```
 
 ### Grant User Access
+
 ```bash
 pod permissions <pod> <stream> grant --user <user-id>
 ```
 
 ### Revoke User Access
+
 ```bash
 pod permissions <pod> <stream> revoke --user <user-id>
 ```
 
 ### List Permission Records
+
 ```bash
 pod permissions <pod> <stream> list
 ```
@@ -179,21 +205,25 @@ pod permissions <pod> <stream> list
 ## OAuth Client Management
 
 ### Register OAuth Client
+
 ```bash
 pod oauth register --name "My App" --redirect "https://myapp.com/callback" [--pods pod1,pod2]
 ```
 
 ### List Your OAuth Clients
+
 ```bash
 pod oauth list
 ```
 
 ### Get Client Details
+
 ```bash
 pod oauth info <client-id>
 ```
 
 ### Delete OAuth Client
+
 ```bash
 pod oauth delete <client-id> [--force]
 ```
@@ -201,16 +231,19 @@ pod oauth delete <client-id> [--force]
 ## Configuration
 
 ### View Configuration
+
 ```bash
 pod config
 ```
 
 ### Set Server URL
+
 ```bash
 pod config server https://api.webpods.org
 ```
 
 ### Set Configuration Value
+
 ```bash
 pod config <key> <value>
 ```
@@ -230,6 +263,7 @@ All commands support these options:
 ## Examples
 
 ### Blog System
+
 ```bash
 # Create a blog pod
 pod create my-blog
@@ -246,6 +280,7 @@ pod list my-blog posts
 ```
 
 ### Collaborative Notes
+
 ```bash
 # Create shared pod
 pod create team-notes
@@ -261,6 +296,7 @@ pod write team-notes notes/meeting "Meeting notes..."
 ```
 
 ### Data Backup
+
 ```bash
 # Export all records from a stream
 pod list my-pod important-data --format json > backup.json
@@ -278,14 +314,17 @@ pod read my-pod config settings --output settings.json
 ## Troubleshooting
 
 ### Authentication Issues
+
 - Ensure your token is valid: `pod whoami`
 - Try re-authenticating: `pod logout` then `pod login`
 
 ### Network Issues
+
 - Check server URL: `pod config`
 - Test connection: `pod whoami --server <url>`
 
 ### Permission Denied
+
 - Verify you own the pod: `pod info <pod>`
 - Check stream permissions: `pod permissions <pod> <stream> view`
 
