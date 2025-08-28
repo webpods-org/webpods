@@ -36,7 +36,7 @@ export class CliTestServer {
       JWT_SECRET: "test-secret-key",
       SESSION_SECRET: "test-session-secret",
       PORT: String(this.port),
-      LOG_LEVEL: process.env.LOG_LEVEL || "error", // Quiet during tests
+      LOG_LEVEL: process.env.LOG_LEVEL || "info", // Need info level to see startup message
       DOMAIN: "localhost",
     };
 
@@ -50,10 +50,19 @@ export class CliTestServer {
 
       const checkStartup = (data: Buffer) => {
         const message = data.toString();
-        if (!started && message.includes("WebPods server started")) {
+        // Debug logging to see what we're getting
+        if (process.env.DEBUG_CLI_TEST) {
+          console.log("[CLI Test Server Output]:", message.trim());
+        }
+        // Check for startup message (can appear with log prefix like [INFO] [webpods])
+        if (
+          !started &&
+          (message.includes("WebPods server started") ||
+            message.includes("Server listening"))
+        ) {
           started = true;
-          // Wait a bit more to ensure server is fully ready
-          setTimeout(() => resolve(), 500);
+          // Server is ready immediately after this message
+          resolve();
         }
       };
 

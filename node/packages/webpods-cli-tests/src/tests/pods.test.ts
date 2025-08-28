@@ -85,13 +85,16 @@ describe("CLI Pod Commands", function () {
 
   describe("list command", () => {
     beforeEach(async () => {
-      // Create some test pods
-      await testDb
-        .getDb()
-        .none(
-          "INSERT INTO pod (name, user_id) VALUES ($1, $2), ($3, $2), ($4, $2)",
-          ["pod-1", testUser.id, "pod-2", "pod-3"],
-        );
+      // Create some test pods via API
+      for (const podName of ["pod-1", "pod-2", "pod-3"]) {
+        await fetch(`http://localhost:3456/api/pods/${podName}`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${testToken}`,
+            "Content-Type": "application/json",
+          },
+        });
+      }
     });
 
     it("should list all user pods", async () => {
@@ -137,12 +140,14 @@ describe("CLI Pod Commands", function () {
 
   describe("info command", () => {
     beforeEach(async () => {
-      await testDb
-        .getDb()
-        .none("INSERT INTO pod (name, user_id) VALUES ($1, $2)", [
-          "test-pod",
-          testUser.id,
-        ]);
+      // Create test pod via API
+      await fetch(`http://localhost:3456/api/pods/test-pod`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${testToken}`,
+          "Content-Type": "application/json",
+        },
+      });
     });
 
     it("should show pod details", async () => {
@@ -168,12 +173,14 @@ describe("CLI Pod Commands", function () {
 
   describe("delete command", () => {
     beforeEach(async () => {
-      await testDb
-        .getDb()
-        .none("INSERT INTO pod (name, user_id) VALUES ($1, $2)", [
-          "test-pod",
-          testUser.id,
-        ]);
+      // Create test pod via API
+      await fetch(`http://localhost:3456/api/pods/test-pod`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${testToken}`,
+          "Content-Type": "application/json",
+        },
+      });
     });
 
     it("should delete a pod with force flag", async () => {

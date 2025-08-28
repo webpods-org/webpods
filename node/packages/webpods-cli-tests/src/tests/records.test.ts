@@ -33,14 +33,16 @@ describe("CLI Record Commands", function () {
   beforeEach(async () => {
     await resetCliTestDb();
 
-    // Create a test pod for each test
+    // Create a test pod for each test via API
     testPodName = `test-pod-${Date.now()}`;
-    await testDb
-      .getDb()
-      .none("INSERT INTO pod (name, user_id) VALUES ($1, $2)", [
-        testPodName,
-        testUser.id,
-      ]);
+    
+    await fetch(`http://localhost:3456/api/pods/${testPodName}`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${testToken}`,
+        "Content-Type": "application/json",
+      },
+    });
   });
 
   describe("write command", () => {

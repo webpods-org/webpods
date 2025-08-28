@@ -40,6 +40,7 @@ export async function login(options: LoginArgs): Promise<void> {
     );
 
     logger.info("Login URL provided", { loginUrl });
+    process.exit(0);
   } catch (error: any) {
     logger.error("Login failed", { error: error.message });
     output.error("Error: " + error.message);
@@ -58,6 +59,7 @@ export async function logout(options: GlobalOptions): Promise<void> {
     await clearToken();
     output.success("Logged out successfully. Token cleared.");
     logger.info("User logged out successfully");
+    process.exit(0);
   } catch (error: any) {
     logger.error("Logout failed", { error: error.message });
     output.error("Error: " + error.message);
@@ -119,6 +121,7 @@ export async function whoami(options: GlobalOptions): Promise<void> {
     }
 
     logger.info("User info displayed", { userId: result.data.user_id, format });
+    process.exit(0);
   } catch (error: any) {
     logger.error("Whoami command failed", { error: error.message });
     output.error("Error: " + error.message);
@@ -139,6 +142,7 @@ export async function token(options: GlobalOptions): Promise<void> {
 
     if (!storedToken) {
       output.print("No token stored. Run 'pod login' to authenticate.");
+      process.exit(0);
       return;
     }
 
@@ -148,6 +152,7 @@ export async function token(options: GlobalOptions): Promise<void> {
     output.print("(Full token hidden for security)");
 
     logger.info("Token displayed (masked)");
+    process.exit(0);
   } catch (error: any) {
     logger.error("Token display failed", { error: error.message });
     output.error("Error: " + error.message);
@@ -189,6 +194,7 @@ export async function tokenSet(options: TokenSetArgs): Promise<void> {
       `Token set successfully for user: ${result.data.name || result.data.email || result.data.user_id}`,
     );
     logger.info("Token set successfully", { userId: result.data.user_id });
+    process.exit(0);
   } catch (error: any) {
     logger.error("Token set failed", { error: error.message });
     output.error("Error: " + error.message);

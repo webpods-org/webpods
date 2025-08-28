@@ -21,6 +21,8 @@ function createTestJWT(userId: string, email: string): string {
       sub: userId,
       email: email,
       provider: "test-provider",
+      type: "webpods", // Required for WebPods JWT validation
+      iat: Math.floor(Date.now() / 1000),
     },
     "test-secret-key", // Must match TestServer JWT_SECRET
     { expiresIn: "7d" },
@@ -41,9 +43,6 @@ export async function setupCliTests(): Promise<void> {
   testServer = new CliTestServer(3456, "webpodsdb_cli_test");
   await testServer.start();
 
-  // Wait for server to be ready
-  await new Promise((resolve) => setTimeout(resolve, 2000));
-
   // Create a test user and token
   testUser = await createTestUser(testDb.getDb(), {
     email: "cli-test@example.com",
@@ -51,7 +50,7 @@ export async function setupCliTests(): Promise<void> {
     provider: "test-provider",
   });
 
-  testToken = createTestJWT(testUser.id, testUser.email);
+  testToken = createTestJWT(testUser.userId, testUser.email);
 
   console.log("CLI test environment ready");
 }
@@ -89,5 +88,5 @@ export async function resetCliTestDb(): Promise<void> {
     provider: "test-provider",
   });
 
-  testToken = createTestJWT(testUser.id, testUser.email);
+  testToken = createTestJWT(testUser.userId, testUser.email);
 }

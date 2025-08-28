@@ -32,11 +32,12 @@ export class CliTestHelper {
   }
 
   async setup(): Promise<void> {
-    // Create temporary config directory
-    await fs.mkdir(this.configDir, { recursive: true });
+    // Create temporary config directory with .webpods subdirectory
+    const webpodsDir = path.join(this.configDir, ".webpods");
+    await fs.mkdir(webpodsDir, { recursive: true });
 
-    // Create initial config
-    const configPath = path.join(this.configDir, "config.json");
+    // Create initial config in the .webpods subdirectory
+    const configPath = path.join(webpodsDir, "config.json");
     await fs.writeFile(
       configPath,
       JSON.stringify(
@@ -127,7 +128,7 @@ export class CliTestHelper {
    * Set a token in the test config
    */
   async setToken(token: string): Promise<void> {
-    const configPath = path.join(this.configDir, "config.json");
+    const configPath = path.join(this.configDir, ".webpods", "config.json");
     const config = JSON.parse(await fs.readFile(configPath, "utf-8"));
     config.token = token;
     await fs.writeFile(configPath, JSON.stringify(config, null, 2));
@@ -137,7 +138,7 @@ export class CliTestHelper {
    * Clear the token from test config
    */
   async clearToken(): Promise<void> {
-    const configPath = path.join(this.configDir, "config.json");
+    const configPath = path.join(this.configDir, ".webpods", "config.json");
     const config = JSON.parse(await fs.readFile(configPath, "utf-8"));
     delete config.token;
     await fs.writeFile(configPath, JSON.stringify(config, null, 2));

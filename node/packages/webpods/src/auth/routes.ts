@@ -261,6 +261,50 @@ router.get("/whoami", async (req: Request, res: Response) => {
   }
 
   try {
+    // Check if it's a WebPods JWT token first
+    const { isWebPodsToken, verifyWebPodsToken } = await import("./jwt-generator.js");
+    
+    if (isWebPodsToken(token)) {
+      const webpodsResult = verifyWebPodsToken(token);
+      
+      if (!webpodsResult.success) {
+        res.status(401).json({
+          error: webpodsResult.error,
+        });
+        return;
+      }
+      
+      // For WebPods tokens, we need to look up the user info
+      const db = await getDb();
+      const user = await db.oneOrNone(
+        `SELECT u.id, i.email, i.name, i.provider 
+         FROM "user" u 
+         LEFT JOIN identity i ON i.user_id = u.id 
+         WHERE u.id = $(userId) 
+         LIMIT 1`,
+        { userId: webpodsResult.data.sub }
+      );
+      
+      if (!user) {
+        res.status(404).json({
+          error: {
+            code: "USER_NOT_FOUND",
+            message: "User not found",
+          },
+        });
+        return;
+      }
+      
+      res.json({
+        user_id: user.id,
+        email: user.email || null,
+        name: user.name || null,
+        provider: user.provider || "webpods",
+      });
+      return;
+    }
+    
+    // Otherwise try as Hydra token
     const result = await verifyHydraToken(token);
 
     if (!result.success) {
@@ -276,6 +320,7 @@ router.get("/whoami", async (req: Request, res: Response) => {
       // Hydra tokens don't include email/name - would need userinfo endpoint
       email: null,
       name: null,
+      provider: "hydra",
     });
   } catch {
     res.status(401).json({

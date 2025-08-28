@@ -53,10 +53,20 @@ describe("CLI Auth Commands", function () {
 
   describe("token set command", () => {
     it("should set authentication token", async () => {
+      console.log("Test token:", testToken);
+      console.log("Test user ID:", testUser.userId);
+      console.log("Test server URL:", `http://localhost:3456`);
       const result = await cli.exec(["token", "set", testToken]);
+      
+      // Debug output
+      if (result.exitCode !== 0) {
+        console.log("Exit code:", result.exitCode);
+        console.log("Stdout:", result.stdout);
+        console.log("Stderr:", result.stderr);
+      }
 
       expect(result.exitCode).to.equal(0);
-      expect(result.stdout).to.include("Token saved successfully");
+      expect(result.stdout).to.include("Token set successfully");
     });
   });
 
@@ -68,7 +78,7 @@ describe("CLI Auth Commands", function () {
 
       expect(result.exitCode).to.equal(0);
       const data = cli.parseJson(result.stdout);
-      expect(data.user_id).to.equal(testUser.id);
+      expect(data.user_id).to.equal(testUser.userId);
       expect(data.email).to.equal("cli-test@example.com");
     });
 
