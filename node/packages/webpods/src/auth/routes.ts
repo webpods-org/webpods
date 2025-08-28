@@ -274,18 +274,14 @@ router.get("/whoami", async (req: Request, res: Response) => {
         return;
       }
       
-      // For WebPods tokens, we need to look up the user info
-      const db = await getDb();
-      const user = await db.oneOrNone(
-        `SELECT u.id, i.email, i.name, i.provider 
-         FROM "user" u 
-         LEFT JOIN identity i ON i.user_id = u.id 
-         WHERE u.id = $(userId) 
-         LIMIT 1`,
-        { userId: webpodsResult.data.sub }
-      );
+      // Get user info using domain function
+      const { getUserInfo } = await import("../domain/users/index.js");
+      const db = getDb();
+      const ctx = { db };
       
-      if (!user) {
+      const userInfoResult = await getUserInfo(ctx, webpodsResult.data.sub);
+      
+      if (!userInfoResult.success) {
         res.status(404).json({
           error: {
             code: "USER_NOT_FOUND",
@@ -295,12 +291,7 @@ router.get("/whoami", async (req: Request, res: Response) => {
         return;
       }
       
-      res.json({
-        user_id: user.id,
-        email: user.email || null,
-        name: user.name || null,
-        provider: user.provider || "webpods",
-      });
+      res.json(userInfoResult.data);
       return;
     }
     
@@ -320,7 +311,6 @@ router.get("/whoami", async (req: Request, res: Response) => {
       // Hydra tokens don't include email/name - would need userinfo endpoint
       email: null,
       name: null,
-      provider: "hydra",
     });
   } catch {
     res.status(401).json({
