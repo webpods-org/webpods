@@ -59,7 +59,7 @@ export async function getPod(
     }
 
     return success(mappedPod);
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Failed to get pod", { error, podName });
     return failure(new Error("Failed to get pod"));
   }

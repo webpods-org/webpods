@@ -51,7 +51,8 @@ export async function checkPermissionStream(
     );
 
     // Process records in memory to find the latest permission for this user
-    let userPermission: any = null;
+    let userPermission: { id: string; read?: boolean; write?: boolean } | null =
+      null;
     for (const record of records) {
       try {
         const content =

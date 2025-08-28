@@ -20,7 +20,10 @@
  * };
  * const query = `${sql.insert("stream", params)} RETURNING *`;
  */
-export function insert(tableName: string, params: Record<string, any>): string {
+export function insert(
+  tableName: string,
+  params: Record<string, unknown>,
+): string {
   const columns = Object.keys(params);
   const values = columns.map((col) => `$(${col})`);
 
@@ -45,7 +48,10 @@ export function insert(tableName: string, params: Record<string, any>): string {
  *   RETURNING *
  * `;
  */
-export function update(tableName: string, params: Record<string, any>): string {
+export function update(
+  tableName: string,
+  params: Record<string, unknown>,
+): string {
   const setClause = Object.keys(params).map((col) => `${col} = $(${col})`);
 
   return `UPDATE ${tableName} SET ${setClause.join(", ")}`;

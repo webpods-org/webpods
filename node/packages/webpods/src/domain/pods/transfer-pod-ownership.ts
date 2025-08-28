@@ -106,7 +106,7 @@ export async function transferPodOwnership(
       });
       return success(undefined);
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Failed to transfer pod ownership", {
       error,
       podName,

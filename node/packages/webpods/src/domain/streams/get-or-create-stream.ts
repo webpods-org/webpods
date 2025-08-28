@@ -137,7 +137,7 @@ export async function getOrCreateStream(
       stream: mapStreamFromDb(stream),
       created: true,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Failed to get or create stream", {
       error,
       podName,

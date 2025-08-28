@@ -40,7 +40,7 @@ export async function writeRecord(
   ctx: DataContext,
   podName: string,
   streamId: string,
-  content: any,
+  content: unknown,
   contentType: string,
   authorId: string,
   name: string,
@@ -102,17 +102,22 @@ export async function writeRecord(
       logger.info("Record written", { podName, streamId, index, name, hash });
       return success(mapRecordFromDb(record));
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Failed to write record", { error, podName, streamId });
     // Check if it's a unique constraint violation (duplicate name)
     if (
-      error.code === "23505" &&
-      error.constraint === "record_stream_name_key"
+      (error as { code?: string }).code === "23505" &&
+      (error as { constraint?: string }).constraint === "record_stream_name_key"
     ) {
       return failure(
         createError("NAME_EXISTS", "Record with this name already exists"),
       );
     }
-    return failure(error);
+    return failure(
+      createError(
+        "WRITE_ERROR",
+        (error as Error).message || "Failed to write record",
+      ),
+    );
   }
 }

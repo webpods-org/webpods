@@ -36,7 +36,7 @@ export async function getPodOwner(
       logger.warn("Failed to parse owner record", { podName });
       return success(null);
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Failed to get pod owner", { error, podName });
     return failure(new Error("Failed to get pod owner"));
   }

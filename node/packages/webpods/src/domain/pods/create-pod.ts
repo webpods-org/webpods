@@ -99,7 +99,7 @@ export async function createPod(
       mappedPod.userId = userId; // Set owner from what we just wrote
       return success(mappedPod);
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Failed to create pod", { error, podName });
     return failure(new Error("Failed to create pod"));
   }

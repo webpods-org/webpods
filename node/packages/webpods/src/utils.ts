@@ -87,7 +87,7 @@ export function parseIndexQuery(
 export function calculateRecordHash(
   previousHash: string | null,
   timestamp: string,
-  content: any,
+  content: unknown,
 ): string {
   const data = JSON.stringify({
     previous_hash: previousHash,
@@ -232,10 +232,23 @@ export function isNumericIndex(str: string): boolean {
 /**
  * Get IP address from request
  */
-export function getIpAddress(req: any): string {
+export function getIpAddress(req: {
+  headers: Record<string, string | string[] | undefined>;
+  connection?: { remoteAddress?: string };
+  socket?: { remoteAddress?: string };
+}): string {
+  const xForwardedFor = req.headers["x-forwarded-for"];
+  const forwardedIp = Array.isArray(xForwardedFor)
+    ? xForwardedFor[0]
+    : xForwardedFor;
+  const xRealIp = req.headers["x-real-ip"];
+  const realIp = Array.isArray(xRealIp) ? xRealIp[0] : xRealIp;
+
   return (
-    req.headers["x-forwarded-for"]?.split(",")[0].trim() ||
-    req.headers["x-real-ip"] ||
+    (forwardedIp && typeof forwardedIp === "string"
+      ? forwardedIp.split(",")[0]?.trim()
+      : undefined) ||
+    (realIp && typeof realIp === "string" ? realIp : undefined) ||
     req.connection?.remoteAddress ||
     req.socket?.remoteAddress ||
     "127.0.0.1"

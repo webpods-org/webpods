@@ -44,7 +44,7 @@ export async function getStream(
     }
 
     return success(mapStreamFromDb(stream));
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Failed to get stream", { error, podName, streamId });
     return failure(createError("DATABASE_ERROR", "Failed to get stream"));
   }

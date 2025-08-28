@@ -18,21 +18,22 @@ const router = Router();
  */
 function parseRequestedPods(
   _req: Request,
-  consentRequest: any,
+  consentRequest: unknown,
   scopes: string[],
 ): Set<string> {
   const pods = new Set<string>();
 
   // Check state from original OAuth request (preserved through the flow)
   // Try to get state from various possible locations
+  const consent = consentRequest as Record<string, unknown>;
   const possibleState =
-    (consentRequest as any).state ||
-    (consentRequest as any).request_url?.includes("state=")
-      ? new URL(
-          (consentRequest as any).request_url,
-          "http://example.com",
-        ).searchParams.get("state")
-      : null;
+    (consent.state as string) ||
+    (typeof consent.request_url === "string" &&
+    consent.request_url.includes("state=")
+      ? new URL(consent.request_url, "http://example.com").searchParams.get(
+          "state",
+        )
+      : null);
 
   if (possibleState) {
     try {
@@ -390,9 +391,9 @@ router.get("/consent", async (req: Request, res: Response) => {
 </html>`;
 
     res.send(html);
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Consent handler error", {
-      error: error.message,
+      error: (error as Error).message,
       challenge: consentChallenge,
     });
 
@@ -489,9 +490,9 @@ router.post("/consent", async (req: Request, res: Response) => {
 
       res.redirect(rejectResponse.redirect_to!);
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Consent decision error", {
-      error: error.message,
+      error: (error as Error).message,
       challenge,
       action,
     });

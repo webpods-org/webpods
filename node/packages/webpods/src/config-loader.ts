@@ -10,6 +10,7 @@
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import { createLogger } from "./logger.js";
+import type { RawConfig } from "./types.js";
 
 const logger = createLogger("webpods:config-loader");
 
@@ -98,7 +99,7 @@ export interface AppConfig {
  * Resolve environment variable references in a value
  * Supports format: $VAR_NAME
  */
-function resolveEnvValue(value: any, defaultValue?: any): any {
+function resolveEnvValue(value: unknown, defaultValue?: unknown): unknown {
   if (typeof value !== "string") {
     return value;
   }
@@ -133,7 +134,7 @@ function resolveEnvValue(value: any, defaultValue?: any): any {
 /**
  * Recursively resolve environment variables in an object with context-aware defaults
  */
-function resolveEnvVars(obj: any, path: string[] = []): any {
+function resolveEnvVars(obj: unknown, path: string[] = []): unknown {
   if (obj === null || obj === undefined) {
     return obj;
   }
@@ -145,13 +146,13 @@ function resolveEnvVars(obj: any, path: string[] = []): any {
   }
 
   if (typeof obj === "object") {
-    const resolved: any = {};
+    const resolved: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(obj)) {
       const currentPath = [...path, key];
       const fullPath = currentPath.join(".");
 
       // Determine default value based on path
-      let defaultValue: any;
+      let defaultValue: unknown;
       switch (fullPath) {
         case "server.host":
           defaultValue = "0.0.0.0";
@@ -229,7 +230,7 @@ function resolveEnvVars(obj: any, path: string[] = []): any {
 /**
  * Apply default values to missing config fields
  */
-function applyDefaults(config: any): any {
+function applyDefaults(config: RawConfig): RawConfig {
   // Ensure base structure exists
   config.server = config.server || {};
   config.database = config.database || {};
@@ -304,7 +305,7 @@ export function loadConfig(configPath?: string): AppConfig {
   try {
     // Read and parse config file
     const configContent = readFileSync(configFile, "utf-8");
-    const rawConfig = JSON.parse(configContent);
+    const rawConfig = JSON.parse(configContent) as RawConfig;
 
     // Apply defaults for missing fields
     const configWithDefaults = applyDefaults(rawConfig);
@@ -338,8 +339,10 @@ export function loadConfig(configPath?: string): AppConfig {
     });
 
     return config;
-  } catch (error: any) {
-    logger.error("Failed to load configuration", { error: error.message });
+  } catch (error) {
+    logger.error("Failed to load configuration", {
+      error: (error as Error).message,
+    });
     throw error;
   }
 }

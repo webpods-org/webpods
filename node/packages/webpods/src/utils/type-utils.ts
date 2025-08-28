@@ -7,10 +7,10 @@
  * Convert camelCase object to snake_case
  * Used when converting API input to database parameters
  */
-export function toSnakeCase<T extends Record<string, any>>(
+export function toSnakeCase<T extends Record<string, unknown>>(
   obj: T,
-): Record<string, any> {
-  const result: Record<string, any> = {};
+): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
 
   for (const [key, value] of Object.entries(obj)) {
     const snakeKey = key.replace(
@@ -27,10 +27,10 @@ export function toSnakeCase<T extends Record<string, any>>(
  * Convert snake_case object to camelCase
  * Used when converting database results to API output
  */
-export function toCamelCase<T extends Record<string, any>>(
+export function toCamelCase<T extends Record<string, unknown>>(
   obj: T,
-): Record<string, any> {
-  const result: Record<string, any> = {};
+): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
 
   for (const [key, value] of Object.entries(obj)) {
     const camelKey = key.replace(/_([a-z])/g, (_, letter) =>

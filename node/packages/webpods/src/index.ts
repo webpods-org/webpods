@@ -86,8 +86,8 @@ export async function start() {
         process.exit(0);
       });
     });
-  } catch (error: any) {
-    console.error(`\nError: ${error.message}`);
+  } catch (error: unknown) {
+    console.error(`\nError: ${(error as Error).message}`);
     process.exit(1);
   }
 }

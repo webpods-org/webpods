@@ -2,7 +2,7 @@
  * WebPods server factory
  */
 
-import express, { Express } from "express";
+import express, { Express, Request, Response, NextFunction } from "express";
 import session from "express-session";
 import helmet from "helmet";
 import cors from "cors";
@@ -226,7 +226,7 @@ export function createApp(): Express {
   });
 
   // Error handler
-  app.use((err: any, req: any, res: any, _next: any) => {
+  app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
     logger.error("Unhandled error", {
       error: err.message,
       stack: err.stack,
@@ -235,7 +235,9 @@ export function createApp(): Express {
     });
 
     const showDetails = process.env.LOG_LEVEL === "debug";
-    res.status(err.status || 500).json({
+    const statusCode =
+      "status" in err && typeof err.status === "number" ? err.status : 500;
+    res.status(statusCode).json({
       error: {
         code: "INTERNAL_ERROR",
         message: showDetails ? err.message : "An error occurred",

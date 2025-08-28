@@ -6,7 +6,7 @@
 export interface DomainError {
   code: string;
   message: string;
-  details?: any;
+  details?: unknown;
 }
 
 export type Result<T, E = DomainError> =
@@ -35,7 +35,7 @@ export interface Identity {
   providerId: string; // ID from the provider
   email: string | null;
   name: string | null;
-  metadata?: any;
+  metadata?: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -43,7 +43,7 @@ export interface Identity {
 export interface Pod {
   name: string; // Primary key - Subdomain (e.g., 'alice')
   userId: string; // Owner ID from .meta/owner stream
-  metadata?: any;
+  metadata?: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -53,7 +53,7 @@ export interface Stream {
   name: string; // Part of composite primary key - Stream path within pod (can include slashes)
   userId: string;
   accessPermission: string; // 'public', 'private', or '/streamname'
-  metadata?: any;
+  metadata?: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -63,13 +63,13 @@ export interface StreamRecord {
   podName: string; // References stream.podName
   streamName: string; // References stream.name
   index: number; // Position in stream (0-based)
-  content: string | any; // Can be text or JSON
+  content: string | unknown; // Can be text or JSON
   contentType: string;
   name: string; // Required name (like a filename)
   hash: string;
   previousHash: string | null;
   userId: string; // User ID who created the record
-  metadata?: any;
+  metadata?: Record<string, unknown>;
   createdAt: Date;
 }
 
@@ -94,7 +94,7 @@ export interface RateLimit {
 // API types
 export interface StreamRecordResponse {
   index: number; // Position in stream (0-based)
-  content: any;
+  content: unknown;
   contentType: string;
   name: string;
   hash: string;
@@ -188,7 +188,7 @@ export interface HydraAuth {
 export type AuthPayload = JWTPayload | HydraAuth;
 
 // Express extensions
-import { Request } from "express";
+import type { Request } from "express";
 export interface AuthRequest extends Request {
   auth?: AuthPayload;
   authType?: "webpods" | "hydra";
@@ -208,7 +208,7 @@ export interface CreateStreamInput {
 }
 
 export interface WriteRecordInput {
-  content: any;
+  content: unknown;
   contentType?: string;
   name: string;
 }
@@ -223,6 +223,64 @@ export interface ErrorResponse {
   error: {
     code: string;
     message: string;
-    details?: any;
+    details?: unknown;
   };
 }
+
+// OAuth types
+export interface OAuthUserInfo {
+  id: string;
+  email?: string | null;
+  name?: string | null;
+  username?: string;
+  picture?: string;
+  raw?: Record<string, unknown>;
+}
+
+// Session types
+export interface SessionData {
+  user?: {
+    id: string;
+    email?: string | null;
+    name?: string | null;
+    provider?: string;
+  };
+  identity?: {
+    id: string;
+    userId: string;
+    provider: string;
+    providerId: string;
+    email: string | null;
+    name: string | null;
+  };
+  id?: string;
+  cookie?: {
+    maxAge?: number;
+    originalMaxAge?: number;
+    expires?: Date;
+  };
+  save?: (callback: (err?: Error) => void) => void;
+  destroy?: (callback: (err?: Error) => void) => void;
+  [key: string]: unknown;
+}
+
+// Enhanced Request type with session
+export type RequestWithSession = Request & {
+  session?: SessionData;
+  cookies?: Record<string, string>;
+};
+
+// Note: Express Request already has session property for express-session,
+// we just define the SessionData structure separately
+
+// Helper to make all properties optional and allow string values for env vars
+type DeepPartialWithEnvVars<T> = {
+  [P in keyof T]?: T[P] extends object
+    ? DeepPartialWithEnvVars<T[P]>
+    : T[P] | string;
+};
+
+// Raw configuration type for JSON parsing (before env var resolution and defaults)
+export type RawConfig = DeepPartialWithEnvVars<
+  import("./config-loader.js").AppConfig
+>;

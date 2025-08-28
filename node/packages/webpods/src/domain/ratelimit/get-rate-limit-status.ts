@@ -63,7 +63,7 @@ export async function getRateLimitStatus(
       remaining,
       resetAt,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Failed to get rate limit status", {
       error,
       identifier,
