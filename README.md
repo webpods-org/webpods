@@ -16,12 +16,18 @@ WebPods organizes data into:
 # 1. Get an auth token
 curl https://webpods.org/auth/github  # Returns JWT token
 
-# 2. Write data (creates pod and stream automatically)
+# 2. Create a pod
+curl -X POST https://webpods.org/api/pods \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "alice"}'
+
+# 3. Write data (creates stream on first write)
 curl -X POST https://alice.webpods.org/blog/first-post \
   -H "Authorization: Bearer $TOKEN" \
   -d "My first blog post"
 
-# 3. Read data
+# 4. Read data
 curl https://alice.webpods.org/blog/first-post
 ```
 
@@ -41,12 +47,33 @@ GET https://webpods.org/auth/whoami
 Authorization: Bearer {token}
 ```
 
+### Pod Management
+
+```bash
+# Create a new pod
+POST https://webpods.org/api/pods
+Authorization: Bearer {token}
+Content-Type: application/json
+{"name": "pod-name"}
+
+# List your pods
+GET https://webpods.org/api/pods
+Authorization: Bearer {token}
+
+# Delete a pod (deletes all data)
+DELETE {pod}.webpods.org/
+Authorization: Bearer {token}
+```
+
+Pod names must be lowercase alphanumeric with hyphens (2-63 characters).
+
 ### Writing Data
 
 ```bash
 POST {pod}.webpods.org/{stream}/{name}
 Authorization: Bearer {token}
 
+# Pod must exist before writing
 # The last path segment is the record name (required)
 # Names can contain: a-z, A-Z, 0-9, -, _, .
 # Cannot start/end with periods

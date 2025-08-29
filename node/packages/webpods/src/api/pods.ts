@@ -5,6 +5,7 @@
 import { Router, Response } from "express";
 import type { AuthRequest } from "../types.js";
 import { authenticateHybrid } from "../middleware/hybrid-auth.js";
+import { rateLimit } from "../middleware/ratelimit.js";
 import { getDb } from "../db/index.js";
 import { createLogger } from "../logger.js";
 import { listUserPods } from "../domain/pods/list-user-pods.js";
@@ -81,6 +82,7 @@ router.get("/", authenticateHybrid, async (req: AuthRequest, res: Response) => {
 router.post(
   "/",
   authenticateHybrid,
+  rateLimit("pod_create"),
   async (req: AuthRequest, res: Response) => {
     if (!req.auth) {
       res.status(401).json({

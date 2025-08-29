@@ -51,7 +51,7 @@ export async function listUserPods(
       .map((pod) => ({
         name: pod.name,
         created_at: pod.created_at,
-        metadata: pod.metadata,
+        metadata: pod.metadata || {},
       }));
 
     logger.info("Listed pods for user", {
