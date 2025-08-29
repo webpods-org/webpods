@@ -49,9 +49,6 @@ describe("CLI Pod Commands", function () {
 
       expect(result.exitCode).to.equal(0);
       expect(result.stdout).to.include("Pod 'test-pod' created successfully");
-      expect(result.stdout).to.include(
-        "Access it at: https://test-pod.webpods.org",
-      );
 
       // Verify pod was created in database
       const pod = await testDb

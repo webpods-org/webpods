@@ -3,8 +3,19 @@
  */
 
 // Configuration
-export interface WebPodsConfig {
+export interface WebPodsProfile {
+  name: string;
   server: string;
+  token?: string;
+  defaultPod?: string;
+  outputFormat?: "json" | "yaml" | "table" | "csv";
+}
+
+export interface WebPodsConfig {
+  profiles: Record<string, WebPodsProfile>;
+  currentProfile?: string;
+  // Legacy fields for backward compatibility
+  server?: string;
   token?: string;
   defaultPod?: string;
   outputFormat: "json" | "yaml" | "table" | "csv";
@@ -104,6 +115,7 @@ export interface OAuthClient {
 export interface GlobalOptions {
   token?: string;
   server?: string;
+  profile?: string;
   format?: "json" | "yaml" | "table" | "csv";
   quiet?: boolean;
   verbose?: boolean;

@@ -149,6 +149,7 @@ curl -X POST https://webpods.org/auth/logout \
 ## Pod Management
 
 Pods are your personal namespaces. Pod names must be:
+
 - Lowercase letters, numbers, and hyphens only
 - 2-63 characters long
 - Globally unique
@@ -445,6 +446,7 @@ WebPods supports custom URL routing within your pod using the `.meta/links` syst
 ### How Links Work
 
 When someone visits a path on your pod, WebPods:
+
 1. First checks if a stream/record exists at that exact path
 2. If not, checks `.meta/links` for routing rules
 3. Routes can redirect to streams with query parameters
@@ -604,6 +606,7 @@ curl -X POST https://webpods.org/api/oauth/clients \
 ```
 
 Response:
+
 ```json
 {
   "client_id": "my-awesome-app-a1b2c3d4",
@@ -619,11 +622,11 @@ Response:
 Send users to authorize your app:
 
 ```javascript
-const authUrl = new URL('https://webpods.org/connect');
-authUrl.searchParams.append('client_id', 'my-awesome-app-a1b2c3d4');
-authUrl.searchParams.append('redirect_uri', 'https://myapp.com/callback');
-authUrl.searchParams.append('scope', 'openid pod:read pod:write');
-authUrl.searchParams.append('state', generateRandomState());
+const authUrl = new URL("https://webpods.org/connect");
+authUrl.searchParams.append("client_id", "my-awesome-app-a1b2c3d4");
+authUrl.searchParams.append("redirect_uri", "https://myapp.com/callback");
+authUrl.searchParams.append("scope", "openid pod:read pod:write");
+authUrl.searchParams.append("state", generateRandomState());
 
 // Redirect user to authUrl
 window.location.href = authUrl.toString();
@@ -638,19 +641,19 @@ Users are redirected back with an authorization code:
 
 async function handleCallback(code, state) {
   // Verify state matches what you sent
-  
+
   // Exchange code for tokens
-  const response = await fetch('https://webpods.org/oauth2/token', {
-    method: 'POST',
+  const response = await fetch("https://webpods.org/oauth2/token", {
+    method: "POST",
     headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'Authorization': 'Basic ' + btoa(CLIENT_ID + ':' + CLIENT_SECRET)
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: "Basic " + btoa(CLIENT_ID + ":" + CLIENT_SECRET),
     },
     body: new URLSearchParams({
-      grant_type: 'authorization_code',
+      grant_type: "authorization_code",
       code: code,
-      redirect_uri: 'https://myapp.com/callback'
-    })
+      redirect_uri: "https://myapp.com/callback",
+    }),
   });
 
   const tokens = await response.json();
@@ -665,20 +668,20 @@ Use the OAuth access token to make requests:
 
 ```javascript
 // Read from a pod
-const response = await fetch('https://alice.webpods.org/data/info', {
+const response = await fetch("https://alice.webpods.org/data/info", {
   headers: {
-    'Authorization': 'Bearer ' + accessToken
-  }
+    Authorization: "Bearer " + accessToken,
+  },
 });
 
 // Write to a pod
-const writeResponse = await fetch('https://alice.webpods.org/app-data/record', {
-  method: 'POST',
+const writeResponse = await fetch("https://alice.webpods.org/app-data/record", {
+  method: "POST",
   headers: {
-    'Authorization': 'Bearer ' + accessToken,
-    'Content-Type': 'application/json'
+    Authorization: "Bearer " + accessToken,
+    "Content-Type": "application/json",
   },
-  body: JSON.stringify({ data: 'from my app' })
+  body: JSON.stringify({ data: "from my app" }),
 });
 ```
 
@@ -844,6 +847,7 @@ pod config my-pod get
 ### Rate Limits
 
 Default limits per hour:
+
 - Read: 10,000
 - Write: 1,000
 - Pod creation: 10
