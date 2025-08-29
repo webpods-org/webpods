@@ -2,36 +2,30 @@
  * Pod management commands
  */
 
-import { apiRequest } from "../../http/index.js";
-import { Pod, GlobalOptions } from "../../types.js";
+import { apiRequest, podRequest } from "../../http/index.js";
+import { Pod } from "../../types.js";
 import { createLogger, createCliOutput } from "../../logger.js";
 
 const logger = createLogger("webpods:cli:pods");
 
-interface CreatePodOptions extends GlobalOptions {
-  name: string;
-}
-
-interface DeletePodOptions extends GlobalOptions {
-  pod: string;
-  force?: boolean;
-}
-
-interface InfoPodOptions extends GlobalOptions {
-  pod: string;
-}
-
 /**
  * Create a new pod
  */
-export async function createPod(options: CreatePodOptions): Promise<void> {
+export async function createPod(options: {
+  quiet?: boolean;
+  name?: string;
+  token?: string;
+  server?: string;
+  profile?: string;
+  [key: string]: unknown;
+}): Promise<void> {
   const output = createCliOutput(options.quiet);
 
   try {
     logger.debug("Creating pod", { name: options.name });
 
     // Validate pod name
-    if (!/^[a-z0-9-]+$/.test(options.name)) {
+    if (!options.name || !/^[a-z0-9-]+$/.test(options.name)) {
       output.error(
         "Invalid pod name. Use only lowercase letters, numbers, and hyphens.",
       );
@@ -49,7 +43,7 @@ export async function createPod(options: CreatePodOptions): Promise<void> {
     }
 
     // Use the explicit pod creation API
-    const result = await apiRequest<any>("/api/pods", {
+    const result = await apiRequest<{ id: string; name: string }>("/api/pods", {
       method: "POST",
       body: {
         name: options.name,
@@ -77,9 +71,11 @@ export async function createPod(options: CreatePodOptions): Promise<void> {
       name: options.name,
       podId: result.data.id,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     const errorMessage =
-      error?.message || String(error) || "Pod creation failed";
+      error instanceof Error
+        ? error.message
+        : String(error) || "Pod creation failed";
     logger.error("Pod creation command failed", { error: errorMessage });
     output.error("Error: " + errorMessage);
     process.exit(1);
@@ -89,7 +85,14 @@ export async function createPod(options: CreatePodOptions): Promise<void> {
 /**
  * List all user's pods
  */
-export async function listPods(options: GlobalOptions): Promise<void> {
+export async function listPods(options: {
+  quiet?: boolean;
+  token?: string;
+  server?: string;
+  profile?: string;
+  format?: string;
+  [key: string]: unknown;
+}): Promise<void> {
   const output = createCliOutput(options.quiet);
 
   try {
@@ -153,9 +156,10 @@ export async function listPods(options: GlobalOptions): Promise<void> {
     }
 
     logger.info("Pods listed successfully", { count: pods.length, format });
-  } catch (error: any) {
-    logger.error("List pods command failed", { error: error.message });
-    output.error("Error: " + error.message);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error("List pods command failed", { error: errorMessage });
+    output.error("Error: " + errorMessage);
     process.exit(1);
   }
 }
@@ -163,7 +167,15 @@ export async function listPods(options: GlobalOptions): Promise<void> {
 /**
  * Delete a pod and all its data
  */
-export async function deletePod(options: DeletePodOptions): Promise<void> {
+export async function deletePod(options: {
+  quiet?: boolean;
+  pod?: string;
+  force?: boolean;
+  token?: string;
+  server?: string;
+  profile?: string;
+  [key: string]: unknown;
+}): Promise<void> {
   const output = createCliOutput(options.quiet);
 
   try {
@@ -172,7 +184,7 @@ export async function deletePod(options: DeletePodOptions): Promise<void> {
     if (!options.force) {
       // In a real CLI, we'd use a proper prompt library
       output.print(
-        `WARNING: This will permanently delete pod '${options.pod}' and ALL its data.`,
+        `WARNING: This will permanently delete pod '${options.pod || "unknown"}' and ALL its data.`,
       );
       output.print("This action cannot be undone!");
       output.print("Use --force to skip this confirmation.");
@@ -182,8 +194,12 @@ export async function deletePod(options: DeletePodOptions): Promise<void> {
       process.exit(0);
     }
 
+    if (!options.pod) {
+      output.error("Pod name is required for deletion");
+      process.exit(1);
+    }
+
     // Use podRequest to hit the pod subdomain delete endpoint
-    const { podRequest } = await import("../../http/index.js");
     const result = await podRequest<void>(
       options.pod,
       "/", // DELETE / on the pod subdomain deletes the pod
@@ -210,12 +226,13 @@ export async function deletePod(options: DeletePodOptions): Promise<void> {
 
     output.success(`Pod '${options.pod}' deleted successfully.`);
     logger.info("Pod deleted successfully", { pod: options.pod });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error("Delete pod command failed", {
       pod: options.pod,
-      error: error.message,
+      error: errorMessage,
     });
-    output.error("Error: " + error.message);
+    output.error("Error: " + errorMessage);
     process.exit(1);
   }
 }
@@ -223,15 +240,35 @@ export async function deletePod(options: DeletePodOptions): Promise<void> {
 /**
  * Show pod details and statistics
  */
-export async function infoPod(options: InfoPodOptions): Promise<void> {
+export async function infoPod(options: {
+  quiet?: boolean;
+  pod?: string;
+  token?: string;
+  server?: string;
+  profile?: string;
+  format?: string;
+  [key: string]: unknown;
+}): Promise<void> {
   const output = createCliOutput(options.quiet);
 
   try {
     logger.debug("Getting pod info", { pod: options.pod });
 
+    if (!options.pod) {
+      output.error("Pod name is required for info command");
+      process.exit(1);
+    }
+
     // Use podRequest to get pod info via .meta/streams
-    const { podRequest } = await import("../../http/index.js");
-    const result = await podRequest<any>(
+    const result = await podRequest<{
+      pod: string;
+      streams: Array<{ name: string; access_permission: string }>;
+      id?: string;
+      created_at?: string;
+      stream_count?: number;
+      record_count?: number;
+      total_size?: string;
+    }>(
       options.pod,
       "/.meta/streams", // GET /.meta/streams lists streams in the pod
       {
@@ -284,12 +321,13 @@ export async function infoPod(options: InfoPodOptions): Promise<void> {
     }
 
     logger.info("Pod info displayed", { pod: options.pod, format });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error("Info pod command failed", {
       pod: options.pod,
-      error: error.message,
+      error: errorMessage,
     });
-    output.error("Error: " + error.message);
+    output.error("Error: " + errorMessage);
     process.exit(1);
   }
 }

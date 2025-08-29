@@ -31,7 +31,7 @@ export interface CliContext {
 export interface DomainError {
   code: string;
   message: string;
-  details?: any;
+  details?: unknown;
 }
 
 export type Result<T, E = DomainError> =
@@ -72,7 +72,7 @@ export interface Stream {
 
 export interface StreamRecord {
   index: number;
-  content: any;
+  content: unknown;
   content_type: string;
   name: string;
   hash: string;
@@ -92,7 +92,7 @@ export interface ErrorResponse {
   error: {
     code: string;
     message: string;
-    details?: any;
+    details?: unknown;
   };
 }
 

@@ -4,44 +4,27 @@
 
 import { promises as fs } from "fs";
 import { podRequest } from "../../http/index.js";
-import {
-  StreamRecord,
-  StreamListResponse,
-  GlobalOptions,
-} from "../../types.js";
+import { StreamRecord, StreamListResponse } from "../../types.js";
 import { createLogger, createCliOutput } from "../../logger.js";
 
 const logger = createLogger("webpods:cli:records");
 
-interface WriteOptions extends GlobalOptions {
-  pod: string;
-  stream: string;
-  name: string;
-  data?: string;
-  file?: string;
-  permission?: string;
-}
-
-interface ReadOptions extends GlobalOptions {
-  pod: string;
-  stream: string;
-  name?: string;
-  index?: string;
-  output?: string;
-}
-
-interface ListOptions extends GlobalOptions {
-  pod: string;
-  stream: string;
-  limit?: number;
-  after?: number;
-  unique?: boolean;
-}
-
 /**
  * Write data to a stream record
  */
-export async function write(options: WriteOptions): Promise<void> {
+export async function write(options: {
+  quiet?: boolean;
+  pod?: string;
+  stream?: string;
+  name?: string;
+  data?: string;
+  file?: string;
+  permission?: string;
+  token?: string;
+  server?: string;
+  profile?: string;
+  [key: string]: unknown;
+}): Promise<void> {
   const output = createCliOutput(options.quiet);
 
   try {
@@ -50,6 +33,11 @@ export async function write(options: WriteOptions): Promise<void> {
       stream: options.stream,
       name: options.name,
     });
+
+    if (!options.pod || !options.stream || !options.name) {
+      output.error("Pod, stream, and name are required for writing records.");
+      process.exit(1);
+    }
 
     let content: string;
     let contentType = "text/plain";
@@ -151,14 +139,15 @@ export async function write(options: WriteOptions): Promise<void> {
       name: options.name,
       index: result.data.index,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error("Write command failed", {
       pod: options.pod,
       stream: options.stream,
       name: options.name,
-      error: error.message,
+      error: errorMessage,
     });
-    output.error("Error: " + error.message);
+    output.error("Error: " + errorMessage);
     process.exit(1);
   }
 }
@@ -166,7 +155,18 @@ export async function write(options: WriteOptions): Promise<void> {
 /**
  * Read data from a stream record
  */
-export async function read(options: ReadOptions): Promise<void> {
+export async function read(options: {
+  quiet?: boolean;
+  pod?: string;
+  stream?: string;
+  name?: string;
+  index?: string;
+  output?: string;
+  token?: string;
+  server?: string;
+  profile?: string;
+  [key: string]: unknown;
+}): Promise<void> {
   const output = createCliOutput(options.quiet);
 
   try {
@@ -176,6 +176,11 @@ export async function read(options: ReadOptions): Promise<void> {
       name: options.name,
       index: options.index,
     });
+
+    if (!options.pod || !options.stream) {
+      output.error("Pod and stream are required for reading records.");
+      process.exit(1);
+    }
 
     let path: string;
 
@@ -273,13 +278,14 @@ export async function read(options: ReadOptions): Promise<void> {
         stream: options.stream,
       });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error("Read command failed", {
       pod: options.pod,
       stream: options.stream,
-      error: error.message,
+      error: errorMessage,
     });
-    output.error("Error: " + error.message);
+    output.error("Error: " + errorMessage);
     process.exit(1);
   }
 }
@@ -287,7 +293,19 @@ export async function read(options: ReadOptions): Promise<void> {
 /**
  * List records in a stream
  */
-export async function list(options: ListOptions): Promise<void> {
+export async function list(options: {
+  quiet?: boolean;
+  pod?: string;
+  stream?: string;
+  limit?: number;
+  after?: number;
+  unique?: boolean;
+  token?: string;
+  server?: string;
+  profile?: string;
+  format?: string;
+  [key: string]: unknown;
+}): Promise<void> {
   const output = createCliOutput(options.quiet);
 
   try {
@@ -298,6 +316,11 @@ export async function list(options: ListOptions): Promise<void> {
       after: options.after,
       unique: options.unique,
     });
+
+    if (!options.pod || !options.stream) {
+      output.error("Pod and stream are required for listing records.");
+      process.exit(1);
+    }
 
     let path = `/${options.stream}`;
     const params = new URLSearchParams();
@@ -402,13 +425,14 @@ export async function list(options: ListOptions): Promise<void> {
       count: response.records.length,
       format,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error("List command failed", {
       pod: options.pod,
       stream: options.stream,
-      error: error.message,
+      error: errorMessage,
     });
-    output.error("Error: " + error.message);
+    output.error("Error: " + errorMessage);
     process.exit(1);
   }
 }

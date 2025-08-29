@@ -9,7 +9,7 @@ import {
   setToken as saveToken,
   getToken,
 } from "../../config/index.js";
-import { User, LoginArgs, TokenSetArgs, GlobalOptions } from "../../types.js";
+import { User } from "../../types.js";
 import { createLogger, createCliOutput } from "../../logger.js";
 
 const logger = createLogger("webpods:cli:auth");
@@ -17,7 +17,12 @@ const logger = createLogger("webpods:cli:auth");
 /**
  * Print OAuth login link for manual token retrieval
  */
-export async function login(options: LoginArgs): Promise<void> {
+export async function login(options: {
+  quiet?: boolean;
+  provider?: string;
+  server?: string;
+  [key: string]: unknown;
+}): Promise<void> {
   const output = createCliOutput(options.quiet);
 
   try {
@@ -41,9 +46,10 @@ export async function login(options: LoginArgs): Promise<void> {
 
     logger.info("Login URL provided", { loginUrl });
     process.exit(0);
-  } catch (error: any) {
-    logger.error("Login failed", { error: error.message });
-    output.error("Error: " + error.message);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error("Login failed", { error: errorMessage });
+    output.error("Error: " + errorMessage);
     process.exit(1);
   }
 }
@@ -51,7 +57,10 @@ export async function login(options: LoginArgs): Promise<void> {
 /**
  * Clear stored authentication token
  */
-export async function logout(options: GlobalOptions): Promise<void> {
+export async function logout(options: {
+  quiet?: boolean;
+  [key: string]: unknown;
+}): Promise<void> {
   const output = createCliOutput(options.quiet);
 
   try {
@@ -60,9 +69,10 @@ export async function logout(options: GlobalOptions): Promise<void> {
     output.success("Logged out successfully. Token cleared.");
     logger.info("User logged out successfully");
     process.exit(0);
-  } catch (error: any) {
-    logger.error("Logout failed", { error: error.message });
-    output.error("Error: " + error.message);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error("Logout failed", { error: errorMessage });
+    output.error("Error: " + errorMessage);
     process.exit(1);
   }
 }
@@ -70,7 +80,13 @@ export async function logout(options: GlobalOptions): Promise<void> {
 /**
  * Show current authenticated user information
  */
-export async function whoami(options: GlobalOptions): Promise<void> {
+export async function whoami(options: {
+  quiet?: boolean;
+  token?: string;
+  server?: string;
+  format?: string;
+  [key: string]: unknown;
+}): Promise<void> {
   const output = createCliOutput(options.quiet);
 
   try {
@@ -122,9 +138,10 @@ export async function whoami(options: GlobalOptions): Promise<void> {
 
     logger.info("User info displayed", { userId: result.data.user_id, format });
     process.exit(0);
-  } catch (error: any) {
-    logger.error("Whoami command failed", { error: error.message });
-    output.error("Error: " + error.message);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error("Whoami command failed", { error: errorMessage });
+    output.error("Error: " + errorMessage);
     process.exit(1);
   }
 }
@@ -132,7 +149,10 @@ export async function whoami(options: GlobalOptions): Promise<void> {
 /**
  * Display current stored token
  */
-export async function token(options: GlobalOptions): Promise<void> {
+export async function token(options: {
+  quiet?: boolean;
+  [key: string]: unknown;
+}): Promise<void> {
   const output = createCliOutput(options.quiet);
 
   try {
@@ -153,9 +173,10 @@ export async function token(options: GlobalOptions): Promise<void> {
 
     logger.info("Token displayed (masked)");
     process.exit(0);
-  } catch (error: any) {
-    logger.error("Token display failed", { error: error.message });
-    output.error("Error: " + error.message);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error("Token display failed", { error: errorMessage });
+    output.error("Error: " + errorMessage);
     process.exit(1);
   }
 }
@@ -163,7 +184,12 @@ export async function token(options: GlobalOptions): Promise<void> {
 /**
  * Manually set authentication token
  */
-export async function tokenSet(options: TokenSetArgs): Promise<void> {
+export async function tokenSet(options: {
+  quiet?: boolean;
+  token?: string;
+  server?: string;
+  [key: string]: unknown;
+}): Promise<void> {
   const output = createCliOutput(options.quiet);
 
   try {
@@ -195,9 +221,10 @@ export async function tokenSet(options: TokenSetArgs): Promise<void> {
     );
     logger.info("Token set successfully", { userId: result.data.user_id });
     process.exit(0);
-  } catch (error: any) {
-    logger.error("Token set failed", { error: error.message });
-    output.error("Error: " + error.message);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error("Token set failed", { error: errorMessage });
+    output.error("Error: " + errorMessage);
     process.exit(1);
   }
 }

@@ -2,7 +2,7 @@
  * Profile management for WebPods CLI
  */
 
-import { WebPodsConfig, WebPodsProfile } from "../types.js";
+import { WebPodsProfile } from "../types.js";
 import { loadConfig, saveConfig } from "./index.js";
 import { createLogger } from "../logger.js";
 

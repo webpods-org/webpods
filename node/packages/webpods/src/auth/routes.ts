@@ -15,11 +15,16 @@ import type {
 import {
   getAuthorizationUrl,
   exchangeCodeForTokens,
-  getUserInfo,
+  getUserInfo as getOAuthUserInfo,
   validateProvider,
 } from "./oauth-handlers.js";
 import { getConfiguredProviders, getDefaultProvider } from "./oauth-config.js";
-import { generateWebPodsToken } from "./jwt-generator.js";
+import {
+  generateWebPodsToken,
+  isWebPodsToken,
+  verifyWebPodsToken,
+} from "./jwt-generator.js";
+import { getUserInfo } from "../domain/users/index.js";
 
 type OAuthProvider = string;
 import {
@@ -262,10 +267,6 @@ router.get("/whoami", async (req: Request, res: Response) => {
 
   try {
     // Check if it's a WebPods JWT token first
-    const { isWebPodsToken, verifyWebPodsToken } = await import(
-      "./jwt-generator.js"
-    );
-
     if (isWebPodsToken(token)) {
       const webpodsResult = verifyWebPodsToken(token);
 
@@ -277,7 +278,6 @@ router.get("/whoami", async (req: Request, res: Response) => {
       }
 
       // Get user info using domain function
-      const { getUserInfo } = await import("../domain/users/index.js");
       const db = getDb();
       const ctx = { db };
 
@@ -525,7 +525,10 @@ router.get("/:provider/callback", async (req: Request, res: Response) => {
         `Invalid token response: missing or invalid access_token from ${provider}`,
       );
     }
-    const userInfo = await getUserInfo(provider, tokenSetTyped.access_token);
+    const userInfo = await getOAuthUserInfo(
+      provider,
+      tokenSetTyped.access_token,
+    );
 
     // Find or create user
     const db = getDb();

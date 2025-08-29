@@ -3,23 +3,25 @@
  */
 
 import { podRequest } from "../../http/index.js";
-import { GlobalOptions } from "../../types.js";
 import { createLogger, createCliOutput } from "../../logger.js";
 
 const logger = createLogger("webpods:cli:permissions");
 
-interface PermissionsOptions extends GlobalOptions {
-  pod: string;
-  stream: string;
-  action?: string;
-  mode?: string;
-  user?: string;
-}
-
 /**
  * Manage stream permissions
  */
-export async function permissions(options: PermissionsOptions): Promise<void> {
+export async function permissions(options: {
+  quiet?: boolean;
+  pod?: string;
+  stream?: string;
+  action?: string;
+  mode?: string;
+  user?: string;
+  token?: string;
+  server?: string;
+  profile?: string;
+  [key: string]: unknown;
+}): Promise<void> {
   const output = createCliOutput(options.quiet);
 
   try {
@@ -51,19 +53,27 @@ export async function permissions(options: PermissionsOptions): Promise<void> {
         logger.error("Unknown permission action", { action });
         process.exit(1);
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error("Permissions command failed", {
       pod: options.pod,
       stream: options.stream,
       action: options.action,
-      error: error.message,
+      error: errorMessage,
     });
-    output.error("Error: " + error.message);
+    output.error("Error: " + errorMessage);
     process.exit(1);
   }
 }
 
-async function viewPermissions(options: PermissionsOptions): Promise<void> {
+async function viewPermissions(options: {
+  quiet?: boolean;
+  pod?: string;
+  stream?: string;
+  token?: string;
+  server?: string;
+  [key: string]: unknown;
+}): Promise<void> {
   const output = createCliOutput(options.quiet);
 
   logger.debug("Viewing permissions", {
@@ -71,8 +81,13 @@ async function viewPermissions(options: PermissionsOptions): Promise<void> {
     stream: options.stream,
   });
 
+  if (!options.pod || !options.stream) {
+    output.error("Pod and stream are required for viewing permissions");
+    process.exit(1);
+  }
+
   // Get stream info to see current permission
-  const result = await podRequest<any>(
+  const result = await podRequest<{ access_permission?: string }>(
     options.pod,
     `/${options.stream}?info=true`,
     {
@@ -109,7 +124,15 @@ async function viewPermissions(options: PermissionsOptions): Promise<void> {
   });
 }
 
-async function setPermissions(options: PermissionsOptions): Promise<void> {
+async function setPermissions(options: {
+  quiet?: boolean;
+  pod?: string;
+  stream?: string;
+  mode?: string;
+  token?: string;
+  server?: string;
+  [key: string]: unknown;
+}): Promise<void> {
   const output = createCliOutput(options.quiet);
 
   logger.debug("Setting permissions", {
@@ -117,6 +140,11 @@ async function setPermissions(options: PermissionsOptions): Promise<void> {
     stream: options.stream,
     mode: options.mode,
   });
+
+  if (!options.pod || !options.stream) {
+    output.error("Pod and stream are required for setting permissions");
+    process.exit(1);
+  }
 
   if (!options.mode) {
     output.error(
@@ -126,7 +154,7 @@ async function setPermissions(options: PermissionsOptions): Promise<void> {
     process.exit(1);
   }
 
-  const result = await podRequest<any>(
+  const result = await podRequest<unknown>(
     options.pod,
     `/${options.stream}?access=${encodeURIComponent(options.mode)}`,
     {
@@ -158,7 +186,15 @@ async function setPermissions(options: PermissionsOptions): Promise<void> {
   });
 }
 
-async function grantPermission(options: PermissionsOptions): Promise<void> {
+async function grantPermission(options: {
+  quiet?: boolean;
+  pod?: string;
+  stream?: string;
+  user?: string;
+  token?: string;
+  server?: string;
+  [key: string]: unknown;
+}): Promise<void> {
   const output = createCliOutput(options.quiet);
 
   logger.debug("Granting permission", {
@@ -166,6 +202,11 @@ async function grantPermission(options: PermissionsOptions): Promise<void> {
     stream: options.stream,
     user: options.user,
   });
+
+  if (!options.pod || !options.stream) {
+    output.error("Pod and stream are required for granting permissions");
+    process.exit(1);
+  }
 
   if (!options.user) {
     output.error("User ID is required for grant action. Use --user <user-id>");
@@ -177,7 +218,7 @@ async function grantPermission(options: PermissionsOptions): Promise<void> {
   const permissionStream = options.stream.replace(/^\//, "") + "_permissions";
   logger.debug("Constructed permission stream", { permissionStream });
 
-  const result = await podRequest<any>(
+  const result = await podRequest<unknown>(
     options.pod,
     `/${permissionStream}/${options.user}`,
     {
@@ -213,7 +254,15 @@ async function grantPermission(options: PermissionsOptions): Promise<void> {
   });
 }
 
-async function revokePermission(options: PermissionsOptions): Promise<void> {
+async function revokePermission(options: {
+  quiet?: boolean;
+  pod?: string;
+  stream?: string;
+  user?: string;
+  token?: string;
+  server?: string;
+  [key: string]: unknown;
+}): Promise<void> {
   const output = createCliOutput(options.quiet);
 
   logger.debug("Revoking permission", {
@@ -221,6 +270,11 @@ async function revokePermission(options: PermissionsOptions): Promise<void> {
     stream: options.stream,
     user: options.user,
   });
+
+  if (!options.pod || !options.stream) {
+    output.error("Pod and stream are required for revoking permissions");
+    process.exit(1);
+  }
 
   if (!options.user) {
     output.error("User ID is required for revoke action. Use --user <user-id>");
@@ -232,7 +286,7 @@ async function revokePermission(options: PermissionsOptions): Promise<void> {
   const permissionStream = options.stream.replace(/^\//, "") + "_permissions";
   logger.debug("Constructed permission stream", { permissionStream });
 
-  const result = await podRequest<any>(
+  const result = await podRequest<unknown>(
     options.pod,
     `/${permissionStream}/${options.user}`,
     {
@@ -267,7 +321,14 @@ async function revokePermission(options: PermissionsOptions): Promise<void> {
   });
 }
 
-async function listPermissions(options: PermissionsOptions): Promise<void> {
+async function listPermissions(options: {
+  quiet?: boolean;
+  pod?: string;
+  stream?: string;
+  token?: string;
+  server?: string;
+  [key: string]: unknown;
+}): Promise<void> {
   const output = createCliOutput(options.quiet);
 
   logger.debug("Listing permissions", {
@@ -275,11 +336,16 @@ async function listPermissions(options: PermissionsOptions): Promise<void> {
     stream: options.stream,
   });
 
+  if (!options.pod || !options.stream) {
+    output.error("Pod and stream are required for listing permissions");
+    process.exit(1);
+  }
+
   // This would read from the permission stream
   const permissionStream = options.stream.replace(/^\//, "") + "_permissions";
   logger.debug("Constructed permission stream", { permissionStream });
 
-  const result = await podRequest<any>(
+  const result = await podRequest<{ records?: unknown[] }>(
     options.pod,
     `/${permissionStream}?unique=true`,
     {
@@ -311,17 +377,29 @@ async function listPermissions(options: PermissionsOptions): Promise<void> {
   output.print("─".repeat(40));
 
   let activePermissions = 0;
-  records.forEach((record: any) => {
-    const content =
-      typeof record.content === "string"
-        ? JSON.parse(record.content)
-        : record.content;
-    if (!content.deleted) {
-      const permissions = [];
-      if (content.read) permissions.push("read");
-      if (content.write) permissions.push("write");
-      output.print(`${content.id.padEnd(30)} ${permissions.join(", ")}`);
-      activePermissions++;
+  records.forEach((record: unknown) => {
+    if (record && typeof record === "object" && "content" in record) {
+      const recordObj = record as { content: unknown };
+      const content =
+        typeof recordObj.content === "string"
+          ? JSON.parse(recordObj.content)
+          : recordObj.content;
+      if (content && typeof content === "object" && "deleted" in content) {
+        const contentObj = content as {
+          deleted?: boolean;
+          read?: boolean;
+          write?: boolean;
+          id?: string;
+        };
+        if (!contentObj.deleted) {
+          const permissions = [];
+          if (contentObj.read) permissions.push("read");
+          if (contentObj.write) permissions.push("write");
+          const id = contentObj.id || "unknown";
+          output.print(`${id.padEnd(30)} ${permissions.join(", ")}`);
+          activePermissions++;
+        }
+      }
     }
   });
 

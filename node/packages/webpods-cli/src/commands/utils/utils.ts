@@ -3,24 +3,17 @@
  */
 
 import { loadConfig, updateConfig } from "../../config/index.js";
-import { GlobalOptions } from "../../types.js";
 import { createLogger, createCliOutput } from "../../logger.js";
 
 const logger = createLogger("webpods:cli:utils");
 
-interface ConfigSetOptions extends GlobalOptions {
-  key: string;
-  value: string;
-}
-
-interface ConfigServerOptions extends GlobalOptions {
-  url: string;
-}
-
 /**
  * Show current configuration
  */
-export async function config(options: GlobalOptions): Promise<void> {
+export async function config(options: {
+  quiet?: boolean;
+  [key: string]: unknown;
+}): Promise<void> {
   const output = createCliOutput(options.quiet);
 
   try {
@@ -43,9 +36,10 @@ export async function config(options: GlobalOptions): Promise<void> {
       hasToken: !!currentConfig.token,
       defaultPod: currentConfig.defaultPod,
     });
-  } catch (error: any) {
-    logger.error("Config command failed", { error: error.message });
-    output.error("Error: " + error.message);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error("Config command failed", { error: errorMessage });
+    output.error("Error: " + errorMessage);
     process.exit(1);
   }
 }
@@ -53,7 +47,12 @@ export async function config(options: GlobalOptions): Promise<void> {
 /**
  * Set a configuration value
  */
-export async function configSet(options: ConfigSetOptions): Promise<void> {
+export async function configSet(options: {
+  quiet?: boolean;
+  key?: string;
+  value?: string;
+  [key: string]: unknown;
+}): Promise<void> {
   const output = createCliOutput(options.quiet);
 
   try {
@@ -62,31 +61,36 @@ export async function configSet(options: ConfigSetOptions): Promise<void> {
       value: options.value,
     });
 
-    const validKeys = ["server", "outputFormat", "defaultPod"];
+    const validKeys = ["server", "outputFormat", "defaultPod"] as const;
+    type ValidKey = (typeof validKeys)[number];
 
-    if (!validKeys.includes(options.key)) {
-      output.error(`Invalid configuration key: ${options.key}`);
+    if (
+      !options.key ||
+      !(validKeys as readonly string[]).includes(options.key)
+    ) {
+      output.error(`Invalid configuration key: ${options.key || "undefined"}`);
       output.error(`Valid keys: ${validKeys.join(", ")}`);
       logger.error("Invalid configuration key", {
         key: options.key,
-        validKeys,
+        validKeys: [...validKeys],
       });
       process.exit(1);
     }
 
-    await updateConfig(options.key as any, options.value);
+    await updateConfig(options.key as ValidKey, options.value);
     output.success(`Configuration updated: ${options.key} = ${options.value}`);
     logger.info("Configuration updated", {
       key: options.key,
       value: options.value,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error("Config set command failed", {
       key: options.key,
       value: options.value,
-      error: error.message,
+      error: errorMessage,
     });
-    output.error("Error: " + error.message);
+    output.error("Error: " + errorMessage);
     process.exit(1);
   }
 }
@@ -94,15 +98,22 @@ export async function configSet(options: ConfigSetOptions): Promise<void> {
 /**
  * Set WebPods server URL
  */
-export async function configServer(
-  options: ConfigServerOptions,
-): Promise<void> {
+export async function configServer(options: {
+  quiet?: boolean;
+  url?: string;
+  [key: string]: unknown;
+}): Promise<void> {
   const output = createCliOutput(options.quiet);
 
   try {
     logger.debug("Setting server URL", { url: options.url });
 
     // Basic URL validation
+    if (!options.url) {
+      output.error("URL is required");
+      logger.error("No URL provided for server config");
+      process.exit(1);
+    }
     try {
       new URL(options.url);
     } catch {
@@ -116,12 +127,13 @@ export async function configServer(
     await updateConfig("server", options.url);
     output.success(`Server URL updated: ${options.url}`);
     logger.info("Server URL updated", { url: options.url });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error("Config server command failed", {
       url: options.url,
-      error: error.message,
+      error: errorMessage,
     });
-    output.error("Error: " + error.message);
+    output.error("Error: " + errorMessage);
     process.exit(1);
   }
 }

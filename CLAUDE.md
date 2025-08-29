@@ -59,6 +59,7 @@ The codebase follows a functional programming approach with these key directorie
 - **All imports MUST include `.js` extension**: `import { foo } from "./bar.js"`
 - **TypeScript configured for `"module": "NodeNext"`**
 - **Type: `"module"` in all package.json files**
+- **NO DYNAMIC IMPORTS**: Always use static imports. Never use `await import()` or `import()` in the code
 
 ### Database Conventions
 

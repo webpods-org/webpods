@@ -5,7 +5,12 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { homedir } from "os";
-import { WebPodsConfig, WebPodsProfile } from "../types.js";
+import { WebPodsConfig } from "../types.js";
+import {
+  clearProfileToken,
+  updateProfileToken,
+  getCurrentProfile,
+} from "./profiles.js";
 
 const CONFIG_DIR = ".webpods";
 const CONFIG_FILE = "config.json";
@@ -79,12 +84,12 @@ export async function saveConfig(config: WebPodsConfig): Promise<void> {
 /**
  * Update a specific config value
  */
-export async function updateConfig(
-  key: keyof WebPodsConfig,
-  value: any,
+export async function updateConfig<K extends keyof WebPodsConfig>(
+  key: K,
+  value: WebPodsConfig[K],
 ): Promise<void> {
   const config = await loadConfig();
-  (config as any)[key] = value;
+  config[key] = value;
   await saveConfig(config);
 }
 
@@ -103,7 +108,6 @@ export async function getConfigValue<K extends keyof WebPodsConfig>(
  * Clear stored token (legacy - redirects to profile)
  */
 export async function clearToken(): Promise<void> {
-  const { clearProfileToken } = await import("./profiles.js");
   await clearProfileToken();
 }
 
@@ -111,7 +115,6 @@ export async function clearToken(): Promise<void> {
  * Set token (legacy - redirects to profile)
  */
 export async function setToken(token: string): Promise<void> {
-  const { updateProfileToken } = await import("./profiles.js");
   await updateProfileToken(token);
 }
 
@@ -119,7 +122,6 @@ export async function setToken(token: string): Promise<void> {
  * Get stored token (legacy - redirects to profile)
  */
 export async function getToken(): Promise<string | undefined> {
-  const { getCurrentProfile } = await import("./profiles.js");
   const profile = await getCurrentProfile();
   return profile?.token;
 }

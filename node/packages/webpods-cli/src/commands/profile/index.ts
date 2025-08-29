@@ -12,29 +12,20 @@ import {
   listProfileNames,
   migrateLegacyConfig,
 } from "../../config/profiles.js";
-import { GlobalOptions, WebPodsProfile } from "../../types.js";
+import { WebPodsProfile } from "../../types.js";
 import chalk from "chalk";
+import readline from "readline";
 
 const logger = createLogger("webpods:cli:profile");
-
-interface ProfileAddOptions extends GlobalOptions {
-  name: string;
-  server: string;
-}
-
-interface ProfileUseOptions extends GlobalOptions {
-  name: string;
-}
-
-interface ProfileDeleteOptions extends GlobalOptions {
-  name: string;
-  force?: boolean;
-}
 
 /**
  * List all profiles
  */
-export async function profileList(options: GlobalOptions): Promise<void> {
+export async function profileList(options: {
+  quiet?: boolean;
+  format?: string;
+  [key: string]: unknown;
+}): Promise<void> {
   const output = createCliOutput(options.quiet);
 
   try {
@@ -71,9 +62,10 @@ export async function profileList(options: GlobalOptions): Promise<void> {
     if (currentProfile) {
       output.info(`\nCurrent profile: ${chalk.bold(currentProfile)}`);
     }
-  } catch (error: any) {
-    logger.error("Failed to list profiles", { error });
-    output.error("Failed to list profiles: " + error.message);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error("Failed to list profiles", { error: errorMessage });
+    output.error("Failed to list profiles: " + errorMessage);
     process.exit(1);
   }
 }
@@ -81,10 +73,20 @@ export async function profileList(options: GlobalOptions): Promise<void> {
 /**
  * Add a new profile
  */
-export async function profileAdd(options: ProfileAddOptions): Promise<void> {
+export async function profileAdd(options: {
+  quiet?: boolean;
+  name?: string;
+  server?: string;
+  [key: string]: unknown;
+}): Promise<void> {
   const output = createCliOutput(options.quiet);
 
   try {
+    if (!options.name || !options.server) {
+      output.error("Profile name and server URL are required.");
+      process.exit(1);
+    }
+
     // Validate server URL
     try {
       new URL(options.server);
@@ -104,9 +106,10 @@ export async function profileAdd(options: ProfileAddOptions): Promise<void> {
     output.info(`Server: ${options.server}`);
     output.info(`\nTo use this profile: pod profile use ${options.name}`);
     output.info(`To authenticate: pod login --profile ${options.name}`);
-  } catch (error: any) {
-    logger.error("Failed to add profile", { error });
-    output.error("Failed to add profile: " + error.message);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error("Failed to add profile", { error: errorMessage });
+    output.error("Failed to add profile: " + errorMessage);
     process.exit(1);
   }
 }
@@ -114,10 +117,19 @@ export async function profileAdd(options: ProfileAddOptions): Promise<void> {
 /**
  * Switch to a different profile
  */
-export async function profileUse(options: ProfileUseOptions): Promise<void> {
+export async function profileUse(options: {
+  quiet?: boolean;
+  name?: string;
+  [key: string]: unknown;
+}): Promise<void> {
   const output = createCliOutput(options.quiet);
 
   try {
+    if (!options.name) {
+      output.error("Profile name is required.");
+      process.exit(1);
+    }
+
     const success = await useProfile(options.name);
 
     if (!success) {
@@ -143,9 +155,10 @@ export async function profileUse(options: ProfileUseOptions): Promise<void> {
         output.info(`\nTo authenticate: pod login`);
       }
     }
-  } catch (error: any) {
-    logger.error("Failed to switch profile", { error });
-    output.error("Failed to switch profile: " + error.message);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error("Failed to switch profile", { error: errorMessage });
+    output.error("Failed to switch profile: " + errorMessage);
     process.exit(1);
   }
 }
@@ -153,15 +166,21 @@ export async function profileUse(options: ProfileUseOptions): Promise<void> {
 /**
  * Delete a profile
  */
-export async function profileDelete(
-  options: ProfileDeleteOptions,
-): Promise<void> {
+export async function profileDelete(options: {
+  quiet?: boolean;
+  name?: string;
+  force?: boolean;
+  [key: string]: unknown;
+}): Promise<void> {
   const output = createCliOutput(options.quiet);
 
   try {
+    if (!options.name) {
+      output.error("Profile name is required.");
+      process.exit(1);
+    }
     // Confirm deletion unless forced
     if (!options.force) {
-      const readline = await import("readline");
       const rl = readline.createInterface({
         input: process.stdin,
         output: process.stdout,
@@ -191,9 +210,10 @@ export async function profileDelete(
     }
 
     output.success(`Profile '${options.name}' deleted.`);
-  } catch (error: any) {
-    logger.error("Failed to delete profile", { error });
-    output.error("Failed to delete profile: " + error.message);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error("Failed to delete profile", { error: errorMessage });
+    output.error("Failed to delete profile: " + errorMessage);
     process.exit(1);
   }
 }
@@ -201,7 +221,11 @@ export async function profileDelete(
 /**
  * Show current profile
  */
-export async function profileCurrent(options: GlobalOptions): Promise<void> {
+export async function profileCurrent(options: {
+  quiet?: boolean;
+  format?: string;
+  [key: string]: unknown;
+}): Promise<void> {
   const output = createCliOutput(options.quiet);
 
   try {
@@ -242,9 +266,10 @@ export async function profileCurrent(options: GlobalOptions): Promise<void> {
     if (profile.defaultPod) {
       output.info(`Default pod: ${profile.defaultPod}`);
     }
-  } catch (error: any) {
-    logger.error("Failed to get current profile", { error });
-    output.error("Failed to get current profile: " + error.message);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error("Failed to get current profile", { error: errorMessage });
+    output.error("Failed to get current profile: " + errorMessage);
     process.exit(1);
   }
 }
