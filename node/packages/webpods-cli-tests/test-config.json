@@ -1,0 +1,49 @@
+{
+  "oauth": {
+    "providers": [
+      {
+        "id": "test-provider",
+        "clientId": "test-client-id",
+        "clientSecret": "test-client-secret",
+        "authUrl": "http://localhost:9999/auth",
+        "tokenUrl": "http://localhost:9999/token",
+        "userinfoUrl": "http://localhost:9999/userinfo",
+        "scope": "openid email profile",
+        "userIdField": "sub",
+        "emailField": "email",
+        "nameField": "name"
+      }
+    ],
+    "defaultProvider": "test-provider"
+  },
+  "server": {
+    "host": "127.0.0.1",
+    "port": 3456,
+    "publicUrl": "http://localhost:3456",
+    "corsOrigin": "*",
+    "maxPayloadSize": "10mb"
+  },
+  "database": {
+    "host": "localhost",
+    "port": 5432,
+    "database": "webpodsdb_cli_test",
+    "user": "postgres",
+    "password": "postgres"
+  },
+  "auth": {
+    "jwtSecret": "test-secret-key",
+    "jwtExpiry": "7d",
+    "sessionSecret": "test-session-secret"
+  },
+  "rateLimits": {
+    "writes": 1000,
+    "reads": 10000,
+    "podCreate": 100,
+    "streamCreate": 1000,
+    "maxRecordLimit": 1000
+  },
+  "hydra": {
+    "adminUrl": "http://localhost:4445",
+    "publicUrl": "http://localhost:4444"
+  }
+}

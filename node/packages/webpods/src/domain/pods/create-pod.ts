@@ -4,6 +4,7 @@
 
 import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
+import { createError } from "../../utils/errors.js";
 import { PodDbRow, StreamDbRow } from "../../db-types.js";
 import { Pod } from "../../types.js";
 import { isValidPodName, calculateRecordHash } from "../../utils.js";
@@ -27,13 +28,16 @@ function mapPodFromDb(row: PodDbRow): Pod {
 
 export async function createPod(
   ctx: DataContext,
-  userId: string,
   podName: string,
+  userId: string,
 ): Promise<Result<Pod>> {
   // Validate pod name
   if (!isValidPodName(podName)) {
     return failure(
-      new Error("Pod name must be lowercase alphanumeric with hyphens"),
+      createError(
+        "INVALID_INPUT",
+        "Pod name must be lowercase alphanumeric with hyphens",
+      ),
     );
   }
 
@@ -46,7 +50,7 @@ export async function createPod(
       );
 
       if (existing) {
-        return failure(new Error("Pod already exists"));
+        return failure(createError("POD_EXISTS", "Pod already exists"));
       }
 
       // Create pod with snake_case parameters
@@ -101,6 +105,6 @@ export async function createPod(
     });
   } catch (error: unknown) {
     logger.error("Failed to create pod", { error, podName });
-    return failure(new Error("Failed to create pod"));
+    return failure(createError("INTERNAL_ERROR", "Failed to create pod"));
   }
 }

@@ -261,6 +261,43 @@ router.get("/whoami", async (req: Request, res: Response) => {
   }
 
   try {
+    // Check if it's a WebPods JWT token first
+    const { isWebPodsToken, verifyWebPodsToken } = await import(
+      "./jwt-generator.js"
+    );
+
+    if (isWebPodsToken(token)) {
+      const webpodsResult = verifyWebPodsToken(token);
+
+      if (!webpodsResult.success) {
+        res.status(401).json({
+          error: webpodsResult.error,
+        });
+        return;
+      }
+
+      // Get user info using domain function
+      const { getUserInfo } = await import("../domain/users/index.js");
+      const db = getDb();
+      const ctx = { db };
+
+      const userInfoResult = await getUserInfo(ctx, webpodsResult.data.sub);
+
+      if (!userInfoResult.success) {
+        res.status(404).json({
+          error: {
+            code: "USER_NOT_FOUND",
+            message: "User not found",
+          },
+        });
+        return;
+      }
+
+      res.json(userInfoResult.data);
+      return;
+    }
+
+    // Otherwise try as Hydra token
     const result = await verifyHydraToken(token);
 
     if (!result.success) {

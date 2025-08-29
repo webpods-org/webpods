@@ -19,6 +19,7 @@ import loginRouter from "./auth/login-page.js";
 import oauthRouter from "./oauth/routes.js";
 import connectRouter from "./oauth/connect.js";
 import oauthClientsApi from "./api/oauth-clients.js";
+import podsApi from "./api/pods.js";
 import podsRouter from "./routes/pods.js";
 
 const logger = createLogger("webpods");
@@ -162,6 +163,22 @@ export function createApp(): Express {
 
     if (isMainDomain(hostname, mainDomain)) {
       oauthClientsApi(req, res, next);
+    } else {
+      res.status(404).json({
+        error: {
+          code: "NOT_FOUND",
+          message: "API endpoints are only available on the main domain",
+        },
+      });
+    }
+  });
+
+  app.use("/api/pods", (req, res, next) => {
+    const hostname = req.hostname || req.headers.host?.split(":")[0] || "";
+    const mainDomain = config.server.public?.hostname || "localhost";
+
+    if (isMainDomain(hostname, mainDomain)) {
+      podsApi(req, res, next);
     } else {
       res.status(404).json({
         error: {

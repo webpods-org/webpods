@@ -43,8 +43,19 @@ export async function extractPod(
     const config = getConfig();
     const mainDomain = config.server.public?.hostname || "localhost";
 
-    // First try standard subdomain format
-    let podName = extractPodName(hostname, mainDomain);
+    // For localhost testing, check X-Pod-Name header first
+    let podName: string | undefined;
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      const headerPodName = req.headers["x-pod-name"];
+      if (headerPodName && typeof headerPodName === "string") {
+        podName = headerPodName;
+      }
+    }
+
+    // If no header, try standard subdomain format
+    if (!podName) {
+      podName = extractPodName(hostname, mainDomain) || undefined;
+    }
 
     // If not found, check custom domains
     if (!podName) {
@@ -105,8 +116,19 @@ export async function optionalExtractPod(
     const config = getConfig();
     const mainDomain = config.server.public?.hostname || "localhost";
 
-    // First try standard subdomain format
-    let podName = extractPodName(hostname, mainDomain);
+    // For localhost testing, check X-Pod-Name header first
+    let podName: string | undefined;
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      const headerPodName = req.headers["x-pod-name"];
+      if (headerPodName && typeof headerPodName === "string") {
+        podName = headerPodName;
+      }
+    }
+
+    // If no header, try standard subdomain format
+    if (!podName) {
+      podName = extractPodName(hostname, mainDomain) || undefined;
+    }
 
     // If not found, check custom domains
     if (!podName) {

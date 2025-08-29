@@ -47,12 +47,14 @@ describe("OAuth Client Management API", () => {
 
       // Get all client IDs for this user before deleting
       const existingClients = await db.manyOrNone(
-        `SELECT client_id FROM oauth_client WHERE user_id = $1`,
-        [userId],
+        `SELECT client_id FROM oauth_client WHERE user_id = $(userId)`,
+        { userId },
       );
 
       // Delete from database first
-      await db.none(`DELETE FROM oauth_client WHERE user_id = $1`, [userId]);
+      await db.none(`DELETE FROM oauth_client WHERE user_id = $(userId)`, {
+        userId,
+      });
 
       // Also delete from Hydra - wait for each deletion to complete
       for (const client of existingClients) {
@@ -155,8 +157,8 @@ describe("OAuth Client Management API", () => {
       // Verify it was created in the database
       const db = testDb.getDb();
       const dbResult = await db.oneOrNone(
-        `SELECT * FROM oauth_client WHERE client_id = $1`,
-        [createdClientId],
+        `SELECT * FROM oauth_client WHERE client_id = $(clientId)`,
+        { clientId: createdClientId },
       );
       expect(dbResult).to.exist;
       expect(dbResult.user_id).to.equal(userId);

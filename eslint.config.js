@@ -82,6 +82,37 @@ export default [
     },
   },
   {
+    files: ["**/webpods-cli-tests/**/*.ts"],
+    languageOptions: {
+      parser: typescriptParser,
+      parserOptions: {
+        ecmaVersion: 2021,
+        sourceType: "module",
+      },
+      globals: {
+        ...globals.node,
+        ...globals.es2021,
+        ...globals.mocha,
+      },
+    },
+    plugins: {
+      "@typescript-eslint": typescript,
+    },
+    rules: {
+      ...typescript.configs.recommended.rules,
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/explicit-module-boundary-types": "off",
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_" },
+      ],
+      "@typescript-eslint/no-unused-expressions": "off",
+      "no-console": "off",
+      "prefer-const": "error",
+      "no-var": "error",
+    },
+  },
+  {
     files: ["**/webpods-test-utils/**/*.ts"],
     languageOptions: {
       parser: typescriptParser,
@@ -106,6 +137,40 @@ export default [
         { argsIgnorePattern: "^_" },
       ],
       "no-console": "off",
+      "prefer-const": "error",
+      "no-var": "error",
+    },
+  },
+  {
+    files: ["**/webpods-cli/**/*.ts"],
+    languageOptions: {
+      parser: typescriptParser,
+      parserOptions: {
+        ecmaVersion: 2021,
+        sourceType: "module",
+      },
+      globals: {
+        ...globals.node,
+        ...globals.es2021,
+      },
+    },
+    plugins: {
+      "@typescript-eslint": typescript,
+    },
+    rules: {
+      ...typescript.configs.recommended.rules,
+      quotes: [
+        "error",
+        "double",
+        { avoidEscape: true, allowTemplateLiterals: true },
+      ],
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/explicit-module-boundary-types": "off",
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_" },
+      ],
+      "no-console": ["error", { allow: ["warn", "error", "info"] }],
       "prefer-const": "error",
       "no-var": "error",
     },

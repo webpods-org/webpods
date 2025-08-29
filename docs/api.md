@@ -149,6 +149,71 @@ GET /connect?client_id={your-client-id}
 
 Redirects to Hydra with proper OAuth parameters. Users authorize and are redirected to your callback URL.
 
+## Pod Management
+
+### Create Pod
+
+```
+POST /api/pods
+Authorization: Bearer {webpods-jwt}
+Content-Type: application/json
+```
+
+Request:
+
+```json
+{
+  "name": "my-pod"
+}
+```
+
+Pod name requirements:
+
+- Lowercase letters, numbers, and hyphens only
+- 2-63 characters
+- Must be globally unique
+
+Response (201 Created):
+
+```json
+{
+  "name": "my-pod",
+  "id": "my-pod",
+  "created_at": "2024-01-01T00:00:00Z",
+  "message": "Pod 'my-pod' created successfully"
+}
+```
+
+### List Pods
+
+```
+GET /api/pods
+Authorization: Bearer {webpods-jwt}
+```
+
+Returns all pods owned by the authenticated user.
+
+Response:
+
+```json
+[
+  {
+    "name": "my-pod",
+    "id": "my-pod",
+    "created_at": "2024-01-01T00:00:00Z"
+  }
+]
+```
+
+### Delete Pod
+
+```
+DELETE {pod}.webpods.org/
+Authorization: Bearer {token}
+```
+
+Deletes the pod and all its data. Only the owner can delete a pod.
+
 ## Stream Operations
 
 ### Write Record
@@ -160,7 +225,7 @@ Authorization: Bearer {token}
 
 Parameters:
 
-- `{pod}` - Subdomain (created if doesn't exist)
+- `{pod}` - Subdomain (must exist)
 - `{stream}` - Path, can be nested (e.g., `/blog/2024/posts`)
 - `{name}` - Record name (required, last path segment)
 
@@ -352,6 +417,7 @@ Common error codes:
 - `UNAUTHORIZED` - Missing/invalid authentication
 - `FORBIDDEN` - Insufficient permissions
 - `NOT_FOUND` - Resource not found
+- `POD_NOT_FOUND` - Pod does not exist (must be created first)
 - `INVALID_INPUT` - Invalid request data
 - `RATE_LIMIT_EXCEEDED` - Too many requests
 - `POD_EXISTS` - Pod ID already taken

@@ -1,5 +1,6 @@
 import pgPromise from "pg-promise";
 import crypto from "crypto";
+import jwt from "jsonwebtoken";
 
 export interface TestUser {
   userId: string;
@@ -91,4 +92,21 @@ export async function createTestPod(
      VALUES ($(podName), '.meta/owner', 0, $(content), 'application/json', 'owner', $(hash), NULL, $(ownerId), NOW())`,
     { podName, content, hash, ownerId },
   );
+}
+
+/**
+ * Generate a WebPods JWT token for testing
+ * @param userId The user ID to include in the token
+ * @returns JWT token string
+ */
+export function generateTestWebPodsToken(userId: string): string {
+  const secret = process.env.JWT_SECRET || "test-secret-key";
+
+  const payload = {
+    sub: userId,
+    iat: Math.floor(Date.now() / 1000),
+    type: "webpods",
+  };
+
+  return jwt.sign(payload, secret);
 }

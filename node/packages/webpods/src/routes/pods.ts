@@ -29,10 +29,8 @@ import {
   parseDataUrl,
   isValidName,
 } from "../utils.js";
-import { ensureUserExists } from "../domain/users/ensure-user-exists.js";
 
 // Import domain functions
-import { createPod } from "../domain/pods/create-pod.js";
 import { deletePod } from "../domain/pods/delete-pod.js";
 import { listPodStreams } from "../domain/pods/list-pod-streams.js";
 import { transferPodOwnership } from "../domain/pods/transfer-pod-ownership.js";
@@ -573,51 +571,15 @@ router.post(
 
       const db = getDb();
 
-      // Create pod if it doesn't exist
+      // Check if pod exists - require explicit creation via POST /api/pods
       if (!req.pod && req.podName) {
-        // Check pod creation rate limit first
-        const podLimitResult = await checkRateLimit(
-          { db },
-          req.auth.user_id,
-          "pod_create",
-        );
-
-        if (!podLimitResult.success || !podLimitResult.data.allowed) {
-          res.status(429).json({
-            error: {
-              code: "RATE_LIMIT_EXCEEDED",
-              message: "Too many pods created",
-            },
-          });
-          return;
-        }
-
-        // Ensure user exists in database before creating pod
-        // This handles cases where JWT is valid but user was deleted (e.g., in tests)
-        const userResult = await ensureUserExists({ db }, req.auth.user_id);
-
-        if (!userResult.success) {
-          res.status(500).json({
-            error: {
-              code: "USER_ERROR",
-              message: "Failed to ensure user exists",
-            },
-          });
-          return;
-        }
-
-        const podResult = await createPod(
-          { db },
-          req.auth.user_id,
-          req.podName,
-        );
-        if (!podResult.success) {
-          res.status(500).json({
-            error: podResult.error,
-          });
-          return;
-        }
-        req.pod = podResult.data;
+        res.status(404).json({
+          error: {
+            code: "POD_NOT_FOUND",
+            message: `Pod '${req.podName}' does not exist. Create it first using the pod creation API.`,
+          },
+        });
+        return;
       }
 
       // Check if stream exists first

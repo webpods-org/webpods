@@ -4,6 +4,7 @@ import {
   TestHttpClient,
   createTestUser,
   createTestPod,
+  generateTestWebPodsToken,
 } from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 import crypto from "crypto";
@@ -68,8 +69,26 @@ describe("WebPods Rate Limiting", () => {
         name: "Pod Creator User",
       });
 
-      // Get tokens that allow access to multiple pods
-      // Note: The pods don't exist yet, they'll be created on first POST
+      // Get a WebPods JWT token for the user
+      const webpodsToken = generateTestWebPodsToken(podTestUser.userId);
+
+      // Create pods using the API (which triggers rate limiting)
+      client.setBaseUrl("http://localhost:3000");
+      client.setAuthToken(webpodsToken);
+
+      // Create first pod via API
+      const createResponse1 = await client.post("/api/pods", {
+        name: "pod-limit-1",
+      });
+      expect(createResponse1.status).to.equal(201);
+
+      // Create second pod via API
+      const createResponse2 = await client.post("/api/pods", {
+        name: "pod-limit-2",
+      });
+      expect(createResponse2.status).to.equal(201);
+
+      // Now get OAuth tokens to write to the pods
       const token1 = await client.authenticateViaOAuth(podTestUser.userId, [
         "pod-limit-1",
       ]);
@@ -77,13 +96,12 @@ describe("WebPods Rate Limiting", () => {
         "pod-limit-2",
       ]);
 
-      // Create first pod by POSTing to it
+      // Write to the pods
       client.setBaseUrl(`http://pod-limit-1.localhost:3000`);
       client.setAuthToken(token1);
       const response1 = await client.post("/init/pod1", "Pod 1");
       expect(response1.status).to.equal(201);
 
-      // Create second pod by POSTing to it
       client.setBaseUrl(`http://pod-limit-2.localhost:3000`);
       client.setAuthToken(token2);
       const response2 = await client.post("/init/pod2", "Pod 2");
@@ -136,25 +154,22 @@ describe("WebPods Rate Limiting", () => {
 
       // Now test that we can create more pods up to the limit (10)
       // We've created 2, so we can create 8 more
+      client.setBaseUrl("http://localhost:3000");
+      client.setAuthToken(webpodsToken);
+
       for (let i = 3; i <= 10; i++) {
-        const tokenN = await client.authenticateViaOAuth(podTestUser.userId, [
-          `pod-limit-${i}`,
-        ]);
-        client.setBaseUrl(`http://pod-limit-${i}.localhost:3000`);
-        client.setAuthToken(tokenN);
-        const responseN = await client.post(`/init/pod${i}`, `Pod ${i}`);
-        expect(responseN.status).to.equal(201, `Should create pod ${i}`);
+        const createResponseN = await client.post("/api/pods", {
+          name: `pod-limit-${i}`,
+        });
+        expect(createResponseN.status).to.equal(201, `Should create pod ${i}`);
       }
 
-      // The 11th pod should be blocked
-      const token11 = await client.authenticateViaOAuth(podTestUser.userId, [
-        "pod-limit-11",
-      ]);
-      client.setBaseUrl(`http://pod-limit-11.localhost:3000`);
-      client.setAuthToken(token11);
-      const response11 = await client.post("/init/pod11", "Pod 11");
-      expect(response11.status).to.equal(429);
-      expect(response11.data.error.code).to.equal("RATE_LIMIT_EXCEEDED");
+      // The 11th pod should be blocked (rate limit exceeded)
+      const createResponse11 = await client.post("/api/pods", {
+        name: "pod-limit-11",
+      });
+      expect(createResponse11.status).to.equal(429);
+      expect(createResponse11.data.error.code).to.equal("RATE_LIMIT_EXCEEDED");
     });
 
     it("should track stream creation rate limits", async () => {
