@@ -101,12 +101,12 @@ export async function createTestPod(
  */
 export function generateTestWebPodsToken(userId: string): string {
   const secret = process.env.JWT_SECRET || "test-secret-key";
-  
+
   const payload = {
     sub: userId,
     iat: Math.floor(Date.now() / 1000),
     type: "webpods",
   };
-  
+
   return jwt.sign(payload, secret);
 }

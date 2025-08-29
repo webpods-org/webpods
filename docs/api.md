@@ -168,6 +168,7 @@ Request:
 ```
 
 Pod name requirements:
+
 - Lowercase letters, numbers, and hyphens only
 - 2-63 characters
 - Must be globally unique

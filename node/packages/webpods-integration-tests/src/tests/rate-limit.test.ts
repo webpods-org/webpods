@@ -75,7 +75,7 @@ describe("WebPods Rate Limiting", () => {
       // Create pods using the API (which triggers rate limiting)
       client.setBaseUrl("http://localhost:3000");
       client.setAuthToken(webpodsToken);
-      
+
       // Create first pod via API
       const createResponse1 = await client.post("/api/pods", {
         name: "pod-limit-1",
@@ -156,7 +156,7 @@ describe("WebPods Rate Limiting", () => {
       // We've created 2, so we can create 8 more
       client.setBaseUrl("http://localhost:3000");
       client.setAuthToken(webpodsToken);
-      
+
       for (let i = 3; i <= 10; i++) {
         const createResponseN = await client.post("/api/pods", {
           name: `pod-limit-${i}`,
