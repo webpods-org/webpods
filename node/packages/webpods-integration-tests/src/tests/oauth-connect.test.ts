@@ -65,7 +65,9 @@ describe("OAuth Connect Endpoint", () => {
   afterEach(async () => {
     // Clean up OAuth clients
     const db = testDb.getDb();
-    await db.none(`DELETE FROM oauth_client WHERE user_id = $1`, [userId]);
+    await db.none(`DELETE FROM oauth_client WHERE user_id = $(userId)`, {
+      userId,
+    });
   });
 
   describe("GET /connect", () => {
