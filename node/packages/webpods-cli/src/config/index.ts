@@ -5,13 +5,13 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { homedir } from "os";
-import { WebPodsConfig } from "../types.js";
+import { WebPodsConfig, WebPodsProfile } from "../types.js";
 
 const CONFIG_DIR = ".webpods";
 const CONFIG_FILE = "config.json";
 
 const DEFAULT_CONFIG: WebPodsConfig = {
-  server: "https://webpods.org",
+  profiles: {},
   outputFormat: "table",
 };
 
@@ -100,24 +100,29 @@ export async function getConfigValue<K extends keyof WebPodsConfig>(
 }
 
 /**
- * Clear stored token
+ * Clear stored token (legacy - redirects to profile)
  */
 export async function clearToken(): Promise<void> {
-  const config = await loadConfig();
-  delete config.token;
-  await saveConfig(config);
+  const { clearProfileToken } = await import("./profiles.js");
+  await clearProfileToken();
 }
 
 /**
- * Set token
+ * Set token (legacy - redirects to profile)
  */
 export async function setToken(token: string): Promise<void> {
-  await updateConfig("token", token);
+  const { updateProfileToken } = await import("./profiles.js");
+  await updateProfileToken(token);
 }
 
 /**
- * Get stored token
+ * Get stored token (legacy - redirects to profile)
  */
 export async function getToken(): Promise<string | undefined> {
-  return await getConfigValue("token");
+  const { getCurrentProfile } = await import("./profiles.js");
+  const profile = await getCurrentProfile();
+  return profile?.token;
 }
+
+// Export profile functions
+export * from "./profiles.js";

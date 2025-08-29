@@ -57,6 +57,8 @@ export interface CliOutput {
   success: (message: string) => void;
   error: (message: string) => void;
   warn: (message: string) => void;
+  info: (message: string) => void;
+  json: (data: any) => void;
 }
 
 export function createCliOutput(quiet?: boolean): CliOutput {
@@ -76,6 +78,16 @@ export function createCliOutput(quiet?: boolean): CliOutput {
     },
     warn: (message: string) => {
       console.warn(message);
+    },
+    info: (message: string) => {
+      if (!quiet) {
+        console.info(message);
+      }
+    },
+    json: (data: any) => {
+      if (!quiet) {
+        console.info(JSON.stringify(data, null, 2));
+      }
     },
   };
 }

@@ -29,6 +29,13 @@ import {
   oauthInfo,
 } from "./commands/oauth/index.js";
 import { config, configSet, configServer } from "./commands/utils/index.js";
+import {
+  profileList,
+  profileAdd,
+  profileUse,
+  profileDelete,
+  profileCurrent,
+} from "./commands/profile/index.js";
 
 // Types and utilities
 import { LoginArgs, ConfigArgs, GlobalOptions } from "./types.js";
@@ -116,6 +123,72 @@ export async function main() {
       async (argv: any) => {
         await tokenSet(argv);
       },
+    )
+
+    // Profile Management
+    .command(
+      "profile",
+      "Manage server profiles",
+      (yargs: Argv) =>
+        yargs
+          .command("list", "List all profiles", {}, async (argv: any) => {
+            await profileList(argv);
+          })
+          .command(
+            "add <name>",
+            "Add a new profile",
+            (yargs: Argv) =>
+              yargs
+                .positional("name", {
+                  describe: "Profile name",
+                  demandOption: true,
+                  type: "string",
+                })
+                .option("server", {
+                  type: "string",
+                  demandOption: true,
+                  describe: "WebPods server URL",
+                }),
+            async (argv: any) => {
+              await profileAdd(argv);
+            },
+          )
+          .command(
+            "use <name>",
+            "Switch to a different profile",
+            (yargs: Argv) =>
+              yargs.positional("name", {
+                describe: "Profile name",
+                demandOption: true,
+                type: "string",
+              }),
+            async (argv: any) => {
+              await profileUse(argv);
+            },
+          )
+          .command(
+            "delete <name>",
+            "Delete a profile",
+            (yargs: Argv) =>
+              yargs
+                .positional("name", {
+                  describe: "Profile name",
+                  demandOption: true,
+                  type: "string",
+                })
+                .option("force", {
+                  type: "boolean",
+                  describe: "Skip confirmation prompt",
+                }),
+            async (argv: any) => {
+              await profileDelete(argv);
+            },
+          )
+          .command("current", "Show current profile", {}, async (argv: any) => {
+            await profileCurrent(argv);
+          })
+          .demandCommand(1, "Please specify a profile command"),
+      () => {},
     )
 
     // Pod Management
@@ -603,6 +676,11 @@ export async function main() {
     )
 
     // Global options
+    .option("profile", {
+      type: "string",
+      global: true,
+      describe: "Use a specific profile",
+    })
     .option("quiet", {
       type: "boolean",
       global: true,

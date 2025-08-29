@@ -19,12 +19,45 @@ export interface RequestOptions {
  */
 export async function apiRequest<T>(
   endpoint: string,
-  options: RequestOptions = {},
+  options: RequestOptions & { profile?: string } = {},
 ): Promise<Result<T>> {
   try {
-    const config = await loadConfig();
-    const server = options.server || config.server;
-    const token = options.token || config.token;
+    const { getCurrentProfile, getProfile } = await import(
+      "../config/profiles.js"
+    );
+
+    // Get the profile to use
+    let profile;
+    if (options.profile) {
+      profile = await getProfile(options.profile);
+      if (!profile) {
+        return failure({
+          code: "PROFILE_NOT_FOUND",
+          message: `Profile '${options.profile}' not found`,
+        });
+      }
+    } else {
+      profile = await getCurrentProfile();
+      if (!profile) {
+        // Fallback to legacy config if no profiles
+        const config = await loadConfig();
+        if (config.server) {
+          profile = {
+            name: "default",
+            server: config.server,
+            token: config.token,
+          };
+        } else {
+          profile = {
+            name: "default",
+            server: "http://localhost:3000",
+          };
+        }
+      }
+    }
+
+    const server = options.server || profile.server;
+    const token = options.token || profile.token;
 
     const url = endpoint.startsWith("http")
       ? endpoint
@@ -92,10 +125,31 @@ export async function apiRequest<T>(
 export async function podRequest<T>(
   podName: string,
   path: string,
-  options: RequestOptions = {},
+  options: RequestOptions & { profile?: string } = {},
 ): Promise<Result<T>> {
-  const config = await loadConfig();
-  const server = options.server || config.server;
+  const { getCurrentProfile, getProfile } = await import(
+    "../config/profiles.js"
+  );
+
+  // Get the profile to use
+  let profile;
+  if (options.profile) {
+    profile = await getProfile(options.profile);
+  } else {
+    profile = await getCurrentProfile();
+  }
+
+  if (!profile) {
+    // Fallback to legacy config
+    const config = await loadConfig();
+    profile = {
+      name: "default",
+      server: config.server || "http://localhost:3000",
+      token: config.token,
+    };
+  }
+
+  const server = options.server || profile.server;
 
   // Extract the base domain from the server URL
   const serverUrl = new URL(server);

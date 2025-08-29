@@ -131,6 +131,16 @@ export class CliTestHelper {
     const configPath = path.join(this.configDir, ".webpods", "config.json");
     const config = JSON.parse(await fs.readFile(configPath, "utf-8"));
     config.token = token;
+
+    // Also set in default profile if profiles exist
+    if (config.profiles) {
+      const currentProfile =
+        config.currentProfile || Object.keys(config.profiles)[0];
+      if (currentProfile && config.profiles[currentProfile]) {
+        config.profiles[currentProfile].token = token;
+      }
+    }
+
     await fs.writeFile(configPath, JSON.stringify(config, null, 2));
   }
 
@@ -141,6 +151,14 @@ export class CliTestHelper {
     const configPath = path.join(this.configDir, ".webpods", "config.json");
     const config = JSON.parse(await fs.readFile(configPath, "utf-8"));
     delete config.token;
+
+    // Also clear from profiles if they exist
+    if (config.profiles) {
+      for (const profileName in config.profiles) {
+        delete config.profiles[profileName].token;
+      }
+    }
+
     await fs.writeFile(configPath, JSON.stringify(config, null, 2));
   }
 

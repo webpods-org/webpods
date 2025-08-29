@@ -56,6 +56,7 @@ export async function createPod(options: CreatePodOptions): Promise<void> {
       },
       token: options.token,
       server: options.server,
+      profile: options.profile,
     });
 
     if (!result.success) {
@@ -72,7 +73,6 @@ export async function createPod(options: CreatePodOptions): Promise<void> {
     }
 
     output.success(`Pod '${options.name}' created successfully!`);
-    output.print(`Access it at: https://${options.name}.webpods.org`);
     logger.info("Pod created successfully", {
       name: options.name,
       podId: result.data.id,
@@ -98,6 +98,7 @@ export async function listPods(options: GlobalOptions): Promise<void> {
     const result = await apiRequest<Pod[]>("/api/pods", {
       token: options.token,
       server: options.server,
+      profile: options.profile,
     });
 
     if (!result.success) {
@@ -144,9 +145,7 @@ export async function listPods(options: GlobalOptions): Promise<void> {
         output.print("Pods:");
         output.print("─────");
         pods.forEach((pod) => {
-          output.print(
-            `${pod.name.padEnd(20)} https://${pod.name}.webpods.org`,
-          );
+          output.print(pod.name);
         });
         output.print(
           `\nTotal: ${pods.length} pod${pods.length === 1 ? "" : "s"}`,
@@ -277,7 +276,6 @@ export async function infoPod(options: InfoPodOptions): Promise<void> {
       default: // table
         output.print(`Pod: ${options.pod}`);
         output.print("─".repeat(20 + options.pod.length));
-        output.print(`URL:         https://${options.pod}.webpods.org`);
         output.print(`ID:          ${info.id || "Unknown"}`);
         output.print(`Created:     ${info.created_at || "Unknown"}`);
         output.print(`Streams:     ${info.stream_count || 0}`);
