@@ -3,31 +3,33 @@
  */
 
 import { podRequest } from "../../http/index.js";
-import { GlobalOptions } from "../../types.js";
 import { createLogger, createCliOutput } from "../../logger.js";
 
 const logger = createLogger("webpods:cli:streams");
 
-interface StreamsOptions extends GlobalOptions {
-  pod: string;
-}
-
-interface DeleteStreamOptions extends GlobalOptions {
-  pod: string;
-  stream: string;
-  force?: boolean;
-}
-
 /**
  * List all streams in a pod
  */
-export async function streams(options: StreamsOptions): Promise<void> {
+export async function streams(options: {
+  quiet?: boolean;
+  pod?: string;
+  token?: string;
+  server?: string;
+  profile?: string;
+  format?: string;
+  [key: string]: unknown;
+}): Promise<void> {
   const output = createCliOutput(options.quiet);
 
   try {
     logger.debug("Listing streams", { pod: options.pod });
 
-    const result = await podRequest<{ streams: any[] }>(
+    if (!options.pod) {
+      output.error("Pod name is required for listing streams.");
+      process.exit(1);
+    }
+
+    const result = await podRequest<{ streams: string[] }>(
       options.pod,
       "/.meta/streams",
       {
@@ -88,12 +90,13 @@ export async function streams(options: StreamsOptions): Promise<void> {
       count: streamList.length,
       format,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error("Streams command failed", {
       pod: options.pod,
-      error: error.message,
+      error: errorMessage,
     });
-    output.error("Error: " + error.message);
+    output.error("Error: " + errorMessage);
     process.exit(1);
   }
 }
@@ -101,9 +104,16 @@ export async function streams(options: StreamsOptions): Promise<void> {
 /**
  * Delete an entire stream
  */
-export async function deleteStream(
-  options: DeleteStreamOptions,
-): Promise<void> {
+export async function deleteStream(options: {
+  quiet?: boolean;
+  pod?: string;
+  stream?: string;
+  force?: boolean;
+  token?: string;
+  server?: string;
+  profile?: string;
+  [key: string]: unknown;
+}): Promise<void> {
   const output = createCliOutput(options.quiet);
 
   try {
@@ -112,6 +122,11 @@ export async function deleteStream(
       stream: options.stream,
       force: options.force,
     });
+
+    if (!options.pod || !options.stream) {
+      output.error("Pod and stream name are required for deleting streams.");
+      process.exit(1);
+    }
 
     if (!options.force) {
       output.print(
@@ -157,13 +172,14 @@ export async function deleteStream(
       pod: options.pod,
       stream: options.stream,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error("Delete stream command failed", {
       pod: options.pod,
       stream: options.stream,
-      error: error.message,
+      error: errorMessage,
     });
-    output.error("Error: " + error.message);
+    output.error("Error: " + errorMessage);
     process.exit(1);
   }
 }

@@ -2,7 +2,6 @@
 
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
-import type { ArgumentsCamelCase, Argv } from "yargs";
 import process from "node:process";
 
 // Command imports
@@ -37,9 +36,6 @@ import {
   profileCurrent,
 } from "./commands/profile/index.js";
 
-// Types and utilities
-import { LoginArgs, ConfigArgs, GlobalOptions } from "./types.js";
-
 export * as config from "./config/index.js";
 export * as http from "./http/index.js";
 export * as types from "./types.js";
@@ -50,7 +46,8 @@ import { createLogger, createCliOutput } from "./logger.js";
 const logger = createLogger("webpods:cli");
 
 // Disable deprecation warnings
-(process as any).noDeprecation = true;
+// eslint-disable-next-line no-undef
+(process as NodeJS.Process & { noDeprecation?: boolean }).noDeprecation = true;
 
 export async function main() {
   await yargs(hideBin(process.argv))
@@ -58,7 +55,7 @@ export async function main() {
     .command(
       "login",
       "Print OAuth login link for manual token retrieval",
-      (yargs: Argv) =>
+      (yargs) =>
         yargs
           .option("server", {
             type: "string",
@@ -69,7 +66,7 @@ export async function main() {
             describe: "OAuth provider (github, google, etc.)",
             default: "github",
           }),
-      async (argv: ArgumentsCamelCase<LoginArgs>) => {
+      async (argv) => {
         await login(argv);
       },
     )
@@ -77,14 +74,14 @@ export async function main() {
       "logout",
       "Clear stored authentication token",
       {},
-      async (argv: ArgumentsCamelCase<GlobalOptions>) => {
+      async (argv) => {
         await logout(argv);
       },
     )
     .command(
       "whoami",
       "Show current authenticated user information",
-      (yargs: Argv) =>
+      (yargs) =>
         yargs
           .option("token", {
             type: "string",
@@ -99,28 +96,23 @@ export async function main() {
             choices: ["json", "yaml", "table", "csv"] as const,
             describe: "Output format",
           }),
-      async (argv: any) => {
+      async (argv) => {
         await whoami(argv);
       },
     )
-    .command(
-      "token-show",
-      "Display current stored token",
-      {},
-      async (argv: ArgumentsCamelCase<GlobalOptions>) => {
-        await token(argv);
-      },
-    )
+    .command("token-show", "Display current stored token", {}, async (argv) => {
+      await token(argv);
+    })
     .command(
       "token-set <token>",
       "Manually set authentication token",
-      (yargs: Argv) =>
+      (yargs) =>
         yargs.positional("token", {
           describe: "JWT token to store",
           demandOption: true,
           type: "string",
         }),
-      async (argv: any) => {
+      async (argv) => {
         await tokenSet(argv);
       },
     )
@@ -129,15 +121,15 @@ export async function main() {
     .command(
       "profile",
       "Manage server profiles",
-      (yargs: Argv) =>
+      (yargs) =>
         yargs
-          .command("list", "List all profiles", {}, async (argv: any) => {
+          .command("list", "List all profiles", {}, async (argv) => {
             await profileList(argv);
           })
           .command(
             "add <name>",
             "Add a new profile",
-            (yargs: Argv) =>
+            (yargs) =>
               yargs
                 .positional("name", {
                   describe: "Profile name",
@@ -149,27 +141,27 @@ export async function main() {
                   demandOption: true,
                   describe: "WebPods server URL",
                 }),
-            async (argv: any) => {
+            async (argv) => {
               await profileAdd(argv);
             },
           )
           .command(
             "use <name>",
             "Switch to a different profile",
-            (yargs: Argv) =>
+            (yargs) =>
               yargs.positional("name", {
                 describe: "Profile name",
                 demandOption: true,
                 type: "string",
               }),
-            async (argv: any) => {
+            async (argv) => {
               await profileUse(argv);
             },
           )
           .command(
             "delete <name>",
             "Delete a profile",
-            (yargs: Argv) =>
+            (yargs) =>
               yargs
                 .positional("name", {
                   describe: "Profile name",
@@ -180,11 +172,11 @@ export async function main() {
                   type: "boolean",
                   describe: "Skip confirmation prompt",
                 }),
-            async (argv: any) => {
+            async (argv) => {
               await profileDelete(argv);
             },
           )
-          .command("current", "Show current profile", {}, async (argv: any) => {
+          .command("current", "Show current profile", {}, async (argv) => {
             await profileCurrent(argv);
           })
           .demandCommand(1, "Please specify a profile command"),
@@ -195,7 +187,7 @@ export async function main() {
     .command(
       "create <name>",
       "Create a new pod",
-      (yargs: Argv) =>
+      (yargs) =>
         yargs
           .positional("name", {
             describe: "Pod name (subdomain)",
@@ -210,14 +202,14 @@ export async function main() {
             type: "string",
             describe: "WebPods server URL",
           }),
-      async (argv: any) => {
+      async (argv) => {
         await createPod(argv);
       },
     )
     .command(
       "pods",
       "List all your pods",
-      (yargs: Argv) =>
+      (yargs) =>
         yargs
           .option("token", {
             type: "string",
@@ -232,14 +224,14 @@ export async function main() {
             choices: ["json", "yaml", "table", "csv"] as const,
             describe: "Output format",
           }),
-      async (argv: any) => {
+      async (argv) => {
         await listPods(argv);
       },
     )
     .command(
       "delete <pod>",
       "Delete a pod and all its data",
-      (yargs: Argv) =>
+      (yargs) =>
         yargs
           .positional("pod", {
             describe: "Pod name to delete",
@@ -258,14 +250,14 @@ export async function main() {
             type: "boolean",
             describe: "Skip confirmation prompt",
           }),
-      async (argv: any) => {
+      async (argv) => {
         await deletePod(argv);
       },
     )
     .command(
       "info <pod>",
       "Show pod details and statistics",
-      (yargs: Argv) =>
+      (yargs) =>
         yargs
           .positional("pod", {
             describe: "Pod name",
@@ -285,7 +277,7 @@ export async function main() {
             choices: ["json", "yaml", "table", "csv"] as const,
             describe: "Output format",
           }),
-      async (argv: any) => {
+      async (argv) => {
         await infoPod(argv);
       },
     )
@@ -294,7 +286,7 @@ export async function main() {
     .command(
       "write <pod> <stream> <name> [data]",
       "Write data to a stream record",
-      (yargs: Argv) =>
+      (yargs) =>
         yargs
           .positional("pod", {
             describe: "Pod name",
@@ -332,14 +324,14 @@ export async function main() {
             type: "string",
             describe: "WebPods server URL",
           }),
-      async (argv: any) => {
+      async (argv) => {
         await write(argv);
       },
     )
     .command(
       "read <pod> <stream> [name]",
       "Read data from a stream record",
-      (yargs: Argv) =>
+      (yargs) =>
         yargs
           .positional("pod", {
             describe: "Pod name",
@@ -373,14 +365,14 @@ export async function main() {
             type: "string",
             describe: "WebPods server URL",
           }),
-      async (argv: any) => {
+      async (argv) => {
         await read(argv);
       },
     )
     .command(
       "records <pod> <stream>",
       "List records in a stream",
-      (yargs: Argv) =>
+      (yargs) =>
         yargs
           .positional("pod", {
             describe: "Pod name",
@@ -418,7 +410,7 @@ export async function main() {
             choices: ["json", "yaml", "table", "csv"] as const,
             describe: "Output format",
           }),
-      async (argv: any) => {
+      async (argv) => {
         await list(argv);
       },
     )
@@ -427,7 +419,7 @@ export async function main() {
     .command(
       "streams <pod>",
       "List all streams in a pod",
-      (yargs: Argv) =>
+      (yargs) =>
         yargs
           .positional("pod", {
             describe: "Pod name",
@@ -447,14 +439,14 @@ export async function main() {
             choices: ["json", "yaml", "table", "csv"] as const,
             describe: "Output format",
           }),
-      async (argv: any) => {
+      async (argv) => {
         await streams(argv);
       },
     )
     .command(
       "delete-stream <pod> <stream>",
       "Delete an entire stream",
-      (yargs: Argv) =>
+      (yargs) =>
         yargs
           .positional("pod", {
             describe: "Pod name",
@@ -478,7 +470,7 @@ export async function main() {
             type: "boolean",
             describe: "Skip confirmation prompt",
           }),
-      async (argv: any) => {
+      async (argv) => {
         await deleteStream(argv);
       },
     )
@@ -487,7 +479,7 @@ export async function main() {
     .command(
       "permissions <pod> <stream> [action]",
       "Manage stream permissions",
-      (yargs: Argv) =>
+      (yargs) =>
         yargs
           .positional("pod", {
             describe: "Pod name",
@@ -526,7 +518,7 @@ export async function main() {
             choices: ["json", "yaml", "table", "csv"] as const,
             describe: "Output format",
           }),
-      async (argv: any) => {
+      async (argv) => {
         await permissions(argv);
       },
     )
@@ -535,7 +527,7 @@ export async function main() {
     .command(
       "oauth register",
       "Register a new OAuth client",
-      (yargs: Argv) =>
+      (yargs) =>
         yargs
           .option("name", {
             type: "string",
@@ -559,14 +551,14 @@ export async function main() {
             type: "string",
             describe: "WebPods server URL",
           }),
-      async (argv: any) => {
+      async (argv) => {
         await oauthRegister(argv);
       },
     )
     .command(
       "oauth list",
       "List your OAuth clients",
-      (yargs: Argv) =>
+      (yargs) =>
         yargs
           .option("token", {
             type: "string",
@@ -581,14 +573,14 @@ export async function main() {
             choices: ["json", "yaml", "table", "csv"] as const,
             describe: "Output format",
           }),
-      async (argv: any) => {
+      async (argv) => {
         await oauthList(argv);
       },
     )
     .command(
       "oauth delete <clientId>",
       "Delete an OAuth client",
-      (yargs: Argv) =>
+      (yargs) =>
         yargs
           .positional("clientId", {
             describe: "Client ID to delete",
@@ -607,14 +599,14 @@ export async function main() {
             type: "boolean",
             describe: "Skip confirmation prompt",
           }),
-      async (argv: any) => {
+      async (argv) => {
         await oauthDelete(argv);
       },
     )
     .command(
       "oauth info <clientId>",
       "Show OAuth client details",
-      (yargs: Argv) =>
+      (yargs) =>
         yargs
           .positional("clientId", {
             describe: "Client ID",
@@ -634,7 +626,7 @@ export async function main() {
             choices: ["json", "yaml", "table", "csv"] as const,
             describe: "Output format",
           }),
-      async (argv: any) => {
+      async (argv) => {
         await oauthInfo(argv);
       },
     )
@@ -643,7 +635,7 @@ export async function main() {
     .command(
       "config [key] [value]",
       "Show or set configuration values",
-      (yargs: Argv) =>
+      (yargs) =>
         yargs
           .positional("key", {
             describe: "Configuration key",
@@ -653,9 +645,9 @@ export async function main() {
             describe: "Configuration value",
             type: "string",
           }),
-      async (argv: ArgumentsCamelCase<ConfigArgs>) => {
+      async (argv) => {
         if (argv.key && argv.value) {
-          await configSet({ key: argv.key, value: argv.value, ...argv });
+          await configSet(argv);
         } else {
           await config(argv);
         }
@@ -664,13 +656,13 @@ export async function main() {
     .command(
       "config server <url>",
       "Set WebPods server URL",
-      (yargs: Argv) =>
+      (yargs) =>
         yargs.positional("url", {
           describe: "Server URL",
           demandOption: true,
           type: "string",
         }),
-      async (argv: any) => {
+      async (argv) => {
         await configServer(argv);
       },
     )
@@ -703,9 +695,10 @@ export async function main() {
     .version("0.0.1").argv;
 }
 
-main().catch((error) => {
-  logger.error("CLI startup failed", { error: error.message });
+main().catch((error: unknown) => {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  logger.error("CLI startup failed", { error: errorMessage });
   const output = createCliOutput();
-  output.error("Error: " + error.message);
+  output.error("Error: " + errorMessage);
   process.exit(1);
 });

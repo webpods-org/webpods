@@ -3,32 +3,24 @@
  */
 
 import { apiRequest } from "../../http/index.js";
-import { OAuthClient, GlobalOptions } from "../../types.js";
+import { OAuthClient } from "../../types.js";
 import { createLogger, createCliOutput } from "../../logger.js";
 
 const logger = createLogger("webpods:cli:oauth");
 
-interface OAuthRegisterOptions extends GlobalOptions {
-  name: string;
-  redirect: string;
-  pods?: string;
-}
-
-interface OAuthDeleteOptions extends GlobalOptions {
-  clientId: string;
-  force?: boolean;
-}
-
-interface OAuthInfoOptions extends GlobalOptions {
-  clientId: string;
-}
-
 /**
  * Register a new OAuth client
  */
-export async function oauthRegister(
-  options: OAuthRegisterOptions,
-): Promise<void> {
+export async function oauthRegister(options: {
+  quiet?: boolean;
+  name?: string;
+  redirect?: string;
+  pods?: string;
+  token?: string;
+  server?: string;
+  profile?: string;
+  [key: string]: unknown;
+}): Promise<void> {
   const output = createCliOutput(options.quiet);
 
   try {
@@ -83,12 +75,13 @@ export async function oauthRegister(
       name: options.name,
       clientId: result.data.client_id,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error("OAuth register command failed", {
       name: options.name,
-      error: error.message,
+      error: errorMessage,
     });
-    output.error("Error: " + error.message);
+    output.error("Error: " + errorMessage);
     process.exit(1);
   }
 }
@@ -96,7 +89,14 @@ export async function oauthRegister(
 /**
  * List OAuth clients
  */
-export async function oauthList(options: GlobalOptions): Promise<void> {
+export async function oauthList(options: {
+  quiet?: boolean;
+  token?: string;
+  server?: string;
+  profile?: string;
+  format?: string;
+  [key: string]: unknown;
+}): Promise<void> {
   const output = createCliOutput(options.quiet);
 
   try {
@@ -173,9 +173,10 @@ export async function oauthList(options: GlobalOptions): Promise<void> {
       count: clients.length,
       format,
     });
-  } catch (error: any) {
-    logger.error("OAuth list command failed", { error: error.message });
-    output.error("Error: " + error.message);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error("OAuth list command failed", { error: errorMessage });
+    output.error("Error: " + errorMessage);
     process.exit(1);
   }
 }
@@ -183,7 +184,15 @@ export async function oauthList(options: GlobalOptions): Promise<void> {
 /**
  * Delete an OAuth client
  */
-export async function oauthDelete(options: OAuthDeleteOptions): Promise<void> {
+export async function oauthDelete(options: {
+  quiet?: boolean;
+  clientId?: string;
+  force?: boolean;
+  token?: string;
+  server?: string;
+  profile?: string;
+  [key: string]: unknown;
+}): Promise<void> {
   const output = createCliOutput(options.quiet);
 
   try {
@@ -233,12 +242,13 @@ export async function oauthDelete(options: OAuthDeleteOptions): Promise<void> {
     logger.info("OAuth client deleted successfully", {
       clientId: options.clientId,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error("OAuth delete command failed", {
       clientId: options.clientId,
-      error: error.message,
+      error: errorMessage,
     });
-    output.error("Error: " + error.message);
+    output.error("Error: " + errorMessage);
     process.exit(1);
   }
 }
@@ -246,7 +256,15 @@ export async function oauthDelete(options: OAuthDeleteOptions): Promise<void> {
 /**
  * Show OAuth client details
  */
-export async function oauthInfo(options: OAuthInfoOptions): Promise<void> {
+export async function oauthInfo(options: {
+  quiet?: boolean;
+  clientId?: string;
+  token?: string;
+  server?: string;
+  profile?: string;
+  format?: string;
+  [key: string]: unknown;
+}): Promise<void> {
   const output = createCliOutput(options.quiet);
 
   try {
@@ -321,12 +339,13 @@ export async function oauthInfo(options: OAuthInfoOptions): Promise<void> {
       clientId: options.clientId,
       format,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error("OAuth info command failed", {
       clientId: options.clientId,
-      error: error.message,
+      error: errorMessage,
     });
-    output.error("Error: " + error.message);
+    output.error("Error: " + errorMessage);
     process.exit(1);
   }
 }

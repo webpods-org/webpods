@@ -3,6 +3,7 @@
  */
 
 import { expect } from "chai";
+import { randomUUID } from "crypto";
 import { CliTestHelper } from "../cli-test-helpers.js";
 import {
   setupCliTests,
@@ -324,7 +325,7 @@ describe("CLI Pod Commands", function () {
 
     it("should only allow owner to delete pod", async () => {
       // Create another user with identity
-      const otherUserId = require("crypto").randomUUID();
+      const otherUserId = randomUUID();
       await testDb
         .getDb()
         .none(
@@ -336,10 +337,10 @@ describe("CLI Pod Commands", function () {
         .none(
           "INSERT INTO identity (id, user_id, provider, provider_id, email, name, created_at, updated_at) VALUES ($(id), $(userId), $(provider), $(providerId), $(email), $(name), NOW(), NOW())",
           {
-            id: require("crypto").randomUUID(),
+            id: randomUUID(),
             userId: otherUserId,
             provider: "test-provider",
-            providerId: require("crypto").randomUUID(),
+            providerId: randomUUID(),
             email: "other@example.com",
             name: "Other User",
           },

@@ -189,6 +189,7 @@ export type AuthPayload = JWTPayload | HydraAuth;
 
 // Express extensions
 import type { Request } from "express";
+import type { AppConfig } from "./config-loader.js";
 export interface AuthRequest extends Request {
   auth?: AuthPayload;
   authType?: "webpods" | "hydra";
@@ -281,6 +282,4 @@ type DeepPartialWithEnvVars<T> = {
 };
 
 // Raw configuration type for JSON parsing (before env var resolution and defaults)
-export type RawConfig = DeepPartialWithEnvVars<
-  import("./config-loader.js").AppConfig
->;
+export type RawConfig = DeepPartialWithEnvVars<AppConfig>;

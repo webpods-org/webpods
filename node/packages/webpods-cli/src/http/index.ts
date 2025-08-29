@@ -5,11 +5,12 @@
 import fetch from "node-fetch";
 import { Result, success, failure, ErrorResponse } from "../types.js";
 import { loadConfig } from "../config/index.js";
+import { getCurrentProfile, getProfile } from "../config/profiles.js";
 
 export interface RequestOptions {
   method?: "GET" | "POST" | "PUT" | "DELETE";
   headers?: Record<string, string>;
-  body?: any;
+  body?: unknown;
   token?: string;
   server?: string;
 }
@@ -22,10 +23,6 @@ export async function apiRequest<T>(
   options: RequestOptions & { profile?: string } = {},
 ): Promise<Result<T>> {
   try {
-    const { getCurrentProfile, getProfile } = await import(
-      "../config/profiles.js"
-    );
-
     // Get the profile to use
     let profile;
     if (options.profile) {
@@ -111,10 +108,12 @@ export async function apiRequest<T>(
 
       return failure(errorData.error);
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Network request failed";
     return failure({
       code: "NETWORK_ERROR",
-      message: error.message || "Network request failed",
+      message: errorMessage,
     });
   }
 }
@@ -127,10 +126,6 @@ export async function podRequest<T>(
   path: string,
   options: RequestOptions & { profile?: string } = {},
 ): Promise<Result<T>> {
-  const { getCurrentProfile, getProfile } = await import(
-    "../config/profiles.js"
-  );
-
   // Get the profile to use
   let profile;
   if (options.profile) {
@@ -186,7 +181,7 @@ export async function uploadFile(
   content: string | Buffer,
   contentType: string,
   options: RequestOptions = {},
-): Promise<Result<any>> {
+): Promise<Result<unknown>> {
   return podRequest(podName, `${streamPath}/${recordName}`, {
     ...options,
     method: "POST",

@@ -3,6 +3,7 @@
  */
 
 import { expect } from "chai";
+import fs from "fs/promises";
 import { CliTestHelper } from "../cli-test-helpers.js";
 import {
   setupCliTests,
@@ -81,7 +82,6 @@ describe("CLI Record Commands", function () {
     it("should write from file", async () => {
       // Create a test file
       const testFilePath = `/tmp/test-data-${Date.now()}.json`;
-      const fs = await import("fs/promises");
       await fs.writeFile(testFilePath, '{"data": "from file"}');
 
       const result = await cli.exec(
@@ -262,7 +262,6 @@ describe("CLI Record Commands", function () {
       expect(result.stdout).to.include(`Saved to ${outputPath}`);
 
       // Verify file was created
-      const fs = await import("fs/promises");
       const content = await fs.readFile(outputPath, "utf-8");
       expect(JSON.parse(content).value).to.equal(1);
 

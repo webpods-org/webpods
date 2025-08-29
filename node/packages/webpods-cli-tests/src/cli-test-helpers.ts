@@ -182,7 +182,7 @@ export class CliTestHelper {
           }
         }
         throw firstErr;
-      } catch (err) {
+      } catch {
         throw new Error(`Failed to parse JSON output: ${output}`);
       }
     }
