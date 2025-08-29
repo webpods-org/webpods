@@ -48,15 +48,22 @@ export async function createPod(options: CreatePodOptions): Promise<void> {
       process.exit(1);
     }
 
-    const result = await apiRequest<Pod>("/api/pods", {
+    // Use the explicit pod creation API
+    const result = await apiRequest<any>("/api/pods", {
       method: "POST",
-      body: { name: options.name },
+      body: {
+        name: options.name,
+      },
       token: options.token,
       server: options.server,
     });
 
     if (!result.success) {
-      output.error("Error: " + result.error.message);
+      const errorMessage =
+        result.error?.message ||
+        JSON.stringify(result.error) ||
+        "Pod creation failed";
+      output.error("Error: " + errorMessage);
       logger.error("Pod creation failed", {
         name: options.name,
         error: result.error,
@@ -71,8 +78,10 @@ export async function createPod(options: CreatePodOptions): Promise<void> {
       podId: result.data.id,
     });
   } catch (error: any) {
-    logger.error("Pod creation command failed", { error: error.message });
-    output.error("Error: " + error.message);
+    const errorMessage =
+      error?.message || String(error) || "Pod creation failed";
+    logger.error("Pod creation command failed", { error: errorMessage });
+    output.error("Error: " + errorMessage);
     process.exit(1);
   }
 }
@@ -101,7 +110,12 @@ export async function listPods(options: GlobalOptions): Promise<void> {
     logger.debug("Retrieved pods", { count: pods.length });
 
     if (pods.length === 0) {
-      output.print("No pods found. Create one with 'pod create <name>'");
+      // For JSON format, output empty array instead of message
+      if (options.format === "json") {
+        output.print("[]");
+      } else {
+        output.print("No pods found. Create one with 'pod create <name>'");
+      }
       return;
     }
 
@@ -169,11 +183,17 @@ export async function deletePod(options: DeletePodOptions): Promise<void> {
       process.exit(0);
     }
 
-    const result = await apiRequest<void>(`/api/pods/${options.pod}`, {
-      method: "DELETE",
-      token: options.token,
-      server: options.server,
-    });
+    // Use podRequest to hit the pod subdomain delete endpoint
+    const { podRequest } = await import("../../http/index.js");
+    const result = await podRequest<void>(
+      options.pod,
+      "/", // DELETE / on the pod subdomain deletes the pod
+      {
+        method: "DELETE",
+        token: options.token,
+        server: options.server,
+      },
+    );
 
     if (!result.success) {
       if (result.error.code === "NOT_FOUND") {
@@ -210,10 +230,16 @@ export async function infoPod(options: InfoPodOptions): Promise<void> {
   try {
     logger.debug("Getting pod info", { pod: options.pod });
 
-    const result = await apiRequest<any>(`/api/pods/${options.pod}/info`, {
-      token: options.token,
-      server: options.server,
-    });
+    // Use podRequest to get pod info via .meta/streams
+    const { podRequest } = await import("../../http/index.js");
+    const result = await podRequest<any>(
+      options.pod,
+      "/.meta/streams", // GET /.meta/streams lists streams in the pod
+      {
+        token: options.token,
+        server: options.server,
+      },
+    );
 
     if (!result.success) {
       if (result.error.code === "NOT_FOUND") {

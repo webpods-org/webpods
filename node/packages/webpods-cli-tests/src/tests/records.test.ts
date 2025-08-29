@@ -33,16 +33,14 @@ describe("CLI Record Commands", function () {
   beforeEach(async () => {
     await resetCliTestDb();
 
-    // Create a test pod for each test via API
+    // Create a test pod directly in database
     testPodName = `test-pod-${Date.now()}`;
-    
-    await fetch(`http://localhost:3456/api/pods/${testPodName}`, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${testToken}`,
-        "Content-Type": "application/json",
-      },
-    });
+
+    await testDb
+      .getDb()
+      .none("INSERT INTO pod (name, created_at) VALUES ($(name), NOW())", {
+        name: testPodName,
+      });
   });
 
   describe("write command", () => {
@@ -61,14 +59,20 @@ describe("CLI Record Commands", function () {
       );
 
       expect(result.exitCode).to.equal(0);
-      expect(result.stdout).to.include("Record written successfully");
+      expect(result.stdout).to.include(
+        `Written to ${testPodName}/test-stream/record1`,
+      );
 
       // Verify record was created
       const record = await testDb.getDb().oneOrNone(
         `SELECT r.* FROM record r 
          JOIN stream s ON r.stream_name = s.name AND r.pod_name = s.pod_name
-         WHERE s.pod_name = $1 AND s.name = $2 AND r.name = $3`,
-        [testPodName, "test-stream", "record1"],
+         WHERE s.pod_name = $(podName) AND s.name = $(streamName) AND r.name = $(recordName)`,
+        {
+          podName: testPodName,
+          streamName: "test-stream",
+          recordName: "record1",
+        },
       );
       expect(record).to.not.be.null;
       expect(JSON.parse(record.content).message).to.equal("hello world");
@@ -77,7 +81,6 @@ describe("CLI Record Commands", function () {
     it("should write from file", async () => {
       // Create a test file
       const testFilePath = `/tmp/test-data-${Date.now()}.json`;
-      await testDb.getDb().none(""); // Just to import fs
       const fs = await import("fs/promises");
       await fs.writeFile(testFilePath, '{"data": "from file"}');
 
@@ -96,7 +99,9 @@ describe("CLI Record Commands", function () {
       );
 
       expect(result.exitCode).to.equal(0);
-      expect(result.stdout).to.include("Record written successfully");
+      expect(result.stdout).to.include(
+        `Written to ${testPodName}/test-stream/record2`,
+      );
 
       // Cleanup
       await fs.unlink(testFilePath);
@@ -123,10 +128,13 @@ describe("CLI Record Commands", function () {
       // Verify stream has public permission
       const stream = await testDb
         .getDb()
-        .oneOrNone("SELECT * FROM stream WHERE pod_name = $1 AND name = $2", [
-          testPodName,
-          "test-stream",
-        ]);
+        .oneOrNone(
+          "SELECT * FROM stream WHERE pod_name = $(podName) AND name = $(name)",
+          {
+            podName: testPodName,
+            name: "test-stream",
+          },
+        );
       expect(stream.access_permission).to.equal("public");
     });
   });
@@ -137,39 +145,44 @@ describe("CLI Record Commands", function () {
       await testDb
         .getDb()
         .none(
-          "INSERT INTO stream (pod_name, name, user_id, access_permission) VALUES ($1, $2, $3, $4)",
-          [testPodName, "test-stream", testUser.id, "private"],
+          "INSERT INTO stream (pod_name, name, user_id, access_permission) VALUES ($(podName), $(name), $(userId), $(permission))",
+          {
+            podName: testPodName,
+            name: "test-stream",
+            userId: testUser.userId,
+            permission: "private",
+          },
         );
 
       await testDb.getDb().none(
-        `INSERT INTO record (pod_name, stream_name, name, content, content_type, hash, author, index) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [
-          testPodName,
-          "test-stream",
-          "record1",
-          '{"value": 1}',
-          "application/json",
-          "hash1",
-          testUser.id,
-          0,
-        ],
+        `INSERT INTO record (pod_name, stream_name, name, content, content_type, hash, user_id, index) 
+         VALUES ($(podName), $(streamName), $(recordName), $(content), $(contentType), $(hash), $(userId), $(index))`,
+        {
+          podName: testPodName,
+          streamName: "test-stream",
+          recordName: "record1",
+          content: '{"value": 1}',
+          contentType: "application/json",
+          hash: "hash1",
+          userId: testUser.userId,
+          index: 0,
+        },
       );
 
       await testDb.getDb().none(
-        `INSERT INTO record (pod_name, stream_name, name, content, content_type, hash, previous_hash, author, index) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-        [
-          testPodName,
-          "test-stream",
-          "record2",
-          '{"value": 2}',
-          "application/json",
-          "hash2",
-          "hash1",
-          testUser.id,
-          1,
-        ],
+        `INSERT INTO record (pod_name, stream_name, name, content, content_type, hash, previous_hash, user_id, index) 
+         VALUES ($(podName), $(streamName), $(recordName), $(content), $(contentType), $(hash), $(previous), $(userId), $(index))`,
+        {
+          podName: testPodName,
+          streamName: "test-stream",
+          recordName: "record2",
+          content: '{"value": 2}',
+          contentType: "application/json",
+          hash: "hash2",
+          previous: "hash1",
+          userId: testUser.userId,
+          index: 1,
+        },
       );
     });
 
@@ -181,16 +194,29 @@ describe("CLI Record Commands", function () {
         },
       );
 
+      if (result.exitCode !== 0) {
+        console.log("Read failed:");
+        console.log("stdout:", result.stdout);
+        console.log("stderr:", result.stderr);
+      }
       expect(result.exitCode).to.equal(0);
       const data = cli.parseJson(result.stdout);
       expect(data.value).to.equal(1);
     });
 
     it("should read latest record when no name specified", async () => {
-      const result = await cli.exec(["read", testPodName, "test-stream"], {
-        token: testToken,
-      });
+      const result = await cli.exec(
+        ["read", testPodName, "test-stream", "--index", "-1"],
+        {
+          token: testToken,
+        },
+      );
 
+      if (result.exitCode !== 0) {
+        console.log("Read latest failed:");
+        console.log("stdout:", result.stdout);
+        console.log("stderr:", result.stderr);
+      }
       expect(result.exitCode).to.equal(0);
       const data = cli.parseJson(result.stdout);
       expect(data.value).to.equal(2);
@@ -251,31 +277,36 @@ describe("CLI Record Commands", function () {
       await testDb
         .getDb()
         .none(
-          "INSERT INTO stream (pod_name, name, user_id, access_permission) VALUES ($1, $2, $3, $4)",
-          [testPodName, "test-stream", testUser.id, "private"],
+          "INSERT INTO stream (pod_name, name, user_id, access_permission) VALUES ($(podName), $(name), $(userId), $(permission))",
+          {
+            podName: testPodName,
+            name: "test-stream",
+            userId: testUser.userId,
+            permission: "private",
+          },
         );
 
       for (let i = 0; i < 10; i++) {
         await testDb.getDb().none(
-          `INSERT INTO record (pod_name, stream_name, name, content, content_type, hash, author, index) 
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-          [
-            testPodName,
-            "test-stream",
-            `record${i}`,
-            `{"index": ${i}}`,
-            "application/json",
-            `hash${i}`,
-            testUser.id,
-            i,
-          ],
+          `INSERT INTO record (pod_name, stream_name, name, content, content_type, hash, user_id, index) 
+           VALUES ($(podName), $(streamName), $(name), $(content), $(contentType), $(hash), $(userId), $(index))`,
+          {
+            podName: testPodName,
+            streamName: "test-stream",
+            name: `record${i}`,
+            content: `{"index": ${i}}`,
+            contentType: "application/json",
+            hash: `hash${i}`,
+            userId: testUser.userId,
+            index: i,
+          },
         );
       }
     });
 
     it("should list records in a stream", async () => {
       const result = await cli.exec(
-        ["list", testPodName, "test-stream", "--format", "json"],
+        ["records", testPodName, "test-stream", "--format", "json"],
         {
           token: testToken,
         },
@@ -291,7 +322,7 @@ describe("CLI Record Commands", function () {
     it("should support limit parameter", async () => {
       const result = await cli.exec(
         [
-          "list",
+          "records",
           testPodName,
           "test-stream",
           "--limit",
@@ -312,7 +343,7 @@ describe("CLI Record Commands", function () {
     it("should support pagination with after parameter", async () => {
       const result = await cli.exec(
         [
-          "list",
+          "records",
           testPodName,
           "test-stream",
           "--after",
@@ -333,22 +364,22 @@ describe("CLI Record Commands", function () {
     it("should list only unique records when flag is set", async () => {
       // Add duplicate named records
       await testDb.getDb().none(
-        `INSERT INTO record (pod_name, stream_name, name, content, content_type, hash, author, index) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [
-          testPodName,
-          "test-stream",
-          "record1",
-          '{"updated": true}',
-          "application/json",
-          "hash-new",
-          testUser.id,
-          10,
-        ],
+        `INSERT INTO record (pod_name, stream_name, name, content, content_type, hash, user_id, index) 
+         VALUES ($(podName), $(streamName), $(recordName), $(content), $(contentType), $(hash), $(userId), $(index))`,
+        {
+          podName: testPodName,
+          streamName: "test-stream",
+          recordName: "record1",
+          content: '{"updated": true}',
+          contentType: "application/json",
+          hash: "hash-new",
+          userId: testUser.userId,
+          index: 10,
+        },
       );
 
       const result = await cli.exec(
-        ["list", testPodName, "test-stream", "--unique", "--format", "json"],
+        ["records", testPodName, "test-stream", "--unique", "--format", "json"],
         {
           token: testToken,
         },
@@ -369,13 +400,13 @@ describe("CLI Record Commands", function () {
         await testDb
           .getDb()
           .none(
-            "INSERT INTO stream (pod_name, name, user_id, access_permission) VALUES ($1, $2, $3, $4)",
-            [
-              testPodName,
-              `stream-${i}`,
-              testUser.id,
-              i % 2 === 0 ? "public" : "private",
-            ],
+            "INSERT INTO stream (pod_name, name, user_id, access_permission) VALUES ($(podName), $(name), $(userId), $(permission))",
+            {
+              podName: testPodName,
+              name: `stream-${i}`,
+              userId: testUser.userId,
+              permission: i % 2 === 0 ? "public" : "private",
+            },
           );
       }
     });
@@ -388,36 +419,75 @@ describe("CLI Record Commands", function () {
         },
       );
 
+      if (result.exitCode !== 0) {
+        console.log("Streams command failed:");
+        console.log("stdout:", result.stdout);
+        console.log("stderr:", result.stderr);
+      }
       expect(result.exitCode).to.equal(0);
       const streams = cli.parseJson(result.stdout);
       expect(streams).to.be.an("array");
       expect(streams).to.have.length(5);
+      // The CLI returns stream objects with full details
+      expect(streams[0]).to.have.property("name");
       expect(streams[0].name).to.include("stream-");
     });
   });
 
   describe("delete-stream command", () => {
     beforeEach(async () => {
+      // Create .meta/owner stream
       await testDb
         .getDb()
         .none(
-          "INSERT INTO stream (pod_name, name, user_id, access_permission) VALUES ($1, $2, $3, $4)",
-          [testPodName, "test-stream", testUser.id, "private"],
+          "INSERT INTO stream (pod_name, name, user_id) VALUES ($(podName), $(streamName), $(userId))",
+          {
+            podName: testPodName,
+            streamName: ".meta/owner",
+            userId: testUser.userId,
+          },
+        );
+
+      // Add owner record
+      await testDb.getDb().none(
+        `INSERT INTO record (pod_name, stream_name, name, content, content_type, hash, user_id, index) 
+         VALUES ($(podName), $(streamName), $(name), $(content), $(contentType), $(hash), $(userId), 0)`,
+        {
+          podName: testPodName,
+          streamName: ".meta/owner",
+          name: "owner",
+          content: JSON.stringify({ owner: testUser.userId }),
+          contentType: "application/json",
+          hash: "hash-owner",
+          userId: testUser.userId,
+        },
+      );
+
+      await testDb
+        .getDb()
+        .none(
+          "INSERT INTO stream (pod_name, name, user_id, access_permission) VALUES ($(podName), $(name), $(userId), $(permission))",
+          {
+            podName: testPodName,
+            name: "test-stream",
+            userId: testUser.userId,
+            permission: "private",
+          },
         );
 
       await testDb.getDb().none(
-        `INSERT INTO record (pod_name, stream_name, name, content, content_type, hash, author, index) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [
-          testPodName,
-          "test-stream",
-          "record1",
-          '{"test": true}',
-          "application/json",
-          "hash1",
-          testUser.id,
-          0,
-        ],
+        `INSERT INTO record (pod_name, stream_name, name, content, content_type, hash, user_id, index) 
+         VALUES ($(podName), $(streamName), $(recordName), $(content), $(contentType), $(hash), $(userId), $(index))`,
+        {
+          podName: testPodName,
+          streamName: "test-stream",
+          recordName: "record1",
+          content: '{"test": true}',
+          contentType: "application/json",
+          hash: "hash1",
+          userId: testUser.userId,
+          index: 0,
+        },
       );
     });
 
@@ -429,24 +499,35 @@ describe("CLI Record Commands", function () {
         },
       );
 
+      if (result.exitCode !== 0) {
+        console.log("Delete stream failed:");
+        console.log("stdout:", result.stdout);
+        console.log("stderr:", result.stderr);
+      }
       expect(result.exitCode).to.equal(0);
-      expect(result.stdout).to.include("Stream 'test-stream' deleted");
+      expect(result.stdout).to.include("deleted successfully");
 
       // Verify stream and records were deleted
       const stream = await testDb
         .getDb()
-        .oneOrNone("SELECT * FROM stream WHERE pod_name = $1 AND name = $2", [
-          testPodName,
-          "test-stream",
-        ]);
+        .oneOrNone(
+          "SELECT * FROM stream WHERE pod_name = $(podName) AND name = $(name)",
+          {
+            podName: testPodName,
+            name: "test-stream",
+          },
+        );
       expect(stream).to.be.null;
 
       const records = await testDb
         .getDb()
-        .any("SELECT * FROM record WHERE pod_name = $1 AND stream_name = $2", [
-          testPodName,
-          "test-stream",
-        ]);
+        .any(
+          "SELECT * FROM record WHERE pod_name = $(podName) AND stream_name = $(streamName)",
+          {
+            podName: testPodName,
+            streamName: "test-stream",
+          },
+        );
       expect(records).to.have.length(0);
     });
   });

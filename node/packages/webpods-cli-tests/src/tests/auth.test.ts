@@ -27,6 +27,11 @@ describe("CLI Auth Commands", function () {
     await cleanupCliTests();
   });
 
+  beforeEach(async () => {
+    // Clear any existing token from config before each test
+    await cli.clearToken();
+  });
+
   describe("login command", () => {
     it("should display login instructions", async () => {
       const result = await cli.exec(["login"]);
@@ -56,8 +61,8 @@ describe("CLI Auth Commands", function () {
       console.log("Test token:", testToken);
       console.log("Test user ID:", testUser.userId);
       console.log("Test server URL:", `http://localhost:3456`);
-      const result = await cli.exec(["token", "set", testToken]);
-      
+      const result = await cli.exec(["token-set", testToken]);
+
       // Debug output
       if (result.exitCode !== 0) {
         console.log("Exit code:", result.exitCode);
@@ -85,23 +90,39 @@ describe("CLI Auth Commands", function () {
     it("should fail when not authenticated", async () => {
       const result = await cli.exec(["whoami", "--format", "json"]);
 
+      // Debug output
+      if (result.exitCode === 0) {
+        console.log("Unexpected success - Exit code:", result.exitCode);
+        console.log("Stdout:", result.stdout);
+        console.log("Stderr:", result.stderr);
+      }
+
       expect(result.exitCode).to.not.equal(0);
-      expect(result.stdout).to.include("Not authenticated");
+      expect(result.stderr).to.include("Not authenticated");
     });
   });
 
   describe("token command", () => {
     it("should display current token", async () => {
       await cli.setToken(testToken);
-      const result = await cli.exec(["token"]);
+      const result = await cli.exec(["token-show"]);
+
+      if (result.exitCode !== 0) {
+        console.log("Exit code:", result.exitCode);
+        console.log("Stdout:", result.stdout);
+        console.log("Stderr:", result.stderr);
+      }
 
       expect(result.exitCode).to.equal(0);
-      expect(result.stdout).to.include(testToken);
+      // Token should be masked for security
+      expect(result.stdout).to.include("Token:");
+      expect(result.stdout).to.include("...");
+      expect(result.stdout).to.include("Full token hidden for security");
     });
 
     it("should show message when no token is set", async () => {
       await cli.clearToken();
-      const result = await cli.exec(["token"]);
+      const result = await cli.exec(["token-show"]);
 
       expect(result.exitCode).to.equal(0);
       expect(result.stdout).to.include("No token stored");
@@ -117,7 +138,7 @@ describe("CLI Auth Commands", function () {
       expect(result.stdout).to.include("Logged out successfully");
 
       // Verify token is cleared
-      const tokenResult = await cli.exec(["token"]);
+      const tokenResult = await cli.exec(["token-show"]);
       expect(tokenResult.stdout).to.include("No token stored");
     });
   });

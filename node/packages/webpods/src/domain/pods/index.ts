@@ -8,3 +8,4 @@ export { getPodOwner } from "./get-pod-owner.js";
 export { transferPodOwnership } from "./transfer-pod-ownership.js";
 export { deletePod } from "./delete-pod.js";
 export { listPodStreams } from "./list-pod-streams.js";
+export { listUserPods } from "./list-user-pods.js";

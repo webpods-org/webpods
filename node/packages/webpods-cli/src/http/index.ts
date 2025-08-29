@@ -99,8 +99,24 @@ export async function podRequest<T>(
 
   // Extract the base domain from the server URL
   const serverUrl = new URL(server);
-  const podUrl = `${serverUrl.protocol}//${podName}.${serverUrl.host}`;
 
+  // For localhost testing, use a header instead of subdomain
+  if (
+    serverUrl.hostname === "localhost" ||
+    serverUrl.hostname === "127.0.0.1"
+  ) {
+    const endpoint = `${server}${path.startsWith("/") ? "" : "/"}${path}`;
+    return apiRequest<T>(endpoint, {
+      ...options,
+      headers: {
+        ...options.headers,
+        "X-Pod-Name": podName,
+      },
+    });
+  }
+
+  // For production, use subdomain
+  const podUrl = `${serverUrl.protocol}//${podName}.${serverUrl.host}`;
   const endpoint = `${podUrl}${path.startsWith("/") ? "" : "/"}${path}`;
 
   return apiRequest<T>(endpoint, options);

@@ -27,10 +27,14 @@ export async function streams(options: StreamsOptions): Promise<void> {
   try {
     logger.debug("Listing streams", { pod: options.pod });
 
-    const result = await podRequest<{ streams: string[] }>(options.pod, "/", {
-      token: options.token,
-      server: options.server,
-    });
+    const result = await podRequest<{ streams: any[] }>(
+      options.pod,
+      "/.meta/streams",
+      {
+        token: options.token,
+        server: options.server,
+      },
+    );
 
     if (!result.success) {
       output.error("Error: " + result.error.message);

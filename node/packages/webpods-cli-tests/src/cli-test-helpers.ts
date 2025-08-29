@@ -149,20 +149,24 @@ export class CliTestHelper {
    */
   parseJson(output: string): any {
     try {
-      // CLI may output additional lines, try to find JSON
-      const lines = output.split("\n");
-      for (let i = lines.length - 1; i >= 0; i--) {
-        const line = lines[i]?.trim() || "";
-        if (line.startsWith("{") || line.startsWith("[")) {
-          // Try to parse from this line to the end
-          const jsonStr = lines.slice(i).join("\n");
-          return JSON.parse(jsonStr);
-        }
-      }
-      // If no JSON found, try parsing the whole output
+      // First try to parse the whole output directly
       return JSON.parse(output);
-    } catch (err) {
-      throw new Error(`Failed to parse JSON output: ${output}`);
+    } catch (firstErr) {
+      try {
+        // CLI may output additional lines, try to find JSON
+        const lines = output.split("\n");
+        for (let i = lines.length - 1; i >= 0; i--) {
+          const line = lines[i]?.trim() || "";
+          if (line.startsWith("{") || line.startsWith("[")) {
+            // Try to parse from this line to the end
+            const jsonStr = lines.slice(i).join("\n");
+            return JSON.parse(jsonStr);
+          }
+        }
+        throw firstErr;
+      } catch (err) {
+        throw new Error(`Failed to parse JSON output: ${output}`);
+      }
     }
   }
 

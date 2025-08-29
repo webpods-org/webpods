@@ -46,7 +46,7 @@ const logger = createLogger("webpods:cli");
 (process as any).noDeprecation = true;
 
 export async function main() {
-  void yargs(hideBin(process.argv))
+  await yargs(hideBin(process.argv))
     // Authentication Commands
     .command(
       "login",
@@ -97,7 +97,7 @@ export async function main() {
       },
     )
     .command(
-      "token",
+      "token-show",
       "Display current stored token",
       {},
       async (argv: ArgumentsCamelCase<GlobalOptions>) => {
@@ -105,7 +105,7 @@ export async function main() {
       },
     )
     .command(
-      "token set <token>",
+      "token-set <token>",
       "Manually set authentication token",
       (yargs: Argv) =>
         yargs.positional("token", {
@@ -142,7 +142,7 @@ export async function main() {
       },
     )
     .command(
-      "list",
+      "pods",
       "List all your pods",
       (yargs: Argv) =>
         yargs
@@ -305,7 +305,7 @@ export async function main() {
       },
     )
     .command(
-      "list <pod> <stream>",
+      "records <pod> <stream>",
       "List records in a stream",
       (yargs: Argv) =>
         yargs
