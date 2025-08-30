@@ -1,8 +1,6 @@
 /**
  * HTTP client for WebPods API
  */
-
-import fetch from "node-fetch";
 import { Result, success, failure, ErrorResponse } from "../types.js";
 import { loadConfig } from "../config/index.js";
 import { getCurrentProfile, getProfile } from "../config/profiles.js";
