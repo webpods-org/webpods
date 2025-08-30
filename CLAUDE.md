@@ -2,6 +2,18 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with the WebPods codebase.
 
+## CRITICAL: NEVER ACT WITHOUT EXPLICIT USER APPROVAL
+
+**YOU MUST ALWAYS ASK FOR PERMISSION BEFORE:**
+
+- Making architectural decisions or changes
+- Implementing new features or functionality
+- Modifying APIs, interfaces, or data structures
+- Changing expected behavior or test expectations
+- Adding new dependencies or patterns
+
+**ONLY make changes AFTER the user explicitly approves.** When you identify issues or potential improvements, explain them clearly and wait for the user's decision. Do NOT assume what the user wants or make "helpful" changes without permission.
+
 ## IMPORTANT: First Steps When Starting a Session
 
 When you begin working on this project, you MUST:

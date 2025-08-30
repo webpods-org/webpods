@@ -57,8 +57,10 @@ export interface CliOutput {
   success: (message: string) => void;
   error: (message: string) => void;
   warn: (message: string) => void;
+  warning: (message: string) => void; // alias for warn
   info: (message: string) => void;
   json: (data: unknown) => void;
+  yaml: (data: unknown) => void; // will output as JSON for now
 }
 
 export function createCliOutput(quiet?: boolean): CliOutput {
@@ -79,12 +81,21 @@ export function createCliOutput(quiet?: boolean): CliOutput {
     warn: (message: string) => {
       console.warn(message);
     },
+    warning: (message: string) => {
+      console.warn(message);
+    },
     info: (message: string) => {
       if (!quiet) {
         console.info(message);
       }
     },
     json: (data: unknown) => {
+      if (!quiet) {
+        console.info(JSON.stringify(data, null, 2));
+      }
+    },
+    yaml: (data: unknown) => {
+      // For now, output as JSON. Could add YAML library later
       if (!quiet) {
         console.info(JSON.stringify(data, null, 2));
       }

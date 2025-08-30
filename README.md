@@ -345,7 +345,7 @@ pod streams my-pod
 #### HTTP
 
 ```bash
-curl https://my-pod.webpods.org/.meta/streams \
+curl https://my-pod.webpods.org/.meta/api/streams \
   -H "Authorization: Bearer $WEBPODS_TOKEN"
 ```
 
@@ -370,11 +370,23 @@ curl -X DELETE https://my-pod.webpods.org/old-stream \
 
 Permissions are set on first write to a stream using the `access` parameter.
 
+### Permission Hierarchy
+
+1. **Pod Owner**: Has full access to all streams in their pod, regardless of stream permissions
+   - Can create new streams
+   - Can delete any stream
+   - Can read/write to any stream (even private ones)
+   - Can transfer pod ownership
+2. **Stream Creator**: Has access to streams they created (unless pod ownership was transferred)
+3. **Explicit Permissions**: Users granted access via permission streams
+
 ### Permission Modes
 
 - **public** (default) - Anyone can read, authenticated users can write
-- **private** - Only the creator can read and write
+- **private** - Only the pod owner and stream creator can read and write
 - **/{permission-stream}** - Users listed in the permission stream can access
+
+**Important**: When pod ownership is transferred, the previous owner loses access to ALL streams, even ones they created.
 
 ### Set Stream Permissions
 
@@ -441,14 +453,14 @@ curl -X POST https://my-pod.webpods.org/team-permissions/user-789 \
 
 ## Links and Custom Routing
 
-WebPods supports custom URL routing within your pod using the `.meta/links` system stream.
+WebPods supports custom URL routing within your pod using the `.meta/streams/links` system stream.
 
 ### How Links Work
 
 When someone visits a path on your pod, WebPods:
 
 1. First checks if a stream/record exists at that exact path
-2. If not, checks `.meta/links` for routing rules
+2. If not, checks `.meta/streams/links` for routing rules
 3. Routes can redirect to streams with query parameters
 
 ### Setting Up Links
@@ -476,7 +488,7 @@ pod links my-pod remove /old-page
 
 ```bash
 # Set up multiple routes at once
-curl -X POST https://my-pod.webpods.org/.meta/links/routes \
+curl -X POST https://my-pod.webpods.org/.meta/streams/links/routes \
   -H "Authorization: Bearer $WEBPODS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -531,7 +543,7 @@ pod domain my-pod remove blog.example.com
 
 ```bash
 # Add custom domain
-curl -X POST https://my-pod.webpods.org/.meta/domains/custom \
+curl -X POST https://my-pod.webpods.org/.meta/streams/domains/custom \
   -H "Authorization: Bearer $WEBPODS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"domain": "blog.example.com"}'
@@ -807,30 +819,41 @@ curl -i https://my-pod.webpods.org/verified/data
 
 Special streams that control pod behavior:
 
-#### .meta/owner
+#### .meta/streams/owner
+
+Pod ownership controls complete access to a pod. When ownership is transferred:
+
+- The new owner gains full control of the pod
+- The previous owner loses ALL access (read and write) to the pod and its streams
+- Only the pod owner can create new streams
+- The pod owner has full access to all streams regardless of individual stream permissions
+- The transfer validates that the new owner user ID exists
+- Ownership transfer is immediate and cannot be reversed without the new owner's consent
 
 ```bash
 # View ownership
 pod info my-pod --owner
 
 # Transfer ownership (CLI)
-pod transfer my-pod new-user-id
+# WARNING: You will lose all access to this pod after transfer
+# Note: The new user ID must exist in the system
+pod transfer my-pod new-user-id --force
 
 # Transfer ownership (HTTP)
-curl -X POST https://my-pod.webpods.org/.meta/owner/transfer \
+curl -X POST https://my-pod.webpods.org/.meta/streams/owner \
   -H "Authorization: Bearer $WEBPODS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"owner": "new-user-id"}'
 ```
 
-#### .meta/streams
+#### .meta/api/streams
 
 ```bash
 # List all streams
 pod streams my-pod
 
 # Via HTTP
-curl https://my-pod.webpods.org/.meta/streams
+curl https://my-pod.webpods.org/.meta/api/streams
 ```
 
 #### .meta/config
@@ -882,13 +905,29 @@ curl -i https://my-pod.webpods.org/test \
 
 ```bash
 # Export entire pod
-pod export my-pod -o my-pod-backup.tar.gz
+pod export my-pod -o my-pod-backup.json
+pod export my-pod --exclude-metadata  # Exclude .meta/ streams
 
-# Export specific stream
-pod export my-pod/blog -o blog-backup.json
+# Verify stream integrity (check hash chain)
+pod verify my-pod stream-name
+pod verify my-pod stream-name --show-chain
+pod verify my-pod stream-name --check-integrity
 
-# Import data
-pod import my-pod my-pod-backup.tar.gz
+# Grant/revoke permissions
+pod grant my-pod permission-stream user-id --read
+pod grant my-pod permission-stream user-id --write
+pod grant my-pod permission-stream user-id --read --write
+pod revoke my-pod permission-stream user-id
+
+# Manage links (URL routing)
+pod links set my-pod /about blog/about-page
+pod links list my-pod
+pod links remove my-pod /about
+
+# Manage custom domains
+pod domain add my-pod example.com
+pod domain list my-pod
+pod domain remove my-pod example.com
 ```
 
 ### Localhost Testing
@@ -1130,6 +1169,71 @@ docker-compose -f docker-compose.test.yml up
 - `INVALID_INPUT` - Request validation failed
 - `RATE_LIMIT_EXCEEDED` - Too many requests
 - `INTERNAL_ERROR` - Server error
+
+## CLI Commands Reference
+
+### Authentication
+
+- `pod login [provider]` - Login via OAuth provider
+- `pod logout` - Clear authentication
+- `pod whoami` - Show current user info
+- `pod token set <token>` - Set authentication token
+- `pod token show` - Display current token
+
+### Pod Management
+
+- `pod create <name>` - Create a new pod
+- `pod list` - List your pods
+- `pod info <pod>` - Show pod details
+- `pod delete <pod> [--force]` - Delete a pod
+- `pod transfer <pod> <user-id> --force` - Transfer pod ownership
+
+### Records
+
+- `pod write <pod> <path> <data>` - Write a record
+- `pod read <pod> <path>` - Read a record
+- `pod list <pod> <stream>` - List records in a stream
+- `pod delete <pod> <path> [--purge]` - Delete a record
+
+### Streams
+
+- `pod streams <pod>` - List all streams
+- `pod delete-stream <pod> <stream> --force` - Delete a stream
+- `pod verify <pod> <stream>` - Verify stream integrity
+
+### Permissions
+
+- `pod grant <pod> <stream> <user> [--read] [--write]` - Grant permissions
+- `pod revoke <pod> <stream> <user>` - Revoke permissions
+
+### Links & Domains
+
+- `pod links set <pod> <path> <stream/record>` - Set a link
+- `pod links list <pod>` - List all links
+- `pod links remove <pod> <path>` - Remove a link
+- `pod domain add <pod> <domain>` - Add custom domain
+- `pod domain list <pod>` - List domains
+- `pod domain remove <pod> <domain>` - Remove domain
+
+### Backup & Export
+
+- `pod export <pod> [-o file]` - Export pod data
+- `pod export <pod> --exclude-metadata` - Export without .meta/ streams
+
+### Profile Management
+
+- `pod profile add <name> --server <url>` - Add server profile
+- `pod profile list` - List profiles
+- `pod profile use <name>` - Switch profile
+- `pod profile delete <name> --force` - Delete profile
+- `pod profile current` - Show current profile
+
+### Configuration
+
+- `pod config set <key> <value>` - Set config value
+- `pod config get [key]` - Get config value
+- `pod --help` - Show help
+- `pod <command> --help` - Show command help
 
 ## Documentation
 

@@ -335,7 +335,7 @@ Only stream creator can delete. System streams (`.meta/*`) cannot be deleted.
 
 ## System Streams
 
-### .meta/owner
+### .meta/streams/owner
 
 Pod ownership tracking. Write to transfer ownership:
 
@@ -343,7 +343,7 @@ Pod ownership tracking. Write to transfer ownership:
 { "owner": "new-user-id" }
 ```
 
-### .meta/links
+### .meta/streams/links
 
 URL routing configuration:
 
@@ -354,10 +354,10 @@ URL routing configuration:
 }
 ```
 
-### .meta/streams
+### .meta/api/streams
 
 ```
-GET {pod}.webpods.org/.meta/streams
+GET {pod}.webpods.org/.meta/api/streams
 ```
 
 Lists all streams in pod.

@@ -4,12 +4,13 @@
 
 import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
-import { StreamDbRow } from "../../db-types.js";
+import { StreamDbRow, RecordDbRow } from "../../db-types.js";
 import { Stream } from "../../types.js";
 import { isValidStreamId } from "../../utils.js";
 import { createLogger } from "../../logger.js";
 import { sql } from "../../db/index.js";
 import { updateStreamPermissions } from "./update-stream-permissions.js";
+import { createError } from "../../utils/errors.js";
 
 const logger = createLogger("webpods:domain:streams");
 
@@ -111,6 +112,45 @@ export async function getOrCreateStream(
         stream: mapStreamFromDb(stream),
         created: false,
       });
+    }
+
+    // Before creating a new stream, check if user is the pod owner
+    const ownerRecord = await ctx.db.oneOrNone<RecordDbRow>(
+      `SELECT r.* FROM record r
+       WHERE r.pod_name = $(pod_name)
+         AND r.stream_name = '.meta/streams/owner'
+         AND r.name = 'owner'
+       ORDER BY r.index DESC
+       LIMIT 1`,
+      { pod_name: podName },
+    );
+
+    if (ownerRecord) {
+      try {
+        const content = JSON.parse(ownerRecord.content);
+        const podOwner = content.owner;
+
+        // Only the pod owner can create new streams
+        if (podOwner !== userId) {
+          logger.warn("Non-owner attempted to create stream", {
+            podName,
+            streamId: actualStreamId,
+            userId,
+            ownerId: podOwner,
+          });
+          return failure(
+            createError(
+              "FORBIDDEN",
+              "Only the pod owner can create new streams",
+            ),
+          );
+        }
+      } catch {
+        // If we can't parse owner record, allow creation (backwards compatibility)
+        logger.warn("Failed to parse owner record, allowing stream creation", {
+          podName,
+        });
+      }
     }
 
     // Create new stream with snake_case parameters

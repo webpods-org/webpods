@@ -39,7 +39,7 @@ describe("WebPods Root Pod", () => {
       await client.post("/api/data", JSON.stringify({ version: "1.0" }));
 
       // Configure links
-      await client.post("/.meta/links", {
+      await client.post("/.meta/streams/links", {
         "/": "pages/home",
         "/about": "pages/about",
       });

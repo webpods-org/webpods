@@ -284,7 +284,7 @@ describe("WebPods Record Deletion", () => {
     it("should prevent deletion of system streams", async () => {
       client.setAuthToken(ownerToken);
 
-      const response = await client.delete("/.meta/owner");
+      const response = await client.delete("/.meta/streams/owner");
       expect(response.status).to.equal(403);
       expect(response.data.error.message).to.include(
         "System streams cannot be deleted",

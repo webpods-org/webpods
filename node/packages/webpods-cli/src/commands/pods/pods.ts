@@ -259,7 +259,7 @@ export async function infoPod(options: {
       process.exit(1);
     }
 
-    // Use podRequest to get pod info via .meta/streams
+    // Use podRequest to get pod info via .meta/api/streams
     const result = await podRequest<{
       pod: string;
       streams: Array<{ name: string; access_permission: string }>;
@@ -270,7 +270,7 @@ export async function infoPod(options: {
       total_size?: string;
     }>(
       options.pod,
-      "/.meta/streams", // GET /.meta/streams lists streams in the pod
+      "/.meta/api/streams", // GET /.meta/api/streams lists streams in the pod
       {
         token: options.token,
         server: options.server,

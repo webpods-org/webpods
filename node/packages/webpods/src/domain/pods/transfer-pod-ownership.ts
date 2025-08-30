@@ -20,11 +20,21 @@ export async function transferPodOwnership(
 ): Promise<Result<void>> {
   try {
     return await ctx.db.tx(async (t) => {
-      // Get the .meta/owner stream
+      // Validate that the new owner exists
+      const newOwnerExists = await t.oneOrNone(
+        `SELECT id FROM "user" WHERE id = $(userId)`,
+        { userId: toUserId },
+      );
+
+      if (!newOwnerExists) {
+        return failure(createError("USER_NOT_FOUND", "User not found"));
+      }
+
+      // Get the .meta/streams/owner stream
       const ownerStream = await t.oneOrNone<StreamDbRow>(
         `SELECT * FROM stream
          WHERE pod_name = $(pod_name)
-           AND name = '.meta/owner'`,
+           AND name = '.meta/streams/owner'`,
         { pod_name: podName },
       );
 
@@ -36,7 +46,7 @@ export async function transferPodOwnership(
       const currentOwnerRecord = await t.oneOrNone<RecordDbRow>(
         `SELECT * FROM record
          WHERE pod_name = $(pod_name)
-           AND stream_name = '.meta/owner'
+           AND stream_name = '.meta/streams/owner'
            AND name = 'owner'
          ORDER BY index DESC
          LIMIT 1`,
@@ -65,7 +75,7 @@ export async function transferPodOwnership(
       const previousRecord = await t.oneOrNone<RecordDbRow>(
         `SELECT * FROM record
          WHERE pod_name = $(pod_name)
-           AND stream_name = '.meta/owner'
+           AND stream_name = '.meta/streams/owner'
          ORDER BY index DESC
          LIMIT 1`,
         { pod_name: podName },
@@ -86,7 +96,7 @@ export async function transferPodOwnership(
       // Insert new owner record with snake_case parameters
       const params = {
         pod_name: podName,
-        stream_name: ".meta/owner",
+        stream_name: ".meta/streams/owner",
         index: index,
         content: JSON.stringify(newOwnerContent),
         content_type: "application/json",
