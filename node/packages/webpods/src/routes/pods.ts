@@ -572,7 +572,7 @@ router.post(
       const db = getDb();
 
       // Check if pod exists - require explicit creation via POST /api/pods
-      if (!req.pod && req.podName) {
+      if (!req.pod) {
         res.status(404).json({
           error: {
             code: "POD_NOT_FOUND",

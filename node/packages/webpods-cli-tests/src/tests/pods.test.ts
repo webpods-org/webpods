@@ -118,7 +118,11 @@ describe("CLI Pod Commands", function () {
           .getDb()
           .none(
             "INSERT INTO stream (pod_name, name, user_id) VALUES ($(podName), $(streamName), $(userId))",
-            { podName, streamName: ".meta/streams/owner", userId: testUser.userId },
+            {
+              podName,
+              streamName: ".meta/streams/owner",
+              userId: testUser.userId,
+            },
           );
 
         // Add owner record

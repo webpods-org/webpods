@@ -76,16 +76,16 @@ export async function extractPod(
       return;
     }
 
-    // Store the pod_name even if pod doesn't exist yet
+    // Store the pod_name for reference
     req.podName = podName;
 
-    // Try to get the pod (may not exist yet)
+    // Try to get the pod
     const podResult = await getPod({ db }, podName);
 
     if (podResult.success) {
       req.pod = podResult.data;
     }
-    // If pod doesn't exist, it will be created on first write
+    // If pod doesn't exist, operations will fail with POD_NOT_FOUND
 
     logger.debug("Pod extracted", { podName, hostname });
     next();

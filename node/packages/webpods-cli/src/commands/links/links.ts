@@ -14,11 +14,14 @@ export async function linksSet(argv: Arguments) {
     const target = argv.target as string;
 
     // First, get existing links to merge with new one
-    const getResponse = await client.get(`/.meta/streams/links?limit=1&after=-1`, {
-      headers: {
-        "X-Pod-Name": pod,
+    const getResponse = await client.get(
+      `/.meta/streams/links?limit=1&after=-1`,
+      {
+        headers: {
+          "X-Pod-Name": pod,
+        },
       },
-    });
+    );
 
     let linksData: Record<string, string> = {};
     if (getResponse.ok) {
@@ -119,11 +122,14 @@ export async function linksRemove(argv: Arguments) {
     const path = argv.path as string;
 
     // We need to fetch existing links, remove the path, and write back
-    const getResponse = await client.get(`/.meta/streams/links?limit=1&after=-1`, {
-      headers: {
-        "X-Pod-Name": pod,
+    const getResponse = await client.get(
+      `/.meta/streams/links?limit=1&after=-1`,
+      {
+        headers: {
+          "X-Pod-Name": pod,
+        },
       },
-    });
+    );
 
     if (getResponse.ok) {
       const data = (await getResponse.json()) as any;
