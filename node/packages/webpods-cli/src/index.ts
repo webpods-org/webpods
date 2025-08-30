@@ -975,8 +975,8 @@ export async function main() {
           .option("file", {
             alias: "f",
             type: "string",
-            demandOption: true,
             describe: "Import file path",
+            demandOption: "Please specify input file with --file",
           })
           .option("overwrite", {
             type: "boolean",

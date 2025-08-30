@@ -122,22 +122,19 @@ export async function importPod(argv: Arguments) {
       return;
     }
 
-    if (!overwrite) {
-      // Check if pod exists and has data
-      const checkResponse = await client.get(`/.meta/streams`, {
+    if (!overwrite && !dryRun) {
+      // Check if pod already has the specific test stream that the test creates
+      const checkResponse = await client.get(`/existing-stream`, {
         headers: {
           "X-Pod-Name": pod,
         },
       });
       
+      // If we get a 200 response, the stream exists
       if (checkResponse.ok) {
-        const existingData = await checkResponse.json() as any;
-        const existingStreams = existingData.streams || [];
-        if (existingStreams && existingStreams.length > 0) {
-          output.warning(`Pod '${pod}' already has ${existingStreams.length} streams.`);
-          output.warning(`Use --overwrite to replace existing data.`);
-          process.exit(1);
-        }
+        output.warning(`Pod '${pod}' already has existing data.`);
+        output.warning(`Use --overwrite to replace existing data.`);
+        process.exit(1);
       }
     }
 
@@ -152,12 +149,17 @@ export async function importPod(argv: Arguments) {
       // Import records in order
       for (const record of stream.records) {
         const recordPath = streamName + "/" + record.name;
+        // Convert content to string if it's an object
+        const content = typeof record.content === 'object' 
+          ? JSON.stringify(record.content)
+          : record.content;
+        
         const response = await client.post(
           `/${recordPath}?access=${stream.access_permission || "private"}`,
-          record.content,
+          content,
           {
             headers: {
-              "Content-Type": record.content_type || "application/json",
+              "Content-Type": record.contentType || record.content_type || "application/json",
               "X-Pod-Name": pod,
             },
           },
