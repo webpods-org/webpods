@@ -1,5 +1,5 @@
 /**
- * Resolve a path using .meta/links configuration
+ * Resolve a path using .meta/streams/links configuration
  */
 
 import { DataContext } from "../data-context.js";
@@ -20,12 +20,12 @@ export async function resolveLink(
   path: string,
 ): Promise<Result<LinkMapping | null>> {
   try {
-    // Get the latest .meta/links record
+    // Get the latest .meta/streams/links record
     const record = await ctx.db.oneOrNone<RecordDbRow>(
       `SELECT r.*
        FROM record r
        WHERE r.pod_name = $(pod_name)
-         AND r.stream_name = '.meta/links'
+         AND r.stream_name = '.meta/streams/links'
        ORDER BY r.created_at DESC
        LIMIT 1`,
       { pod_name: podName },

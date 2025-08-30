@@ -14,7 +14,7 @@ export async function linksSet(argv: Arguments) {
     const target = argv.target as string;
 
     // First, get existing links to merge with new one
-    const getResponse = await client.get(`/.meta/links?limit=1&after=-1`, {
+    const getResponse = await client.get(`/.meta/streams/links?limit=1&after=-1`, {
       headers: {
         "X-Pod-Name": pod,
       },
@@ -38,9 +38,9 @@ export async function linksSet(argv: Arguments) {
     // Add or update the link
     linksData[path] = target;
 
-    // POST to /.meta/links endpoint
+    // POST to /.meta/streams/links endpoint
     const response = await client.post(
-      `/.meta/links`,
+      `/.meta/streams/links`,
       JSON.stringify(linksData),
       {
         headers: {
@@ -71,7 +71,7 @@ export async function linksList(argv: Arguments) {
     const pod = argv.pod as string;
     const format = (argv.format as string) || "table";
 
-    const response = await client.get(`/.meta/links?unique=true`, {
+    const response = await client.get(`/.meta/streams/links?unique=true`, {
       headers: {
         "X-Pod-Name": pod,
       },
@@ -119,7 +119,7 @@ export async function linksRemove(argv: Arguments) {
     const path = argv.path as string;
 
     // We need to fetch existing links, remove the path, and write back
-    const getResponse = await client.get(`/.meta/links?limit=1&after=-1`, {
+    const getResponse = await client.get(`/.meta/streams/links?limit=1&after=-1`, {
       headers: {
         "X-Pod-Name": pod,
       },
@@ -145,7 +145,7 @@ export async function linksRemove(argv: Arguments) {
 
       // Write updated links back
       const response = await client.post(
-        `/.meta/links`,
+        `/.meta/streams/links`,
         JSON.stringify(currentLinks),
         {
           headers: {

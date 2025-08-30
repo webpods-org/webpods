@@ -31,7 +31,7 @@ export async function deletePod(
       const ownerRecord = await t.oneOrNone<RecordDbRow>(
         `SELECT r.* FROM record r
          WHERE r.pod_name = $(pod_name)
-           AND r.stream_name = '.meta/owner'
+           AND r.stream_name = '.meta/streams/owner'
            AND r.name = 'owner'
          ORDER BY r.index DESC
          LIMIT 1`,

@@ -31,7 +31,7 @@ export async function streams(options: {
 
     const result = await podRequest<{ streams: string[] }>(
       options.pod,
-      "/.meta/streams",
+      "/.meta/api/streams",
       {
         token: options.token,
         server: options.server,

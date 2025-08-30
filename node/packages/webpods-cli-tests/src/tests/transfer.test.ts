@@ -44,14 +44,14 @@ describe("CLI Transfer Command", function () {
         name: testPodName,
       });
 
-    // Create .meta/owner stream for pod ownership
+    // Create .meta/streams/owner stream for pod ownership
     await testDb
       .getDb()
       .none(
         "INSERT INTO stream (pod_name, name, user_id) VALUES ($(podName), $(streamName), $(userId))",
         {
           podName: testPodName,
-          streamName: ".meta/owner",
+          streamName: ".meta/streams/owner",
           userId: testUser.userId,
         },
       );
@@ -62,7 +62,7 @@ describe("CLI Transfer Command", function () {
        VALUES ($(podName), $(streamName), $(name), $(content), $(contentType), $(hash), $(userId), 0)`,
       {
         podName: testPodName,
-        streamName: ".meta/owner",
+        streamName: ".meta/streams/owner",
         name: "owner",
         content: JSON.stringify({ owner: testUser.userId }),
         contentType: "application/json",
@@ -114,7 +114,7 @@ describe("CLI Transfer Command", function () {
       const ownerRecord = await testDb.getDb().oneOrNone(
         `SELECT * FROM record 
          WHERE pod_name = $(podName) 
-         AND stream_name = '.meta/owner' 
+         AND stream_name = '.meta/streams/owner' 
          AND name = 'owner'
          ORDER BY index DESC
          LIMIT 1`,
@@ -140,7 +140,7 @@ describe("CLI Transfer Command", function () {
       expect(result.stdout).to.include("You no longer have access");
 
       // Verify ownership was transferred in database
-      // Note: The actual implementation would create a new record in .meta/owner
+      // Note: The actual implementation would create a new record in .meta/streams/owner
       // For now, we're just checking the command runs
     });
 

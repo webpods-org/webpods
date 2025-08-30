@@ -6,7 +6,7 @@ const output = createCliOutput();
 
 // Helper function to get current domains from the last record
 async function getCurrentDomains(client: any, pod: string): Promise<string[]> {
-  const response = await client.get(`/.meta/domains`, {
+  const response = await client.get(`/.meta/streams/domains`, {
     headers: {
       "X-Pod-Name": pod,
     },
@@ -63,7 +63,7 @@ export async function domainAdd(argv: Arguments) {
     // Add new domain - send updated full list
     currentDomains.push(domain);
     const response = await client.post(
-      `/.meta/domains`,
+      `/.meta/streams/domains`,
       JSON.stringify({ domains: currentDomains }),
       {
         headers: {
@@ -101,7 +101,7 @@ export async function domainList(argv: Arguments) {
     const pod = argv.pod as string;
     const format = (argv.format as string) || "table";
 
-    const response = await client.get(`/.meta/domains`, {
+    const response = await client.get(`/.meta/streams/domains`, {
       headers: {
         "X-Pod-Name": pod,
       },
@@ -161,7 +161,7 @@ export async function domainRemove(argv: Arguments) {
     const updatedDomains = currentDomains.filter((d) => d !== domain);
 
     const response = await client.post(
-      `/.meta/domains`,
+      `/.meta/streams/domains`,
       JSON.stringify({ domains: updatedDomains }),
       {
         headers: {

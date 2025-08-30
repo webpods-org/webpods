@@ -41,14 +41,14 @@ describe("CLI Domain Commands", function () {
         name: testPodName,
       });
 
-    // Create .meta/owner stream for pod ownership
+    // Create .meta/streams/owner stream for pod ownership
     await testDb
       .getDb()
       .none(
         "INSERT INTO stream (pod_name, name, user_id) VALUES ($(podName), $(streamName), $(userId))",
         {
           podName: testPodName,
-          streamName: ".meta/owner",
+          streamName: ".meta/streams/owner",
           userId: testUser.userId,
         },
       );
@@ -59,7 +59,7 @@ describe("CLI Domain Commands", function () {
        VALUES ($(podName), $(streamName), $(name), $(content), $(contentType), $(hash), $(userId), 0)`,
       {
         podName: testPodName,
-        streamName: ".meta/owner",
+        streamName: ".meta/streams/owner",
         name: "owner",
         content: JSON.stringify({ owner: testUser.userId }),
         contentType: "application/json",

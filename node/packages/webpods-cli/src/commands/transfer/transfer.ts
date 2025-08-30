@@ -24,9 +24,9 @@ export async function transfer(argv: Arguments) {
       return;
     }
 
-    // POST to /.meta/owner endpoint
+    // POST to /.meta/streams/owner endpoint
     const response = await client.post(
-      `/.meta/owner`,
+      `/.meta/streams/owner`,
       JSON.stringify({ owner: newOwner }),
       {
         headers: {

@@ -19,7 +19,7 @@ export async function exportPod(argv: Arguments) {
     output.info(`Exporting pod '${pod}'...`);
 
     // First, get list of all streams
-    const streamsResponse = await client.get(`/.meta/streams`, {
+    const streamsResponse = await client.get(`/.meta/api/streams`, {
       headers: {
         "X-Pod-Name": pod,
       },

@@ -345,7 +345,7 @@ pod streams my-pod
 #### HTTP
 
 ```bash
-curl https://my-pod.webpods.org/.meta/streams \
+curl https://my-pod.webpods.org/.meta/api/streams \
   -H "Authorization: Bearer $WEBPODS_TOKEN"
 ```
 
@@ -441,14 +441,14 @@ curl -X POST https://my-pod.webpods.org/team-permissions/user-789 \
 
 ## Links and Custom Routing
 
-WebPods supports custom URL routing within your pod using the `.meta/links` system stream.
+WebPods supports custom URL routing within your pod using the `.meta/streams/links` system stream.
 
 ### How Links Work
 
 When someone visits a path on your pod, WebPods:
 
 1. First checks if a stream/record exists at that exact path
-2. If not, checks `.meta/links` for routing rules
+2. If not, checks `.meta/streams/links` for routing rules
 3. Routes can redirect to streams with query parameters
 
 ### Setting Up Links
@@ -476,7 +476,7 @@ pod links my-pod remove /old-page
 
 ```bash
 # Set up multiple routes at once
-curl -X POST https://my-pod.webpods.org/.meta/links/routes \
+curl -X POST https://my-pod.webpods.org/.meta/streams/links/routes \
   -H "Authorization: Bearer $WEBPODS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -531,7 +531,7 @@ pod domain my-pod remove blog.example.com
 
 ```bash
 # Add custom domain
-curl -X POST https://my-pod.webpods.org/.meta/domains/custom \
+curl -X POST https://my-pod.webpods.org/.meta/streams/domains/custom \
   -H "Authorization: Bearer $WEBPODS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"domain": "blog.example.com"}'
@@ -807,7 +807,7 @@ curl -i https://my-pod.webpods.org/verified/data
 
 Special streams that control pod behavior:
 
-#### .meta/owner
+#### .meta/streams/owner
 
 ```bash
 # View ownership
@@ -817,20 +817,20 @@ pod info my-pod --owner
 pod transfer my-pod new-user-id
 
 # Transfer ownership (HTTP)
-curl -X POST https://my-pod.webpods.org/.meta/owner/transfer \
+curl -X POST https://my-pod.webpods.org/.meta/streams/owner/transfer \
   -H "Authorization: Bearer $WEBPODS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"owner": "new-user-id"}'
 ```
 
-#### .meta/streams
+#### .meta/api/streams
 
 ```bash
 # List all streams
 pod streams my-pod
 
 # Via HTTP
-curl https://my-pod.webpods.org/.meta/streams
+curl https://my-pod.webpods.org/.meta/api/streams
 ```
 
 #### .meta/config

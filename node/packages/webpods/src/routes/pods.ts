@@ -144,10 +144,10 @@ router.get(
 
 /**
  * List streams in pod
- * GET {pod}.webpods.org/.meta/streams
+ * GET {pod}.webpods.org/.meta/api/streams
  */
 router.get(
-  "/.meta/streams",
+  "/.meta/api/streams",
   extractPod,
   async (req: AuthRequest, res: Response) => {
     if (!req.pod || !req.podName) {
@@ -216,12 +216,12 @@ router.delete(
 
 /**
  * Write to system streams
- * POST {pod}.webpods.org/.meta/owner
- * POST {pod}.webpods.org/.meta/links
- * POST {pod}.webpods.org/.meta/domains
+ * POST {pod}.webpods.org/.meta/streams/owner
+ * POST {pod}.webpods.org/.meta/streams/links
+ * POST {pod}.webpods.org/.meta/streams/domains
  */
 router.post(
-  "/.meta/owner",
+  "/.meta/streams/owner",
   extractPod,
   authenticate,
   async (req: AuthRequest, res: Response) => {
@@ -278,7 +278,7 @@ router.post(
 );
 
 router.post(
-  "/.meta/links",
+  "/.meta/streams/links",
   extractPod,
   authenticate,
   async (req: AuthRequest, res: Response) => {
@@ -346,7 +346,7 @@ router.post(
 );
 
 router.post(
-  "/.meta/domains",
+  "/.meta/streams/domains",
   extractPod,
   authenticate,
   async (req: AuthRequest, res: Response) => {
@@ -686,7 +686,7 @@ router.post(
 );
 
 /**
- * Root path handler with .meta/links support
+ * Root path handler with .meta/streams/links support
  * GET {pod}.webpods.org/
  */
 router.get(
@@ -730,7 +730,7 @@ router.get(
 
     const db = getDb();
 
-    // Check if path "/" is mapped in .meta/links
+    // Check if path "/" is mapped in .meta/streams/links
     const linkResult = await resolveLink({ db }, req.podName, "/");
 
     if (linkResult.success && linkResult.data) {
@@ -761,7 +761,7 @@ router.get(
       error: {
         code: "NOT_FOUND",
         message:
-          "No content configured for root path. Use .meta/links to configure.",
+          "No content configured for root path. Use .meta/streams/links to configure.",
       },
     });
   },
@@ -818,7 +818,7 @@ router.get(
     const pathParts = req.path.substring(1).split("/"); // Remove leading /
     const db = getDb();
 
-    // First check if this path is mapped in .meta/links
+    // First check if this path is mapped in .meta/streams/links
     const linkResult = await resolveLink({ db }, req.podName, req.path);
 
     if (linkResult.success && linkResult.data) {

@@ -435,14 +435,14 @@ describe("CLI Record Commands", function () {
 
   describe("delete-stream command", () => {
     beforeEach(async () => {
-      // Create .meta/owner stream
+      // Create .meta/streams/owner stream
       await testDb
         .getDb()
         .none(
           "INSERT INTO stream (pod_name, name, user_id) VALUES ($(podName), $(streamName), $(userId))",
           {
             podName: testPodName,
-            streamName: ".meta/owner",
+            streamName: ".meta/streams/owner",
             userId: testUser.userId,
           },
         );
@@ -453,7 +453,7 @@ describe("CLI Record Commands", function () {
          VALUES ($(podName), $(streamName), $(name), $(content), $(contentType), $(hash), $(userId), 0)`,
         {
           podName: testPodName,
-          streamName: ".meta/owner",
+          streamName: ".meta/streams/owner",
           name: "owner",
           content: JSON.stringify({ owner: testUser.userId }),
           contentType: "application/json",

@@ -30,11 +30,11 @@ export async function updateLinks(
         return failure(new Error("Pod not found"));
       }
 
-      // Get or create .meta/links stream
+      // Get or create .meta/streams/links stream
       let linksStream = await t.oneOrNone<StreamDbRow>(
         `SELECT * FROM stream
          WHERE pod_name = $(pod_name)
-           AND name = '.meta/links'`,
+           AND name = '.meta/streams/links'`,
         { pod_name: podName },
       );
 
@@ -42,7 +42,7 @@ export async function updateLinks(
         // Create the stream with snake_case parameters
         const streamParams = {
           pod_name: podName,
-          name: ".meta/links",
+          name: ".meta/streams/links",
           user_id: userId,
           access_permission: "private",
           created_at: new Date(),
@@ -61,7 +61,7 @@ export async function updateLinks(
            AND stream_name = $(stream_name)
          ORDER BY index DESC
          LIMIT 1`,
-        { pod_name: podName, stream_name: ".meta/links" },
+        { pod_name: podName, stream_name: ".meta/streams/links" },
       );
 
       const index = (previousRecord?.index ?? -1) + 1;
@@ -74,7 +74,7 @@ export async function updateLinks(
       // Write new links record with all links in one record
       const params = {
         pod_name: podName,
-        stream_name: ".meta/links",
+        stream_name: ".meta/streams/links",
         index: index,
         content: JSON.stringify(links),
         content_type: "application/json",

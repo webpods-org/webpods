@@ -331,7 +331,7 @@ describe("WebPods Stream Operations", () => {
   });
 
   describe("System Streams (.meta/)", () => {
-    it("should create .meta/owner stream on pod creation", async () => {
+    it("should create .meta/streams/owner stream on pod creation", async () => {
       await client.post("/any-stream/init", "Create pod");
 
       const db = testDb.getDb();
@@ -341,7 +341,7 @@ describe("WebPods Stream Operations", () => {
       );
       const ownerStream = await db.oneOrNone(
         `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId)`,
-        { pod_name: pod.name, streamId: ".meta/owner" },
+        { pod_name: pod.name, streamId: ".meta/streams/owner" },
       );
 
       expect(ownerStream).to.exist;
@@ -350,19 +350,19 @@ describe("WebPods Stream Operations", () => {
       // Check owner record
       const ownerRecord = await db.oneOrNone(
         `SELECT * FROM record WHERE pod_name = $(pod_name) AND stream_name = $(streamId) ORDER BY index ASC LIMIT 1`,
-        { pod_name: pod.name, streamId: ".meta/owner" },
+        { pod_name: pod.name, streamId: ".meta/streams/owner" },
       );
       const content = JSON.parse(ownerRecord.content);
       expect(content.owner).to.equal(userId);
     });
 
-    it("should list streams via .meta/streams", async () => {
+    it("should list streams via .meta/api/streams", async () => {
       // Create some streams
       await client.post("/stream1/content1", "Content 1");
       await client.post("/stream2/content2", "Content 2");
       await client.post("/nested/stream3/content3", "Content 3");
 
-      const response = await client.get("/.meta/streams");
+      const response = await client.get("/.meta/api/streams");
       expect(response.status).to.equal(200);
       expect(response.data.pod).to.equal(testPodId);
       expect(response.data.streams).to.be.an("array");
@@ -372,11 +372,11 @@ describe("WebPods Stream Operations", () => {
         "stream1",
         "stream2",
         "nested/stream3",
-        ".meta/owner",
+        ".meta/streams/owner",
       ]);
     });
 
-    it("should update .meta/links for URL routing", async () => {
+    it("should update .meta/streams/links for URL routing", async () => {
       await client.post("/homepage/index", "<h1>Welcome</h1>", {
         headers: { "X-Content-Type": "text/html" },
       });
@@ -387,7 +387,7 @@ describe("WebPods Stream Operations", () => {
         "/blog": "blog?i=-10:-1",
       };
 
-      const response = await client.post("/.meta/links", links);
+      const response = await client.post("/.meta/streams/links", links);
       expect(response.status).to.equal(201);
 
       // Verify links work
@@ -412,9 +412,9 @@ describe("WebPods Stream Operations", () => {
 
       // Stream already exists from beforeEach
 
-      // Try to update .meta/owner as second user
+      // Try to update .meta/streams/owner as second user
       client.setAuthToken(token2);
-      const response = await client.post("/.meta/owner", {
+      const response = await client.post("/.meta/streams/owner", {
         owner: user2.userId,
       });
 
@@ -439,7 +439,7 @@ describe("WebPods Stream Operations", () => {
     it("should prevent deletion of system streams", async () => {
       await client.post("/test/init", "Create pod");
 
-      const response = await client.delete("/.meta/owner");
+      const response = await client.delete("/.meta/streams/owner");
       expect(response.status).to.equal(403);
       expect(response.data.error.code).to.equal("FORBIDDEN");
     });

@@ -42,7 +42,7 @@ export interface Identity {
 
 export interface Pod {
   name: string; // Primary key - Subdomain (e.g., 'alice')
-  userId: string; // Owner ID from .meta/owner stream
+  userId: string; // Owner ID from .meta/streams/owner stream
   metadata?: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;

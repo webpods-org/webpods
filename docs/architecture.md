@@ -176,7 +176,7 @@ Images stored as base64, decoded on retrieval.
 
 ### URL Routing
 
-`.meta/links` stream maps URLs to content:
+`.meta/streams/links` stream maps URLs to content:
 
 ```json
 {

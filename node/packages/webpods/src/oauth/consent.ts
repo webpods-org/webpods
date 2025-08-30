@@ -70,7 +70,7 @@ async function getUserOwnedPods(userId: string): Promise<string[]> {
   const db = getDb();
 
   try {
-    // Query all pods and check ownership via .meta/owner stream
+    // Query all pods and check ownership via .meta/streams/owner stream
     const pods = await db.manyOrNone<{ name: string }>(
       `SELECT DISTINCT p.name
        FROM pod p
@@ -78,7 +78,7 @@ async function getUserOwnedPods(userId: string): Promise<string[]> {
          SELECT 1 FROM stream s
          JOIN record r ON r.pod_name = s.pod_name AND r.stream_name = s.name
          WHERE s.pod_name = p.name
-         AND s.name = '.meta/owner'
+         AND s.name = '.meta/streams/owner'
          AND r.content::jsonb->>'owner' = $(user_id)
          AND r.index = (
            SELECT MAX(r2.index) FROM record r2

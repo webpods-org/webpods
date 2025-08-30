@@ -185,23 +185,23 @@ describe("WebPods Permissions", () => {
   });
 
   describe("Pod Ownership", () => {
-    it("should transfer pod ownership via .meta/owner", async () => {
+    it("should transfer pod ownership via .meta/streams/owner", async () => {
       // User1 creates pod
       client.setAuthToken(user1Token);
       await client.post("/test/init", "Create pod");
 
       // Transfer ownership to user2
-      const response = await client.post("/.meta/owner", { owner: user2Id });
+      const response = await client.post("/.meta/streams/owner", { owner: user2Id });
       expect(response.status).to.equal(201);
 
       // User2 is now owner and can update .meta/ streams
       client.setAuthToken(user2Token);
-      const response2 = await client.post("/.meta/links", { "/": "homepage" });
+      const response2 = await client.post("/.meta/streams/links", { "/": "homepage" });
       expect(response2.status).to.equal(201);
 
       // User1 can no longer update .meta/ streams
       client.setAuthToken(user1Token);
-      const response3 = await client.post("/.meta/links", {
+      const response3 = await client.post("/.meta/streams/links", {
         "/about": "about",
       });
       expect(response3.status).to.equal(403);
@@ -214,7 +214,7 @@ describe("WebPods Permissions", () => {
 
       // User2 cannot transfer ownership
       client.setAuthToken(user2Token);
-      const response = await client.post("/.meta/owner", { owner: user2Id });
+      const response = await client.post("/.meta/streams/owner", { owner: user2Id });
       expect(response.status).to.equal(403);
       expect(response.data.error.code).to.equal("FORBIDDEN");
     });

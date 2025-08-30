@@ -33,7 +33,7 @@ export async function updateCustomDomains(
       const ownerRecord = await t.oneOrNone<RecordDbRow>(
         `SELECT r.* FROM record r
          WHERE r.pod_name = $(pod_name)
-           AND r.stream_name = '.meta/owner'
+           AND r.stream_name = '.meta/streams/owner'
            AND r.name = 'owner'
          ORDER BY r.index DESC
          LIMIT 1`,
@@ -55,11 +55,11 @@ export async function updateCustomDomains(
         return failure(new Error("Failed to verify ownership"));
       }
 
-      // Get or create .meta/domains stream
+      // Get or create .meta/streams/domains stream
       let domainsStream = await t.oneOrNone<StreamDbRow>(
         `SELECT * FROM stream
          WHERE pod_name = $(pod_name)
-           AND name = '.meta/domains'`,
+           AND name = '.meta/streams/domains'`,
         { pod_name: podName },
       );
 
@@ -67,7 +67,7 @@ export async function updateCustomDomains(
         // Create the stream with snake_case parameters
         const streamParams = {
           pod_name: podName,
-          name: ".meta/domains",
+          name: ".meta/streams/domains",
           user_id: userId,
           access_permission: "private",
           created_at: new Date(),
@@ -86,7 +86,7 @@ export async function updateCustomDomains(
            AND stream_name = $(stream_name)
          ORDER BY index DESC
          LIMIT 1`,
-        { pod_name: podName, stream_name: ".meta/domains" },
+        { pod_name: podName, stream_name: ".meta/streams/domains" },
       );
 
       const index = (lastRecord?.index ?? -1) + 1;
@@ -99,7 +99,7 @@ export async function updateCustomDomains(
 
       const params = {
         pod_name: podName,
-        stream_name: ".meta/domains",
+        stream_name: ".meta/streams/domains",
         index: index,
         content: JSON.stringify(content),
         content_type: "application/json",
