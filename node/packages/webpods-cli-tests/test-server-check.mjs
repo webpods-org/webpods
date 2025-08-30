@@ -1,7 +1,5 @@
 #!/usr/bin/env node
 
-import fetch from 'node-fetch';
-
 async function checkServer() {
   console.log('Checking if server is running on port 3456...');
   

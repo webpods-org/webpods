@@ -5,7 +5,6 @@
 import { Arguments } from "yargs";
 import { getCurrentProfile, getProfile } from "../config/profiles.js";
 import { loadConfig } from "../config/index.js";
-import fetch, { Response } from "node-fetch";
 
 export interface CommandConfig {
   server: string;
