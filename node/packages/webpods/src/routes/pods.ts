@@ -64,7 +64,9 @@ const ownerSchema = z.object({
 const linksSchema = z.record(z.string());
 
 const domainsSchema = z.object({
-  domains: z.array(z.string()),
+  domains: z.array(z.string()).optional(),
+  add: z.array(z.string()).optional(),
+  remove: z.array(z.string()).optional(),
 });
 
 /**
@@ -376,11 +378,17 @@ router.post(
         return;
       }
 
+      // Support both formats: { domains: [...] } for add, or { add: [...], remove: [...] }
+      const operations = {
+        add: data.add || data.domains,
+        remove: data.remove,
+      };
+      
       const result = await updateCustomDomains(
         { db },
         req.podName,
         req.auth.user_id,
-        { add: data.domains },
+        operations,
       );
 
       if (!result.success) {

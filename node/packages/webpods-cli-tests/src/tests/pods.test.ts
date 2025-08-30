@@ -139,7 +139,7 @@ describe("CLI Pod Commands", function () {
     });
 
     it("should list all user pods", async () => {
-      const result = await cli.exec(["pods", "--format", "json"], {
+      const result = await cli.exec(["list", "--format", "json"], {
         token: testToken,
       });
 
@@ -153,7 +153,7 @@ describe("CLI Pod Commands", function () {
     it("should show message when no pods exist", async () => {
       await resetCliTestDb();
 
-      const result = await cli.exec(["pods"], {
+      const result = await cli.exec(["list"], {
         token: testToken,
       });
 
@@ -164,14 +164,14 @@ describe("CLI Pod Commands", function () {
 
     it("should support different output formats", async () => {
       // CSV format
-      const csvResult = await cli.exec(["pods", "--format", "csv"], {
+      const csvResult = await cli.exec(["list", "--format", "csv"], {
         token: testToken,
       });
       expect(csvResult.exitCode).to.equal(0);
       expect(csvResult.stdout).to.include("name,id,created_at");
 
       // YAML format
-      const yamlResult = await cli.exec(["pods", "--format", "yaml"], {
+      const yamlResult = await cli.exec(["list", "--format", "yaml"], {
         token: testToken,
       });
       expect(yamlResult.exitCode).to.equal(0);

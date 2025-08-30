@@ -1,0 +1,148 @@
+{
+  "pod": "test-pod-1756542717814",
+  "exported_at": "2025-08-30T08:31:57.910Z",
+  "version": "1.0",
+  "streams": {
+    "blog/posts": {
+      "records": [
+        {
+          "index": 0,
+          "content": {
+            "stream": "blog/posts",
+            "index": 0,
+            "data": "Content for blog/posts record 0"
+          },
+          "contentType": "application/json",
+          "name": "record-0",
+          "hash": "sha256:hash-blog/posts-0",
+          "previousHash": null,
+          "author": "1f8a685a-4824-4b51-9222-0b26c9faef34",
+          "timestamp": "2025-08-30T08:31:57.819Z"
+        },
+        {
+          "index": 1,
+          "content": {
+            "stream": "blog/posts",
+            "index": 1,
+            "data": "Content for blog/posts record 1"
+          },
+          "contentType": "application/json",
+          "name": "record-1",
+          "hash": "sha256:hash-blog/posts-1",
+          "previousHash": null,
+          "author": "1f8a685a-4824-4b51-9222-0b26c9faef34",
+          "timestamp": "2025-08-30T08:31:57.821Z"
+        },
+        {
+          "index": 2,
+          "content": {
+            "stream": "blog/posts",
+            "index": 2,
+            "data": "Content for blog/posts record 2"
+          },
+          "contentType": "application/json",
+          "name": "record-2",
+          "hash": "sha256:hash-blog/posts-2",
+          "previousHash": null,
+          "author": "1f8a685a-4824-4b51-9222-0b26c9faef34",
+          "timestamp": "2025-08-30T08:31:57.823Z"
+        }
+      ],
+      "total": 3
+    },
+    "private/notes": {
+      "records": [
+        {
+          "index": 0,
+          "content": {
+            "stream": "private/notes",
+            "index": 0,
+            "data": "Content for private/notes record 0"
+          },
+          "contentType": "application/json",
+          "name": "record-0",
+          "hash": "sha256:hash-private/notes-0",
+          "previousHash": null,
+          "author": "1f8a685a-4824-4b51-9222-0b26c9faef34",
+          "timestamp": "2025-08-30T08:31:57.827Z"
+        },
+        {
+          "index": 1,
+          "content": {
+            "stream": "private/notes",
+            "index": 1,
+            "data": "Content for private/notes record 1"
+          },
+          "contentType": "application/json",
+          "name": "record-1",
+          "hash": "sha256:hash-private/notes-1",
+          "previousHash": null,
+          "author": "1f8a685a-4824-4b51-9222-0b26c9faef34",
+          "timestamp": "2025-08-30T08:31:57.829Z"
+        },
+        {
+          "index": 2,
+          "content": {
+            "stream": "private/notes",
+            "index": 2,
+            "data": "Content for private/notes record 2"
+          },
+          "contentType": "application/json",
+          "name": "record-2",
+          "hash": "sha256:hash-private/notes-2",
+          "previousHash": null,
+          "author": "1f8a685a-4824-4b51-9222-0b26c9faef34",
+          "timestamp": "2025-08-30T08:31:57.831Z"
+        }
+      ],
+      "total": 3
+    },
+    "data/users": {
+      "records": [
+        {
+          "index": 0,
+          "content": {
+            "stream": "data/users",
+            "index": 0,
+            "data": "Content for data/users record 0"
+          },
+          "contentType": "application/json",
+          "name": "record-0",
+          "hash": "sha256:hash-data/users-0",
+          "previousHash": null,
+          "author": "1f8a685a-4824-4b51-9222-0b26c9faef34",
+          "timestamp": "2025-08-30T08:31:57.835Z"
+        },
+        {
+          "index": 1,
+          "content": {
+            "stream": "data/users",
+            "index": 1,
+            "data": "Content for data/users record 1"
+          },
+          "contentType": "application/json",
+          "name": "record-1",
+          "hash": "sha256:hash-data/users-1",
+          "previousHash": null,
+          "author": "1f8a685a-4824-4b51-9222-0b26c9faef34",
+          "timestamp": "2025-08-30T08:31:57.837Z"
+        },
+        {
+          "index": 2,
+          "content": {
+            "stream": "data/users",
+            "index": 2,
+            "data": "Content for data/users record 2"
+          },
+          "contentType": "application/json",
+          "name": "record-2",
+          "hash": "sha256:hash-data/users-2",
+          "previousHash": null,
+          "author": "1f8a685a-4824-4b51-9222-0b26c9faef34",
+          "timestamp": "2025-08-30T08:31:57.839Z"
+        }
+      ],
+      "total": 3
+    }
+  }
+}

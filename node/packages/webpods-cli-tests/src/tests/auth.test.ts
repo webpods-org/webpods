@@ -61,7 +61,7 @@ describe("CLI Auth Commands", function () {
       console.log("Test token:", testToken);
       console.log("Test user ID:", testUser.userId);
       console.log("Test server URL:", `http://localhost:3456`);
-      const result = await cli.exec(["token-set", testToken]);
+      const result = await cli.exec(["token", "set", testToken]);
 
       // Debug output
       if (result.exitCode !== 0) {
@@ -102,10 +102,10 @@ describe("CLI Auth Commands", function () {
     });
   });
 
-  describe("token command", () => {
+  describe("token show command", () => {
     it("should display current token", async () => {
       await cli.setToken(testToken);
-      const result = await cli.exec(["token-show"]);
+      const result = await cli.exec(["token", "show"]);
 
       if (result.exitCode !== 0) {
         console.log("Exit code:", result.exitCode);
@@ -122,7 +122,7 @@ describe("CLI Auth Commands", function () {
 
     it("should show message when no token is set", async () => {
       await cli.clearToken();
-      const result = await cli.exec(["token-show"]);
+      const result = await cli.exec(["token", "show"]);
 
       expect(result.exitCode).to.equal(0);
       expect(result.stdout).to.include("No token stored");
@@ -138,7 +138,7 @@ describe("CLI Auth Commands", function () {
       expect(result.stdout).to.include("Logged out successfully");
 
       // Verify token is cleared
-      const tokenResult = await cli.exec(["token-show"]);
+      const tokenResult = await cli.exec(["token", "show"]);
       expect(tokenResult.stdout).to.include("No token stored");
     });
   });
