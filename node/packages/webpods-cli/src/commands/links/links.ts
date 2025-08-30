@@ -8,7 +8,7 @@ export async function linksSet(argv: Arguments) {
   try {
     const config = await getConfigWithAuth(argv);
     const client = getClient(config);
-    
+
     const pod = argv.pod as string;
     const path = argv.path as string;
     const target = argv.target as string;
@@ -22,21 +22,22 @@ export async function linksSet(argv: Arguments) {
 
     let linksData: Record<string, string> = {};
     if (getResponse.ok) {
-      const data = await getResponse.json() as any;
+      const data = (await getResponse.json()) as any;
       // Get the latest record if exists
       if (data?.records && data.records.length > 0) {
         const latestRecord = data.records[data.records.length - 1];
         if (latestRecord.content) {
-          linksData = typeof latestRecord.content === 'string' 
-            ? JSON.parse(latestRecord.content) 
-            : latestRecord.content;
+          linksData =
+            typeof latestRecord.content === "string"
+              ? JSON.parse(latestRecord.content)
+              : latestRecord.content;
         }
       }
     }
 
     // Add or update the link
     linksData[path] = target;
-    
+
     // POST to /.meta/links endpoint
     const response = await client.post(
       `/.meta/links`,
@@ -66,9 +67,9 @@ export async function linksList(argv: Arguments) {
   try {
     const config = await getConfigWithAuth(argv);
     const client = getClient(config);
-    
+
     const pod = argv.pod as string;
-    const format = argv.format as string || "table";
+    const format = (argv.format as string) || "table";
 
     const response = await client.get(`/.meta/links?unique=true`, {
       headers: {
@@ -77,8 +78,8 @@ export async function linksList(argv: Arguments) {
     });
 
     if (response.ok) {
-      const data = await response.json() as any;
-      
+      const data = (await response.json()) as any;
+
       if (format === "json") {
         output.json(data);
       } else if (format === "yaml") {
@@ -113,7 +114,7 @@ export async function linksRemove(argv: Arguments) {
   try {
     const config = await getConfigWithAuth(argv);
     const client = getClient(config);
-    
+
     const pod = argv.pod as string;
     const path = argv.path as string;
 
@@ -125,22 +126,23 @@ export async function linksRemove(argv: Arguments) {
     });
 
     if (getResponse.ok) {
-      const data = await getResponse.json() as any;
+      const data = (await getResponse.json()) as any;
       let currentLinks: Record<string, string> = {};
-      
+
       // Get the latest record if exists
       if (data?.records && data.records.length > 0) {
         const latestRecord = data.records[data.records.length - 1];
         if (latestRecord.content) {
-          currentLinks = typeof latestRecord.content === 'string' 
-            ? JSON.parse(latestRecord.content) 
-            : latestRecord.content;
+          currentLinks =
+            typeof latestRecord.content === "string"
+              ? JSON.parse(latestRecord.content)
+              : latestRecord.content;
         }
       }
-      
+
       // Remove the specified path
       delete currentLinks[path];
-      
+
       // Write updated links back
       const response = await client.post(
         `/.meta/links`,

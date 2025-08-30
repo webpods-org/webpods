@@ -33,7 +33,7 @@ describe("CLI Grant/Revoke Commands", function () {
 
   beforeEach(async () => {
     await resetCliTestDb();
-    
+
     // Create a test pod
     testPodName = `test-pod-${Date.now()}`;
     await testDb

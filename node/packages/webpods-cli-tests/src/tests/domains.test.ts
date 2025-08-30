@@ -32,7 +32,7 @@ describe("CLI Domain Commands", function () {
 
   beforeEach(async () => {
     await resetCliTestDb();
-    
+
     // Create a test pod
     testPodName = `test-pod-${Date.now()}`;
     await testDb
@@ -79,7 +79,9 @@ describe("CLI Domain Commands", function () {
       );
 
       expect(result.exitCode).to.equal(0);
-      expect(result.stdout).to.include("Custom domain 'blog.example.com' added");
+      expect(result.stdout).to.include(
+        "Custom domain 'blog.example.com' added",
+      );
       expect(result.stdout).to.include("Next steps:");
       expect(result.stdout).to.include("CNAME");
     });
@@ -130,18 +132,15 @@ describe("CLI Domain Commands", function () {
   describe("domain list command", () => {
     beforeEach(async () => {
       // Add some test domains
-      await cli.exec(
-        ["domain", "add", testPodName, "www.example.com"],
-        { token: testToken },
-      );
-      await cli.exec(
-        ["domain", "add", testPodName, "blog.example.com"],
-        { token: testToken },
-      );
-      await cli.exec(
-        ["domain", "add", testPodName, "api.example.com"],
-        { token: testToken },
-      );
+      await cli.exec(["domain", "add", testPodName, "www.example.com"], {
+        token: testToken,
+      });
+      await cli.exec(["domain", "add", testPodName, "blog.example.com"], {
+        token: testToken,
+      });
+      await cli.exec(["domain", "add", testPodName, "api.example.com"], {
+        token: testToken,
+      });
     });
 
     it("should list all domains for a pod", async () => {
@@ -150,7 +149,9 @@ describe("CLI Domain Commands", function () {
       });
 
       expect(result.exitCode).to.equal(0);
-      expect(result.stdout).to.include(`Custom domains for pod '${testPodName}'`);
+      expect(result.stdout).to.include(
+        `Custom domains for pod '${testPodName}'`,
+      );
       expect(result.stdout).to.include("www.example.com");
       expect(result.stdout).to.include("blog.example.com");
       expect(result.stdout).to.include("api.example.com");
@@ -200,14 +201,12 @@ describe("CLI Domain Commands", function () {
   describe("domain remove command", () => {
     beforeEach(async () => {
       // Add test domains
-      await cli.exec(
-        ["domain", "add", testPodName, "www.example.com"],
-        { token: testToken },
-      );
-      await cli.exec(
-        ["domain", "add", testPodName, "blog.example.com"],
-        { token: testToken },
-      );
+      await cli.exec(["domain", "add", testPodName, "www.example.com"], {
+        token: testToken,
+      });
+      await cli.exec(["domain", "add", testPodName, "blog.example.com"], {
+        token: testToken,
+      });
     });
 
     it("should remove a specific domain", async () => {
@@ -219,7 +218,9 @@ describe("CLI Domain Commands", function () {
       );
 
       expect(result.exitCode).to.equal(0);
-      expect(result.stdout).to.include("Custom domain 'www.example.com' removed");
+      expect(result.stdout).to.include(
+        "Custom domain 'www.example.com' removed",
+      );
 
       // Verify domain was removed
       const listResult = await cli.exec(["domain", "list", testPodName], {

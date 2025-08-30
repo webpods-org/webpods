@@ -33,7 +33,7 @@ describe("CLI Verify Command", function () {
 
   beforeEach(async () => {
     await resetCliTestDb();
-    
+
     // Create a test pod
     testPodName = `test-pod-${Date.now()}`;
     await testDb
@@ -60,7 +60,7 @@ describe("CLI Verify Command", function () {
     for (let i = 0; i < 5; i++) {
       const content = JSON.stringify({ index: i, data: `Record ${i}` });
       const hash = `sha256:${crypto.createHash("sha256").update(content).digest("hex")}`;
-      
+
       await testDb.getDb().none(
         `INSERT INTO record (pod_name, stream_name, name, content, content_type, hash, previous_hash, user_id, index) 
          VALUES ($(podName), $(streamName), $(name), $(content), $(contentType), $(hash), $(previousHash), $(userId), $(index))`,
@@ -76,19 +76,16 @@ describe("CLI Verify Command", function () {
           index: i,
         },
       );
-      
+
       previousHash = hash;
     }
   });
 
   describe("verify command - summary", () => {
     it("should show stream summary by default", async () => {
-      const result = await cli.exec(
-        ["verify", testPodName, "test-stream"],
-        {
-          token: testToken,
-        },
-      );
+      const result = await cli.exec(["verify", testPodName, "test-stream"], {
+        token: testToken,
+      });
 
       expect(result.exitCode).to.equal(0);
       expect(result.stdout).to.include("Stream 'test-stream' summary:");
@@ -111,12 +108,9 @@ describe("CLI Verify Command", function () {
           },
         );
 
-      const result = await cli.exec(
-        ["verify", testPodName, "empty-stream"],
-        {
-          token: testToken,
-        },
-      );
+      const result = await cli.exec(["verify", testPodName, "empty-stream"], {
+        token: testToken,
+      });
 
       expect(result.exitCode).to.equal(0);
       expect(result.stdout).to.include("Stream 'empty-stream' is empty");
@@ -134,14 +128,14 @@ describe("CLI Verify Command", function () {
 
       expect(result.exitCode).to.equal(0);
       expect(result.stdout).to.include("Hash chain for stream 'test-stream':");
-      
+
       // Should show all 5 records
       for (let i = 0; i < 5; i++) {
         expect(result.stdout).to.include(`Index ${i}:`);
         expect(result.stdout).to.include(`Name: record-${i}`);
         expect(result.stdout).to.include("Hash: sha256:");
       }
-      
+
       // First record should have no previous hash
       expect(result.stdout).to.include("Previous: (genesis)");
     });
@@ -157,7 +151,9 @@ describe("CLI Verify Command", function () {
       );
 
       expect(result.exitCode).to.equal(0);
-      expect(result.stdout).to.include("Verifying integrity of stream 'test-stream'");
+      expect(result.stdout).to.include(
+        "Verifying integrity of stream 'test-stream'",
+      );
       expect(result.stdout).to.include("✓ Stream integrity verified");
       expect(result.stdout).to.include("all 5 records are valid");
     });
@@ -208,17 +204,15 @@ describe("CLI Verify Command", function () {
       );
 
       expect(result.exitCode).to.not.equal(0);
-      expect(result.stdout).to.include("First record should not have previous_hash");
+      expect(result.stdout).to.include(
+        "First record should not have previous_hash",
+      );
     });
   });
 
   describe("verify command - permissions", () => {
     it("should require authentication for private streams", async () => {
-      const result = await cli.exec([
-        "verify",
-        testPodName,
-        "test-stream",
-      ]);
+      const result = await cli.exec(["verify", testPodName, "test-stream"]);
 
       expect(result.exitCode).to.not.equal(0);
       expect(result.stderr).to.include("Not authenticated");
@@ -253,11 +247,7 @@ describe("CLI Verify Command", function () {
         },
       );
 
-      const result = await cli.exec([
-        "verify",
-        testPodName,
-        "public-stream",
-      ]);
+      const result = await cli.exec(["verify", testPodName, "public-stream"]);
 
       // Should work without authentication for public streams
       expect(result.stdout).to.include("Stream 'public-stream' summary:");

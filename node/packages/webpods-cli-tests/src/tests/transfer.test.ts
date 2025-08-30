@@ -35,7 +35,7 @@ describe("CLI Transfer Command", function () {
 
   beforeEach(async () => {
     await resetCliTestDb();
-    
+
     // Create a test pod
     testPodName = `test-pod-${Date.now()}`;
     await testDb
@@ -79,7 +79,7 @@ describe("CLI Transfer Command", function () {
         'INSERT INTO "user" (id, created_at, updated_at) VALUES ($(id), NOW(), NOW())',
         { id: newOwnerId },
       );
-    
+
     // Create identity for new owner
     await testDb
       .getDb()
@@ -94,18 +94,15 @@ describe("CLI Transfer Command", function () {
           name: "New Owner",
         },
       );
-    
+
     newOwnerToken = cli.createTestToken(newOwnerId, "newowner@example.com");
   });
 
   describe("transfer command", () => {
     it("should show warning without --force flag", async () => {
-      const result = await cli.exec(
-        ["transfer", testPodName, newOwnerId],
-        {
-          token: testToken,
-        },
-      );
+      const result = await cli.exec(["transfer", testPodName, newOwnerId], {
+        token: testToken,
+      });
 
       expect(result.exitCode).to.equal(0);
       expect(result.stdout).to.include("WARNING");
@@ -136,7 +133,9 @@ describe("CLI Transfer Command", function () {
       );
 
       expect(result.exitCode).to.equal(0);
-      expect(result.stdout).to.include(`Pod '${testPodName}' ownership transferred`);
+      expect(result.stdout).to.include(
+        `Pod '${testPodName}' ownership transferred`,
+      );
       expect(result.stdout).to.include(newOwnerId);
       expect(result.stdout).to.include("You no longer have access");
 
@@ -181,7 +180,7 @@ describe("CLI Transfer Command", function () {
 
     it("should validate new owner exists", async () => {
       const nonExistentUser = randomUUID();
-      
+
       const result = await cli.exec(
         ["transfer", testPodName, nonExistentUser, "--force"],
         {
@@ -197,12 +196,9 @@ describe("CLI Transfer Command", function () {
   describe("transfer command - post transfer", () => {
     it("should prevent old owner from accessing pod after transfer", async () => {
       // First transfer the pod
-      await cli.exec(
-        ["transfer", testPodName, newOwnerId, "--force"],
-        {
-          token: testToken,
-        },
-      );
+      await cli.exec(["transfer", testPodName, newOwnerId, "--force"], {
+        token: testToken,
+      });
 
       // Try to access pod with old owner's token
       const result = await cli.exec(
@@ -218,12 +214,9 @@ describe("CLI Transfer Command", function () {
 
     it("should allow new owner to access pod after transfer", async () => {
       // First transfer the pod
-      await cli.exec(
-        ["transfer", testPodName, newOwnerId, "--force"],
-        {
-          token: testToken,
-        },
-      );
+      await cli.exec(["transfer", testPodName, newOwnerId, "--force"], {
+        token: testToken,
+      });
 
       // Try to access pod with new owner's token
       const result = await cli.exec(

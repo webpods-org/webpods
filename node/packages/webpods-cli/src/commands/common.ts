@@ -15,7 +15,9 @@ export interface CommandConfig {
 /**
  * Get configuration with authentication from arguments or profile
  */
-export async function getConfigWithAuth(argv: Arguments): Promise<CommandConfig> {
+export async function getConfigWithAuth(
+  argv: Arguments,
+): Promise<CommandConfig> {
   // Check for profile flag
   let profile;
   if (argv.profile) {
@@ -28,7 +30,8 @@ export async function getConfigWithAuth(argv: Arguments): Promise<CommandConfig>
   }
 
   // Build config from arguments or profile
-  const server = (argv.server as string) || profile?.server || "http://localhost:3000";
+  const server =
+    (argv.server as string) || profile?.server || "http://localhost:3000";
   const token = (argv.token as string) || profile?.token;
 
   if (!token) {
@@ -37,7 +40,9 @@ export async function getConfigWithAuth(argv: Arguments): Promise<CommandConfig>
     if (config.token) {
       return { server, token: config.token };
     }
-    throw new Error("Not authenticated. Please run 'pod login' or 'pod token set <token>' first");
+    throw new Error(
+      "Not authenticated. Please run 'pod login' or 'pod token set <token>' first",
+    );
   }
 
   return { server, token };
@@ -51,12 +56,15 @@ export function getClient(config: CommandConfig) {
   const token = config.token;
 
   return {
-    async get(path: string, options: { headers?: Record<string, string> } = {}): Promise<Response> {
+    async get(
+      path: string,
+      options: { headers?: Record<string, string> } = {},
+    ): Promise<Response> {
       const url = path.startsWith("http") ? path : `${baseUrl}${path}`;
       const headers: Record<string, string> = {
         ...options.headers,
       };
-      
+
       if (token) {
         headers.Authorization = `Bearer ${token}`;
       }
@@ -67,13 +75,17 @@ export function getClient(config: CommandConfig) {
       });
     },
 
-    async post(path: string, body: string | Buffer, options: { headers?: Record<string, string> } = {}): Promise<Response> {
+    async post(
+      path: string,
+      body: string | Buffer,
+      options: { headers?: Record<string, string> } = {},
+    ): Promise<Response> {
       const url = path.startsWith("http") ? path : `${baseUrl}${path}`;
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
         ...options.headers,
       };
-      
+
       if (token) {
         headers.Authorization = `Bearer ${token}`;
       }
@@ -85,12 +97,15 @@ export function getClient(config: CommandConfig) {
       });
     },
 
-    async delete(path: string, options: { headers?: Record<string, string> } = {}): Promise<Response> {
+    async delete(
+      path: string,
+      options: { headers?: Record<string, string> } = {},
+    ): Promise<Response> {
       const url = path.startsWith("http") ? path : `${baseUrl}${path}`;
       const headers: Record<string, string> = {
         ...options.headers,
       };
-      
+
       if (token) {
         headers.Authorization = `Bearer ${token}`;
       }

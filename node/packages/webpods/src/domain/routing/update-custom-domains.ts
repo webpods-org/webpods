@@ -15,7 +15,7 @@ export async function updateCustomDomains(
   ctx: DataContext,
   podName: string,
   userId: string,
-  domains: { add?: string[]; remove?: string[] },
+  domains: string[],
 ): Promise<Result<void>> {
   try {
     return await ctx.db.tx(async (t) => {
@@ -89,67 +89,32 @@ export async function updateCustomDomains(
         { pod_name: podName, stream_name: ".meta/domains" },
       );
 
-      let index = (lastRecord?.index ?? -1) + 1;
-      let previousHash = lastRecord?.hash || null;
+      const index = (lastRecord?.index ?? -1) + 1;
+      const previousHash = lastRecord?.hash || null;
 
-      // Add domains
-      if (domains.add && domains.add.length > 0) {
-        for (const domain of domains.add) {
-          const timestamp = new Date().toISOString();
-          const content = { domain, action: "add" };
-          const hash = calculateRecordHash(previousHash, timestamp, content);
+      // Store the complete list of domains in a single record
+      const timestamp = new Date().toISOString();
+      const content = { domains };
+      const hash = calculateRecordHash(previousHash, timestamp, content);
 
-          const params = {
-            pod_name: podName,
-            stream_name: ".meta/domains",
-            index: index,
-            content: JSON.stringify(content),
-            content_type: "application/json",
-            name: `domain-${index}`,
-            hash: hash,
-            previous_hash: previousHash,
-            user_id: userId,
-            created_at: timestamp,
-          };
+      const params = {
+        pod_name: podName,
+        stream_name: ".meta/domains",
+        index: index,
+        content: JSON.stringify(content),
+        content_type: "application/json",
+        name: `domains`,
+        hash: hash,
+        previous_hash: previousHash,
+        user_id: userId,
+        created_at: timestamp,
+      };
 
-          await t.none(sql.insert("record", params), params);
-
-          index++;
-          previousHash = hash;
-        }
-      }
-
-      // Remove domains
-      if (domains.remove && domains.remove.length > 0) {
-        for (const domain of domains.remove) {
-          const timestamp = new Date().toISOString();
-          const content = { domain, action: "remove" };
-          const hash = calculateRecordHash(previousHash, timestamp, content);
-
-          const params = {
-            pod_name: podName,
-            stream_name: ".meta/domains",
-            index: index,
-            content: JSON.stringify(content),
-            content_type: "application/json",
-            name: `domain-${index}`,
-            hash: hash,
-            previous_hash: previousHash,
-            user_id: userId,
-            created_at: timestamp,
-          };
-
-          await t.none(sql.insert("record", params), params);
-
-          index++;
-          previousHash = hash;
-        }
-      }
+      await t.none(sql.insert("record", params), params);
 
       logger.info("Custom domains updated", {
         podName,
-        added: domains.add?.length || 0,
-        removed: domains.remove?.length || 0,
+        domains: domains.length,
       });
       return success(undefined);
     });

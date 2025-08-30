@@ -9,11 +9,11 @@ export async function verify(argv: Arguments) {
   try {
     const config = await getConfigWithAuth(argv);
     const client = getClient(config);
-    
+
     const pod = argv.pod as string;
     const stream = argv.stream as string;
-    const showChain = argv.showChain as boolean || false;
-    const checkIntegrity = argv.checkIntegrity as boolean || false;
+    const showChain = (argv.showChain as boolean) || false;
+    const checkIntegrity = (argv.checkIntegrity as boolean) || false;
 
     // Fetch all records from the stream
     const response = await client.get(`/${stream}?limit=1000`, {
@@ -28,7 +28,7 @@ export async function verify(argv: Arguments) {
       process.exit(1);
     }
 
-    const data = await response.json() as any;
+    const data = (await response.json()) as any;
     const records = data?.records || [];
 
     if (records.length === 0) {
@@ -43,24 +43,28 @@ export async function verify(argv: Arguments) {
         output.info(`  Name: ${record.name || "(unnamed)"}`);
         output.info(`  Hash: ${record.hash}`);
         output.info(`  Previous: ${record.previous_hash || "(genesis)"}`);
-        output.info(`  Created: ${new Date(record.created_at).toLocaleString()}`);
+        output.info(
+          `  Created: ${new Date(record.created_at).toLocaleString()}`,
+        );
         output.info("");
       }
     }
 
     if (checkIntegrity) {
       output.info(`Verifying integrity of stream '${stream}'...`);
-      
+
       let valid = true;
       let previousHash = null;
-      
+
       for (let i = 0; i < records.length; i++) {
         const record = records[i];
-        
+
         // Check hash chain continuity
         if (i === 0) {
           if (record.previous_hash) {
-            output.error(`❌ Record ${i}: First record should not have previous_hash`);
+            output.error(
+              `❌ Record ${i}: First record should not have previous_hash`,
+            );
             valid = false;
           }
         } else {
@@ -71,7 +75,7 @@ export async function verify(argv: Arguments) {
             valid = false;
           }
         }
-        
+
         // Verify the hash itself
         // Server uses: previous_hash, timestamp, content
         const hashData = JSON.stringify({
@@ -79,26 +83,28 @@ export async function verify(argv: Arguments) {
           timestamp: record.created_at,
           content: record.content,
         });
-        
+
         const computedHash = crypto
           .createHash("sha256")
           .update(hashData)
           .digest("hex");
-        
+
         const expectedHash = record.hash.replace("sha256:", "");
-        
+
         if (computedHash !== expectedHash) {
           output.error(`❌ Record ${i}: Hash verification failed`);
           output.error(`   Expected: ${expectedHash}`);
           output.error(`   Computed: ${computedHash}`);
           valid = false;
         }
-        
+
         previousHash = record.hash;
       }
-      
+
       if (valid) {
-        output.success(`✓ Stream integrity verified - all ${records.length} records are valid`);
+        output.success(
+          `✓ Stream integrity verified - all ${records.length} records are valid`,
+        );
       } else {
         output.error(`✗ Stream integrity check failed`);
         process.exit(1);
@@ -109,9 +115,15 @@ export async function verify(argv: Arguments) {
       // Default: show summary
       output.info(`Stream '${stream}' summary:`);
       output.info(`  Total records: ${records.length}`);
-      output.info(`  First record: ${new Date(records[0].created_at).toLocaleString()}`);
-      output.info(`  Last record: ${new Date(records[records.length - 1].created_at).toLocaleString()}`);
-      output.info(`  Hash chain: ${records[0].hash} ... ${records[records.length - 1].hash}`);
+      output.info(
+        `  First record: ${new Date(records[0].created_at).toLocaleString()}`,
+      );
+      output.info(
+        `  Last record: ${new Date(records[records.length - 1].created_at).toLocaleString()}`,
+      );
+      output.info(
+        `  Hash chain: ${records[0].hash} ... ${records[records.length - 1].hash}`,
+      );
       output.info(`\nUse --show-chain to see full hash chain`);
       output.info(`Use --check-integrity to verify hash chain integrity`);
     }

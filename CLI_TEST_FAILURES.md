@@ -1,6 +1,7 @@
 # CLI Test Failures Analysis
 
 ## Summary
+
 - **89 tests passing**
 - **28 tests failing**
 
@@ -9,13 +10,15 @@
 ### 1. Domain Commands (4 failures)
 
 #### Test: "should validate domain format"
+
 - **Location**: `src/tests/domains.test.ts:114`
 - **Issue**: Domain validation is not rejecting invalid formats
 - **Expected**: Exit code should not be 0 for invalid domain
 - **Actual**: Exit code is 0 (success)
 - **Root Cause**: CLI doesn't validate domain format before sending to server
 
-#### Test: "should list all domains for a pod"  
+#### Test: "should list all domains for a pod"
+
 - **Location**: `src/tests/domains.test.ts:152`
 - **Issue**: List command fails with exit code 1
 - **Expected**: Should list domains that were previously added
@@ -23,11 +26,13 @@
 - **Root Cause**: The `.meta/domains` stream doesn't exist when no domains have been added
 
 #### Test: "should show verification status"
+
 - **Location**: `src/tests/domains.test.ts:164`
 - **Issue**: Same as above - list command fails
 - **Root Cause**: Same - missing `.meta/domains` stream
 
 #### Test: "should remove a specific domain"
+
 - **Location**: `src/tests/domains.test.ts:221`
 - **Issue**: Remove command fails with exit code 1
 - **Expected**: Should remove domain successfully
@@ -37,6 +42,7 @@
 ### 2. Export/Import Commands (4 failures)
 
 #### Test: "should import pod data from JSON file"
+
 - **Location**: `src/tests/export-import.test.ts:222`
 - **Issue**: Import doesn't preserve stream data
 - **Expected**: Should have at least 3 streams after import
@@ -44,6 +50,7 @@
 - **Root Cause**: Import logic may not be creating streams correctly
 
 #### Test: "should prevent overwriting existing data without --overwrite"
+
 - **Location**: `src/tests/export-import.test.ts:276`
 - **Issue**: Not detecting existing data properly
 - **Expected**: Should warn about existing data
@@ -51,6 +58,7 @@
 - **Root Cause**: Check for existing streams may be incorrect
 
 #### Test: "should require file parameter"
+
 - **Location**: `src/tests/export-import.test.ts:313`
 - **Issue**: Wrong error message format
 - **Expected**: Message should include "specify input file"
@@ -58,6 +66,7 @@
 - **Root Cause**: Using yargs default error instead of custom message
 
 #### Test: "should preserve all data in round trip"
+
 - **Location**: `src/tests/export-import.test.ts:377`
 - **Issue**: Data not preserved after export/import
 - **Expected**: 9 records after round trip
@@ -69,8 +78,9 @@
 All limits tests fail because the command now returns exit code 1 with a "not implemented" message. This is intentional since the server doesn't have a rate limits endpoint.
 
 #### Affected tests:
+
 - "should show rate limit information"
-- "should show current usage if available"  
+- "should show current usage if available"
 - "should work without authentication"
 - "should show limits for specific action"
 - "should handle read action"
@@ -85,6 +95,7 @@ All limits tests fail because the command now returns exit code 1 with a "not im
 ### 4. Links Commands (2 failures)
 
 #### Test: "should list all links for a pod"
+
 - **Location**: `src/tests/links.test.ts:139`
 - **Issue**: List command fails after setting links
 - **Expected**: Should show all 3 links that were set
@@ -92,6 +103,7 @@ All limits tests fail because the command now returns exit code 1 with a "not im
 - **Root Cause**: The links are being set but the list command can't retrieve them
 
 #### Test: "should remove a specific link"
+
 - **Location**: `src/tests/links.test.ts:206`
 - **Issue**: Link not actually removed
 - **Expected**: Should not see "/blog → blog/posts" after removal
@@ -101,6 +113,7 @@ All limits tests fail because the command now returns exit code 1 with a "not im
 ### 5. Transfer Commands (4 failures)
 
 #### Test: "should show warning without --force flag"
+
 - **Location**: `src/tests/transfer.test.ts:111`
 - **Issue**: Warning message format incorrect
 - **Expected**: Should include "WARNING" in output
@@ -108,6 +121,7 @@ All limits tests fail because the command now returns exit code 1 with a "not im
 - **Root Cause**: Output uses `⚠️` symbol instead of "WARNING" text
 
 #### Test: "should transfer ownership with --force flag"
+
 - **Location**: `src/tests/transfer.test.ts:141`
 - **Issue**: Success message format incorrect
 - **Expected**: Should include "You no longer have access"
@@ -115,6 +129,7 @@ All limits tests fail because the command now returns exit code 1 with a "not im
 - **Root Cause**: Message text doesn't match expected
 
 #### Test: "should validate new owner exists"
+
 - **Location**: `src/tests/transfer.test.ts:193`
 - **Issue**: Not validating if new owner exists
 - **Expected**: Should fail for non-existent user
@@ -122,6 +137,7 @@ All limits tests fail because the command now returns exit code 1 with a "not im
 - **Root Cause**: CLI doesn't validate user existence before transfer
 
 #### Test: "should prevent old owner from accessing pod after transfer"
+
 - **Location**: `src/tests/transfer.test.ts:216`
 - **Issue**: Old owner can still access pod
 - **Expected**: Should get error when old owner tries to access
@@ -131,6 +147,7 @@ All limits tests fail because the command now returns exit code 1 with a "not im
 ### 6. Verify Commands (4 failures)
 
 #### Test: "should verify valid hash chain"
+
 - **Location**: `src/tests/verify.test.ts:159`
 - **Issue**: Verify command fails
 - **Expected**: Should successfully verify valid chain
@@ -138,6 +155,7 @@ All limits tests fail because the command now returns exit code 1 with a "not im
 - **Root Cause**: Hash calculation may still be incorrect
 
 #### Test: "should detect broken hash chain"
+
 - **Location**: `src/tests/verify.test.ts:186`
 - **Issue**: Not detecting broken chain
 - **Expected**: Should report "Hash chain broken"
@@ -145,6 +163,7 @@ All limits tests fail because the command now returns exit code 1 with a "not im
 - **Root Cause**: Verification logic not detecting breaks
 
 #### Test: "should detect invalid first record with previous_hash"
+
 - **Location**: `src/tests/verify.test.ts:211`
 - **Issue**: Not detecting invalid first record
 - **Expected**: Should report "First record should not have previous_hash"
@@ -152,6 +171,7 @@ All limits tests fail because the command now returns exit code 1 with a "not im
 - **Root Cause**: Verification logic not checking first record properly
 
 #### Test: "should work for public streams without auth"
+
 - **Location**: `src/tests/verify.test.ts:263`
 - **Issue**: Can't verify public streams
 - **Expected**: Should show stream summary
@@ -162,7 +182,7 @@ All limits tests fail because the command now returns exit code 1 with a "not im
 
 1. **High Priority Fixes** (affect core functionality):
    - Fix links list/remove commands
-   - Fix domain list/remove commands  
+   - Fix domain list/remove commands
    - Fix export/import round trip
    - Fix transfer command validation
 

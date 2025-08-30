@@ -8,14 +8,18 @@ export async function transfer(argv: Arguments) {
   try {
     const config = await getConfigWithAuth(argv);
     const client = getClient(config);
-    
+
     const pod = argv.pod as string;
     const newOwner = argv.user as string;
-    const force = argv.force as boolean || false;
+    const force = (argv.force as boolean) || false;
 
     if (!force) {
-      output.warning(`⚠️  WARNING: This will permanently transfer ownership of pod '${pod}' to user '${newOwner}'`);
-      output.warning(`You will lose all access to this pod after the transfer.`);
+      output.warning(
+        `⚠️  WARNING: This will permanently transfer ownership of pod '${pod}' to user '${newOwner}'`,
+      );
+      output.warning(
+        `You will lose all access to this pod after the transfer.`,
+      );
       output.info(`\nTo proceed, run the command again with --force`);
       return;
     }
@@ -33,7 +37,9 @@ export async function transfer(argv: Arguments) {
     );
 
     if (response.ok) {
-      output.success(`Pod '${pod}' ownership transferred to user '${newOwner}'`);
+      output.success(
+        `Pod '${pod}' ownership transferred to user '${newOwner}'`,
+      );
       output.warning(`You no longer have access to this pod.`);
     } else {
       const error = await response.text();

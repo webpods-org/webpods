@@ -38,11 +38,15 @@ import {
 // New command imports
 import { grant, revoke } from "./commands/grant/index.js";
 import { linksSet, linksList, linksRemove } from "./commands/links/index.js";
-import { domainAdd, domainList, domainRemove } from "./commands/domains/index.js";
+import {
+  domainAdd,
+  domainList,
+  domainRemove,
+} from "./commands/domains/index.js";
 import { verify } from "./commands/verify/index.js";
 import { transfer } from "./commands/transfer/index.js";
 import { limits } from "./commands/limits/index.js";
-import { exportPod, importPod } from "./commands/backup/index.js";
+import { exportPod } from "./commands/backup/index.js";
 
 export * as config from "./config/index.js";
 export * as http from "./http/index.js";
@@ -117,9 +121,14 @@ export async function main() {
           .command("show", "Display current stored token", {}, async (argv) => {
             await token(argv);
           })
-          .command("get", "Display current stored token (alias for show)", {}, async (argv) => {
-            await token(argv);
-          })
+          .command(
+            "get",
+            "Display current stored token (alias for show)",
+            {},
+            async (argv) => {
+              await token(argv);
+            },
+          )
           .command(
             "set <token>",
             "Manually set authentication token",
@@ -958,44 +967,6 @@ export async function main() {
           }),
       async (argv) => {
         await exportPod(argv);
-      },
-    )
-
-    // Import Command
-    .command(
-      "import <pod>",
-      "Import pod data",
-      (yargs) =>
-        yargs
-          .positional("pod", {
-            describe: "Pod name to import to",
-            demandOption: true,
-            type: "string",
-          })
-          .option("file", {
-            alias: "f",
-            type: "string",
-            describe: "Import file path",
-            demandOption: "Please specify input file with --file",
-          })
-          .option("overwrite", {
-            type: "boolean",
-            describe: "Overwrite existing data",
-          })
-          .option("dry-run", {
-            type: "boolean",
-            describe: "Preview import without making changes",
-          })
-          .option("token", {
-            type: "string",
-            describe: "Use specific token for this command",
-          })
-          .option("server", {
-            type: "string",
-            describe: "WebPods server URL",
-          }),
-      async (argv) => {
-        await importPod(argv);
       },
     )
 

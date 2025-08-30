@@ -32,7 +32,7 @@ describe("CLI Links Commands", function () {
 
   beforeEach(async () => {
     await resetCliTestDb();
-    
+
     // Create a test pod
     testPodName = `test-pod-${Date.now()}`;
     await testDb
@@ -117,18 +117,15 @@ describe("CLI Links Commands", function () {
   describe("links list command", () => {
     beforeEach(async () => {
       // Set up some test links
-      await cli.exec(
-        ["links", "set", testPodName, "/", "homepage/index"],
-        { token: testToken },
-      );
-      await cli.exec(
-        ["links", "set", testPodName, "/about", "pages/about"],
-        { token: testToken },
-      );
-      await cli.exec(
-        ["links", "set", testPodName, "/blog", "blog/posts"],
-        { token: testToken },
-      );
+      await cli.exec(["links", "set", testPodName, "/", "homepage/index"], {
+        token: testToken,
+      });
+      await cli.exec(["links", "set", testPodName, "/about", "pages/about"], {
+        token: testToken,
+      });
+      await cli.exec(["links", "set", testPodName, "/blog", "blog/posts"], {
+        token: testToken,
+      });
     });
 
     it("should list all links for a pod", async () => {
@@ -177,14 +174,12 @@ describe("CLI Links Commands", function () {
   describe("links remove command", () => {
     beforeEach(async () => {
       // Set up test links
-      await cli.exec(
-        ["links", "set", testPodName, "/about", "pages/about"],
-        { token: testToken },
-      );
-      await cli.exec(
-        ["links", "set", testPodName, "/blog", "blog/posts"],
-        { token: testToken },
-      );
+      await cli.exec(["links", "set", testPodName, "/about", "pages/about"], {
+        token: testToken,
+      });
+      await cli.exec(["links", "set", testPodName, "/blog", "blog/posts"], {
+        token: testToken,
+      });
     });
 
     it("should remove a specific link", async () => {
@@ -220,12 +215,7 @@ describe("CLI Links Commands", function () {
     });
 
     it("should require authentication", async () => {
-      const result = await cli.exec([
-        "links",
-        "remove",
-        testPodName,
-        "/about",
-      ]);
+      const result = await cli.exec(["links", "remove", testPodName, "/about"]);
 
       expect(result.exitCode).to.not.equal(0);
       expect(result.stderr).to.include("Not authenticated");

@@ -8,12 +8,12 @@ export async function grant(argv: Arguments) {
   try {
     const config = await getConfigWithAuth(argv);
     const client = getClient(config);
-    
+
     const pod = argv.pod as string;
     const permissionStream = argv.stream as string;
     const userId = argv.user as string;
-    const read = argv.read as boolean || false;
-    const write = argv.write as boolean || false;
+    const read = (argv.read as boolean) || false;
+    const write = (argv.write as boolean) || false;
 
     if (!read && !write) {
       output.error("Please specify at least one permission: --read or --write");
@@ -41,7 +41,9 @@ export async function grant(argv: Arguments) {
       const permissions = [];
       if (read) permissions.push("read");
       if (write) permissions.push("write");
-      output.success(`Granted ${permissions.join(" and ")} access to user '${userId}' on stream '${permissionStream}'`);
+      output.success(
+        `Granted ${permissions.join(" and ")} access to user '${userId}' on stream '${permissionStream}'`,
+      );
     } else {
       const error = await response.text();
       output.error(`Failed to grant permissions: ${error}`);
@@ -57,7 +59,7 @@ export async function revoke(argv: Arguments) {
   try {
     const config = await getConfigWithAuth(argv);
     const client = getClient(config);
-    
+
     const pod = argv.pod as string;
     const permissionStream = argv.stream as string;
     const userId = argv.user as string;
@@ -81,7 +83,9 @@ export async function revoke(argv: Arguments) {
     );
 
     if (response.ok) {
-      output.success(`Revoked all access for user '${userId}' on stream '${permissionStream}'`);
+      output.success(
+        `Revoked all access for user '${userId}' on stream '${permissionStream}'`,
+      );
     } else {
       const error = await response.text();
       output.error(`Failed to revoke permissions: ${error}`);
