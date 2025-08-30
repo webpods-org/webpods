@@ -1,13 +1,13 @@
 import { Arguments } from "yargs";
 import { createCliOutput } from "../../logger.js";
-import { getClient, getConfigWithAuth } from "../common.js";
+import { getClient, getConfig } from "../common.js";
 import crypto from "crypto";
 
 const output = createCliOutput();
 
 export async function verify(argv: Arguments) {
   try {
-    const config = await getConfigWithAuth(argv);
+    const config = await getConfig(argv);
     const client = getClient(config);
 
     const pod = argv.pod as string;
@@ -42,9 +42,9 @@ export async function verify(argv: Arguments) {
         output.info(`Index ${record.index}:`);
         output.info(`  Name: ${record.name || "(unnamed)"}`);
         output.info(`  Hash: ${record.hash}`);
-        output.info(`  Previous: ${record.previous_hash || "(genesis)"}`);
+        output.info(`  Previous: ${record.previousHash || "(genesis)"}`);
         output.info(
-          `  Created: ${new Date(record.created_at).toLocaleString()}`,
+          `  Created: ${new Date(record.timestamp).toLocaleString()}`,
         );
         output.info("");
       }
@@ -61,26 +61,26 @@ export async function verify(argv: Arguments) {
 
         // Check hash chain continuity
         if (i === 0) {
-          if (record.previous_hash) {
+          if (record.previousHash) {
             output.error(
-              `❌ Record ${i}: First record should not have previous_hash`,
+              `❌ Record ${i}: First record should not have previousHash`,
             );
             valid = false;
           }
         } else {
-          if (record.previous_hash !== previousHash) {
+          if (record.previousHash !== previousHash) {
             output.error(`❌ Record ${i}: Hash chain broken`);
             output.error(`   Expected previous: ${previousHash}`);
-            output.error(`   Got previous: ${record.previous_hash}`);
+            output.error(`   Got previous: ${record.previousHash}`);
             valid = false;
           }
         }
 
         // Verify the hash itself
-        // Server uses: previous_hash, timestamp, content
+        // Server uses: previous_hash, timestamp, content (the original object, not stringified)
         const hashData = JSON.stringify({
-          previous_hash: record.previous_hash || null,
-          timestamp: record.created_at,
+          previous_hash: record.previousHash || null,
+          timestamp: record.timestamp,
           content: record.content,
         });
 
@@ -116,10 +116,10 @@ export async function verify(argv: Arguments) {
       output.info(`Stream '${stream}' summary:`);
       output.info(`  Total records: ${records.length}`);
       output.info(
-        `  First record: ${new Date(records[0].created_at).toLocaleString()}`,
+        `  First record: ${new Date(records[0].timestamp).toLocaleString()}`,
       );
       output.info(
-        `  Last record: ${new Date(records[records.length - 1].created_at).toLocaleString()}`,
+        `  Last record: ${new Date(records[records.length - 1].timestamp).toLocaleString()}`,
       );
       output.info(
         `  Hash chain: ${records[0].hash} ... ${records[records.length - 1].hash}`,

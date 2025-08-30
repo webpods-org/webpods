@@ -56,8 +56,17 @@ export async function linksSet(argv: Arguments) {
     if (response.ok) {
       output.success(`Link set: ${path} → ${target}`);
     } else {
-      const error = await response.text();
-      output.error(`Failed to set link: ${error}`);
+      const errorText = await response.text();
+      try {
+        const errorObj = JSON.parse(errorText);
+        if (errorObj.error?.message) {
+          output.error(`Failed to set link: ${errorObj.error.message}`);
+        } else {
+          output.error(`Failed to set link: ${errorText}`);
+        }
+      } catch {
+        output.error(`Failed to set link: ${errorText}`);
+      }
       process.exit(1);
     }
   } catch (error: any) {
@@ -90,11 +99,14 @@ export async function linksList(argv: Arguments) {
       } else {
         if (data?.records && data.records.length > 0) {
           output.info(`Links for pod '${pod}':`);
-          for (const record of data.records) {
-            const content = JSON.parse(record.content);
-            for (const [path, target] of Object.entries(content)) {
-              output.info(`  ${path} → ${target}`);
-            }
+          // Get the LATEST record only (last in array)
+          const latestRecord = data.records[data.records.length - 1];
+          const content =
+            typeof latestRecord.content === "string"
+              ? JSON.parse(latestRecord.content)
+              : latestRecord.content;
+          for (const [path, target] of Object.entries(content)) {
+            output.info(`  ${path} → ${target}`);
           }
         } else {
           output.info(`No links configured for pod '${pod}'`);
@@ -102,6 +114,7 @@ export async function linksList(argv: Arguments) {
       }
     } else if (response.status === 404) {
       output.info(`No links configured for pod '${pod}'`);
+      // Don't exit with error for 404 - just no links exist yet
     } else {
       const error = await response.text();
       output.error(`Failed to list links: ${error}`);

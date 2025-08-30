@@ -32,6 +32,51 @@ describe("WebPods Rate Limiting", () => {
     // Create the test pod
     await createTestPod(db, testPodId, userId);
 
+    // Pre-create streams that will be used in various tests
+    // This is needed because only pod owners can create streams
+    const streamsToCreate = [
+      // Basic test streams
+      "stream1",
+      "stream2",
+      "stream3",
+      "nested",
+      // Pod creation test streams
+      "init",
+      // NOTE: rate-stream-1, rate-stream-2, rate-stream-3, blog are NOT pre-created
+      // because the "should track stream creation rate limits" test needs to create them
+      // NOTE: 'existing' is NOT pre-created because the test needs to create it first
+      // Public/anonymous test streams
+      "public-data",
+      // Window test streams
+      "window-test",
+      "new-window",
+      "cleanup-trigger",
+      // Header test stream
+      "header-test",
+      // Decrease test streams
+      "decrease-1",
+      "decrease-2",
+      // Over limit test
+      "over-limit",
+      // User-specific test streams
+      "user1-blocked",
+      "user2-allowed",
+      // Different rate limits test streams
+      "can-write",
+      "stream-99",
+      "stream-100",
+      "stream-101",
+    ];
+
+    for (const streamName of streamsToCreate) {
+      await db.none(
+        `INSERT INTO stream (pod_name, name, user_id, access_permission, created_at)
+         VALUES ($(podName), $(streamName), $(userId), 'public', NOW())
+         ON CONFLICT (pod_name, name) DO NOTHING`,
+        { podName: testPodId, streamName, userId },
+      );
+    }
+
     // Get OAuth token
     authToken = await client.authenticateViaOAuth(userId, [testPodId]);
 
@@ -429,10 +474,26 @@ describe("WebPods Rate Limiting", () => {
         name: "Rate Limit User 2",
       });
 
+      // Create a separate pod for user2
+      const user2PodId = "rate-test-user2";
+      await createTestPod(db, user2PodId, user2.userId);
+
+      // Pre-create streams for user2's pod
+      await db.none(
+        `INSERT INTO stream (pod_name, name, user_id, access_permission, created_at)
+         VALUES ($(podName), $(streamName), $(userId), 'public', NOW())
+         ON CONFLICT (pod_name, name) DO NOTHING`,
+        {
+          podName: user2PodId,
+          streamName: "user2-allowed",
+          userId: user2.userId,
+        },
+      );
+
       // Get tokens for both users
       const token1 = await client.authenticateViaOAuth(userId, [testPodId]);
       const token2 = await client.authenticateViaOAuth(user2.userId, [
-        testPodId,
+        user2PodId,
       ]);
 
       // Start with user1's token
@@ -487,13 +548,16 @@ describe("WebPods Rate Limiting", () => {
 
       expect(response1.status).to.equal(429);
 
-      // User2 should still be able to post
+      // User2 should still be able to post to their own pod
       client.setAuthToken(token2);
+      client.setBaseUrl(`http://${user2PodId}.localhost:3000`);
       const response2 = await client.post(
         "/user2-allowed/succeed",
         "Should succeed",
       );
       expect(response2.status).to.equal(201);
+      // Reset base URL for next tests
+      client.setBaseUrl(baseUrl);
     });
   });
 
@@ -511,12 +575,29 @@ describe("WebPods Rate Limiting", () => {
         name: "Rate Limit Unique User",
       });
 
+      // Create a separate pod for the unique user so they can create streams
+      const uniquePodId = "rate-test-unique";
+      await createTestPod(db, uniquePodId, uniqueUser.userId);
+
+      // Pre-create ONLY the can-write stream (stream-99, stream-100, stream-101 need to be created during test)
+      await db.none(
+        `INSERT INTO stream (pod_name, name, user_id, access_permission, created_at)
+         VALUES ($(podName), $(streamName), $(userId), 'public', NOW())
+         ON CONFLICT (pod_name, name) DO NOTHING`,
+        {
+          podName: uniquePodId,
+          streamName: "can-write",
+          userId: uniqueUser.userId,
+        },
+      );
+
       const uniqueToken = await client.authenticateViaOAuth(uniqueUser.userId, [
-        testPodId,
+        uniquePodId,
       ]);
 
       // Use the unique user for this test
       client.setAuthToken(uniqueToken);
+      client.setBaseUrl(`http://${uniquePodId}.localhost:3000`);
       const testUserId = uniqueUser.userId;
 
       // Calculate proper window boundaries
@@ -539,7 +620,7 @@ describe("WebPods Rate Limiting", () => {
         {
           identifier1: testUserId, // Rate limiting uses user_id
           action1: "stream_create", // Changed from pod_create since we're creating streams
-          count1: 97, // Leave room for 3 stream creations (can-write, stream-99, stream-100)
+          count1: 98, // Leave room for 2 stream creations (stream-99, stream-100) since can-write is pre-created
           windowStart1: windowStart,
           windowEnd1: windowEnd,
           identifier2: testUserId, // Rate limiting uses user_id
@@ -571,6 +652,9 @@ describe("WebPods Rate Limiting", () => {
         "Too many streams",
       );
       expect(exceededResponse.status).to.equal(429);
+
+      // Reset base URL for next tests
+      client.setBaseUrl(baseUrl);
     });
   });
 });

@@ -58,12 +58,21 @@ describe("CLI Verify Command", function () {
     // Add records with proper hash chain
     let previousHash = null;
     for (let i = 0; i < 5; i++) {
-      const content = JSON.stringify({ index: i, data: `Record ${i}` });
-      const hash = `sha256:${crypto.createHash("sha256").update(content).digest("hex")}`;
+      const contentObj = { index: i, data: `Record ${i}` };
+      const content = JSON.stringify(contentObj);
+      const timestamp = new Date().toISOString();
+
+      // Calculate hash exactly like the server does
+      const hashData: string = JSON.stringify({
+        previous_hash: previousHash,
+        timestamp: timestamp,
+        content: contentObj, // Use the object, not the string
+      });
+      const hash: string = `sha256:${crypto.createHash("sha256").update(hashData).digest("hex")}`;
 
       await testDb.getDb().none(
-        `INSERT INTO record (pod_name, stream_name, name, content, content_type, hash, previous_hash, user_id, index) 
-         VALUES ($(podName), $(streamName), $(name), $(content), $(contentType), $(hash), $(previousHash), $(userId), $(index))`,
+        `INSERT INTO record (pod_name, stream_name, name, content, content_type, hash, previous_hash, user_id, index, created_at) 
+         VALUES ($(podName), $(streamName), $(name), $(content), $(contentType), $(hash), $(previousHash), $(userId), $(index), $(createdAt))`,
         {
           podName: testPodName,
           streamName: "test-stream",
@@ -74,6 +83,7 @@ describe("CLI Verify Command", function () {
           previousHash,
           userId: testUser.userId,
           index: i,
+          createdAt: timestamp,
         },
       );
 
@@ -150,6 +160,11 @@ describe("CLI Verify Command", function () {
         },
       );
 
+      if (result.exitCode !== 0) {
+        console.log("VERIFY ERROR - STDERR:", result.stderr);
+        console.log("VERIFY ERROR - STDOUT:", result.stdout);
+      }
+
       expect(result.exitCode).to.equal(0);
       expect(result.stdout).to.include(
         "Verifying integrity of stream 'test-stream'",
@@ -178,9 +193,14 @@ describe("CLI Verify Command", function () {
         },
       );
 
+      if (!result.stdout.includes("Hash chain broken")) {
+        console.log("BROKEN CHAIN TEST - STDOUT:", result.stdout);
+        console.log("BROKEN CHAIN TEST - STDERR:", result.stderr);
+      }
+
       expect(result.exitCode).to.not.equal(0);
-      expect(result.stdout).to.include("Hash chain broken");
-      expect(result.stdout).to.include("✗ Stream integrity check failed");
+      expect(result.stderr).to.include("Hash chain broken");
+      expect(result.stderr).to.include("✗ Stream integrity check failed");
     });
 
     it("should detect invalid first record with previous_hash", async () => {
@@ -204,8 +224,8 @@ describe("CLI Verify Command", function () {
       );
 
       expect(result.exitCode).to.not.equal(0);
-      expect(result.stdout).to.include(
-        "First record should not have previous_hash",
+      expect(result.stderr).to.include(
+        "First record should not have previousHash",
       );
     });
   });
@@ -215,7 +235,8 @@ describe("CLI Verify Command", function () {
       const result = await cli.exec(["verify", testPodName, "test-stream"]);
 
       expect(result.exitCode).to.not.equal(0);
-      expect(result.stderr).to.include("Not authenticated");
+      // The server returns an error when trying to fetch without auth
+      expect(result.stderr).to.include("Failed to fetch stream");
     });
 
     it("should work for public streams without auth", async () => {
@@ -232,22 +253,41 @@ describe("CLI Verify Command", function () {
           },
         );
 
-      // Add a record
+      // Add a record with proper hash
+      const contentObj = { public: true };
+      const content = JSON.stringify(contentObj);
+      const timestamp = new Date().toISOString();
+
+      // Calculate hash exactly like the server does
+      const hashData: string = JSON.stringify({
+        previous_hash: null,
+        timestamp: timestamp,
+        content: contentObj, // Use the object, not the string
+      });
+      const hash: string = `sha256:${crypto.createHash("sha256").update(hashData).digest("hex")}`;
+
       await testDb.getDb().none(
-        `INSERT INTO record (pod_name, stream_name, name, content, content_type, hash, user_id, index) 
-         VALUES ($(podName), $(streamName), $(name), $(content), $(contentType), $(hash), $(userId), 0)`,
+        `INSERT INTO record (pod_name, stream_name, name, content, content_type, hash, user_id, index, created_at) 
+         VALUES ($(podName), $(streamName), $(name), $(content), $(contentType), $(hash), $(userId), 0, $(createdAt))`,
         {
           podName: testPodName,
           streamName: "public-stream",
           name: "record-0",
-          content: '{"public": true}',
+          content,
           contentType: "application/json",
-          hash: "sha256:test",
+          hash,
           userId: testUser.userId,
+          createdAt: timestamp,
         },
       );
 
       const result = await cli.exec(["verify", testPodName, "public-stream"]);
+
+      if (!result.stdout.includes("Stream 'public-stream' summary:")) {
+        console.log("PUBLIC STREAM TEST - STDOUT:", result.stdout);
+        console.log("PUBLIC STREAM TEST - STDERR:", result.stderr);
+        console.log("PUBLIC STREAM TEST - EXIT CODE:", result.exitCode);
+      }
 
       // Should work without authentication for public streams
       expect(result.stdout).to.include("Stream 'public-stream' summary:");

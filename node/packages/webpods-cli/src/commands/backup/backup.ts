@@ -2,7 +2,6 @@ import { Arguments } from "yargs";
 import { createCliOutput } from "../../logger.js";
 import { getClient, getConfigWithAuth } from "../common.js";
 import fs from "fs/promises";
-import path from "path";
 
 const output = createCliOutput();
 

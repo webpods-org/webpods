@@ -20,6 +20,16 @@ export async function transferPodOwnership(
 ): Promise<Result<void>> {
   try {
     return await ctx.db.tx(async (t) => {
+      // Validate that the new owner exists
+      const newOwnerExists = await t.oneOrNone(
+        `SELECT id FROM "user" WHERE id = $(userId)`,
+        { userId: toUserId },
+      );
+
+      if (!newOwnerExists) {
+        return failure(createError("USER_NOT_FOUND", "User not found"));
+      }
+
       // Get the .meta/streams/owner stream
       const ownerStream = await t.oneOrNone<StreamDbRow>(
         `SELECT * FROM stream

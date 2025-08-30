@@ -49,6 +49,37 @@ export async function getConfigWithAuth(
 }
 
 /**
+ * Get configuration with optional authentication from arguments or profile
+ */
+export async function getConfig(argv: Arguments): Promise<CommandConfig> {
+  // Check for profile flag
+  let profile;
+  if (argv.profile) {
+    profile = await getProfile(argv.profile as string);
+    if (!profile) {
+      throw new Error(`Profile '${argv.profile}' not found`);
+    }
+  } else {
+    profile = await getCurrentProfile();
+  }
+
+  // Build config from arguments or profile
+  const server =
+    (argv.server as string) || profile?.server || "http://localhost:3000";
+  const token = (argv.token as string) || profile?.token;
+
+  if (!token) {
+    // Try legacy config
+    const config = await loadConfig();
+    if (config.token) {
+      return { server, token: config.token };
+    }
+  }
+
+  return { server, token };
+}
+
+/**
  * Simple HTTP client for direct API access
  */
 export function getClient(config: CommandConfig) {

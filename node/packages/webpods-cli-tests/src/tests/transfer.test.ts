@@ -190,26 +190,57 @@ describe("CLI Transfer Command", function () {
 
       // Should fail when trying to transfer to non-existent user
       expect(result.exitCode).to.not.equal(0);
+      expect(result.stderr).to.include("User not found");
     });
   });
 
   describe("transfer command - post transfer", () => {
     it("should prevent old owner from accessing pod after transfer", async () => {
       // First transfer the pod
-      await cli.exec(["transfer", testPodName, newOwnerId, "--force"], {
-        token: testToken,
-      });
+      const transferResult = await cli.exec(
+        ["transfer", testPodName, newOwnerId, "--force"],
+        {
+          token: testToken,
+        },
+      );
 
-      // Try to access pod with old owner's token
-      const result = await cli.exec(
+      expect(transferResult.exitCode).to.equal(0);
+
+      // Try to write to existing stream with old owner's token
+      // This should fail since they're no longer the pod owner
+      const existingStreamResult = await cli.exec(
         ["write", testPodName, "test-stream", "test-record", "data"],
         {
           token: testToken,
         },
       );
 
-      // Should be denied access
-      expect(result.exitCode).to.not.equal(0);
+      // Should be denied access to existing stream
+      console.log("EXISTING STREAM WRITE ATTEMPT:", {
+        exitCode: existingStreamResult.exitCode,
+        stdout: existingStreamResult.stdout,
+        stderr: existingStreamResult.stderr,
+      });
+      expect(existingStreamResult.exitCode).to.not.equal(0);
+
+      // Try to create a NEW stream with old owner's token
+      // This should also fail since they're no longer the pod owner
+      const newStreamResult = await cli.exec(
+        [
+          "write",
+          testPodName,
+          "new-stream-after-transfer",
+          "test-record",
+          "data",
+        ],
+        {
+          token: testToken,
+        },
+      );
+
+      // Should be denied access to create new stream
+      expect(newStreamResult.exitCode).to.not.equal(0);
+      expect(newStreamResult.stderr).to.include("FORBIDDEN");
     });
 
     it("should allow new owner to access pod after transfer", async () => {

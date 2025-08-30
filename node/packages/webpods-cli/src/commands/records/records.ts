@@ -113,7 +113,9 @@ export async function write(options: {
     });
 
     if (!result.success) {
-      output.error("Error: " + result.error.message);
+      const errorMessage =
+        result.error.message || result.error.code || "Failed to write record";
+      output.error("Error: " + errorMessage);
       logger.error("Record write failed", {
         pod: options.pod,
         stream: options.stream,

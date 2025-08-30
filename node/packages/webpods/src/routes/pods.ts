@@ -248,7 +248,11 @@ router.post(
 
       if (!result.success) {
         const status =
-          (result.error as CodedError).code === "FORBIDDEN" ? 403 : 500;
+          (result.error as CodedError).code === "FORBIDDEN"
+            ? 403
+            : (result.error as CodedError).code === "USER_NOT_FOUND"
+              ? 404
+              : 500;
         res.status(status).json({
           error: result.error,
         });
@@ -614,7 +618,9 @@ router.post(
       );
 
       if (!streamResult.success) {
-        res.status(500).json({
+        const status =
+          (streamResult.error as CodedError).code === "FORBIDDEN" ? 403 : 500;
+        res.status(status).json({
           error: streamResult.error,
         });
         return;
