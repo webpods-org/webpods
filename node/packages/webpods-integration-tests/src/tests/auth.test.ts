@@ -107,6 +107,9 @@ describe("WebPods Authentication", () => {
     it("should accept requests with valid auth token", async () => {
       client.setAuthToken(authToken);
 
+      // Create the stream first
+      await client.createStream("protected-stream");
+
       const response = await client.post(
         "/protected-stream/auth",
         "authenticated content",
@@ -186,6 +189,7 @@ describe("WebPods Authentication", () => {
     it("should allow anonymous read on public streams", async () => {
       // First create a public stream as authenticated user
       client.setAuthToken(authToken);
+      await client.createStream("public-data");
       await client.post("/public-data/public", "Public content");
 
       // Now read without auth
@@ -213,6 +217,9 @@ describe("WebPods Authentication", () => {
 
     it("should track author correctly", async () => {
       client.setAuthToken(authToken);
+
+      // Create stream first
+      await client.createStream("tracked");
 
       const response = await client.post("/tracked/data", {
         message: "Track me",
@@ -263,6 +270,11 @@ describe("WebPods Authentication", () => {
     });
 
     it("should accept Bearer token in Authorization header", async () => {
+      // Create stream first
+      client.setAuthToken(authToken);
+      await client.createStream("bearer-test");
+      client.clearAuthToken();
+
       const response = await client.post("/bearer-test/content", "content", {
         headers: {
           Authorization: `Bearer ${authToken}`,
@@ -273,6 +285,11 @@ describe("WebPods Authentication", () => {
     });
 
     it("should accept token without Bearer prefix", async () => {
+      // Create stream first
+      client.setAuthToken(authToken);
+      await client.createStream("no-bearer");
+      client.clearAuthToken();
+
       const response = await client.post("/no-bearer/content", "content", {
         headers: {
           Authorization: authToken,
@@ -464,6 +481,9 @@ describe("WebPods Authentication", () => {
       client.setBaseUrl(`http://pod-one.localhost:3000`);
       client.setAuthToken(token);
 
+      // Create stream first
+      await client.createStream("stream1");
+
       const response1 = await client.post(
         "/stream1/content",
         "Pod one content",
@@ -473,6 +493,9 @@ describe("WebPods Authentication", () => {
       // Use same token on second pod
       client.setBaseUrl(`http://pod-two.localhost:3000`);
       client.setAuthToken(token);
+
+      // Create stream first
+      await client.createStream("stream2");
 
       const response2 = await client.post(
         "/stream2/content",

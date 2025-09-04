@@ -336,10 +336,65 @@ export async function main() {
       },
     )
 
-    // Stream & Record Operations
+    // Record Management
+    .command(
+      "record",
+      "Manage records",
+      (yargs) =>
+        yargs
+          .command(
+            "list <pod> <stream>",
+            "List records in a stream",
+            (yargs) =>
+              yargs
+                .positional("pod", {
+                  describe: "Pod name",
+                  demandOption: true,
+                  type: "string",
+                })
+                .positional("stream", {
+                  describe: "Stream path",
+                  demandOption: true,
+                  type: "string",
+                })
+                .option("limit", {
+                  type: "number",
+                  describe: "Maximum number of records",
+                  default: 50,
+                })
+                .option("after", {
+                  type: "number",
+                  describe: "Start after index",
+                })
+                .option("unique", {
+                  type: "boolean",
+                  describe: "Show only unique named records",
+                })
+                .option("token", {
+                  type: "string",
+                  describe: "Use specific token for this command",
+                })
+                .option("server", {
+                  type: "string",
+                  describe: "WebPods server URL",
+                })
+                .option("format", {
+                  type: "string",
+                  choices: ["json", "yaml", "table", "csv"] as const,
+                  describe: "Output format",
+                }),
+            async (argv) => {
+              await list(argv);
+            },
+          )
+          .demandCommand(1, "Please specify a record command"),
+      () => {},
+    )
+
+    // Write & Read Operations (top-level for convenience)
     .command(
       "write <pod> <stream> <name> [data]",
-      "Write data to a stream record",
+      "Write data to a stream record (stream must exist)",
       (yargs) =>
         yargs
           .positional("pod", {
@@ -348,7 +403,7 @@ export async function main() {
             type: "string",
           })
           .positional("stream", {
-            describe: "Stream path",
+            describe: "Stream path (must be created first)",
             demandOption: true,
             type: "string",
           })
@@ -423,110 +478,114 @@ export async function main() {
         await read(argv);
       },
     )
-    .command(
-      "records <pod> <stream>",
-      "List records in a stream",
-      (yargs) =>
-        yargs
-          .positional("pod", {
-            describe: "Pod name",
-            demandOption: true,
-            type: "string",
-          })
-          .positional("stream", {
-            describe: "Stream path",
-            demandOption: true,
-            type: "string",
-          })
-          .option("limit", {
-            type: "number",
-            describe: "Maximum number of records",
-            default: 50,
-          })
-          .option("after", {
-            type: "number",
-            describe: "Start after index",
-          })
-          .option("unique", {
-            type: "boolean",
-            describe: "Show only unique named records",
-          })
-          .option("token", {
-            type: "string",
-            describe: "Use specific token for this command",
-          })
-          .option("server", {
-            type: "string",
-            describe: "WebPods server URL",
-          })
-          .option("format", {
-            type: "string",
-            choices: ["json", "yaml", "table", "csv"] as const,
-            describe: "Output format",
-          }),
-      async (argv) => {
-        await list(argv);
-      },
-    )
 
     // Stream Management
     .command(
-      "streams <pod>",
-      "List all streams in a pod",
+      "stream",
+      "Manage streams",
       (yargs) =>
         yargs
-          .positional("pod", {
-            describe: "Pod name",
-            demandOption: true,
-            type: "string",
-          })
-          .option("token", {
-            type: "string",
-            describe: "Use specific token for this command",
-          })
-          .option("server", {
-            type: "string",
-            describe: "WebPods server URL",
-          })
-          .option("format", {
-            type: "string",
-            choices: ["json", "yaml", "table", "csv"] as const,
-            describe: "Output format",
-          }),
-      async (argv) => {
-        await streams(argv);
-      },
-    )
-    .command(
-      "delete-stream <pod> <stream>",
-      "Delete an entire stream",
-      (yargs) =>
-        yargs
-          .positional("pod", {
-            describe: "Pod name",
-            demandOption: true,
-            type: "string",
-          })
-          .positional("stream", {
-            describe: "Stream path",
-            demandOption: true,
-            type: "string",
-          })
-          .option("token", {
-            type: "string",
-            describe: "Use specific token for this command",
-          })
-          .option("server", {
-            type: "string",
-            describe: "WebPods server URL",
-          })
-          .option("force", {
-            type: "boolean",
-            describe: "Skip confirmation prompt",
-          }),
-      async (argv) => {
-        await deleteStream(argv);
-      },
+          .command(
+            "create <pod> <stream>",
+            "Create a new stream",
+            (yargs) =>
+              yargs
+                .positional("pod", {
+                  describe: "Pod name",
+                  demandOption: true,
+                  type: "string",
+                })
+                .positional("stream", {
+                  describe: "Stream path",
+                  demandOption: true,
+                  type: "string",
+                })
+                .option("access", {
+                  type: "string",
+                  describe:
+                    "Access permission (public, private, or /permission-stream)",
+                  default: "public",
+                })
+                .option("type", {
+                  type: "string",
+                  describe: "Stream type (data or permission)",
+                  choices: ["data", "permission"],
+                })
+                .option("token", {
+                  type: "string",
+                  describe: "Use specific token for this command",
+                })
+                .option("server", {
+                  type: "string",
+                  describe: "WebPods server URL",
+                }),
+            async (argv) => {
+              const { createStream } = await import(
+                "./commands/streams/streams.js"
+              );
+              await createStream(argv);
+            },
+          )
+          .command(
+            "list <pod>",
+            "List all streams in a pod",
+            (yargs) =>
+              yargs
+                .positional("pod", {
+                  describe: "Pod name",
+                  demandOption: true,
+                  type: "string",
+                })
+                .option("token", {
+                  type: "string",
+                  describe: "Use specific token for this command",
+                })
+                .option("server", {
+                  type: "string",
+                  describe: "WebPods server URL",
+                })
+                .option("format", {
+                  type: "string",
+                  choices: ["json", "yaml", "table", "csv"] as const,
+                  describe: "Output format",
+                }),
+            async (argv) => {
+              await streams(argv);
+            },
+          )
+          .command(
+            "delete <pod> <stream>",
+            "Delete an entire stream",
+            (yargs) =>
+              yargs
+                .positional("pod", {
+                  describe: "Pod name",
+                  demandOption: true,
+                  type: "string",
+                })
+                .positional("stream", {
+                  describe: "Stream path",
+                  demandOption: true,
+                  type: "string",
+                })
+                .option("token", {
+                  type: "string",
+                  describe: "Use specific token for this command",
+                })
+                .option("server", {
+                  type: "string",
+                  describe: "WebPods server URL",
+                })
+                .option("force", {
+                  type: "boolean",
+                  describe: "Skip confirmation prompt",
+                }),
+            async (argv) => {
+              await deleteStream(argv);
+            },
+          )
+          .demandCommand(1, "Please specify a stream command"),
+      () => {},
     )
 
     // Permission Management

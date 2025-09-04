@@ -71,7 +71,11 @@ describe("Pod-Specific Authentication with SSO", () => {
     it("should accept pod-specific token on correct pod", async () => {
       client.setBaseUrl(`http://${pod1}.localhost:3000`);
 
-      // Create a stream with alice's token
+      // Create stream first
+      client.setAuthToken(aliceToken);
+      await client.createStream("test-stream");
+
+      // Write to stream with alice's token
       const response = await client.post("/test-stream/test", "Test content", {
         headers: {
           Authorization: `Bearer ${aliceToken}`,
@@ -87,6 +91,14 @@ describe("Pod-Specific Authentication with SSO", () => {
 
       // Clear cookies to avoid authentication leakage
       client.clearCookies();
+
+      // Create stream first using a token that has access to pod2
+      const pod2Token = await client.authenticateViaOAuth(user.userId, [pod2]);
+      client.setAuthToken(pod2Token);
+      await client.createStream("test-stream");
+
+      // Clear the token from client to ensure headers are used
+      client.clearAuthToken();
 
       // Try to use alice's token on bob's pod
       const response = await client.post("/test-stream/test", "Test content", {
@@ -104,8 +116,15 @@ describe("Pod-Specific Authentication with SSO", () => {
       // Get a token without any pod scopes
       const noPodToken = await client.authenticateViaOAuth(user.userId, []);
 
-      // Test on pod1
+      // Create stream first with alice's token
       client.setBaseUrl(`http://${pod1}.localhost:3000`);
+      client.setAuthToken(aliceToken);
+      await client.createStream("stream1");
+
+      // Clear the token from client to ensure headers are used
+      client.clearAuthToken();
+
+      // Try to write with no-pod token
       let response = await client.post("/stream1/content1", "Content 1", {
         headers: {
           Authorization: `Bearer ${noPodToken}`,
@@ -115,8 +134,16 @@ describe("Pod-Specific Authentication with SSO", () => {
       expect(response.status).to.equal(403);
       expect(response.data.error.code).to.equal("POD_FORBIDDEN");
 
-      // Test on pod2
+      // Create stream on pod2 with a token that has access to pod2
       client.setBaseUrl(`http://${pod2}.localhost:3000`);
+      const pod2Token = await client.authenticateViaOAuth(user.userId, [pod2]);
+      client.setAuthToken(pod2Token);
+      await client.createStream("stream2");
+
+      // Clear the token from client to ensure headers are used
+      client.clearAuthToken();
+
+      // Try to write with no-pod token
       response = await client.post("/stream2/content2", "Content 2", {
         headers: {
           Authorization: `Bearer ${noPodToken}`,
@@ -179,6 +206,8 @@ describe("Pod-Specific Authentication with SSO", () => {
     it("should isolate data between pods", async () => {
       // Write to alice's pod
       client.setBaseUrl(`http://${pod1}.localhost:3000`);
+      client.setAuthToken(aliceToken);
+      await client.createStream("secret-data");
       await client.post("/secret-data/secret", "Alice secret", {
         headers: {
           Authorization: `Bearer ${aliceToken}`,

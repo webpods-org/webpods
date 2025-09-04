@@ -36,14 +36,15 @@ WebPods uses PostgreSQL with pg-promise for queries and Knex.js for migrations.
 
 ### stream
 
-| Column            | Type         | Description                    |
-| ----------------- | ------------ | ------------------------------ |
-| id                | UUID         | Primary key                    |
-| pod_id            | UUID         | Parent pod (references pod.id) |
-| stream_id         | VARCHAR(500) | Stream path                    |
-| user_id           | UUID         | Creator (references user.id)   |
-| access_permission | VARCHAR(50)  | Access mode                    |
-| created_at        | TIMESTAMP    | Creation time                  |
+| Column            | Type         | Description                          |
+| ----------------- | ------------ | ------------------------------------ |
+| id                | UUID         | Primary key                          |
+| pod_id            | UUID         | Parent pod (references pod.id)       |
+| stream_id         | VARCHAR(500) | Stream path                          |
+| user_id           | UUID         | Creator (references user.id)         |
+| access_permission | VARCHAR(50)  | Access mode                          |
+| stream_type       | VARCHAR(50)  | Stream type ('data' or 'permission') |
+| created_at        | TIMESTAMP    | Creation time                        |
 
 ### record
 
@@ -102,6 +103,7 @@ WebPods uses PostgreSQL with pg-promise for queries and Knex.js for migrations.
 - `identity(provider, provider_id)` - Unique composite
 - `pod(name)` - Unique
 - `stream(pod_id, stream_id)` - Unique composite
+- `stream(stream_type)` - For filtering by type
 - `record(stream_id, index)` - Unique composite
 - `record(name)` - For name lookups
 - `oauth_client(client_id)` - Unique

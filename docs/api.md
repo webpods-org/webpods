@@ -216,7 +216,41 @@ Deletes the pod and all its data. Only the owner can delete a pod.
 
 ## Stream Operations
 
+### Create Stream
+
+Streams must be created explicitly before writing records.
+
+```
+PUT {pod}.webpods.org/_streams/create
+Authorization: Bearer {token}
+Content-Type: application/json
+```
+
+Body:
+
+```json
+{
+  "name": "stream/path",
+  "access_permission": "public", // Optional, defaults to "public"
+  "stream_type": "data" // Optional: "data" (default) or "permission"
+}
+```
+
+Response (201 Created):
+
+```json
+{
+  "podName": "my-pod",
+  "name": "stream/path",
+  "accessPermission": "public",
+  "streamType": "data",
+  "createdAt": "2024-01-01T00:00:00Z"
+}
+```
+
 ### Write Record
+
+**Note**: The stream must exist before writing records (see Create Stream above).
 
 ```
 POST {pod}.webpods.org/{stream}/{name}
@@ -226,12 +260,12 @@ Authorization: Bearer {token}
 Parameters:
 
 - `{pod}` - Subdomain (must exist)
-- `{stream}` - Path, can be nested (e.g., `/blog/2024/posts`)
+- `{stream}` - Path to existing stream (e.g., `/blog/2024/posts`)
 - `{name}` - Record name (required, last path segment)
 
 Query parameters:
 
-- `access` - Permission mode (`public`, `private`, `/{stream}`)
+- ~~`access` - Permission mode~~ (removed - permissions set during stream creation)
 
 Headers:
 
@@ -366,9 +400,9 @@ Lists all streams in pod.
 
 ### Access Modes
 
-Set via `?access` parameter on first write:
+Set via `access_permission` parameter when creating streams:
 
-- **public** - Anyone can read, authenticated users can write
+- **public** - Anyone can read, authenticated users can write (default)
 - **private** - Only creator can read/write
 - **/{stream}** - Users listed in permission stream
 

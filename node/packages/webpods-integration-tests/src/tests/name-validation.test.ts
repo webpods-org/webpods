@@ -38,6 +38,9 @@ describe("WebPods Name Validation", () => {
     it("should accept simple alphanumeric names", async () => {
       const validNames = ["simple", "test123", "ABC", "12345", "MixedCase123"];
 
+      // Create stream first
+      await client.createStream("stream");
+
       for (const name of validNames) {
         const response = await client.post(
           `/stream/${name}`,
@@ -56,6 +59,9 @@ describe("WebPods Name Validation", () => {
         "kebab-case-example",
         "snake_case_example",
       ];
+
+      // Create stream first
+      await client.createStream("hyphen-underscore");
 
       for (const name of validNames) {
         const response = await client.post(
@@ -77,6 +83,9 @@ describe("WebPods Name Validation", () => {
         "data.backup.2024",
       ];
 
+      // Create stream first
+      await client.createStream("files");
+
       for (const name of validNames) {
         const response = await client.post(
           `/files/${name}`,
@@ -90,6 +99,7 @@ describe("WebPods Name Validation", () => {
     it("should accept maximum length names", async () => {
       // 256 characters is the max
       const longName = "a".repeat(256);
+      await client.createStream("long");
       const response = await client.post(`/long/${longName}`, "Content");
       expect(response.status).to.equal(201);
       expect(response.data).to.have.property("name", longName);
@@ -106,6 +116,9 @@ describe("WebPods Name Validation", () => {
         "file\\name",
         "/absolute/path",
       ];
+
+      // Create stream first
+      await client.createStream("invalid-slash");
 
       for (const name of invalidNames) {
         const response = await client.post(
@@ -127,6 +140,9 @@ describe("WebPods Name Validation", () => {
         ".start.middle",
         "middle.end.",
       ];
+
+      // Create stream first
+      await client.createStream("invalid-period");
 
       for (const name of invalidNames) {
         const response = await client.post(
@@ -169,6 +185,9 @@ describe("WebPods Name Validation", () => {
         "caret^test", // ^
       ];
 
+      // Create stream first
+      await client.createStream("invalid-special");
+
       for (const name of invalidNames) {
         const response = await client.post(
           `/invalid-special/${encodeURIComponent(name)}`,
@@ -180,6 +199,7 @@ describe("WebPods Name Validation", () => {
     });
 
     it("should reject empty name", async () => {
+      await client.createStream("empty");
       const response = await client.post("/empty/", "Content");
       expect(response.status).to.equal(400);
       expect(response.data.error.code).to.equal("MISSING_NAME");
@@ -187,6 +207,7 @@ describe("WebPods Name Validation", () => {
 
     it("should reject name exceeding maximum length", async () => {
       const tooLongName = "a".repeat(257); // 257 characters
+      await client.createStream("toolong");
       const response = await client.post(`/toolong/${tooLongName}`, "Content");
       expect(response.status).to.equal(400);
       expect(response.data.error.code).to.equal("INVALID_NAME");
@@ -195,7 +216,8 @@ describe("WebPods Name Validation", () => {
 
   describe("Name Access Patterns", () => {
     it("should correctly route to stream with valid name", async () => {
-      // Create records with valid names
+      // Create stream and records with valid names
+      await client.createStream("products");
       await client.post("/products/laptop-2024", "Laptop details");
       await client.post("/products/phone_v2", "Phone details");
       await client.post("/products/tablet.pro", "Tablet details");
@@ -216,6 +238,7 @@ describe("WebPods Name Validation", () => {
 
     it("should handle nested streams with names correctly", async () => {
       // Create nested stream with name
+      await client.createStream("docs/api/v1");
       await client.post("/docs/api/v1/intro.md", "API Introduction");
       await client.post("/docs/api/v1/auth.html", "Authentication Guide");
 
@@ -232,6 +255,9 @@ describe("WebPods Name Validation", () => {
 
   describe("Security", () => {
     it("should prevent path traversal attempts via names", async () => {
+      // Create stream first
+      await client.createStream("secure");
+
       // These should all be rejected at write time
       const attacks = [
         "../../etc/passwd",
@@ -251,7 +277,8 @@ describe("WebPods Name Validation", () => {
     });
 
     it("should not allow URL hijacking through name manipulation", async () => {
-      // Create a legitimate record
+      // Create stream and legitimate record
+      await client.createStream("pages");
       await client.post("/pages/home", "Real homepage");
 
       // Try to create confusing names that might hijack URLs

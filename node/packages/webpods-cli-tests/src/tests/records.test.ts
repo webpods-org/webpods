@@ -46,6 +46,16 @@ describe("CLI Record Commands", function () {
 
   describe("write command", () => {
     it("should write data to a stream record", async () => {
+      // Create the stream first
+      await testDb.getDb().none(
+        `INSERT INTO stream (pod_name, name, access_permission, created_at) 
+         VALUES ($(podName), $(streamName), 'public', NOW())`,
+        {
+          podName: testPodName,
+          streamName: "test-stream",
+        },
+      );
+
       const result = await cli.exec(
         [
           "write",
@@ -80,6 +90,16 @@ describe("CLI Record Commands", function () {
     });
 
     it("should write from file", async () => {
+      // Create the stream first
+      await testDb.getDb().none(
+        `INSERT INTO stream (pod_name, name, access_permission, created_at) 
+         VALUES ($(podName), $(streamName), 'public', NOW())`,
+        {
+          podName: testPodName,
+          streamName: "test-stream",
+        },
+      );
+
       // Create a test file
       const testFilePath = `/tmp/test-data-${Date.now()}.json`;
       await fs.writeFile(testFilePath, '{"data": "from file"}');
@@ -107,7 +127,22 @@ describe("CLI Record Commands", function () {
       await fs.unlink(testFilePath);
     });
 
-    it("should set access permissions", async () => {
+    it("should write to stream with existing permissions", async () => {
+      // Permissions are set during stream creation, not on write
+      // The --permission flag on write command updates the stream permission
+
+      // Create a stream with specific permissions
+      await testDb.getDb().none(
+        `INSERT INTO stream (pod_name, name, user_id, access_permission, created_at) 
+         VALUES ($(podName), $(streamName), $(userId), 'private', NOW())`,
+        {
+          podName: testPodName,
+          streamName: "test-stream",
+          userId: testUser.userId,
+        },
+      );
+
+      // Write with permission flag - this updates the stream permission
       const result = await cli.exec(
         [
           "write",
@@ -125,7 +160,7 @@ describe("CLI Record Commands", function () {
 
       expect(result.exitCode).to.equal(0);
 
-      // Verify stream has public permission
+      // Verify stream permission was updated
       const stream = await testDb
         .getDb()
         .oneOrNone(
@@ -135,7 +170,7 @@ describe("CLI Record Commands", function () {
             name: "test-stream",
           },
         );
-      expect(stream.access_permission).to.equal("public");
+      expect(stream.access_permission).to.equal("public"); // Updated to public
     });
   });
 
@@ -305,7 +340,7 @@ describe("CLI Record Commands", function () {
 
     it("should list records in a stream", async () => {
       const result = await cli.exec(
-        ["records", testPodName, "test-stream", "--format", "json"],
+        ["record", "list", testPodName, "test-stream", "--format", "json"],
         {
           token: testToken,
         },
@@ -321,7 +356,8 @@ describe("CLI Record Commands", function () {
     it("should support limit parameter", async () => {
       const result = await cli.exec(
         [
-          "records",
+          "record",
+          "list",
           testPodName,
           "test-stream",
           "--limit",
@@ -342,7 +378,8 @@ describe("CLI Record Commands", function () {
     it("should support pagination with after parameter", async () => {
       const result = await cli.exec(
         [
-          "records",
+          "record",
+          "list",
           testPodName,
           "test-stream",
           "--after",
@@ -378,7 +415,15 @@ describe("CLI Record Commands", function () {
       );
 
       const result = await cli.exec(
-        ["records", testPodName, "test-stream", "--unique", "--format", "json"],
+        [
+          "record",
+          "list",
+          testPodName,
+          "test-stream",
+          "--unique",
+          "--format",
+          "json",
+        ],
         {
           token: testToken,
         },
@@ -412,7 +457,7 @@ describe("CLI Record Commands", function () {
 
     it("should list all streams in a pod", async () => {
       const result = await cli.exec(
-        ["streams", testPodName, "--format", "json"],
+        ["stream", "list", testPodName, "--format", "json"],
         {
           token: testToken,
         },
@@ -433,7 +478,114 @@ describe("CLI Record Commands", function () {
     });
   });
 
-  describe("delete-stream command", () => {
+  describe("stream create command", () => {
+    it("should create a public stream", async () => {
+      const result = await cli.exec(
+        ["stream", "create", testPodName, "new-stream"],
+        {
+          token: testToken,
+        },
+      );
+
+      expect(result.exitCode).to.equal(0);
+      expect(result.stdout).to.include("created successfully");
+
+      // Verify stream was created
+      const stream = await testDb
+        .getDb()
+        .oneOrNone(
+          "SELECT * FROM stream WHERE pod_name = $(podName) AND name = $(name)",
+          {
+            podName: testPodName,
+            name: "new-stream",
+          },
+        );
+      expect(stream).to.not.be.null;
+      expect(stream.access_permission).to.equal("public");
+    });
+
+    it("should create a private stream", async () => {
+      const result = await cli.exec(
+        [
+          "stream",
+          "create",
+          testPodName,
+          "private-stream",
+          "--access",
+          "private",
+        ],
+        {
+          token: testToken,
+        },
+      );
+
+      expect(result.exitCode).to.equal(0);
+      expect(result.stdout).to.include("created successfully");
+      expect(result.stdout).to.include("Access permission: private");
+
+      // Verify stream was created
+      const stream = await testDb
+        .getDb()
+        .oneOrNone(
+          "SELECT * FROM stream WHERE pod_name = $(podName) AND name = $(name)",
+          {
+            podName: testPodName,
+            name: "private-stream",
+          },
+        );
+      expect(stream).to.not.be.null;
+      expect(stream.access_permission).to.equal("private");
+      expect(stream.user_id).to.equal(testUser.userId);
+    });
+
+    it("should create a permission stream", async () => {
+      const result = await cli.exec(
+        [
+          "stream",
+          "create",
+          testPodName,
+          "team-permissions",
+          "--type",
+          "permission",
+        ],
+        {
+          token: testToken,
+        },
+      );
+
+      expect(result.exitCode).to.equal(0);
+      expect(result.stdout).to.include("created successfully");
+      expect(result.stdout).to.include("Stream type: permission");
+
+      // Verify stream was created
+      const stream = await testDb
+        .getDb()
+        .oneOrNone(
+          "SELECT * FROM stream WHERE pod_name = $(podName) AND name = $(name)",
+          {
+            podName: testPodName,
+            name: "team-permissions",
+          },
+        );
+      expect(stream).to.not.be.null;
+      expect(stream.stream_type).to.equal("permission");
+    });
+
+    it("should require authentication", async () => {
+      const result = await cli.exec([
+        "stream",
+        "create",
+        testPodName,
+        "test-stream",
+      ]);
+
+      expect(result.exitCode).to.not.equal(0);
+      // Server returns "Authentication required" for unauthenticated requests
+      expect(result.stderr).to.include("Authentication required");
+    });
+  });
+
+  describe("stream delete command", () => {
     beforeEach(async () => {
       // Create .meta/streams/owner stream
       await testDb
@@ -492,7 +644,7 @@ describe("CLI Record Commands", function () {
 
     it("should delete a stream with force flag", async () => {
       const result = await cli.exec(
-        ["delete-stream", testPodName, "test-stream", "--force"],
+        ["stream", "delete", testPodName, "test-stream", "--force"],
         {
           token: testToken,
         },

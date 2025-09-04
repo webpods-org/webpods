@@ -136,31 +136,31 @@ pod read <pod> <stream> <record-name> --output data.json
 
 ```bash
 # List all records
-pod list <pod> <stream>
+pod record list <pod> <stream>
 
 # Limit results
-pod list <pod> <stream> --limit 10
+pod record list <pod> <stream> --limit 10
 
 # Pagination
-pod list <pod> <stream> --after 50
+pod record list <pod> <stream> --after 50
 
 # Show only unique named records (latest version of each)
-pod list <pod> <stream> --unique
+pod record list <pod> <stream> --unique
 
 # Different output formats
-pod list <pod> <stream> --format json
+pod record list <pod> <stream> --format json
 ```
 
 ### List Streams
 
 ```bash
-pod streams <pod>
+pod stream list <pod>
 ```
 
 ### Delete Stream
 
 ```bash
-pod delete-stream <pod> <stream> [--force]
+pod stream delete <pod> <stream> [--force]
 ```
 
 ## Permissions
@@ -276,7 +276,7 @@ pod write my-blog posts/second '{"title": "Second Post", "content": "More conten
 pod permissions my-blog posts set --mode public
 
 # List all posts
-pod list my-blog posts
+pod record list my-blog posts
 ```
 
 ### Collaborative Notes
@@ -299,7 +299,7 @@ pod write team-notes notes/meeting "Meeting notes..."
 
 ```bash
 # Export all records from a stream
-pod list my-pod important-data --format json > backup.json
+pod record list my-pod important-data --format json > backup.json
 
 # Read specific record to file
 pod read my-pod config settings --output settings.json

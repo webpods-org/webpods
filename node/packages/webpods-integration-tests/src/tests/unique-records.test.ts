@@ -44,6 +44,15 @@ describe("Unique Records Listing", () => {
 
   describe("GET /{stream}?unique=true", () => {
     it("should return only latest version of each named record", async () => {
+      // Create stream first
+      await podClient.put(
+        "/_streams/create",
+        { name: "blog" },
+        {
+          headers: { Authorization: `Bearer ${authToken}` },
+        },
+      );
+
       // Write multiple versions of the same named records
       const firstResponse = await podClient.post("/blog/post-1", "Version 1", {
         headers: { Authorization: `Bearer ${authToken}` },
@@ -88,6 +97,15 @@ describe("Unique Records Listing", () => {
     });
 
     it("should exclude deleted records when unique=true", async () => {
+      // Create stream first
+      await podClient.put(
+        "/_streams/create",
+        { name: "docs" },
+        {
+          headers: { Authorization: `Bearer ${authToken}` },
+        },
+      );
+
       // Create records
       await podClient.post("/docs/page-1", "Page 1 content", {
         headers: { Authorization: `Bearer ${authToken}` },
@@ -122,6 +140,15 @@ describe("Unique Records Listing", () => {
     });
 
     it("should handle purged records correctly", async () => {
+      // Create stream first
+      await podClient.put(
+        "/_streams/create",
+        { name: "items" },
+        {
+          headers: { Authorization: `Bearer ${authToken}` },
+        },
+      );
+
       // Create records
       await podClient.post("/items/item-1", "Item 1", {
         headers: { Authorization: `Bearer ${authToken}` },
@@ -147,6 +174,15 @@ describe("Unique Records Listing", () => {
     });
 
     it("should work with pagination", async () => {
+      // Create stream first
+      await podClient.put(
+        "/_streams/create",
+        { name: "pages" },
+        {
+          headers: { Authorization: `Bearer ${authToken}` },
+        },
+      );
+
       // Create many unique records
       for (let i = 1; i <= 10; i++) {
         await podClient.post(`/pages/page-${i}`, `Content ${i}`, {
@@ -171,6 +207,15 @@ describe("Unique Records Listing", () => {
     });
 
     it("should return correct results for unique filter", async () => {
+      // Create stream first
+      await podClient.put(
+        "/_streams/create",
+        { name: "data" },
+        {
+          headers: { Authorization: `Bearer ${authToken}` },
+        },
+      );
+
       // Create some named records
       await podClient.post("/data/item1", "Record 1", {
         headers: { Authorization: `Bearer ${authToken}` },
@@ -193,6 +238,15 @@ describe("Unique Records Listing", () => {
     });
 
     it("should support negative 'after' parameter with unique=true", async () => {
+      // Create stream first
+      await podClient.put(
+        "/_streams/create",
+        { name: "negtest" },
+        {
+          headers: { Authorization: `Bearer ${authToken}` },
+        },
+      );
+
       // Create multiple named records
       await podClient.post("/negtest/item1", "First item", {
         headers: { Authorization: `Bearer ${authToken}` },
@@ -221,6 +275,15 @@ describe("Unique Records Listing", () => {
     });
 
     it("should handle updates after deletion correctly", async () => {
+      // Create stream first
+      await podClient.put(
+        "/_streams/create",
+        { name: "content" },
+        {
+          headers: { Authorization: `Bearer ${authToken}` },
+        },
+      );
+
       // Create, delete, then recreate a record
       await podClient.post("/content/article", "Version 1", {
         headers: { Authorization: `Bearer ${authToken}` },

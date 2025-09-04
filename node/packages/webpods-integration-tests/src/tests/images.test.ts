@@ -48,6 +48,9 @@ describe("WebPods Image Support", () => {
 
   describe("Image Upload", () => {
     it("should upload PNG image with base64 encoding", async () => {
+      // Create stream first
+      await client.createStream("images/logo");
+
       const response = await client.post(
         "/images/logo/main-logo",
         testPngBase64,
@@ -66,6 +69,9 @@ describe("WebPods Image Support", () => {
     });
 
     it("should upload image using data URL", async () => {
+      // Create stream first
+      await client.createStream("images/avatar");
+
       // When sending a data URL, we don't need to set the content type header
       // The data URL itself contains the MIME type
       const response = await client.post(
@@ -79,6 +85,7 @@ describe("WebPods Image Support", () => {
     });
 
     it("should upload SVG as text", async () => {
+      await client.createStream("images/icon");
       const response = await client.post("/images/icon/app-icon", testSvg, {
         headers: {
           "X-Content-Type": "image/svg+xml",
@@ -91,6 +98,7 @@ describe("WebPods Image Support", () => {
     });
 
     it("should reject invalid base64 for binary images", async () => {
+      await client.createStream("images");
       const response = await client.post("/images/bad", "not-valid-base64!@#", {
         headers: {
           "X-Content-Type": "image/png",
@@ -102,6 +110,7 @@ describe("WebPods Image Support", () => {
     });
 
     it("should reject content exceeding size limit", async () => {
+      await client.createStream("images");
       // Create a large base64 string (>10MB, which is the default limit)
       // Express will reject this before our code can handle it
       const largeBase64 = "A".repeat(15 * 1024 * 1024); // ~15MB of 'A's
@@ -122,6 +131,7 @@ describe("WebPods Image Support", () => {
     });
 
     it("should handle JPEG images", async () => {
+      await client.createStream("photos/test");
       // Small JPEG test data (base64)
       const jpegBase64 =
         "/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAr/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCwAA8A/9k=";
@@ -139,7 +149,10 @@ describe("WebPods Image Support", () => {
 
   describe("Image Serving", () => {
     beforeEach(async () => {
-      // Upload test images
+      // Create streams and upload test images
+      await client.createStream("gallery/photo1");
+      await client.createStream("gallery/photo2");
+
       await client.post("/gallery/photo1/first", testPngBase64, {
         headers: {
           "X-Content-Type": "image/png",
@@ -191,7 +204,8 @@ describe("WebPods Image Support", () => {
 
   describe("Image with HTML Integration", () => {
     it("should create a simple image gallery page", async () => {
-      // Upload an image
+      // Create stream and upload an image
+      await client.createStream("assets");
       await client.post("/assets/logo", testPngDataUrl);
 
       // Create HTML page that references the image
@@ -206,6 +220,7 @@ describe("WebPods Image Support", () => {
         </html>
       `;
 
+      await client.createStream("pages/gallery");
       await client.post("/pages/gallery/index", htmlContent, {
         headers: {
           "X-Content-Type": "text/html",
@@ -232,6 +247,7 @@ describe("WebPods Image Support", () => {
 
   describe("Multiple Image Formats", () => {
     it("should support WebP format", async () => {
+      await client.createStream("modern");
       // Small WebP test data (base64) - 1x1 pixel
       const webpBase64 =
         "UklGRhoAAABXRUJQVlA4IA4AAACyAgCdASoBAAEAAABIlpAADcAD+/4=";
@@ -247,6 +263,7 @@ describe("WebPods Image Support", () => {
     });
 
     it("should support GIF format", async () => {
+      await client.createStream("animations");
       // Small GIF test data (base64) - 1x1 pixel
       const gifBase64 =
         "R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
@@ -262,6 +279,7 @@ describe("WebPods Image Support", () => {
     });
 
     it("should support favicon (.ico) format", async () => {
+      await client.createStream("favicon");
       // Small ICO test data (base64)
       const icoBase64 =
         "AAABAAEAAQEAAAEAIAAwAAAAFgAAACgAAAABAAAAAgAAAAEAIAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAA////AAAAAAA=";

@@ -4,6 +4,7 @@
 
 import { expect } from "chai";
 import { randomUUID } from "crypto";
+import { sign } from "jsonwebtoken";
 import { CliTestHelper } from "../cli-test-helpers.js";
 import {
   setupCliTests,
@@ -95,7 +96,18 @@ describe("CLI Transfer Command", function () {
         },
       );
 
-    newOwnerToken = cli.createTestToken(newOwnerId, "newowner@example.com");
+    // Create a proper JWT token for the new owner
+    newOwnerToken = sign(
+      {
+        sub: newOwnerId,
+        email: "newowner@example.com",
+        provider: "test-provider",
+        type: "webpods", // Required for WebPods JWT validation
+        iat: Math.floor(Date.now() / 1000),
+      },
+      "test-secret-key", // Must match TestServer JWT_SECRET
+      { expiresIn: "7d" },
+    );
   });
 
   describe("transfer command", () => {
@@ -223,8 +235,9 @@ describe("CLI Transfer Command", function () {
       });
       expect(existingStreamResult.exitCode).to.not.equal(0);
 
-      // Try to create a NEW stream with old owner's token
-      // This should also fail since they're no longer the pod owner
+      // Try to write to a non-existent stream with old owner's token
+      // This should fail with STREAM_NOT_FOUND since streams must be created explicitly
+      // and the old owner can't create streams anymore
       const newStreamResult = await cli.exec(
         [
           "write",
@@ -238,9 +251,9 @@ describe("CLI Transfer Command", function () {
         },
       );
 
-      // Should be denied access to create new stream
+      // Should fail because stream doesn't exist (can't auto-create)
       expect(newStreamResult.exitCode).to.not.equal(0);
-      expect(newStreamResult.stderr).to.include("FORBIDDEN");
+      expect(newStreamResult.stderr).to.include("STREAM_NOT_FOUND");
     });
 
     it("should allow new owner to access pod after transfer", async () => {
@@ -249,18 +262,27 @@ describe("CLI Transfer Command", function () {
         token: testToken,
       });
 
-      // Try to access pod with new owner's token
+      // Create a stream with new owner's user_id (should succeed)
+      await testDb.getDb().none(
+        `INSERT INTO stream (pod_name, name, user_id, access_permission, created_at) 
+         VALUES ($(podName), $(streamName), $(userId), 'public', NOW())`,
+        {
+          podName: testPodName,
+          streamName: "new-owner-stream",
+          userId: newOwnerId,
+        },
+      );
+
+      // Try to write to the stream with new owner's token
       const result = await cli.exec(
-        ["write", testPodName, "test-stream", "test-record", "data"],
+        ["write", testPodName, "new-owner-stream", "test-record", "data"],
         {
           token: newOwnerToken,
         },
       );
 
       // New owner should have access
-      // Note: This might fail if the transfer isn't fully implemented
-      // but we're testing the expected behavior
-      expect(result.exitCode).to.be.oneOf([0, 1]);
+      expect(result.exitCode).to.equal(0);
     });
   });
 });

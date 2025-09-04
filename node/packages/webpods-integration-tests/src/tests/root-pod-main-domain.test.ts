@@ -39,6 +39,9 @@ describe("WebPods Root Pod Main Domain", () => {
 
     rootClient.setAuthToken(authToken);
 
+    // Create stream first
+    await rootClient.createStream("site");
+
     // Create root pod content
     const homeResponse = await rootClient.post(
       "/site/home",
@@ -59,6 +62,9 @@ describe("WebPods Root Pod Main Domain", () => {
         `Failed to create about page: ${aboutResponse.status} ${JSON.stringify(aboutResponse.data)}`,
       );
     }
+
+    // Create api stream
+    await rootClient.createStream("api");
 
     const statusResponse = await rootClient.post(
       "/api/status",
@@ -165,6 +171,10 @@ describe("WebPods Root Pod Main Domain", () => {
   describe("Authenticated operations via main domain", () => {
     it("should allow POST to root pod via main domain with auth", async () => {
       mainClient.setAuthToken(authToken);
+
+      // Create stream first
+      await mainClient.put("/_streams/create", { name: "dynamic" });
+
       const response = await mainClient.post(
         "/dynamic/content",
         "Dynamic data",
@@ -181,10 +191,14 @@ describe("WebPods Root Pod Main Domain", () => {
     it("should enforce permissions on main domain", async () => {
       // Create private content
       mainClient.setAuthToken(authToken);
-      const createResponse = await mainClient.post(
-        "/secured/data?access=private",
-        "Secret",
-      );
+
+      // Create private stream first
+      await mainClient.put("/_streams/create", {
+        name: "secured",
+        access_permission: "private",
+      });
+
+      const createResponse = await mainClient.post("/secured/data", "Secret");
       expect(createResponse.status).to.equal(201);
 
       // Try to read without auth
@@ -201,6 +215,9 @@ describe("WebPods Root Pod Main Domain", () => {
 
     it("should allow DELETE operations via main domain", async () => {
       mainClient.setAuthToken(authToken);
+
+      // Create stream first
+      await mainClient.put("/_streams/create", { name: "temp" });
 
       // Create a record
       await mainClient.post("/temp/item", "Temporary");

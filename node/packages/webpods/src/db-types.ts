@@ -37,6 +37,7 @@ export type StreamDbRow = {
   name: string; // Part of composite primary key (stream name/path)
   user_id: string;
   access_permission: string;
+  stream_type?: string | null; // Optional type: 'permission', 'data', etc.
   metadata?: Record<string, unknown>; // JSONB
   created_at: Date;
   updated_at?: Date | null;

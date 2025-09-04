@@ -56,6 +56,9 @@ describe("OAuth Flow Integration", () => {
       const podClient = new TestHttpClient(`http://${podId}.localhost:3000`);
       podClient.setAuthToken(token);
 
+      // Create stream first
+      await podClient.createStream("test-stream");
+
       // Should be able to write to the pod
       const writeRes = await podClient.post(
         "/test-stream/oauth-test.txt",
@@ -84,9 +87,11 @@ describe("OAuth Flow Integration", () => {
       const allowedClient = new TestHttpClient("http://allowed.localhost:3000");
       allowedClient.setAuthToken(token);
 
-      const allowedRes = await allowedClient.post("/oauth-test", {
+      // Create stream first
+      await allowedClient.createStream("oauth-test");
+
+      const allowedRes = await allowedClient.post("/oauth-test/test", {
         content: "allowed content",
-        name: "test.txt",
       });
       expect(allowedRes.status).to.equal(201);
 
@@ -94,9 +99,13 @@ describe("OAuth Flow Integration", () => {
       const deniedClient = new TestHttpClient("http://denied.localhost:3000");
       deniedClient.setAuthToken(token);
 
-      const deniedRes = await deniedClient.post("/oauth-test", {
+      // Try to create stream (should fail)
+      const createRes = await deniedClient.createStream("oauth-test");
+      expect(createRes.status).to.equal(403);
+
+      // Try to write (should also fail)
+      const deniedRes = await deniedClient.post("/oauth-test/test", {
         content: "denied content",
-        name: "test.txt",
       });
       expect(deniedRes.status).to.equal(403);
       expect(deniedRes.data).to.have.property("error");

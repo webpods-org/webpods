@@ -150,3 +150,5 @@ test-output.txt
 test-results.json
 test-results.txt
 .tests/
+test-pod-*-backup-*.json
+*-backup-*.json
