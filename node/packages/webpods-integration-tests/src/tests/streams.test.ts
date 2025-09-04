@@ -38,52 +38,61 @@ describe("WebPods Stream Operations", () => {
   });
 
   describe("Pod and Stream Creation", () => {
-    it("should create pod and stream on first write", async () => {
+    it("should require explicit stream creation before writing", async () => {
+      // Attempt to write without creating stream first
       const response = await client.post(
         "/my-first-stream/hello",
         "Hello WebPods!",
       );
 
-      expect(response.status).to.equal(201);
-      expect(response.data).to.have.property("index", 0);
-      expect(response.data).to.have.property("content", "Hello WebPods!");
-      expect(response.data).to.have.property("hash");
-      expect(response.data).to.have.property("previousHash", null);
-      expect(response.data).to.have.property("author", userId);
+      expect(response.status).to.equal(404);
+      expect(response.data.error).to.have.property("code", "STREAM_NOT_FOUND");
 
-      // Verify pod was created
-      const db = testDb.getDb();
-      const pod = await db.oneOrNone(
-        `SELECT * FROM pod WHERE name = $(podId)`,
-        { podId: testPodId },
+      // Create the stream explicitly
+      const createResponse = await client.createStream("my-first-stream");
+      expect(createResponse.status).to.equal(201);
+      expect(createResponse.data).to.have.property("podName", testPodId);
+      expect(createResponse.data).to.have.property("name", "my-first-stream");
+      expect(createResponse.data).to.have.property(
+        "accessPermission",
+        "public",
       );
-      expect(pod).to.exist;
 
-      // Verify stream was created
+      // Now write to the stream
+      const writeResponse = await client.post(
+        "/my-first-stream/hello",
+        "Hello WebPods!",
+      );
+      expect(writeResponse.status).to.equal(201);
+      expect(writeResponse.data).to.have.property("index", 0);
+      expect(writeResponse.data).to.have.property("content", "Hello WebPods!");
+
+      // Verify stream exists in database
+      const db = testDb.getDb();
       const stream = await db.oneOrNone(
         `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId)`,
-        { pod_name: pod.name, streamId: "my-first-stream" },
+        { pod_name: testPodId, streamId: "my-first-stream" },
       );
       expect(stream).to.exist;
       expect(stream.user_id).to.equal(userId);
     });
 
     it("should support nested stream paths", async () => {
+      // Create nested stream first
+      const createResponse = await client.createStream("blog/posts/2024");
+      expect(createResponse.status).to.equal(201);
+
       const response = await client.post("/blog/posts/2024/january", {
         content: "January blog post",
       });
 
       expect(response.status).to.equal(201);
 
-      // Verify nested path stream was created
+      // Verify nested path stream exists
       const db = testDb.getDb();
-      const pod = await db.oneOrNone(
-        `SELECT * FROM pod WHERE name = $(podId)`,
-        { podId: testPodId },
-      );
       const stream = await db.oneOrNone(
         `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId)`,
-        { pod_name: pod.name, streamId: "blog/posts/2024" },
+        { pod_name: testPodId, streamId: "blog/posts/2024" },
       );
       expect(stream).to.exist;
       expect(stream.name).to.equal("blog/posts/2024");
@@ -91,35 +100,62 @@ describe("WebPods Stream Operations", () => {
       // Verify the record was created with name 'january'
       const record = await db.oneOrNone(
         `SELECT * FROM record WHERE pod_name = $(pod_name) AND stream_name = $(streamId) AND name = $(name)`,
-        { pod_name: pod.name, streamId: "blog/posts/2024", name: "january" },
+        { pod_name: testPodId, streamId: "blog/posts/2024", name: "january" },
       );
       expect(record).to.exist;
     });
 
     it("should set custom permissions on stream creation", async () => {
+      // Create stream with private permission
+      const createResponse = await client.createStream(
+        "private-stream",
+        "private",
+      );
+      expect(createResponse.status).to.equal(201);
+      expect(createResponse.data).to.have.property(
+        "accessPermission",
+        "private",
+      );
+
       const response = await client.post(
-        "/private-stream/secret?access=private",
+        "/private-stream/secret",
         "Secret data",
       );
 
       expect(response.status).to.equal(201);
 
       const db = testDb.getDb();
-      const pod = await db.oneOrNone(
-        `SELECT * FROM pod WHERE name = $(podId)`,
-        { podId: testPodId },
-      );
       const stream = await db.oneOrNone(
         `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId)`,
-        { pod_name: pod.name, streamId: "private-stream" },
+        { pod_name: testPodId, streamId: "private-stream" },
       );
       expect(stream.access_permission).to.equal("private");
+    });
+
+    it("should create stream with type field", async () => {
+      // Create stream with permission type
+      const createResponse = await client.createStream(
+        "permission-stream",
+        "private",
+        "permission",
+      );
+      expect(createResponse.status).to.equal(201);
+      expect(createResponse.data).to.have.property("streamType", "permission");
+
+      const db = testDb.getDb();
+      const stream = await db.oneOrNone(
+        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId)`,
+        { pod_name: testPodId, streamId: "permission-stream" },
+      );
+      expect(stream).to.exist;
+      expect(stream.stream_type).to.equal("permission");
     });
   });
 
   describe("Writing Records", () => {
     beforeEach(async () => {
-      // Pre-create a stream
+      // Pre-create a stream explicitly
+      await client.createStream("test-stream");
       await client.post("/test-stream/initial", "Initial content");
     });
 
@@ -156,6 +192,7 @@ describe("WebPods Stream Operations", () => {
     });
 
     it("should maintain hash chain", async () => {
+      await client.createStream("hash-test");
       const response1 = await client.post("/hash-test/first", "First");
       const response2 = await client.post("/hash-test/second", "Second");
       const response3 = await client.post("/hash-test/third", "Third");
@@ -211,6 +248,7 @@ describe("WebPods Stream Operations", () => {
   describe("Reading Records", () => {
     beforeEach(async () => {
       // Create stream with test data
+      await client.createStream("read-test");
       await client.post("/read-test/first", "First");
       await client.post("/read-test/second", { data: "Second" });
       await client.post("/read-test/third", "Third");
@@ -307,6 +345,8 @@ describe("WebPods Stream Operations", () => {
     });
 
     it("should enforce maximum record limit from config", async () => {
+      // Create stream first
+      await client.createStream("limit-test");
       // Create more records than the max limit (config has maxRecordLimit: 10)
       for (let i = 0; i < 15; i++) {
         await client.post(`/limit-test/record${i}`, `Content ${i}`);
@@ -331,9 +371,9 @@ describe("WebPods Stream Operations", () => {
   });
 
   describe("System Streams (.meta/)", () => {
-    it("should create .meta/streams/owner stream on pod creation", async () => {
-      await client.post("/any-stream/init", "Create pod");
-
+    it("should have .meta/streams/owner stream already created", async () => {
+      // The .meta/streams/owner stream is created when the pod is created
+      // in the beforeEach hook
       const db = testDb.getDb();
       const pod = await db.oneOrNone(
         `SELECT * FROM pod WHERE name = $(podId)`,
@@ -357,7 +397,12 @@ describe("WebPods Stream Operations", () => {
     });
 
     it("should list streams via .meta/api/streams", async () => {
-      // Create some streams
+      // Create some streams explicitly
+      await client.createStream("stream1");
+      await client.createStream("stream2");
+      await client.createStream("nested/stream3");
+
+      // Write to the streams
       await client.post("/stream1/content1", "Content 1");
       await client.post("/stream2/content2", "Content 2");
       await client.post("/nested/stream3/content3", "Content 3");
@@ -367,7 +412,6 @@ describe("WebPods Stream Operations", () => {
       expect(response.data.pod).to.equal(testPodId);
       expect(response.data.streams).to.be.an("array");
 
-      // The post to /nested/stream3/content3 creates stream "nested/stream3" with record "content3"
       expect(response.data.streams.map((s: any) => s.name)).to.include.members([
         "stream1",
         "stream2",
@@ -377,6 +421,8 @@ describe("WebPods Stream Operations", () => {
     });
 
     it("should update .meta/streams/links for URL routing", async () => {
+      // Create stream first
+      await client.createStream("homepage");
       await client.post("/homepage/index", "<h1>Welcome</h1>", {
         headers: { "X-Content-Type": "text/html" },
       });
@@ -425,6 +471,7 @@ describe("WebPods Stream Operations", () => {
 
   describe("Stream Deletion", () => {
     it("should delete stream and all records", async () => {
+      await client.createStream("delete-me");
       await client.post("/delete-me/msg1", "Message 1");
       await client.post("/delete-me/msg2", "Message 2");
 
@@ -437,7 +484,7 @@ describe("WebPods Stream Operations", () => {
     });
 
     it("should prevent deletion of system streams", async () => {
-      await client.post("/test/init", "Create pod");
+      // System streams already exist from pod creation
 
       const response = await client.delete("/.meta/streams/owner");
       expect(response.status).to.equal(403);
@@ -468,6 +515,7 @@ describe("WebPods Stream Operations", () => {
 
   describe("Content Types and Serving", () => {
     it("should serve HTML directly with correct content type", async () => {
+      await client.createStream("page");
       const html = "<html><body><h1>Hello</h1></body></html>";
       await client.post("/page/index", html, {
         headers: { "X-Content-Type": "text/html" },
@@ -480,6 +528,7 @@ describe("WebPods Stream Operations", () => {
     });
 
     it("should serve CSS with correct content type", async () => {
+      await client.createStream("assets/styles");
       const css = "body { margin: 0; }";
       await client.post("/assets/styles/main.css", css, {
         headers: { "X-Content-Type": "text/css" },
@@ -491,6 +540,7 @@ describe("WebPods Stream Operations", () => {
     });
 
     it("should serve JSON with correct content type", async () => {
+      await client.createStream("api");
       const data = { api: "response", version: 1 };
       await client.post("/api/data", data);
 

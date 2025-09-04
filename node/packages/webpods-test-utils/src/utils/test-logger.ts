@@ -32,6 +32,7 @@ export const silentLogger: Logger = {
 
 // Logger that respects DEBUG environment variable
 // Only shows output when DEBUG=true or DEBUG=1
-export const testLogger: Logger = process.env.DEBUG === "true" || process.env.DEBUG === "1" 
-  ? consoleLogger 
-  : silentLogger;
+export const testLogger: Logger =
+  process.env.DEBUG === "true" || process.env.DEBUG === "1"
+    ? consoleLogger
+    : silentLogger;

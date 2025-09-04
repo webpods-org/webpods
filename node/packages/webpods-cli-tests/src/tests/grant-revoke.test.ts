@@ -42,6 +42,16 @@ describe("CLI Grant/Revoke Commands", function () {
         name: testPodName,
       });
 
+    // Create the permissions stream (required for grant/revoke to work)
+    await testDb.getDb().none(
+      `INSERT INTO stream (pod_name, name, access_permission, stream_type, created_at) 
+         VALUES ($(podName), $(streamName), 'public', 'permission', NOW())`,
+      {
+        podName: testPodName,
+        streamName: "team-permissions",
+      },
+    );
+
     // Create another user for testing
     otherUserId = randomUUID();
     await testDb

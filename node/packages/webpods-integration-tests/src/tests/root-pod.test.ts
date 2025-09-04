@@ -33,6 +33,10 @@ describe("WebPods Root Pod", () => {
 
     // Only create initial content if pod was just created
     if (!existingPod) {
+      // Create streams first
+      await client.createStream("pages");
+      await client.createStream("api");
+
       // Create initial content
       await client.post("/pages/home", "<h1>Welcome to WebPods</h1>");
       await client.post("/pages/about", "<h1>About WebPods</h1>");
@@ -139,6 +143,9 @@ describe("WebPods Root Pod", () => {
       const podToken = await client.authenticateViaOAuth(userId, [rootPodId]);
       client.setAuthToken(podToken);
 
+      // Create stream first
+      await client.createStream("pages");
+
       // Create initial content to establish the pod
       await client.post("/pages/home", "<h1>Welcome to WebPods</h1>");
 
@@ -167,6 +174,8 @@ describe("WebPods Root Pod", () => {
       }
       const podToken = await client.authenticateViaOAuth(userId, [rootPodId]);
       client.setAuthToken(podToken);
+      // Create stream first
+      await client.createStream("api");
       await client.post("/api/data", JSON.stringify({ version: "1.0" }));
 
       // Now test reading it
@@ -185,7 +194,9 @@ describe("WebPods Root Pod", () => {
       // setupRootPod already creates pod and gets token, just retrieve it
       const podToken = await client.authenticateViaOAuth(userId, [rootPodId]);
       client.setAuthToken(podToken);
-      await client.post("/private/secret?access=private", "Secret content");
+      // Create private stream first
+      await client.createStream("private", "private");
+      await client.post("/private/secret", "Secret content");
 
       // Try to access without auth
       client.setAuthToken("");
@@ -207,6 +218,8 @@ describe("WebPods Root Pod", () => {
       const podToken = await client.authenticateViaOAuth(userId, [rootPodId]);
       client.setAuthToken(podToken);
 
+      // Create stream first
+      await client.createStream("temp");
       // Create and delete a record
       await client.post("/temp/data", "Temporary data");
       const deleteResponse = await client.delete("/temp/data");
@@ -234,6 +247,9 @@ describe("WebPods Root Pod", () => {
       await createTestPod(db, "alice", userId);
       const aliceToken = await client.authenticateViaOAuth(userId, ["alice"]);
       client.setAuthToken(aliceToken);
+      // Create streams first
+      await client.createStream("init");
+      await client.createStream("blog");
       await client.post("/init/start", "Initialize alice pod");
       await client.post("/blog/post1", "Alice blog post");
 
@@ -256,6 +272,9 @@ describe("WebPods Root Pod", () => {
       const podToken = await client.authenticateViaOAuth(userId, [rootPodId]);
       client.setAuthToken(podToken);
 
+      // Create nested streams first
+      await client.createStream("docs/api/v1");
+      await client.createStream("docs/guides");
       // Create nested stream structure
       await client.post("/docs/api/v1/intro", "API Introduction");
       await client.post("/docs/guides/quickstart", "Quick Start Guide");

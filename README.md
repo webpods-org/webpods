@@ -37,8 +37,8 @@ npm install -g webpods-cli
 # Verify installation
 pod --version
 
-# Configure default server (optional)
-pod config set server https://webpods.org
+# Configure default server (optional) - NOT YET IMPLEMENTED
+# # pod config set server https://webpods.org  # NOT YET IMPLEMENTED
 ```
 
 ### Server Installation
@@ -214,12 +214,50 @@ curl -X DELETE https://my-awesome-pod.webpods.org/ \
 
 Records are immutable entries in streams. The last path segment is the record name.
 
+**Note**: Streams must be created explicitly before writing records to them (see [Stream Operations](#stream-operations)).
+
+### Create a Stream
+
+Streams must be created explicitly before writing records.
+
+#### CLI
+
+```bash
+# Create a public stream (default)
+pod stream create my-pod blog/posts
+
+# Create a private stream
+pod stream create my-pod private-notes --access private
+
+# Create a stream with custom permissions
+pod stream create my-pod team-docs --access /team-permissions
+```
+
+#### HTTP
+
+```bash
+# Create a public stream
+curl -X PUT https://my-pod.webpods.org/_streams/create \
+  -H "Authorization: Bearer $WEBPODS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "blog/posts"}'
+
+# Create a private stream
+curl -X PUT https://my-pod.webpods.org/_streams/create \
+  -H "Authorization: Bearer $WEBPODS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "private-notes", "access_permission": "private"}'
+```
+
 ### Write a Record
 
 #### CLI
 
 ```bash
-# Write text content
+# First create the stream
+pod stream create my-pod blog/posts
+
+# Then write text content
 pod write my-pod blog/posts/first-post "This is my first blog post!"
 
 # Write from file
@@ -231,28 +269,23 @@ echo "Hello, World!" | pod write my-pod messages/greeting -
 # Write with specific content type
 pod write my-pod styles/main.css @style.css --content-type text/css
 
-# Set permissions on first write
-pod write my-pod private-notes/secret "My secret" --access private
+# Write to existing stream
+pod write my-pod private-notes/secret "My secret"
 ```
 
 #### HTTP
 
 ```bash
-# Write text content
+# Write text content (stream must exist first)
 curl -X POST https://my-pod.webpods.org/blog/posts/first-post \
   -H "Authorization: Bearer $WEBPODS_TOKEN" \
   -d "This is my first blog post!"
 
-# Write JSON content
+# Write JSON content (stream must exist first)
 curl -X POST https://my-pod.webpods.org/data/users/alice \
   -H "Authorization: Bearer $WEBPODS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name": "Alice", "age": 30}'
-
-# Set permissions on first write
-curl -X POST https://my-pod.webpods.org/private-notes/secret?access=private \
-  -H "Authorization: Bearer $WEBPODS_TOKEN" \
-  -d "My secret note"
 ```
 
 ### Read a Record
@@ -298,22 +331,22 @@ curl https://my-pod.webpods.org/blog/posts?i=0:10 # Range (0-9)
 
 ```bash
 # List all records
-pod list my-pod blog/posts
+pod records my-pod blog/posts
 
 # With limit
-pod list my-pod blog/posts --limit 10
+pod records my-pod blog/posts --limit 10
 
 # Get last 20 records
-pod list my-pod blog/posts --after -20
+pod records my-pod blog/posts --after -20
 
 # Get only unique named records (latest version of each)
-pod list my-pod blog/posts --unique
+pod records my-pod blog/posts --unique
 
 # Pagination
-pod list my-pod blog/posts --limit 10 --after 50
+pod records my-pod blog/posts --limit 10 --after 50
 
 # JSON output
-pod list my-pod blog/posts --format json
+pod records my-pod blog/posts --format json
 ```
 
 #### HTTP
@@ -333,6 +366,42 @@ curl https://my-pod.webpods.org/blog/posts?unique=true
 ```
 
 ## Stream Operations
+
+### Create a Stream
+
+Streams must be created explicitly before records can be written to them.
+
+#### CLI
+
+```bash
+# Create a public stream (default)
+pod create-stream my-pod blog/posts
+
+# Create a private stream
+pod create-stream my-pod private-notes --access private
+
+# Create a permission stream
+pod create-stream my-pod members --type permission --access public
+```
+
+#### HTTP
+
+```bash
+# Create a stream
+curl -X PUT https://my-pod.webpods.org/_streams/create \
+  -H "Authorization: Bearer $WEBPODS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "blog/posts",
+    "access_permission": "public",
+    "stream_type": "data"
+  }'
+```
+
+Stream types:
+
+- `data` - Regular data stream (default)
+- `permission` - Used for permission records
 
 ### List All Streams
 
@@ -368,7 +437,7 @@ curl -X DELETE https://my-pod.webpods.org/old-stream \
 
 ## Permissions
 
-Permissions are set on first write to a stream using the `access` parameter.
+Permissions are set when creating streams using the `access_permission` parameter.
 
 ### Permission Hierarchy
 
@@ -390,31 +459,35 @@ Permissions are set on first write to a stream using the `access` parameter.
 
 ### Set Stream Permissions
 
+Permissions are set when creating streams, not when writing records.
+
 #### CLI
 
 ```bash
 # Create a public stream (default)
-pod write my-pod public-blog/welcome "Welcome to my blog!"
+pod stream create my-pod public-blog
 
 # Create a private stream
-pod write my-pod private-notes/secret "My secret note" --access private
+pod stream create my-pod private-notes --access private
 
-# Create a stream with custom permissions
-pod write my-pod team-docs/readme "Team documentation" --access /team-permissions
+# Create a stream with custom permissions (users in permission stream)
+pod stream create my-pod team-docs --access /team-permissions
 ```
 
 #### HTTP
 
 ```bash
 # Create a private stream
-curl -X POST https://my-pod.webpods.org/private-notes/secret?access=private \
+curl -X PUT https://my-pod.webpods.org/_streams/create \
   -H "Authorization: Bearer $WEBPODS_TOKEN" \
-  -d "My secret note"
+  -H "Content-Type: application/json" \
+  -d '{"name": "private-notes", "access_permission": "private"}'
 
 # Create a stream with custom permissions
-curl -X POST https://my-pod.webpods.org/team-docs/readme?access=/team-permissions \
+curl -X PUT https://my-pod.webpods.org/_streams/create \
   -H "Authorization: Bearer $WEBPODS_TOKEN" \
-  -d "Team documentation"
+  -H "Content-Type: application/json" \
+  -d '{"name": "team-docs", "access_permission": "/team-permissions"}'
 ```
 
 ### Grant Permissions to Users
@@ -469,19 +542,19 @@ When someone visits a path on your pod, WebPods:
 
 ```bash
 # Set homepage to show latest post
-pod links my-pod set / "blog/posts?i=-1"
+pod links set my-pod / "blog/posts?i=-1"
 
 # Set /about to show a specific page
-pod links my-pod set /about "pages/about"
+pod links set my-pod /about "pages/about"
 
 # Set /blog to show unique posts
-pod links my-pod set /blog "blog/posts?unique=true&limit=10"
+pod links set my-pod /blog "blog/posts?unique=true&limit=10"
 
 # List all links
-pod links my-pod list
+pod links list my-pod
 
 # Remove a link
-pod links my-pod remove /old-page
+pod links remove my-pod /old-page
 ```
 
 #### HTTP
@@ -510,9 +583,9 @@ pod write my-pod blog/posts/first "My first post"
 pod write my-pod blog/posts/second "Another post"
 
 # 3. Set up routing
-pod links my-pod set / "homepage/index"           # Homepage
-pod links my-pod set /posts "blog/posts?unique=true"  # All posts
-pod links my-pod set /latest "blog/posts?i=-1"        # Latest post
+pod links set my-pod / "homepage/index"           # Homepage
+pod links set my-pod /posts "blog/posts?unique=true"  # All posts
+pod links set my-pod /latest "blog/posts?i=-1"        # Latest post
 
 # Now visitors can access:
 # https://my-pod.webpods.org/          -> Shows homepage
@@ -530,13 +603,13 @@ You can map custom domains to your pods.
 
 ```bash
 # Add a custom domain
-pod domain my-pod add blog.example.com
+pod domain add my-pod blog.example.com
 
 # List domains for a pod
-pod domain my-pod list
+pod domain list my-pod
 
 # Remove a custom domain
-pod domain my-pod remove blog.example.com
+pod domain remove my-pod blog.example.com
 ```
 
 #### HTTP
@@ -706,10 +779,10 @@ const writeResponse = await fetch("https://alice.webpods.org/app-data/record", {
 pod oauth list
 
 # Get details of a specific client
-pod oauth get my-awesome-app-a1b2c3d4
+# pod oauth get my-awesome-app-a1b2c3d4  # NOT YET IMPLEMENTED
 
 # Delete a client
-pod oauth delete my-awesome-app-a1b2c3d4
+# pod oauth delete my-awesome-app-a1b2c3d4  # NOT YET IMPLEMENTED
 ```
 
 #### HTTP
@@ -786,8 +859,8 @@ pod write my-pod js/app.js @app.js --content-type application/javascript
 pod write my-pod img/hero.jpg @hero.jpg --content-type image/jpeg
 
 # Set up routing
-pod links my-pod set / "index.html"
-pod links my-pod set /style.css "css/styles.css"
+pod links set my-pod / "index.html"
+pod links set my-pod /style.css "css/styles.css"
 
 # Your site is live at https://my-pod.webpods.org/
 ```
@@ -860,11 +933,11 @@ curl https://my-pod.webpods.org/.meta/api/streams
 
 ```bash
 # Set pod configuration
-pod config my-pod set description "My personal blog"
-pod config my-pod set theme "dark"
+# pod config my-pod set description "My personal blog"  # NOT YET IMPLEMENTED
+# pod config my-pod set theme "dark"  # NOT YET IMPLEMENTED
 
 # Get configuration
-pod config my-pod get
+# pod config my-pod get  # NOT YET IMPLEMENTED
 ```
 
 ### Rate Limits
@@ -948,19 +1021,19 @@ curl -X POST http://localhost:3000/test/data \
 
 ```bash
 # Set default server
-pod config set server https://webpods.org
+# pod config set server https://webpods.org  # NOT YET IMPLEMENTED
 
 # Set default output format
-pod config set format json
+# pod config set format json  # NOT YET IMPLEMENTED
 
 # Set default pod (avoid typing it every time)
-pod config set default-pod my-main-pod
+# pod config set default-pod my-main-pod  # NOT YET IMPLEMENTED
 
 # Enable verbose output
-pod config set verbose true
+# pod config set verbose true  # NOT YET IMPLEMENTED
 
 # View all settings
-pod config list
+# pod config list  # NOT YET IMPLEMENTED
 
 # Configuration is stored in ~/.webpods/config.json
 ```
@@ -1137,12 +1210,17 @@ docker-compose -f docker-compose.test.yml up
 - `GET /api/pods` - List user's pods
 - `DELETE /{pod}.webpods.org/` - Delete pod
 
+### Streams
+
+- `PUT /{pod}.webpods.org/_streams/create` - Create a stream
+- `DELETE /{pod}.webpods.org/{stream}` - Delete stream
+- `GET /{pod}.webpods.org/.meta/api/streams` - List all streams
+
 ### Records
 
 - `POST /{pod}.webpods.org/{stream}/{name}` - Write record
 - `GET /{pod}.webpods.org/{stream}/{name}` - Read record
 - `GET /{pod}.webpods.org/{stream}` - List records
-- `DELETE /{pod}.webpods.org/{stream}` - Delete stream
 
 ### OAuth Client Management
 
@@ -1192,13 +1270,14 @@ docker-compose -f docker-compose.test.yml up
 
 - `pod write <pod> <path> <data>` - Write a record
 - `pod read <pod> <path>` - Read a record
-- `pod list <pod> <stream>` - List records in a stream
+- `pod record list <pod> <stream>` - List records in a stream
 - `pod delete <pod> <path> [--purge]` - Delete a record
 
 ### Streams
 
-- `pod streams <pod>` - List all streams
-- `pod delete-stream <pod> <stream> --force` - Delete a stream
+- `pod stream create <pod> <stream> [--access <mode>] [--type <type>]` - Create a stream
+- `pod stream list <pod>` - List all streams
+- `pod stream delete <pod> <stream> --force` - Delete a stream
 - `pod verify <pod> <stream>` - Verify stream integrity
 
 ### Permissions

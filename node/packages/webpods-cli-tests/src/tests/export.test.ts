@@ -139,6 +139,18 @@ describe("CLI Export Command", function () {
       expect(result.stdout).to.match(
         new RegExp(`${testPodName}-backup-\\d+\\.json`),
       );
+
+      // Extract filename from output and clean it up
+      const match = result.stdout.match(
+        new RegExp(`(${testPodName}-backup-\\d+\\.json)`),
+      );
+      if (match && match[1]) {
+        try {
+          await fs.unlink(match[1]);
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
     });
 
     it("should exclude metadata streams when flag is set", async () => {

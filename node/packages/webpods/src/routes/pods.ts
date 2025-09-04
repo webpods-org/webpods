@@ -35,6 +35,7 @@ import { deletePod } from "../domain/pods/delete-pod.js";
 import { listPodStreams } from "../domain/pods/list-pod-streams.js";
 import { transferPodOwnership } from "../domain/pods/transfer-pod-ownership.js";
 import { getPodOwner } from "../domain/pods/get-pod-owner.js";
+import { createStream } from "../domain/streams/create-stream.js";
 import { getOrCreateStream } from "../domain/streams/get-or-create-stream.js";
 import { getStream } from "../domain/streams/get-stream.js";
 import { deleteStream } from "../domain/streams/delete-stream.js";
@@ -65,6 +66,12 @@ const linksSchema = z.record(z.string());
 
 const domainsSchema = z.object({
   domains: z.array(z.string()),
+});
+
+const createStreamSchema = z.object({
+  name: z.string(),
+  access_permission: z.string().optional().default("public"),
+  stream_type: z.enum(["permission", "data"]).optional(),
 });
 
 /**
@@ -417,6 +424,93 @@ router.post(
 );
 
 /**
+ * Create a new stream explicitly
+ * PUT {pod}.webpods.org/_streams/create
+ */
+router.put(
+  "/_streams/create",
+  extractPod,
+  authenticate,
+  rateLimit("stream_create"),
+  async (req: AuthRequest, res: Response) => {
+    if (!req.podName) {
+      res.status(400).json({
+        error: {
+          code: "INVALID_POD",
+          message: "Could not determine pod from request",
+        },
+      });
+      return;
+    }
+
+    if (!req.auth) {
+      res.status(401).json({
+        error: {
+          code: "UNAUTHORIZED",
+          message: "Authentication required",
+        },
+      });
+      return;
+    }
+
+    try {
+      const validated = createStreamSchema.parse(req.body);
+      const db = getDb();
+
+      // Create the stream
+      const result = await createStream(
+        { db },
+        req.podName,
+        validated.name,
+        req.auth.user_id,
+        validated.access_permission,
+        validated.stream_type,
+      );
+
+      if (!result.success) {
+        const errorCode = (result.error as CodedError).code;
+        const status =
+          errorCode === "FORBIDDEN"
+            ? 403
+            : errorCode === "STREAM_EXISTS"
+              ? 409
+              : 400;
+        res.status(status).json({
+          error: result.error,
+        });
+        return;
+      }
+
+      res.status(201).json({
+        podName: result.data.podName,
+        name: result.data.name,
+        accessPermission: result.data.accessPermission,
+        streamType: result.data.streamType,
+        createdAt: result.data.createdAt,
+      });
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({
+          error: {
+            code: "INVALID_INPUT",
+            message: "Invalid stream creation request",
+            details: error.errors,
+          },
+        });
+        return;
+      }
+      logger.error("Failed to create stream", { error });
+      res.status(500).json({
+        error: {
+          code: "INTERNAL_ERROR",
+          message: "Failed to create stream",
+        },
+      });
+    }
+  },
+);
+
+/**
  * Write to stream with required name
  * POST {pod}.webpods.org/{stream_path}/{name}
  * Example: POST alice.webpods.org/blog/posts/first.md
@@ -608,7 +702,7 @@ router.post(
         }
       }
 
-      // Get or create stream
+      // Get the stream (no longer auto-creates)
       const streamResult = await getOrCreateStream(
         { db },
         req.podName,
@@ -619,7 +713,11 @@ router.post(
 
       if (!streamResult.success) {
         const status =
-          (streamResult.error as CodedError).code === "FORBIDDEN" ? 403 : 500;
+          (streamResult.error as CodedError).code === "FORBIDDEN"
+            ? 403
+            : (streamResult.error as CodedError).code === "STREAM_NOT_FOUND"
+              ? 404
+              : 500;
         res.status(status).json({
           error: streamResult.error,
         });

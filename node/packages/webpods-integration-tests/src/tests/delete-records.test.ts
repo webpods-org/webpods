@@ -49,6 +49,7 @@ describe("WebPods Record Deletion", () => {
 
     // Initialize with a first record
     client.setAuthToken(ownerToken);
+    await client.createStream("init");
     await client.post("/init/start", "Initialize pod");
   });
 
@@ -56,6 +57,7 @@ describe("WebPods Record Deletion", () => {
     it("should allow pod owner to soft delete a record", async () => {
       // Create a record
       client.setAuthToken(ownerToken);
+      await client.createStream("documents");
       await client.post("/documents/report", "Sensitive report content");
 
       // Verify it exists
@@ -103,7 +105,7 @@ describe("WebPods Record Deletion", () => {
     });
 
     it("should prevent non-owner from deleting records", async () => {
-      // Create a record as owner
+      // Create a record as owner (documents stream already created)
       client.setAuthToken(ownerToken);
       await client.post("/documents/public", "Public content");
 
@@ -124,7 +126,8 @@ describe("WebPods Record Deletion", () => {
     it("should handle index access to deleted records", async () => {
       client.setAuthToken(ownerToken);
 
-      // Create and delete a record
+      // Create stream and record
+      await client.createStream("data");
       await client.post("/data/item1", "Content 1");
       await client.delete("/data/item1");
 
@@ -139,6 +142,7 @@ describe("WebPods Record Deletion", () => {
     it("should allow pod owner to purge a record", async () => {
       // Create a record with sensitive data
       client.setAuthToken(ownerToken);
+      await client.createStream("secrets", "private");
       await client.post("/secrets/password", "super-secret-password-123");
 
       // Verify it exists
@@ -185,7 +189,7 @@ describe("WebPods Record Deletion", () => {
     });
 
     it("should prevent non-owner from purging records", async () => {
-      // Create a record as owner
+      // Create a record as owner (documents stream already created)
       client.setAuthToken(ownerToken);
       await client.post("/documents/sensitive", "Sensitive content");
 
@@ -207,7 +211,8 @@ describe("WebPods Record Deletion", () => {
     it("should handle deletion and recreation correctly", async () => {
       client.setAuthToken(ownerToken);
 
-      // Create a record
+      // Create stream and record
+      await client.createStream("logs");
       await client.post("/logs/event", "Event 1");
 
       // Soft delete it
@@ -240,9 +245,11 @@ describe("WebPods Record Deletion", () => {
       client.setAuthToken(ownerToken);
 
       // Create nested structure
-      // This creates app/config stream with "main" record
+      // Create app/config stream with "main" record
+      await client.createStream("app/config");
       await client.post("/app/config/main", "Main config");
-      // This creates "config" record in app stream
+      // Create "config" record in app stream
+      await client.createStream("app");
       await client.post("/app/config", "Config stream root");
 
       // DELETE /app/config should check:
@@ -267,6 +274,7 @@ describe("WebPods Record Deletion", () => {
       client.setAuthToken(ownerToken);
 
       // Create only app stream with config record
+      await client.createStream("app");
       await client.post("/app/config", "Config data");
 
       // DELETE /app/config should check:

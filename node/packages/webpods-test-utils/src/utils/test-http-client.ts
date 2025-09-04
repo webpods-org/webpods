@@ -511,4 +511,28 @@ export class TestHttpClient {
 
     return tokenData.access_token;
   }
+
+  /**
+   * Create a stream explicitly (required before writing records)
+   * @param streamName The name/path of the stream
+   * @param accessPermission Optional access permission (defaults to 'public')
+   * @param streamType Optional stream type (e.g., 'permission', 'data')
+   * @returns Response from stream creation
+   */
+  public async createStream(
+    streamName: string,
+    accessPermission?: string,
+    streamType?: string,
+  ): Promise<FetchResponse> {
+    const data: any = {
+      name: streamName,
+    };
+    if (accessPermission) {
+      data.access_permission = accessPermission;
+    }
+    if (streamType) {
+      data.stream_type = streamType;
+    }
+    return this.put("/_streams/create", data);
+  }
 }
