@@ -3,7 +3,7 @@ import knex from "knex";
 import pgPromise from "pg-promise";
 import * as path from "path";
 import { fileURLToPath } from "url";
-import { Logger, consoleLogger } from "./test-logger.js";
+import { Logger, testLogger } from "./test-logger.js";
 
 const pgp = pgPromise();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -32,7 +32,7 @@ export class TestDatabase {
         config.password || process.env.WEBPODS_DB_PASSWORD || "postgres",
       logger: config.logger,
     };
-    this.logger = config.logger || consoleLogger;
+    this.logger = config.logger || testLogger;
   }
 
   public async setup(): Promise<void> {
