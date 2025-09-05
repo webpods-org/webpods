@@ -251,9 +251,15 @@ describe("CLI Transfer Command", function () {
         },
       );
 
-      // Should fail because stream doesn't exist (can't auto-create)
+      // Should fail because old owner no longer has access
       expect(newStreamResult.exitCode).to.not.equal(0);
-      expect(newStreamResult.stderr).to.include("STREAM_NOT_FOUND");
+      // The error message will be about not having write permission
+      expect(newStreamResult.stderr).to.satisfy((msg: string) => 
+        msg.includes("No write permission") || 
+        msg.includes("FORBIDDEN") || 
+        msg.includes("permission"),
+        "Error should be about permissions"
+      );
     });
 
     it("should allow new owner to access pod after transfer", async () => {

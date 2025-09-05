@@ -414,7 +414,7 @@ pod streams my-pod
 #### HTTP
 
 ```bash
-curl https://my-pod.webpods.org/.meta/api/streams \
+curl https://my-pod.webpods.org/.config/api/streams \
   -H "Authorization: Bearer $WEBPODS_TOKEN"
 ```
 
@@ -919,17 +919,17 @@ curl -X POST https://my-pod.webpods.org/.config/owner \
   -d '{"owner": "new-user-id"}'
 ```
 
-#### .meta/api/streams
+#### .config/api/streams
 
 ```bash
 # List all streams
 pod streams my-pod
 
 # Via HTTP
-curl https://my-pod.webpods.org/.meta/api/streams
+curl https://my-pod.webpods.org/.config/api/streams
 ```
 
-#### .meta/config
+#### .config/routing
 
 ```bash
 # Set pod configuration
@@ -979,7 +979,7 @@ curl -i https://my-pod.webpods.org/test \
 ```bash
 # Export entire pod
 pod export my-pod -o my-pod-backup.json
-pod export my-pod --exclude-metadata  # Exclude .meta/ streams
+pod export my-pod --exclude-config  # Exclude .config/ streams
 
 # Verify stream integrity (check hash chain)
 pod verify my-pod stream-name
@@ -1214,7 +1214,7 @@ docker-compose -f docker-compose.test.yml up
 
 - `PUT /{pod}.webpods.org/_streams/create` - Create a stream
 - `DELETE /{pod}.webpods.org/{stream}` - Delete stream
-- `GET /{pod}.webpods.org/.meta/api/streams` - List all streams
+- `GET /{pod}.webpods.org/.config/api/streams` - List all streams
 
 ### Records
 
@@ -1297,7 +1297,7 @@ docker-compose -f docker-compose.test.yml up
 ### Backup & Export
 
 - `pod export <pod> [-o file]` - Export pod data
-- `pod export <pod> --exclude-metadata` - Export without .meta/ streams
+- `pod export <pod> --exclude-config` - Export without .config/ streams
 
 ### Profile Management
 

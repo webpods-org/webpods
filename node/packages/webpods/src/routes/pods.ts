@@ -539,6 +539,8 @@ router.post(
           return;
         }
 
+        // Note: stream_create rate limit was already incremented by checkRateLimit above
+
         res.status(201).json({ success: true });
         return;
       }
@@ -726,6 +728,8 @@ router.post(
         });
         return;
       }
+
+      // Note: stream_create rate limit was already incremented by checkRateLimit above
 
       // Check if this is a .config/* stream - only pod owner can write to these
       if (streamId.startsWith(".config/")) {

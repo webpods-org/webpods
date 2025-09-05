@@ -365,7 +365,7 @@ DELETE {pod}.webpods.org/{stream}
 Authorization: Bearer {token}
 ```
 
-Only stream creator can delete. System streams (`.meta/*`) cannot be deleted.
+Only stream creator can delete. System streams (`.config/*`) cannot be deleted.
 
 ## System Streams
 
@@ -388,10 +388,10 @@ URL routing configuration:
 }
 ```
 
-### .meta/api/streams
+### .config/api/streams
 
 ```
-GET {pod}.webpods.org/.meta/api/streams
+GET {pod}.webpods.org/.config/api/streams
 ```
 
 Lists all streams in pod.

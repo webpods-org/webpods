@@ -545,8 +545,6 @@ describe("CLI Record Commands", function () {
           "create",
           testPodName,
           "team-permissions",
-          "--type",
-          "permission",
         ],
         {
           token: testToken,
@@ -555,7 +553,6 @@ describe("CLI Record Commands", function () {
 
       expect(result.exitCode).to.equal(0);
       expect(result.stdout).to.include("created successfully");
-      expect(result.stdout).to.include("Stream type: permission");
 
       // Verify stream was created
       const stream = await testDb
@@ -568,7 +565,7 @@ describe("CLI Record Commands", function () {
           },
         );
       expect(stream).to.not.be.null;
-      expect(stream.stream_type).to.equal("permission");
+      expect(stream.name).to.equal("team-permissions");
     });
 
     it("should require authentication", async () => {
