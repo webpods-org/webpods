@@ -38,34 +38,29 @@ describe("WebPods Stream Operations", () => {
   });
 
   describe("Pod and Stream Creation", () => {
-    it("should require explicit stream creation before writing", async () => {
-      // Attempt to write without creating stream first
+    it("should support both explicit stream creation and auto-create on first write", async () => {
+      // Test 1: Auto-create on first write
       const response = await client.post(
         "/my-first-stream/hello",
         "Hello WebPods!",
       );
+      expect(response.status).to.equal(201);
+      expect(response.data).to.have.property("index", 0);
+      expect(response.data).to.have.property("content", "Hello WebPods!");
 
-      expect(response.status).to.equal(404);
-      expect(response.data.error).to.have.property("code", "STREAM_NOT_FOUND");
-
-      // Create the stream explicitly
-      const createResponse = await client.createStream("my-first-stream");
+      // Test 2: Explicit stream creation with POST and empty body
+      const createResponse = await client.createStream("my-second-stream");
       expect(createResponse.status).to.equal(201);
-      expect(createResponse.data).to.have.property("podName", testPodId);
-      expect(createResponse.data).to.have.property("name", "my-first-stream");
-      expect(createResponse.data).to.have.property(
-        "accessPermission",
-        "public",
-      );
+      expect(createResponse.data).to.have.property("success", true);
 
-      // Now write to the stream
+      // Now write to the explicitly created stream
       const writeResponse = await client.post(
-        "/my-first-stream/hello",
-        "Hello WebPods!",
+        "/my-second-stream/hello",
+        "Hello from second stream!",
       );
       expect(writeResponse.status).to.equal(201);
       expect(writeResponse.data).to.have.property("index", 0);
-      expect(writeResponse.data).to.have.property("content", "Hello WebPods!");
+      expect(writeResponse.data).to.have.property("content", "Hello from second stream!");
 
       // Verify stream exists in database
       const db = testDb.getDb();
@@ -112,10 +107,7 @@ describe("WebPods Stream Operations", () => {
         "private",
       );
       expect(createResponse.status).to.equal(201);
-      expect(createResponse.data).to.have.property(
-        "accessPermission",
-        "private",
-      );
+      expect(createResponse.data).to.have.property("success", true);
 
       const response = await client.post(
         "/private-stream/secret",
@@ -132,23 +124,9 @@ describe("WebPods Stream Operations", () => {
       expect(stream.access_permission).to.equal("private");
     });
 
-    it("should create stream with type field", async () => {
-      // Create stream with permission type
-      const createResponse = await client.createStream(
-        "permission-stream",
-        "private",
-        "permission",
-      );
-      expect(createResponse.status).to.equal(201);
-      expect(createResponse.data).to.have.property("streamType", "permission");
-
-      const db = testDb.getDb();
-      const stream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId)`,
-        { pod_name: testPodId, streamId: "permission-stream" },
-      );
-      expect(stream).to.exist;
-      expect(stream.stream_type).to.equal("permission");
+    // Stream type field has been removed - skipping this test
+    it.skip("should create stream with type field", async () => {
+      // This test is no longer applicable as stream_type has been removed
     });
   });
 
