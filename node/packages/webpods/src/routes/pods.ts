@@ -446,6 +446,7 @@ router.post(
     try {
       // Extract stream path and name from URL
       const fullPath = req.path.substring(1); // Remove leading /
+      const db = getDb();
 
       // Check if this is a POST with empty body to create a stream
       const isEmptyBody =
@@ -467,8 +468,6 @@ router.post(
 
         const streamId = fullPath;
         const accessPermission = req.query.access as string | undefined;
-
-        const db = getDb();
 
         // Check if pod exists
         if (!req.pod) {
@@ -545,6 +544,7 @@ router.post(
       }
 
       // Regular POST with content - writing a record
+
       // Check for trailing slash which means empty name
       if (fullPath.endsWith("/") || fullPath === "") {
         res.status(400).json({
@@ -671,8 +671,6 @@ router.post(
           return;
         }
       }
-
-      const db = getDb();
 
       // Check if pod exists - require explicit creation via POST /api/pods
       if (!req.pod) {
