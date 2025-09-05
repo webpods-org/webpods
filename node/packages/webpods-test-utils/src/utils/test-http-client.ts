@@ -513,26 +513,26 @@ export class TestHttpClient {
   }
 
   /**
-   * Create a stream explicitly (required before writing records)
+   * Create a stream explicitly using POST with empty body
    * @param streamName The name/path of the stream
    * @param accessPermission Optional access permission (defaults to 'public')
-   * @param streamType Optional stream type (e.g., 'permission', 'data')
+   * @param _streamType Optional stream type (unused, kept for compatibility)
    * @returns Response from stream creation
    */
   public async createStream(
     streamName: string,
     accessPermission?: string,
-    streamType?: string,
+    _streamType?: string,
   ): Promise<FetchResponse> {
-    const data: any = {
-      name: streamName,
-    };
-    if (accessPermission) {
-      data.access_permission = accessPermission;
-    }
-    if (streamType) {
-      data.stream_type = streamType;
-    }
-    return this.put("/_streams/create", data);
+    // Create stream using POST with empty body
+    const url = accessPermission 
+      ? `/${streamName}?access=${encodeURIComponent(accessPermission)}`
+      : `/${streamName}`;
+    
+    return this.post(url, "", {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
   }
 }

@@ -493,6 +493,20 @@ router.post(
           return;
         }
 
+        // Check if this is a .config/* stream - only pod owner can create these
+        if (streamId.startsWith(".config/")) {
+          const ownerResult = await getPodOwner({ db }, req.podName);
+          if (ownerResult.success && ownerResult.data !== req.auth.user_id) {
+            res.status(403).json({
+              error: {
+                code: "FORBIDDEN",
+                message: "Only pod owner can create .config/* streams",
+              },
+            });
+            return;
+          }
+        }
+
         // Check rate limit for stream creation
         const streamLimitResult = await checkRateLimit(
           { db },
@@ -715,20 +729,34 @@ router.post(
         return;
       }
 
-      // Check write permission
-      const canWriteResult = await canWrite(
-        { db },
-        streamResult.data.stream,
-        req.auth.user_id,
-      );
-      if (!canWriteResult) {
-        res.status(403).json({
-          error: {
-            code: "FORBIDDEN",
-            message: "No write permission for this stream",
-          },
-        });
-        return;
+      // Check if this is a .config/* stream - only pod owner can write to these
+      if (streamId.startsWith(".config/")) {
+        const ownerResult = await getPodOwner({ db }, req.podName);
+        if (ownerResult.success && ownerResult.data !== req.auth.user_id) {
+          res.status(403).json({
+            error: {
+              code: "FORBIDDEN",
+              message: "Only pod owner can write to .config/* streams",
+            },
+          });
+          return;
+        }
+      } else {
+        // For non-.config streams, check regular write permissions
+        const canWriteResult = await canWrite(
+          { db },
+          streamResult.data.stream,
+          req.auth.user_id,
+        );
+        if (!canWriteResult) {
+          res.status(403).json({
+            error: {
+              code: "FORBIDDEN",
+              message: "No write permission for this stream",
+            },
+          });
+          return;
+        }
       }
 
       // Write record
