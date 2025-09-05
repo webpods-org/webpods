@@ -214,11 +214,11 @@ curl -X DELETE https://my-awesome-pod.webpods.org/ \
 
 Records are immutable entries in streams. The last path segment is the record name.
 
-**Note**: Streams must be created explicitly before writing records to them (see [Stream Operations](#stream-operations)).
+**Note**: Streams are created automatically when you write the first record, or can be created explicitly (see [Stream Operations](#stream-operations)).
 
 ### Create a Stream
 
-Streams must be created explicitly before writing records.
+Streams are created automatically when you write the first record, or can be created explicitly.
 
 #### CLI
 
@@ -236,17 +236,18 @@ pod stream create my-pod team-docs --access /team-permissions
 #### HTTP
 
 ```bash
-# Create a public stream
-curl -X PUT https://my-pod.webpods.org/_streams/create \
-  -H "Authorization: Bearer $WEBPODS_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"name": "blog/posts"}'
+# Create a public stream explicitly
+curl -X POST https://my-pod.webpods.org/blog/posts \
+  -H "Authorization: Bearer $WEBPODS_TOKEN"
 
-# Create a private stream
-curl -X PUT https://my-pod.webpods.org/_streams/create \
+# Create a private stream explicitly
+curl -X POST https://my-pod.webpods.org/private-notes?access=private \
+  -H "Authorization: Bearer $WEBPODS_TOKEN"
+
+# Streams also auto-create when writing first record
+curl -X POST https://my-pod.webpods.org/auto-stream/first-record \
   -H "Authorization: Bearer $WEBPODS_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"name": "private-notes", "access_permission": "private"}'
+  -d "This creates the stream automatically"
 ```
 
 ### Write a Record
@@ -254,38 +255,40 @@ curl -X PUT https://my-pod.webpods.org/_streams/create \
 #### CLI
 
 ```bash
-# First create the stream
-pod stream create my-pod blog/posts
-
-# Then write text content
+# Write text content (stream auto-creates)
 pod write my-pod blog/posts/first-post "This is my first blog post!"
 
-# Write from file
+# Write from file (stream auto-creates)
 pod write my-pod data/users/alice @user.json
 
-# Write from stdin
+# Write from stdin (stream auto-creates)
 echo "Hello, World!" | pod write my-pod messages/greeting -
 
-# Write with specific content type
+# Write with specific content type (stream auto-creates)
 pod write my-pod styles/main.css @style.css --content-type text/css
 
-# Write to existing stream
-pod write my-pod private-notes/secret "My secret"
+# Write to private stream (specify access on first write)
+pod write my-pod private-notes/secret "My secret" --access private
 ```
 
 #### HTTP
 
 ```bash
-# Write text content (stream must exist first)
+# Write text content (stream auto-creates as public)
 curl -X POST https://my-pod.webpods.org/blog/posts/first-post \
   -H "Authorization: Bearer $WEBPODS_TOKEN" \
   -d "This is my first blog post!"
 
-# Write JSON content (stream must exist first)
+# Write JSON content (stream auto-creates as public)
 curl -X POST https://my-pod.webpods.org/data/users/alice \
   -H "Authorization: Bearer $WEBPODS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name": "Alice", "age": 30}'
+
+# Write to private stream (specify access on first write)
+curl -X POST https://my-pod.webpods.org/private-notes/secret?access=private \
+  -H "Authorization: Bearer $WEBPODS_TOKEN" \
+  -d "This is private data"
 ```
 
 ### Read a Record
@@ -369,7 +372,7 @@ curl https://my-pod.webpods.org/blog/posts?unique=true
 
 ### Create a Stream
 
-Streams must be created explicitly before records can be written to them.
+Streams are created automatically when you write the first record, or can be created explicitly.
 
 #### CLI
 
@@ -380,28 +383,27 @@ pod create-stream my-pod blog/posts
 # Create a private stream
 pod create-stream my-pod private-notes --access private
 
-# Create a permission stream
-pod create-stream my-pod members --type permission --access public
+# Create a stream with custom permissions
+pod create-stream my-pod members --access /team-permissions
 ```
 
 #### HTTP
 
 ```bash
-# Create a stream
-curl -X PUT https://my-pod.webpods.org/_streams/create \
-  -H "Authorization: Bearer $WEBPODS_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "blog/posts",
-    "access_permission": "public",
-    "stream_type": "data"
-  }'
+# Create a public stream explicitly
+curl -X POST https://my-pod.webpods.org/blog/posts \
+  -H "Authorization: Bearer $WEBPODS_TOKEN"
+
+# Create a private stream explicitly
+curl -X POST https://my-pod.webpods.org/private-notes?access=private \
+  -H "Authorization: Bearer $WEBPODS_TOKEN"
+
+# Create stream with custom permissions
+curl -X POST https://my-pod.webpods.org/members?access=/team-permissions \
+  -H "Authorization: Bearer $WEBPODS_TOKEN"
 ```
 
-Stream types:
-
-- `data` - Regular data stream (default)
-- `permission` - Used for permission records
+**Note**: All streams are regular data streams. Permission streams are just regular streams that contain permission records.
 
 ### List All Streams
 
@@ -477,17 +479,13 @@ pod stream create my-pod team-docs --access /team-permissions
 #### HTTP
 
 ```bash
-# Create a private stream
-curl -X PUT https://my-pod.webpods.org/_streams/create \
-  -H "Authorization: Bearer $WEBPODS_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"name": "private-notes", "access_permission": "private"}'
+# Create a private stream explicitly
+curl -X POST https://my-pod.webpods.org/private-notes?access=private \
+  -H "Authorization: Bearer $WEBPODS_TOKEN"
 
 # Create a stream with custom permissions
-curl -X PUT https://my-pod.webpods.org/_streams/create \
-  -H "Authorization: Bearer $WEBPODS_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"name": "team-docs", "access_permission": "/team-permissions"}'
+curl -X POST https://my-pod.webpods.org/team-docs?access=/team-permissions \
+  -H "Authorization: Bearer $WEBPODS_TOKEN"
 ```
 
 ### Grant Permissions to Users
@@ -575,10 +573,10 @@ curl -X POST https://my-pod.webpods.org/.config/routing/routes \
 ### Example: Building a Blog
 
 ```bash
-# 1. Create your homepage
+# 1. Create your homepage (stream auto-creates)
 pod write my-pod homepage/index "Welcome to my blog!" --content-type text/html
 
-# 2. Create blog posts
+# 2. Create blog posts (stream auto-creates)
 pod write my-pod blog/posts/first "My first post"
 pod write my-pod blog/posts/second "Another post"
 
@@ -817,10 +815,10 @@ This creates a public client that uses PKCE for security.
 #### CLI
 
 ```bash
-# Upload an image
+# Upload an image (stream auto-creates)
 pod write my-pod images/logo @logo.png --content-type image/png
 
-# Upload a PDF
+# Upload a PDF (stream auto-creates)
 pod write my-pod docs/manual @manual.pdf --content-type application/pdf
 
 # Download binary content
@@ -846,16 +844,16 @@ curl https://my-pod.webpods.org/images/logo > logo.png
 WebPods can serve as a static website host:
 
 ```bash
-# Upload HTML
+# Upload HTML (stream auto-creates)
 pod write my-pod index.html @index.html --content-type text/html
 
-# Upload CSS
+# Upload CSS (stream auto-creates)
 pod write my-pod css/styles.css @styles.css --content-type text/css
 
-# Upload JavaScript
+# Upload JavaScript (stream auto-creates)
 pod write my-pod js/app.js @app.js --content-type application/javascript
 
-# Upload images
+# Upload images (stream auto-creates)
 pod write my-pod img/hero.jpg @hero.jpg --content-type image/jpeg
 
 # Set up routing
@@ -1212,7 +1210,7 @@ docker-compose -f docker-compose.test.yml up
 
 ### Streams
 
-- `PUT /{pod}.webpods.org/_streams/create` - Create a stream
+- `POST /{pod}.webpods.org/{stream}?access={mode}` - Create a stream explicitly (or auto-create on first write)
 - `DELETE /{pod}.webpods.org/{stream}` - Delete stream
 - `GET /{pod}.webpods.org/.config/api/streams` - List all streams
 
@@ -1275,7 +1273,7 @@ docker-compose -f docker-compose.test.yml up
 
 ### Streams
 
-- `pod stream create <pod> <stream> [--access <mode>] [--type <type>]` - Create a stream
+- `pod stream create <pod> <stream> [--access <mode>]` - Create a stream
 - `pod stream list <pod>` - List all streams
 - `pod stream delete <pod> <stream> --force` - Delete a stream
 - `pod verify <pod> <stream>` - Verify stream integrity

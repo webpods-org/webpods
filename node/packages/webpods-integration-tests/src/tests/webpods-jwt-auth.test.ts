@@ -141,10 +141,10 @@ describe("WebPods JWT Authentication", () => {
       // Access pod with WebPods JWT
       const podClient = new TestHttpClient(`http://${podId}.localhost:3000`);
 
-      // Create stream first
-      await podClient.put(
-        "/_streams/create",
-        { name: "test-stream" },
+      // Create stream first using POST with empty body
+      await podClient.post(
+        "/test-stream",
+        "",
         {
           headers: {
             Authorization: `Bearer ${webpodsToken}`,

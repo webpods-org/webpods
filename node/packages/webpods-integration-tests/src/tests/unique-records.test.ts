@@ -45,9 +45,9 @@ describe("Unique Records Listing", () => {
   describe("GET /{stream}?unique=true", () => {
     it("should return only latest version of each named record", async () => {
       // Create stream first
-      await podClient.put(
-        "/_streams/create",
-        { name: "blog" },
+      await podClient.post(
+        "/blog",
+        "",
         {
           headers: { Authorization: `Bearer ${authToken}` },
         },
@@ -99,7 +99,7 @@ describe("Unique Records Listing", () => {
     it("should exclude deleted records when unique=true", async () => {
       // Create stream first
       await podClient.put(
-        "/_streams/create",
+        "/unique-test?access=public",
         { name: "docs" },
         {
           headers: { Authorization: `Bearer ${authToken}` },
@@ -142,7 +142,7 @@ describe("Unique Records Listing", () => {
     it("should handle purged records correctly", async () => {
       // Create stream first
       await podClient.put(
-        "/_streams/create",
+        "/unique-test?access=public",
         { name: "items" },
         {
           headers: { Authorization: `Bearer ${authToken}` },
@@ -176,7 +176,7 @@ describe("Unique Records Listing", () => {
     it("should work with pagination", async () => {
       // Create stream first
       await podClient.put(
-        "/_streams/create",
+        "/unique-test?access=public",
         { name: "pages" },
         {
           headers: { Authorization: `Bearer ${authToken}` },
@@ -209,7 +209,7 @@ describe("Unique Records Listing", () => {
     it("should return correct results for unique filter", async () => {
       // Create stream first
       await podClient.put(
-        "/_streams/create",
+        "/unique-test?access=public",
         { name: "data" },
         {
           headers: { Authorization: `Bearer ${authToken}` },
@@ -240,7 +240,7 @@ describe("Unique Records Listing", () => {
     it("should support negative 'after' parameter with unique=true", async () => {
       // Create stream first
       await podClient.put(
-        "/_streams/create",
+        "/unique-test?access=public",
         { name: "negtest" },
         {
           headers: { Authorization: `Bearer ${authToken}` },
@@ -277,7 +277,7 @@ describe("Unique Records Listing", () => {
     it("should handle updates after deletion correctly", async () => {
       // Create stream first
       await podClient.put(
-        "/_streams/create",
+        "/unique-test?access=public",
         { name: "content" },
         {
           headers: { Authorization: `Bearer ${authToken}` },
