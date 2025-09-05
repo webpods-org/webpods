@@ -76,10 +76,10 @@ export async function createTestPod(
     { podName },
   );
 
-  // Create .meta/streams/owner stream
+  // Create .config/owner stream
   await db.none(
     `INSERT INTO stream (pod_name, name, user_id, access_permission, created_at, updated_at)
-     VALUES ($(podName), '.meta/streams/owner', $(ownerId), 'private', NOW(), NOW())`,
+     VALUES ($(podName), '.config/owner', $(ownerId), 'private', NOW(), NOW())`,
     { podName, ownerId },
   );
 
@@ -89,7 +89,7 @@ export async function createTestPod(
 
   await db.none(
     `INSERT INTO record (pod_name, stream_name, index, content, content_type, name, hash, previous_hash, user_id, created_at)
-     VALUES ($(podName), '.meta/streams/owner', 0, $(content), 'application/json', 'owner', $(hash), NULL, $(ownerId), NOW())`,
+     VALUES ($(podName), '.config/owner', 0, $(content), 'application/json', 'owner', $(hash), NULL, $(ownerId), NOW())`,
     { podName, content, hash, ownerId },
   );
 }

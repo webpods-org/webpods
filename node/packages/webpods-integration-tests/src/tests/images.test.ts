@@ -228,7 +228,7 @@ describe("WebPods Image Support", () => {
       });
 
       // Configure routing
-      await client.post("/.meta/streams/links", {
+      await client.post("/.config/routing", {
         "/": "pages/gallery/index",
       });
 

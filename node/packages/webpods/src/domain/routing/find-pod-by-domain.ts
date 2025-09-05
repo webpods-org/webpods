@@ -14,11 +14,11 @@ export async function findPodByDomain(
   domain: string,
 ): Promise<Result<PodDbRow | null>> {
   try {
-    // Get all pods that have .meta/streams/domains streams
+    // Get all pods that have .config/domains streams
     const pods = await ctx.db.manyOrNone<PodDbRow>(
       `SELECT DISTINCT p.* FROM pod p
        JOIN stream s ON s.pod_name = p.name
-       WHERE s.name = '.meta/streams/domains'`,
+       WHERE s.name = '.config/domains'`,
     );
 
     // Check each pod's domains
@@ -28,7 +28,7 @@ export async function findPodByDomain(
          WHERE pod_name = $(pod_name)
            AND stream_name = $(stream_name)
          ORDER BY index ASC`,
-        { pod_name: pod.name, stream_name: ".meta/streams/domains" },
+        { pod_name: pod.name, stream_name: ".config/domains" },
       );
 
       // Build current domain list

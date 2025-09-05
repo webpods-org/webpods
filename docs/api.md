@@ -218,22 +218,18 @@ Deletes the pod and all its data. Only the owner can delete a pod.
 
 ### Create Stream
 
-Streams must be created explicitly before writing records.
+Streams are created automatically when you first write to them. For explicit creation or to set permissions before writing, use:
 
 ```
-PUT {pod}.webpods.org/_streams/create
+POST {pod}.webpods.org/{stream-path}
 Authorization: Bearer {token}
-Content-Type: application/json
 ```
 
-Body:
+With empty body to create the stream. Use `?access=private` query parameter to create private streams:
 
-```json
-{
-  "name": "stream/path",
-  "access_permission": "public", // Optional, defaults to "public"
-  "stream_type": "data" // Optional: "data" (default) or "permission"
-}
+```
+POST {pod}.webpods.org/{stream-path}?access=private
+Authorization: Bearer {token}
 ```
 
 Response (201 Created):
@@ -242,15 +238,14 @@ Response (201 Created):
 {
   "podName": "my-pod",
   "name": "stream/path",
-  "accessPermission": "public",
-  "streamType": "data",
+  "accessPermission": "private",
   "createdAt": "2024-01-01T00:00:00Z"
 }
 ```
 
 ### Write Record
 
-**Note**: The stream must exist before writing records (see Create Stream above).
+**Note**: Streams are created automatically on first write. For explicit creation or to set permissions, see Create Stream above.
 
 ```
 POST {pod}.webpods.org/{stream}/{name}
@@ -265,7 +260,7 @@ Parameters:
 
 Query parameters:
 
-- ~~`access` - Permission mode~~ (removed - permissions set during stream creation)
+- `access` - Permission mode for auto-created streams ("public" or "private", defaults to "public")
 
 Headers:
 
@@ -365,11 +360,11 @@ DELETE {pod}.webpods.org/{stream}
 Authorization: Bearer {token}
 ```
 
-Only stream creator can delete. System streams (`.meta/*`) cannot be deleted.
+Only stream creator can delete. System streams (`.config/*`) cannot be deleted.
 
 ## System Streams
 
-### .meta/streams/owner
+### .config/owner
 
 Pod ownership tracking. Write to transfer ownership:
 
@@ -377,7 +372,7 @@ Pod ownership tracking. Write to transfer ownership:
 { "owner": "new-user-id" }
 ```
 
-### .meta/streams/links
+### .config/routing
 
 URL routing configuration:
 
@@ -388,10 +383,10 @@ URL routing configuration:
 }
 ```
 
-### .meta/api/streams
+### .config/api/streams
 
 ```
-GET {pod}.webpods.org/.meta/api/streams
+GET {pod}.webpods.org/.config/api/streams
 ```
 
 Lists all streams in pod.
@@ -400,15 +395,15 @@ Lists all streams in pod.
 
 ### Access Modes
 
-Set via `access_permission` parameter when creating streams:
+Set via `access` query parameter when creating streams or writing first record:
 
 - **public** - Anyone can read, authenticated users can write (default)
 - **private** - Only creator can read/write
-- **/{stream}** - Users listed in permission stream
+- **/{stream}** - Users listed in specified permission stream
 
-### Permission Stream Format
+### Permission Management
 
-Write to permission stream to grant access:
+To grant access to other users, write permission records to any stream (there are no special permission stream types):
 
 ```json
 {
@@ -418,7 +413,13 @@ Write to permission stream to grant access:
 }
 ```
 
-Latest record for a user determines their permissions.
+Then reference that stream in the `access` parameter:
+
+```
+POST {pod}.webpods.org/my-stream?access=/permissions/my-stream
+```
+
+Latest record for each user in the permission stream determines their access rights.
 
 ## Rate Limits
 
@@ -427,7 +428,6 @@ Default limits per hour:
 - Write: 1000
 - Read: 10000
 - Pod creation: 10
-- Stream creation: 100
 
 Headers in responses:
 

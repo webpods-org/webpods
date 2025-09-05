@@ -1,0 +1,232 @@
+
+> webpods-cli-tests@0.0.1 test
+> mocha
+
+
+
+  CLI Auth Commands
+    login command
+      ✔ should display login instructions (51ms)
+      ✔ should support custom provider (51ms)
+    token set command
+Test token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYWMzNzc2My0wNDU5LTQyYmQtOTY0OS04YmQ0Y2NmZjkyMzUiLCJlbWFpbCI6ImNsaS10ZXN0QGV4YW1wbGUuY29tIiwicHJvdmlkZXIiOiJ0ZXN0LXByb3ZpZGVyIiwidHlwZSI6IndlYnBvZHMiLCJpYXQiOjE3NTcwNjA5NjgsImV4cCI6MTc1NzY2NTc2OH0.sshDInJqkzyoyc7y72YW2lR2MgyvrcQfhLe0vUnUj18
+Test user ID: 2ac37763-0459-42bd-9649-8bd4ccff9235
+Test server URL: http://localhost:3456
+      ✔ should set authentication token (107ms)
+    whoami command
+      ✔ should show user info when authenticated (97ms)
+      ✔ should fail when not authenticated (96ms)
+    token show command
+      ✔ should display current token (51ms)
+      ✔ should show message when no token is set (50ms)
+    logout command
+      ✔ should clear stored token (100ms)
+
+  CLI Domain Commands
+    domain add command
+      ✔ should add a custom domain to a pod (113ms)
+      ✔ should add multiple domains (209ms)
+      ✔ should validate domain format (51ms)
+      ✔ should require authentication (50ms)
+    domain list command
+      ✔ should list all domains for a pod (113ms)
+      ✔ should show verification status (117ms)
+      ✔ should output in JSON format (128ms)
+      ✔ should show message when no domains exist (117ms)
+    domain remove command
+      ✔ should remove a specific domain (223ms)
+      ✔ should handle removing non-existent domain (115ms)
+      ✔ should require authentication (54ms)
+
+  CLI Export Command
+    export command
+      ✔ should export pod data to JSON file (115ms)
+      ✔ should use default filename if output not specified (109ms)
+      ✔ should exclude metadata streams when flag is set (109ms)
+      ✔ should require authentication (59ms)
+      ✔ should handle non-existent pod (104ms)
+
+  CLI Grant/Revoke Commands
+    grant command
+      1) "before each" hook for "should grant read permission to a user"
+
+  CLI Links Commands
+    links set command
+      ✔ should set a link for a pod (124ms)
+      ✔ should set multiple links (233ms)
+      ✔ should require authentication (55ms)
+    links list command
+      ✔ should list all links for a pod (118ms)
+      ✔ should output in JSON format (119ms)
+      ✔ should show message when no links exist (107ms)
+    links remove command
+      ✔ should remove a specific link (212ms)
+      ✔ should handle removing non-existent link (112ms)
+      ✔ should require authentication (53ms)
+
+  CLI Pod Commands
+    create command
+      ✔ should create a new pod (136ms)
+      ✔ should reject invalid pod names (50ms)
+      ✔ should reject duplicate pod names (223ms)
+      ✔ should require authentication (101ms)
+    list command
+      ✔ should list all user pods (111ms)
+      ✔ should show message when no pods exist (280ms)
+      ✔ should support different output formats (225ms)
+    info command
+      ✔ should show pod details (114ms)
+      ✔ should fail for non-existent pod (104ms)
+    delete command
+      ✔ should delete a pod with force flag (115ms)
+      ✔ should show warning without force flag (51ms)
+      ✔ should only allow owner to delete pod (107ms)
+
+  CLI Profile Management
+    profile add
+      ✔ should add a new profile (57ms)
+      ✔ should validate server URL (54ms)
+      ✔ should set first profile as current (114ms)
+    profile list
+      ✔ should list all profiles (56ms)
+      ✔ should show current profile with asterisk (103ms)
+      ✔ should output JSON format (58ms)
+    profile use
+      ✔ should switch to different profile (65ms)
+      ✔ should error on non-existent profile (53ms)
+    profile delete
+      ✔ should delete profile with --force (61ms)
+      ✔ should error on non-existent profile (56ms)
+      ✔ should update current profile if deleted (175ms)
+    profile current
+      ✔ should show current profile details (57ms)
+      ✔ should output JSON format (55ms)
+      ✔ should handle no current profile (55ms)
+    --profile flag
+      ✔ should use specified profile for command (54ms)
+      ✔ should error on non-existent profile (56ms)
+    legacy config migration
+      ✔ should migrate legacy config to default profile (61ms)
+
+  CLI Record Commands
+    write command
+      ✔ should write data to a stream record (134ms)
+      ✔ should write from file (121ms)
+      ✔ should write to stream with existing permissions (128ms)
+    read command
+      ✔ should read a specific record by name (117ms)
+      ✔ should read latest record when no name specified (115ms)
+      ✔ should read by index (120ms)
+      ✔ should read by negative index (112ms)
+      ✔ should save to file (122ms)
+    list command
+      ✔ should list records in a stream (120ms)
+      ✔ should support limit parameter (114ms)
+      ✔ should support pagination with after parameter (114ms)
+      ✔ should list only unique records when flag is set (122ms)
+    streams command
+      ✔ should list all streams in a pod (110ms)
+    stream create command
+      2) should create a public stream
+      3) should create a private stream
+      4) should create a permission stream
+      5) should require authentication
+    stream delete command
+      ✔ should delete a stream with force flag (85ms)
+
+  CLI Transfer Command
+    transfer command
+      ✔ should show warning without --force flag (54ms)
+      ✔ should transfer ownership with --force flag (120ms)
+      ✔ should only allow current owner to transfer (110ms)
+      ✔ should require authentication (52ms)
+      ✔ should validate new owner exists (111ms)
+    transfer command - post transfer
+EXISTING STREAM WRITE ATTEMPT: {
+  exitCode: 1,
+  stdout: '',
+  stderr: 'Error: No write permission for this stream'
+}
+      6) should prevent old owner from accessing pod after transfer
+      ✔ should allow new owner to access pod after transfer (227ms)
+
+  CLI Verify Command
+    verify command - summary
+      ✔ should show stream summary by default (117ms)
+      ✔ should handle empty stream (115ms)
+    verify command - show chain
+      ✔ should display full hash chain with --show-chain (118ms)
+    verify command - check integrity
+      ✔ should verify valid hash chain (113ms)
+BROKEN CHAIN TEST - STDOUT: Verifying integrity of stream 'test-stream'...
+BROKEN CHAIN TEST - STDERR: ❌ Record 3: Hash chain broken
+   Expected previous: sha256:57284009b254f0d4b0c1a906cd81c5874ebedfb0a80559cc56bc45cf91b0f960
+   Got previous: sha256:broken
+❌ Record 3: Hash verification failed
+   Expected: e91af987bbb8259bd218f4a0204459f3a7641588f6877aa7e39c257504b7cab1
+   Computed: 7fc3bafe86055e2ba775730d2e319550ae226f2f9ccb33cf06d8dd71c0da3de4
+✗ Stream integrity check failed
+      ✔ should detect broken hash chain (114ms)
+      ✔ should detect invalid first record with previous_hash (118ms)
+    verify command - permissions
+      ✔ should require authentication for private streams (113ms)
+      ✔ should work for public streams without auth (121ms)
+
+
+  90 passing (34s)
+  6 failing
+
+  1) CLI Grant/Revoke Commands
+       "before each" hook for "should grant read permission to a user":
+     error: column "stream_type" of relation "stream" does not exist
+      at Parser.parseErrorMessage (/home/jeswin/repos/webpods-org/webpods/node/packages/webpods-test-utils/node_modules/pg-protocol/src/parser.ts:369:69)
+      at Parser.handlePacket (/home/jeswin/repos/webpods-org/webpods/node/packages/webpods-test-utils/node_modules/pg-protocol/src/parser.ts:187:21)
+      at Parser.parse (/home/jeswin/repos/webpods-org/webpods/node/packages/webpods-test-utils/node_modules/pg-protocol/src/parser.ts:102:30)
+      at Socket.<anonymous> (/home/jeswin/repos/webpods-org/webpods/node/packages/webpods-test-utils/node_modules/pg-protocol/src/index.ts:7:48)
+      at Socket.emit (node:events:524:28)
+      at addChunk (node:internal/streams/readable:561:12)
+      at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+      at Readable.push (node:internal/streams/readable:392:5)
+      at TCP.onStreamRead (node:internal/stream_base_commons:189:23)
+
+  2) CLI Record Commands
+       stream create command
+         should create a public stream:
+     AssertionError: expected '' to include 'created successfully'
+      at Context.<anonymous> (src/tests/records.test.ts:491:32)
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+
+  3) CLI Record Commands
+       stream create command
+         should create a private stream:
+     AssertionError: expected '' to include 'created successfully'
+      at Context.<anonymous> (src/tests/records.test.ts:523:32)
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+
+  4) CLI Record Commands
+       stream create command
+         should create a permission stream:
+     AssertionError: expected '' to include 'created successfully'
+      at Context.<anonymous> (src/tests/records.test.ts:557:32)
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+
+  5) CLI Record Commands
+       stream create command
+         should require authentication:
+
+      AssertionError: expected +0 to not equal +0
+      + expected - actual
+
+
+      at Context.<anonymous> (src/tests/records.test.ts:582:38)
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+
+  6) CLI Transfer Command
+       transfer command - post transfer
+         should prevent old owner from accessing pod after transfer:
+     AssertionError: expected 'Error: No write permission for this s…' to include 'STREAM_NOT_FOUND'
+      at Context.<anonymous> (src/tests/transfer.test.ts:256:41)
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+
+
+

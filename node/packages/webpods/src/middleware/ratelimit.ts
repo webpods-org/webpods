@@ -46,10 +46,10 @@ export function rateLimit(
       const statusResult = await getRateLimitStatus({ db }, key, action);
       const limit = statusResult.success ? statusResult.data.limit : 1000;
 
-      // Set rate limit headers
-      res.setHeader("X-RateLimit-Limit", limit.toString());
-      res.setHeader("X-RateLimit-Remaining", result.data.remaining.toString());
-      res.setHeader("X-RateLimit-Reset", result.data.resetAt.toISOString());
+      // Set rate limit headers (lowercase for consistency with HTTP/2 and fetch)
+      res.setHeader("x-ratelimit-limit", limit.toString());
+      res.setHeader("x-ratelimit-remaining", result.data.remaining.toString());
+      res.setHeader("x-ratelimit-reset", result.data.resetAt.toISOString());
 
       if (!result.data.allowed) {
         logger.warn("Rate limit exceeded", { key, action });

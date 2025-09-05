@@ -45,14 +45,14 @@ describe("CLI Transfer Command", function () {
         name: testPodName,
       });
 
-    // Create .meta/streams/owner stream for pod ownership
+    // Create .config/owner stream for pod ownership
     await testDb
       .getDb()
       .none(
         "INSERT INTO stream (pod_name, name, user_id) VALUES ($(podName), $(streamName), $(userId))",
         {
           podName: testPodName,
-          streamName: ".meta/streams/owner",
+          streamName: ".config/owner",
           userId: testUser.userId,
         },
       );
@@ -63,7 +63,7 @@ describe("CLI Transfer Command", function () {
        VALUES ($(podName), $(streamName), $(name), $(content), $(contentType), $(hash), $(userId), 0)`,
       {
         podName: testPodName,
-        streamName: ".meta/streams/owner",
+        streamName: ".config/owner",
         name: "owner",
         content: JSON.stringify({ owner: testUser.userId }),
         contentType: "application/json",
@@ -126,7 +126,7 @@ describe("CLI Transfer Command", function () {
       const ownerRecord = await testDb.getDb().oneOrNone(
         `SELECT * FROM record 
          WHERE pod_name = $(podName) 
-         AND stream_name = '.meta/streams/owner' 
+         AND stream_name = '.config/owner' 
          AND name = 'owner'
          ORDER BY index DESC
          LIMIT 1`,
@@ -152,7 +152,7 @@ describe("CLI Transfer Command", function () {
       expect(result.stdout).to.include("You no longer have access");
 
       // Verify ownership was transferred in database
-      // Note: The actual implementation would create a new record in .meta/streams/owner
+      // Note: The actual implementation would create a new record in .config/owner
       // For now, we're just checking the command runs
     });
 
@@ -251,9 +251,15 @@ describe("CLI Transfer Command", function () {
         },
       );
 
-      // Should fail because stream doesn't exist (can't auto-create)
+      // Should fail because old owner no longer has access
       expect(newStreamResult.exitCode).to.not.equal(0);
-      expect(newStreamResult.stderr).to.include("STREAM_NOT_FOUND");
+      // The error message will be about not having write permission
+      expect(newStreamResult.stderr).to.satisfy((msg: string) => 
+        msg.includes("No write permission") || 
+        msg.includes("FORBIDDEN") || 
+        msg.includes("permission"),
+        "Error should be about permissions"
+      );
     });
 
     it("should allow new owner to access pod after transfer", async () => {

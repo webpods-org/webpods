@@ -19,7 +19,7 @@ const logger = createLogger("webpods:domain:pods");
 function mapPodFromDb(row: PodDbRow): Pod {
   return {
     name: row.name,
-    userId: "", // Will be populated from .meta/streams/owner stream
+    userId: "", // Will be populated from .config/owner stream
     metadata: row.metadata,
     createdAt: row.created_at,
     updatedAt: row.updated_at || row.created_at,
@@ -64,10 +64,10 @@ export async function createPod(
         podParams,
       );
 
-      // Create .meta/streams/owner stream with snake_case parameters
+      // Create .config/owner stream with snake_case parameters
       const streamParams = {
         pod_name: pod.name,
-        name: ".meta/streams/owner",
+        name: ".config/owner",
         user_id: userId,
         access_permission: "private",
         created_at: new Date(),
@@ -85,7 +85,7 @@ export async function createPod(
 
       const recordParams = {
         pod_name: pod.name,
-        stream_name: ".meta/streams/owner",
+        stream_name: ".config/owner",
         index: 0,
         content: JSON.stringify(ownerContent),
         content_type: "application/json",

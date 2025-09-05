@@ -22,22 +22,11 @@ function mapStreamFromDb(row: StreamDbRow): Stream {
     name: row.name,
     userId: row.user_id,
     accessPermission: row.access_permission,
-    streamType: row.stream_type,
     metadata: row.metadata,
     createdAt: row.created_at,
     updatedAt: row.updated_at || row.created_at,
   };
 }
-
-// Valid stream types
-export const STREAM_TYPES = {
-  PERMISSION: "permission",
-  DATA: "data", // Default for regular streams
-} as const;
-
-export type StreamType =
-  | (typeof STREAM_TYPES)[keyof typeof STREAM_TYPES]
-  | null;
 
 export async function createStream(
   ctx: DataContext,
@@ -45,7 +34,6 @@ export async function createStream(
   streamName: string,
   userId: string,
   accessPermission: string = "public",
-  streamType?: StreamType,
 ): Promise<Result<Stream>> {
   // Validate stream ID
   if (!isValidStreamId(streamName)) {
@@ -71,7 +59,7 @@ export async function createStream(
     const ownerRecord = await ctx.db.oneOrNone<RecordDbRow>(
       `SELECT r.* FROM record r
        WHERE r.pod_name = $(pod_name)
-         AND r.stream_name = '.meta/streams/owner'
+         AND r.stream_name = '.config/owner'
          AND r.name = 'owner'
        ORDER BY r.index DESC
        LIMIT 1`,
@@ -112,7 +100,6 @@ export async function createStream(
       name: streamName,
       user_id: userId,
       access_permission: accessPermission,
-      stream_type: streamType || null,
       created_at: new Date(),
     };
 
@@ -124,7 +111,6 @@ export async function createStream(
     logger.info("Stream created", {
       podName: stream.pod_name,
       streamName: stream.name,
-      streamType: stream.stream_type,
       userId,
     });
 

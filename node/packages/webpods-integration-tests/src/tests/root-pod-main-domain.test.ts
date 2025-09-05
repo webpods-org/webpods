@@ -77,7 +77,7 @@ describe("WebPods Root Pod Main Domain", () => {
     }
 
     // Configure links for clean URLs
-    const linksResponse = await rootClient.post("/.meta/streams/links", {
+    const linksResponse = await rootClient.post("/.config/routing", {
       "/": "site/home",
       "/about": "site/about",
       "/status": "api/status",
@@ -172,8 +172,8 @@ describe("WebPods Root Pod Main Domain", () => {
     it("should allow POST to root pod via main domain with auth", async () => {
       mainClient.setAuthToken(authToken);
 
-      // Create stream first
-      await mainClient.put("/_streams/create", { name: "dynamic" });
+      // Create stream first using POST with empty body
+      await mainClient.post("/dynamic", "");
 
       const response = await mainClient.post(
         "/dynamic/content",
@@ -192,11 +192,8 @@ describe("WebPods Root Pod Main Domain", () => {
       // Create private content
       mainClient.setAuthToken(authToken);
 
-      // Create private stream first
-      await mainClient.put("/_streams/create", {
-        name: "secured",
-        access_permission: "private",
-      });
+      // Create private stream first using POST with empty body
+      await mainClient.post("/secured?access=private", "");
 
       const createResponse = await mainClient.post("/secured/data", "Secret");
       expect(createResponse.status).to.equal(201);
@@ -216,8 +213,8 @@ describe("WebPods Root Pod Main Domain", () => {
     it("should allow DELETE operations via main domain", async () => {
       mainClient.setAuthToken(authToken);
 
-      // Create stream first
-      await mainClient.put("/_streams/create", { name: "temp" });
+      // Create stream first using POST with empty body
+      await mainClient.post("/temp", "");
 
       // Create a record
       await mainClient.post("/temp/item", "Temporary");
