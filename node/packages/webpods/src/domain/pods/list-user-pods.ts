@@ -21,7 +21,7 @@ export async function listUserPods(
 ): Promise<Result<UserPod[]>> {
   try {
     // Get all pods where the user is the owner
-    // Since ownership is in .meta/streams/owner stream, we need to query records
+    // Since ownership is in .config/owner stream, we need to query records
     const pods = await ctx.db.manyOrNone<
       PodDbRow & { owner_content: string | null }
     >(
@@ -30,9 +30,9 @@ export async function listUserPods(
               p.created_at,
               p.metadata
        FROM pod p
-       LEFT JOIN stream s ON s.pod_name = p.name AND s.name = '.meta/streams/owner'
+       LEFT JOIN stream s ON s.pod_name = p.name AND s.name = '.config/owner'
        LEFT JOIN record r ON r.pod_name = p.name 
-                          AND r.stream_name = '.meta/streams/owner' 
+                          AND r.stream_name = '.config/owner' 
                           AND r.name = 'owner'
        WHERE r.content IS NOT NULL
        ORDER BY p.created_at DESC`,

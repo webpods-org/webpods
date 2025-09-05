@@ -1,6 +1,5 @@
 /**
- * Get a stream (no longer creates)
- * @deprecated Use getStream() instead
+ * Get or create a stream
  */
 
 import { DataContext } from "../data-context.js";
@@ -10,7 +9,6 @@ import { Stream } from "../../types.js";
 import { isValidStreamId } from "../../utils.js";
 import { createLogger } from "../../logger.js";
 import { updateStreamPermissions } from "./update-stream-permissions.js";
-import { createError } from "../../utils/errors.js";
 
 const logger = createLogger("webpods:domain:streams");
 
@@ -23,7 +21,6 @@ function mapStreamFromDb(row: StreamDbRow): Stream {
     name: row.name,
     userId: row.user_id,
     accessPermission: row.access_permission,
-    streamType: row.stream_type,
     metadata: row.metadata,
     createdAt: row.created_at,
     updatedAt: row.updated_at || row.created_at,
@@ -37,7 +34,6 @@ export async function getOrCreateStream(
   userId: string,
   accessPermission?: string,
 ): Promise<Result<{ stream: Stream; created: boolean; updated?: boolean }>> {
-  // NO LONGER CREATES STREAMS - just gets existing ones
   // Validate stream ID
   if (!isValidStreamId(streamId)) {
     return failure(new Error("Invalid stream ID"));
@@ -116,13 +112,29 @@ export async function getOrCreateStream(
       });
     }
 
-    // Stream doesn't exist - no longer auto-create
-    return failure(
-      createError(
-        "STREAM_NOT_FOUND",
-        `Stream '${actualStreamId}' does not exist. Streams must be created explicitly.`,
-      ),
+    // Stream doesn't exist - create it
+    const newStream = await ctx.db.one<StreamDbRow>(
+      `INSERT INTO stream (pod_name, name, user_id, access_permission)
+       VALUES ($(pod_name), $(name), $(user_id), $(access_permission))
+       RETURNING *`,
+      {
+        pod_name: podName,
+        name: actualStreamId,
+        user_id: userId,
+        access_permission: accessPermission || "public",
+      },
     );
+
+    logger.info("Stream created", {
+      podName: newStream.pod_name,
+      streamId: newStream.name,
+      userId,
+    });
+
+    return success({
+      stream: mapStreamFromDb(newStream),
+      created: true,
+    });
   } catch (error: unknown) {
     logger.error("Failed to get or create stream", {
       error,

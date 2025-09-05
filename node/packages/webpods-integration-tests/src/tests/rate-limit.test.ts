@@ -173,16 +173,16 @@ describe("WebPods Rate Limiting", () => {
       expect(pod1).to.exist;
       expect(pod2).to.exist;
 
-      // Verify ownership via .meta/streams/owner stream
+      // Verify ownership via .config/owner stream
       const owner1Record = await db.oneOrNone(
         `SELECT r.content FROM record r
-         WHERE r.pod_name = $(pod_name) AND r.stream_name = '.meta/streams/owner'
+         WHERE r.pod_name = $(pod_name) AND r.stream_name = '.config/owner'
          ORDER BY r.index DESC LIMIT 1`,
         { pod_name: pod1.name },
       );
       const owner2Record = await db.oneOrNone(
         `SELECT r.content FROM record r
-         WHERE r.pod_name = $(pod_name) AND r.stream_name = '.meta/streams/owner'
+         WHERE r.pod_name = $(pod_name) AND r.stream_name = '.config/owner'
          ORDER BY r.index DESC LIMIT 1`,
         { pod_name: pod2.name },
       );

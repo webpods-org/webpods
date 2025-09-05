@@ -22,9 +22,9 @@ export async function transfer(argv: Arguments) {
       return;
     }
 
-    // POST to /.meta/streams/owner endpoint
+    // POST to /.config/owner endpoint
     const response = await client.post(
-      `/.meta/streams/owner`,
+      `/.config/owner`,
       JSON.stringify({ owner: newOwner }),
       {
         headers: {

@@ -59,11 +59,11 @@ describe("CLI Pod Commands", function () {
         });
       expect(pod).to.not.be.null;
 
-      // Verify ownership via .meta/streams/owner stream
+      // Verify ownership via .config/owner stream
       const ownerRecord = await testDb.getDb().oneOrNone(
         `SELECT * FROM record 
            WHERE pod_name = $(podName) 
-           AND stream_name = '.meta/streams/owner' 
+           AND stream_name = '.config/owner' 
            AND name = 'owner'`,
         { podName: "test-pod" },
       );
@@ -113,14 +113,14 @@ describe("CLI Pod Commands", function () {
             name: podName,
           });
 
-        // Create .meta/streams/owner stream
+        // Create .config/owner stream
         await testDb
           .getDb()
           .none(
             "INSERT INTO stream (pod_name, name, user_id) VALUES ($(podName), $(streamName), $(userId))",
             {
               podName,
-              streamName: ".meta/streams/owner",
+              streamName: ".config/owner",
               userId: testUser.userId,
             },
           );
@@ -131,7 +131,7 @@ describe("CLI Pod Commands", function () {
            VALUES ($(podName), $(streamName), $(name), $(content), $(contentType), $(hash), $(userId), 0)`,
           {
             podName,
-            streamName: ".meta/streams/owner",
+            streamName: ".config/owner",
             name: "owner",
             content: JSON.stringify({ owner: testUser.userId }),
             contentType: "application/json",
@@ -192,14 +192,14 @@ describe("CLI Pod Commands", function () {
           name: "test-pod",
         });
 
-      // Create .meta/streams/owner stream
+      // Create .config/owner stream
       await testDb
         .getDb()
         .none(
           "INSERT INTO stream (pod_name, name, user_id) VALUES ($(podName), $(streamName), $(userId))",
           {
             podName: "test-pod",
-            streamName: ".meta/streams/owner",
+            streamName: ".config/owner",
             userId: testUser.userId,
           },
         );
@@ -210,7 +210,7 @@ describe("CLI Pod Commands", function () {
          VALUES ($(podName), $(streamName), $(name), $(content), $(contentType), $(hash), $(userId), 0)`,
         {
           podName: "test-pod",
-          streamName: ".meta/streams/owner",
+          streamName: ".config/owner",
           name: "owner",
           content: JSON.stringify({ owner: testUser.userId }),
           contentType: "application/json",
@@ -242,7 +242,7 @@ describe("CLI Pod Commands", function () {
       // The info command returns streams data, not pod metadata
       expect(info.pod).to.equal("test-pod");
       expect(info.streams).to.be.an("array");
-      expect(info.streams).to.have.length(2); // .meta/streams/owner and test-stream
+      expect(info.streams).to.have.length(2); // .config/owner and test-stream
     });
 
     it("should fail for non-existent pod", async () => {
@@ -264,14 +264,14 @@ describe("CLI Pod Commands", function () {
           name: "test-pod",
         });
 
-      // Create .meta/streams/owner stream
+      // Create .config/owner stream
       await testDb
         .getDb()
         .none(
           "INSERT INTO stream (pod_name, name, user_id) VALUES ($(podName), $(streamName), $(userId))",
           {
             podName: "test-pod",
-            streamName: ".meta/streams/owner",
+            streamName: ".config/owner",
             userId: testUser.userId,
           },
         );
@@ -282,7 +282,7 @@ describe("CLI Pod Commands", function () {
          VALUES ($(podName), $(streamName), $(name), $(content), $(contentType), $(hash), $(userId), 0)`,
         {
           podName: "test-pod",
-          streamName: ".meta/streams/owner",
+          streamName: ".config/owner",
           name: "owner",
           content: JSON.stringify({ owner: testUser.userId }),
           contentType: "application/json",

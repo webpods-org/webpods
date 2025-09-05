@@ -14,11 +14,11 @@ export async function getPodOwner(
   podName: string,
 ): Promise<Result<string | null>> {
   try {
-    // Get the latest owner record from .meta/streams/owner stream
+    // Get the latest owner record from .config/owner stream
     const ownerRecord = await ctx.db.oneOrNone<RecordDbRow>(
       `SELECT r.* FROM record r
        WHERE r.pod_name = $(pod_name)
-         AND r.stream_name = '.meta/streams/owner'
+         AND r.stream_name = '.config/owner'
          AND r.name = 'owner'
        ORDER BY r.index DESC
        LIMIT 1`,

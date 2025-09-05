@@ -42,7 +42,7 @@ export interface Identity {
 
 export interface Pod {
   name: string; // Primary key - Subdomain (e.g., 'alice')
-  userId: string; // Owner ID from .meta/streams/owner stream
+  userId: string; // Owner ID from .config/owner stream
   metadata?: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
@@ -53,7 +53,6 @@ export interface Stream {
   name: string; // Part of composite primary key - Stream path within pod (can include slashes)
   userId: string;
   accessPermission: string; // 'public', 'private', or '/streamname'
-  streamType?: string | null; // Optional type: 'permission', 'data', etc.
   metadata?: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;

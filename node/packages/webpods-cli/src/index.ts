@@ -486,47 +486,6 @@ export async function main() {
       (yargs) =>
         yargs
           .command(
-            "create <pod> <stream>",
-            "Create a new stream",
-            (yargs) =>
-              yargs
-                .positional("pod", {
-                  describe: "Pod name",
-                  demandOption: true,
-                  type: "string",
-                })
-                .positional("stream", {
-                  describe: "Stream path",
-                  demandOption: true,
-                  type: "string",
-                })
-                .option("access", {
-                  type: "string",
-                  describe:
-                    "Access permission (public, private, or /permission-stream)",
-                  default: "public",
-                })
-                .option("type", {
-                  type: "string",
-                  describe: "Stream type (data or permission)",
-                  choices: ["data", "permission"],
-                })
-                .option("token", {
-                  type: "string",
-                  describe: "Use specific token for this command",
-                })
-                .option("server", {
-                  type: "string",
-                  describe: "WebPods server URL",
-                }),
-            async (argv) => {
-              const { createStream } = await import(
-                "./commands/streams/streams.js"
-              );
-              await createStream(argv);
-            },
-          )
-          .command(
             "list <pod>",
             "List all streams in a pod",
             (yargs) =>

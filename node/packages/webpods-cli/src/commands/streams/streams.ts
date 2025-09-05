@@ -8,87 +8,6 @@ import { createLogger, createCliOutput } from "../../logger.js";
 const logger = createLogger("webpods:cli:streams");
 
 /**
- * Create a new stream
- */
-export async function createStream(options: {
-  quiet?: boolean;
-  pod?: string;
-  stream?: string;
-  access?: string;
-  type?: string;
-  token?: string;
-  server?: string;
-  profile?: string;
-  [key: string]: unknown;
-}): Promise<void> {
-  const output = createCliOutput(options.quiet);
-
-  try {
-    logger.debug("Creating stream", {
-      pod: options.pod,
-      stream: options.stream,
-      access: options.access,
-      type: options.type,
-    });
-
-    if (!options.pod || !options.stream) {
-      output.error("Pod and stream name are required.");
-      process.exit(1);
-    }
-
-    const body: any = {
-      name: options.stream,
-      access_permission: options.access || "public",
-    };
-
-    if (options.type) {
-      body.stream_type = options.type;
-    }
-
-    const result = await podRequest(options.pod, "/_streams/create", {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-      token: options.token,
-      server: options.server,
-    });
-
-    if (!result.success) {
-      output.error("Error: " + result.error.message);
-      logger.error("Stream creation failed", {
-        pod: options.pod,
-        stream: options.stream,
-        error: result.error,
-      });
-      process.exit(1);
-    }
-
-    output.print(
-      `Stream '${options.stream}' created successfully in pod '${options.pod}'.`,
-    );
-
-    if (options.access && options.access !== "public") {
-      output.print(`Access permission: ${options.access}`);
-    }
-
-    if (options.type) {
-      output.print(`Stream type: ${options.type}`);
-    }
-
-    logger.info("Stream created successfully", {
-      pod: options.pod,
-      stream: options.stream,
-    });
-  } catch (error: any) {
-    output.error(`Failed to create stream: ${error.message || error}`);
-    logger.error("Stream creation failed", { error });
-    process.exit(1);
-  }
-}
-
-/**
  * List all streams in a pod
  */
 export async function streams(options: {
@@ -112,7 +31,7 @@ export async function streams(options: {
 
     const result = await podRequest<{ streams: string[] }>(
       options.pod,
-      "/.meta/api/streams",
+      "/.config/api/streams",
       {
         token: options.token,
         server: options.server,

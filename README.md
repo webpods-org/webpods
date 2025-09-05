@@ -526,14 +526,14 @@ curl -X POST https://my-pod.webpods.org/team-permissions/user-789 \
 
 ## Links and Custom Routing
 
-WebPods supports custom URL routing within your pod using the `.meta/streams/links` system stream.
+WebPods supports custom URL routing within your pod using the `.config/routing` system stream.
 
 ### How Links Work
 
 When someone visits a path on your pod, WebPods:
 
 1. First checks if a stream/record exists at that exact path
-2. If not, checks `.meta/streams/links` for routing rules
+2. If not, checks `.config/routing` for routing rules
 3. Routes can redirect to streams with query parameters
 
 ### Setting Up Links
@@ -561,7 +561,7 @@ pod links remove my-pod /old-page
 
 ```bash
 # Set up multiple routes at once
-curl -X POST https://my-pod.webpods.org/.meta/streams/links/routes \
+curl -X POST https://my-pod.webpods.org/.config/routing/routes \
   -H "Authorization: Bearer $WEBPODS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -616,7 +616,7 @@ pod domain remove my-pod blog.example.com
 
 ```bash
 # Add custom domain
-curl -X POST https://my-pod.webpods.org/.meta/streams/domains/custom \
+curl -X POST https://my-pod.webpods.org/.config/domains/custom \
   -H "Authorization: Bearer $WEBPODS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"domain": "blog.example.com"}'
@@ -892,7 +892,7 @@ curl -i https://my-pod.webpods.org/verified/data
 
 Special streams that control pod behavior:
 
-#### .meta/streams/owner
+#### .config/owner
 
 Pod ownership controls complete access to a pod. When ownership is transferred:
 
@@ -913,7 +913,7 @@ pod info my-pod --owner
 pod transfer my-pod new-user-id --force
 
 # Transfer ownership (HTTP)
-curl -X POST https://my-pod.webpods.org/.meta/streams/owner \
+curl -X POST https://my-pod.webpods.org/.config/owner \
   -H "Authorization: Bearer $WEBPODS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"owner": "new-user-id"}'

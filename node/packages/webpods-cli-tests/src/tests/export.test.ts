@@ -166,9 +166,9 @@ describe("CLI Export Command", function () {
       const exportData = JSON.parse(await fs.readFile(exportPath, "utf-8"));
       const streamNames = Object.keys(exportData.streams);
 
-      // Should not include .meta/* streams
+      // Should not include .config/* streams
       const hasMetaStreams = streamNames.some((name) =>
-        name.startsWith(".meta/"),
+        name.startsWith(".config/"),
       );
       expect(hasMetaStreams).to.be.false;
     });

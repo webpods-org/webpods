@@ -18,7 +18,7 @@ export async function exportPod(argv: Arguments) {
     output.info(`Exporting pod '${pod}'...`);
 
     // First, get list of all streams
-    const streamsResponse = await client.get(`/.meta/api/streams`, {
+    const streamsResponse = await client.get(`/.config/api/streams`, {
       headers: {
         "X-Pod-Name": pod,
       },
@@ -42,7 +42,7 @@ export async function exportPod(argv: Arguments) {
 
     // Export each stream
     for (const stream of streams) {
-      if (!includeMetadata && stream.name.startsWith(".meta/")) {
+      if (!includeMetadata && stream.name.startsWith(".config/")) {
         continue; // Skip metadata streams if not included
       }
 

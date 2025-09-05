@@ -35,9 +35,9 @@ import { deletePod } from "../domain/pods/delete-pod.js";
 import { listPodStreams } from "../domain/pods/list-pod-streams.js";
 import { transferPodOwnership } from "../domain/pods/transfer-pod-ownership.js";
 import { getPodOwner } from "../domain/pods/get-pod-owner.js";
-import { createStream } from "../domain/streams/create-stream.js";
 import { getOrCreateStream } from "../domain/streams/get-or-create-stream.js";
 import { getStream } from "../domain/streams/get-stream.js";
+import { createStream } from "../domain/streams/create-stream.js";
 import { deleteStream } from "../domain/streams/delete-stream.js";
 import { writeRecord } from "../domain/records/write-record.js";
 import { getRecord } from "../domain/records/get-record.js";
@@ -66,12 +66,6 @@ const linksSchema = z.record(z.string());
 
 const domainsSchema = z.object({
   domains: z.array(z.string()),
-});
-
-const createStreamSchema = z.object({
-  name: z.string(),
-  access_permission: z.string().optional().default("public"),
-  stream_type: z.enum(["permission", "data"]).optional(),
 });
 
 /**
@@ -151,10 +145,10 @@ router.get(
 
 /**
  * List streams in pod
- * GET {pod}.webpods.org/.meta/api/streams
+ * GET {pod}.webpods.org/.config/api/streams
  */
 router.get(
-  "/.meta/api/streams",
+  "/.config/api/streams",
   extractPod,
   async (req: AuthRequest, res: Response) => {
     if (!req.pod || !req.podName) {
@@ -223,12 +217,12 @@ router.delete(
 
 /**
  * Write to system streams
- * POST {pod}.webpods.org/.meta/streams/owner
- * POST {pod}.webpods.org/.meta/streams/links
- * POST {pod}.webpods.org/.meta/streams/domains
+ * POST {pod}.webpods.org/.config/owner
+ * POST {pod}.webpods.org/.config/routing
+ * POST {pod}.webpods.org/.config/domains
  */
 router.post(
-  "/.meta/streams/owner",
+  "/.config/owner",
   extractPod,
   authenticate,
   async (req: AuthRequest, res: Response) => {
@@ -289,7 +283,7 @@ router.post(
 );
 
 router.post(
-  "/.meta/streams/links",
+  "/.config/routing",
   extractPod,
   authenticate,
   async (req: AuthRequest, res: Response) => {
@@ -357,7 +351,7 @@ router.post(
 );
 
 router.post(
-  "/.meta/streams/domains",
+  "/.config/domains",
   extractPod,
   authenticate,
   async (req: AuthRequest, res: Response) => {
@@ -424,93 +418,6 @@ router.post(
 );
 
 /**
- * Create a new stream explicitly
- * PUT {pod}.webpods.org/_streams/create
- */
-router.put(
-  "/_streams/create",
-  extractPod,
-  authenticate,
-  rateLimit("stream_create"),
-  async (req: AuthRequest, res: Response) => {
-    if (!req.podName) {
-      res.status(400).json({
-        error: {
-          code: "INVALID_POD",
-          message: "Could not determine pod from request",
-        },
-      });
-      return;
-    }
-
-    if (!req.auth) {
-      res.status(401).json({
-        error: {
-          code: "UNAUTHORIZED",
-          message: "Authentication required",
-        },
-      });
-      return;
-    }
-
-    try {
-      const validated = createStreamSchema.parse(req.body);
-      const db = getDb();
-
-      // Create the stream
-      const result = await createStream(
-        { db },
-        req.podName,
-        validated.name,
-        req.auth.user_id,
-        validated.access_permission,
-        validated.stream_type,
-      );
-
-      if (!result.success) {
-        const errorCode = (result.error as CodedError).code;
-        const status =
-          errorCode === "FORBIDDEN"
-            ? 403
-            : errorCode === "STREAM_EXISTS"
-              ? 409
-              : 400;
-        res.status(status).json({
-          error: result.error,
-        });
-        return;
-      }
-
-      res.status(201).json({
-        podName: result.data.podName,
-        name: result.data.name,
-        accessPermission: result.data.accessPermission,
-        streamType: result.data.streamType,
-        createdAt: result.data.createdAt,
-      });
-    } catch (error: any) {
-      if (error instanceof z.ZodError) {
-        res.status(400).json({
-          error: {
-            code: "INVALID_INPUT",
-            message: "Invalid stream creation request",
-            details: error.errors,
-          },
-        });
-        return;
-      }
-      logger.error("Failed to create stream", { error });
-      res.status(500).json({
-        error: {
-          code: "INTERNAL_ERROR",
-          message: "Failed to create stream",
-        },
-      });
-    }
-  },
-);
-
-/**
  * Write to stream with required name
  * POST {pod}.webpods.org/{stream_path}/{name}
  * Example: POST alice.webpods.org/blog/posts/first.md
@@ -540,6 +447,90 @@ router.post(
       // Extract stream path and name from URL
       const fullPath = req.path.substring(1); // Remove leading /
 
+      // Check if this is a POST with empty body to create a stream
+      const isEmptyBody =
+        !req.body ||
+        (typeof req.body === "object" && Object.keys(req.body).length === 0);
+
+      // For empty body POSTs, we're creating a stream without a record
+      if (isEmptyBody) {
+        // The full path is the stream ID
+        if (!fullPath) {
+          res.status(400).json({
+            error: {
+              code: "INVALID_REQUEST",
+              message: "Stream path is required",
+            },
+          });
+          return;
+        }
+
+        const streamId = fullPath;
+        const accessPermission = req.query.access as string | undefined;
+
+        const db = getDb();
+
+        // Check if pod exists
+        if (!req.pod) {
+          res.status(404).json({
+            error: {
+              code: "POD_NOT_FOUND",
+              message: `Pod '${req.podName}' does not exist. Create it first using the pod creation API.`,
+            },
+          });
+          return;
+        }
+
+        // Check if stream already exists
+        const existingStream = await getStream({ db }, req.podName, streamId);
+        if (existingStream.success) {
+          res.status(409).json({
+            error: {
+              code: "STREAM_ALREADY_EXISTS",
+              message: `Stream '${streamId}' already exists`,
+            },
+          });
+          return;
+        }
+
+        // Check rate limit for stream creation
+        const streamLimitResult = await checkRateLimit(
+          { db },
+          req.auth.user_id,
+          "stream_create",
+        );
+
+        if (!streamLimitResult.success || !streamLimitResult.data.allowed) {
+          res.status(429).json({
+            error: {
+              code: "RATE_LIMIT_EXCEEDED",
+              message: "Too many streams created",
+            },
+          });
+          return;
+        }
+
+        // Create the stream
+        const createResult = await createStream(
+          { db },
+          req.podName,
+          streamId,
+          req.auth.user_id,
+          accessPermission || "public",
+        );
+
+        if (!createResult.success) {
+          res.status(500).json({
+            error: createResult.error,
+          });
+          return;
+        }
+
+        res.status(201).json({ success: true });
+        return;
+      }
+
+      // Regular POST with content - writing a record
       // Check for trailing slash which means empty name
       if (fullPath.endsWith("/") || fullPath === "") {
         res.status(400).json({
@@ -790,7 +781,7 @@ router.post(
 );
 
 /**
- * Root path handler with .meta/streams/links support
+ * Root path handler with .config/routing support
  * GET {pod}.webpods.org/
  */
 router.get(
@@ -834,7 +825,7 @@ router.get(
 
     const db = getDb();
 
-    // Check if path "/" is mapped in .meta/streams/links
+    // Check if path "/" is mapped in .config/routing
     const linkResult = await resolveLink({ db }, req.podName, "/");
 
     if (linkResult.success && linkResult.data) {
@@ -865,7 +856,7 @@ router.get(
       error: {
         code: "NOT_FOUND",
         message:
-          "No content configured for root path. Use .meta/streams/links to configure.",
+          "No content configured for root path. Use .config/routing to configure.",
       },
     });
   },
@@ -922,7 +913,7 @@ router.get(
     const pathParts = req.path.substring(1).split("/"); // Remove leading /
     const db = getDb();
 
-    // First check if this path is mapped in .meta/streams/links
+    // First check if this path is mapped in .config/routing
     const linkResult = await resolveLink({ db }, req.podName, req.path);
 
     if (linkResult.success && linkResult.data) {

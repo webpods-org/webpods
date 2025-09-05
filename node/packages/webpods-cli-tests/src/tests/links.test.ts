@@ -41,14 +41,14 @@ describe("CLI Links Commands", function () {
         name: testPodName,
       });
 
-    // Create .meta/streams/owner stream for pod ownership
+    // Create .config/owner stream for pod ownership
     await testDb
       .getDb()
       .none(
         "INSERT INTO stream (pod_name, name, user_id) VALUES ($(podName), $(streamName), $(userId))",
         {
           podName: testPodName,
-          streamName: ".meta/streams/owner",
+          streamName: ".config/owner",
           userId: testUser.userId,
         },
       );
@@ -59,7 +59,7 @@ describe("CLI Links Commands", function () {
        VALUES ($(podName), $(streamName), $(name), $(content), $(contentType), $(hash), $(userId), 0)`,
       {
         podName: testPodName,
-        streamName: ".meta/streams/owner",
+        streamName: ".config/owner",
         name: "owner",
         content: JSON.stringify({ owner: testUser.userId }),
         contentType: "application/json",

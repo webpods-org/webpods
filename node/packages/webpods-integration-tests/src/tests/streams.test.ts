@@ -370,9 +370,9 @@ describe("WebPods Stream Operations", () => {
     });
   });
 
-  describe("System Streams (.meta/)", () => {
-    it("should have .meta/streams/owner stream already created", async () => {
-      // The .meta/streams/owner stream is created when the pod is created
+  describe("System Streams (.config/)", () => {
+    it("should have .config/owner stream already created", async () => {
+      // The .config/owner stream is created when the pod is created
       // in the beforeEach hook
       const db = testDb.getDb();
       const pod = await db.oneOrNone(
@@ -381,7 +381,7 @@ describe("WebPods Stream Operations", () => {
       );
       const ownerStream = await db.oneOrNone(
         `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId)`,
-        { pod_name: pod.name, streamId: ".meta/streams/owner" },
+        { pod_name: pod.name, streamId: ".config/owner" },
       );
 
       expect(ownerStream).to.exist;
@@ -390,13 +390,13 @@ describe("WebPods Stream Operations", () => {
       // Check owner record
       const ownerRecord = await db.oneOrNone(
         `SELECT * FROM record WHERE pod_name = $(pod_name) AND stream_name = $(streamId) ORDER BY index ASC LIMIT 1`,
-        { pod_name: pod.name, streamId: ".meta/streams/owner" },
+        { pod_name: pod.name, streamId: ".config/owner" },
       );
       const content = JSON.parse(ownerRecord.content);
       expect(content.owner).to.equal(userId);
     });
 
-    it("should list streams via .meta/api/streams", async () => {
+    it("should list streams via .config/api/streams", async () => {
       // Create some streams explicitly
       await client.createStream("stream1");
       await client.createStream("stream2");
@@ -407,7 +407,7 @@ describe("WebPods Stream Operations", () => {
       await client.post("/stream2/content2", "Content 2");
       await client.post("/nested/stream3/content3", "Content 3");
 
-      const response = await client.get("/.meta/api/streams");
+      const response = await client.get("/.config/api/streams");
       expect(response.status).to.equal(200);
       expect(response.data.pod).to.equal(testPodId);
       expect(response.data.streams).to.be.an("array");
@@ -416,11 +416,11 @@ describe("WebPods Stream Operations", () => {
         "stream1",
         "stream2",
         "nested/stream3",
-        ".meta/streams/owner",
+        ".config/owner",
       ]);
     });
 
-    it("should update .meta/streams/links for URL routing", async () => {
+    it("should update .config/routing for URL routing", async () => {
       // Create stream first
       await client.createStream("homepage");
       await client.post("/homepage/index", "<h1>Welcome</h1>", {
@@ -433,7 +433,7 @@ describe("WebPods Stream Operations", () => {
         "/blog": "blog?i=-10:-1",
       };
 
-      const response = await client.post("/.meta/streams/links", links);
+      const response = await client.post("/.config/routing", links);
       expect(response.status).to.equal(201);
 
       // Verify links work
@@ -442,7 +442,7 @@ describe("WebPods Stream Operations", () => {
       expect(rootResponse.data).to.equal("<h1>Welcome</h1>");
     });
 
-    it("should only allow owner to write to .meta/ streams", async () => {
+    it("should only allow owner to write to .config/ streams", async () => {
       // Create second user
       const db = testDb.getDb();
       const user2 = await createTestUser(db, {
@@ -458,9 +458,9 @@ describe("WebPods Stream Operations", () => {
 
       // Stream already exists from beforeEach
 
-      // Try to update .meta/streams/owner as second user
+      // Try to update .config/owner as second user
       client.setAuthToken(token2);
-      const response = await client.post("/.meta/streams/owner", {
+      const response = await client.post("/.config/owner", {
         owner: user2.userId,
       });
 
@@ -486,7 +486,7 @@ describe("WebPods Stream Operations", () => {
     it("should prevent deletion of system streams", async () => {
       // System streams already exist from pod creation
 
-      const response = await client.delete("/.meta/streams/owner");
+      const response = await client.delete("/.config/owner");
       expect(response.status).to.equal(403);
       expect(response.data.error.code).to.equal("FORBIDDEN");
     });
