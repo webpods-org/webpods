@@ -1,6 +1,6 @@
 {
   "name": "webpods-integration-tests",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Integration tests for WebPods",
   "type": "module",
   "private": true,

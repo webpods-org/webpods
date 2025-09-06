@@ -1,6 +1,6 @@
 {
   "name": "webpods-test-utils",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Test utilities for WebPods",
   "type": "module",
   "main": "./dist/index.js",

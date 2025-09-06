@@ -36,13 +36,19 @@ export class CliTestHelper {
     const webpodsDir = path.join(this.configDir, ".webpods");
     await fs.mkdir(webpodsDir, { recursive: true });
 
-    // Create initial config in the .webpods subdirectory
+    // Create initial config with a test profile
     const configPath = path.join(webpodsDir, "config.json");
     await fs.writeFile(
       configPath,
       JSON.stringify(
         {
-          server: this.server,
+          profiles: {
+            test: {
+              name: "test",
+              server: this.server,
+            },
+          },
+          currentProfile: "test",
           outputFormat: "json",
         },
         null,
@@ -80,11 +86,8 @@ export class CliTestHelper {
         ...options.env,
       };
 
-      // Add server and token arguments if provided
+      // Add token argument if provided
       const fullArgs = [...args];
-      if (!args.includes("--server")) {
-        fullArgs.push("--server", this.server);
-      }
       if (options.token && !args.includes("--token")) {
         fullArgs.push("--token", options.token);
       }

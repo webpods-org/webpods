@@ -70,18 +70,8 @@ export async function main() {
     // Authentication Commands
     .command(
       "login",
-      "Print OAuth login link for manual token retrieval",
-      (yargs) =>
-        yargs
-          .option("server", {
-            type: "string",
-            describe: "WebPods server URL",
-          })
-          .option("provider", {
-            type: "string",
-            describe: "OAuth provider (github, google, etc.)",
-            default: "github",
-          }),
+      "Show available OAuth providers for authentication",
+      {},
       async (argv) => {
         await login(argv);
       },

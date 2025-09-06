@@ -48,10 +48,7 @@ The CLI needs to know which WebPods server to connect to. By default, it uses `h
 # For a production server (replace with your actual server)
 pod config server https://your-webpods-server.com
 
-# Or use the --server flag with any command
-pod login --server https://your-webpods-server.com
-
-# For multiple servers, use profiles (recommended)
+# For connecting to different servers, use profiles
 pod profile add prod --server https://webpods.org
 pod profile add work --server https://pods.mycompany.com
 pod profile add dev --server http://localhost:3000
@@ -130,11 +127,8 @@ pod login
 # Visit the URL, authenticate, then copy and set the token:
 pod token set "your-jwt-token-here"
 
-# Or login to a specific server
-pod login --server https://webpods.org
-
-# Login with a different OAuth provider (default is github)
-pod login --provider google
+# Show all available OAuth providers for the current server
+pod login
 
 # View saved token
 pod token get
@@ -1449,7 +1443,7 @@ docker-compose -f docker-compose.test.yml up
 
 ### Authentication
 
-- `pod login [provider]` - Login via OAuth provider
+- `pod login` - Show available OAuth providers
 - `pod logout` - Clear authentication
 - `pod whoami` - Show current user info
 - `pod token set <token>` - Set authentication token

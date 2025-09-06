@@ -9,7 +9,8 @@ const cliPath = path.resolve(__dirname, '../webpods-cli/dist/index.js');
 
 console.log('Testing login command');
 
-const child = spawn('node', [cliPath, 'login', '--server', 'http://localhost:3456'], {
+// First create a profile for the test server
+const setupChild = spawn('node', [cliPath, 'profile', 'add', 'test', '--server', 'http://localhost:3456'], {
   stdio: 'pipe',
   env: {
     ...process.env,
@@ -17,25 +18,39 @@ const child = spawn('node', [cliPath, 'login', '--server', 'http://localhost:345
   }
 });
 
-let stdout = '';
-let stderr = '';
+setupChild.on('close', () => {
+  // Now run login command
+  const child = spawn('node', [cliPath, 'login'], {
+    stdio: 'pipe',
+    env: {
+      ...process.env,
+      HOME: '/tmp/test-cli'  // Use temp directory for config
+    }
+  });
 
-child.stdout.on('data', (data) => {
-  stdout += data.toString();
-  console.log('STDOUT:', data.toString());
-});
+  let stdout = '';
+  let stderr = '';
 
-child.stderr.on('data', (data) => {
-  stderr += data.toString();
-  console.log('STDERR:', data.toString());
-});
+  child.stdout.on('data', (data) => {
+    stdout += data.toString();
+    console.log('STDOUT:', data.toString());
+  });
 
-child.on('close', (code) => {
-  console.log('Exit code:', code);
-  if (stderr) {
-    console.log('Full stderr:', stderr);
-  }
-  if (!stdout.includes('To authenticate with WebPods:')) {
-    console.log('ERROR: Expected output not found');
-  }
+  child.stderr.on('data', (data) => {
+    stderr += data.toString();
+    console.log('STDERR:', data.toString());
+  });
+
+  child.on('close', (code) => {
+    console.log('Exit code:', code);
+    if (stderr) {
+      console.log('Full stderr:', stderr);
+    }
+    if (!stdout.includes('To authenticate with WebPods:')) {
+      console.log('ERROR: Expected output not found');
+      process.exit(1);
+    } else {
+      console.log('✓ Login command works');
+    }
+  });
 });

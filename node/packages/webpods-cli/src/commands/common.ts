@@ -29,9 +29,14 @@ export async function getConfigWithAuth(
   }
 
   // Build config from arguments or profile
-  const server =
-    (argv.server as string) || profile?.server || "http://localhost:3000";
+  const server = (argv.server as string) || profile?.server;
   const token = (argv.token as string) || profile?.token;
+
+  if (!server) {
+    throw new Error(
+      "No server configured. Run 'pod profile add <name> --server <url>' to configure a server.",
+    );
+  }
 
   if (!token) {
     // Try legacy config
@@ -63,9 +68,14 @@ export async function getConfig(argv: Arguments): Promise<CommandConfig> {
   }
 
   // Build config from arguments or profile
-  const server =
-    (argv.server as string) || profile?.server || "http://localhost:3000";
+  const server = (argv.server as string) || profile?.server;
   const token = (argv.token as string) || profile?.token;
+
+  if (!server) {
+    throw new Error(
+      "No server configured. Run 'pod profile add <name> --server <url>' to configure a server.",
+    );
+  }
 
   if (!token) {
     // Try legacy config

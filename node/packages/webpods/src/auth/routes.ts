@@ -47,12 +47,16 @@ router.use("/", sessionRouter);
  * GET /auth/providers
  */
 router.get("/providers", (_req: Request, res: Response) => {
+  const config = getConfig();
   const providers = getConfiguredProviders();
+  const publicUrl =
+    config.server.publicUrl || `http://localhost:${config.server.port}`;
+
   res.json({
     providers: providers.map((id) => ({
       id,
       name: id.charAt(0).toUpperCase() + id.slice(1),
-      login_url: `/auth/${id}`,
+      login_url: `${publicUrl}/auth/${id}`,
     })),
   });
 });
