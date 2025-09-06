@@ -8,6 +8,7 @@ import { RecordDbRow } from "../../db-types.js";
 import { StreamRecord } from "../../types.js";
 import { isNumericIndex } from "../../utils.js";
 import { createLogger } from "../../logger.js";
+import { normalizeStreamName } from "../../utils/stream-utils.js";
 
 const logger = createLogger("webpods:domain:records");
 
@@ -42,6 +43,7 @@ export async function getRecord(
   preferName: boolean = false,
 ): Promise<Result<StreamRecord>> {
   try {
+    const normalizedStreamId = normalizeStreamName(streamId);
     let record: RecordDbRow | null = null;
 
     // If preferName is true, try name first even if target is numeric
@@ -54,7 +56,7 @@ export async function getRecord(
            AND name = $(name)
          ORDER BY index DESC
          LIMIT 1`,
-        { pod_name: podName, stream_name: streamId, name: target },
+        { pod_name: podName, stream_name: normalizedStreamId, name: target },
       );
 
       // If not found as name and target is numeric, try as index
@@ -65,7 +67,7 @@ export async function getRecord(
         if (index < 0) {
           const countResult = await ctx.db.one<{ count: string }>(
             `SELECT COUNT(*) as count FROM record WHERE pod_name = $(pod_name) AND stream_name = $(stream_name)`,
-            { pod_name: podName, stream_name: streamId },
+            { pod_name: podName, stream_name: normalizedStreamId },
           );
 
           index = parseInt(countResult.count) + index;
@@ -79,7 +81,7 @@ export async function getRecord(
            WHERE pod_name = $(pod_name)
              AND stream_name = $(stream_name)
              AND index = $(index)`,
-          { pod_name: podName, stream_name: streamId, index },
+          { pod_name: podName, stream_name: normalizedStreamId, index },
         );
       }
     } else if (isNumericIndex(target)) {
@@ -90,7 +92,7 @@ export async function getRecord(
       if (index < 0) {
         const countResult = await ctx.db.one<{ count: string }>(
           `SELECT COUNT(*) as count FROM record WHERE pod_name = $(pod_name) AND stream_name = $(stream_name)`,
-          { pod_name: podName, stream_name: streamId },
+          { pod_name: podName, stream_name: normalizedStreamId },
         );
 
         index = parseInt(countResult.count) + index;
@@ -104,7 +106,7 @@ export async function getRecord(
          WHERE pod_name = $(pod_name)
            AND stream_name = $(stream_name)
            AND index = $(index)`,
-        { pod_name: podName, stream_name: streamId, index },
+        { pod_name: podName, stream_name: normalizedStreamId, index },
       );
     } else {
       // Target is not numeric, treat as name - get the latest record with this name
@@ -115,7 +117,7 @@ export async function getRecord(
            AND name = $(name)
          ORDER BY index DESC
          LIMIT 1`,
-        { pod_name: podName, stream_name: streamId, name: target },
+        { pod_name: podName, stream_name: normalizedStreamId, name: target },
       );
     }
 

@@ -32,10 +32,10 @@ export function isValidStreamId(streamId: string): boolean {
 }
 
 /**
- * Check if stream ID is a system stream (starts with .config/)
+ * Check if stream ID is a system stream (starts with .config/ or /.config/)
  */
 export function isSystemStream(streamId: string): boolean {
-  return streamId.startsWith(".config/");
+  return streamId.startsWith(".config/") || streamId.startsWith("/.config/");
 }
 
 /**

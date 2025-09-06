@@ -9,6 +9,7 @@ import { StreamRecord } from "../../types.js";
 import { createLogger } from "../../logger.js";
 import { getStreamsWithPrefix } from "../streams/get-streams-with-prefix.js";
 import { canRead } from "../permissions/can-read.js";
+import { normalizeStreamName } from "../../utils/stream-utils.js";
 
 const logger = createLogger("webpods:domain:records");
 
@@ -46,8 +47,13 @@ export async function listRecordsRecursive(
   Result<{ records: StreamRecord[]; total: number; hasMore: boolean }>
 > {
   try {
+    const normalizedStreamName = normalizeStreamName(streamName);
     // Step 1: Get all matching streams
-    const streamsResult = await getStreamsWithPrefix(ctx, podName, streamName);
+    const streamsResult = await getStreamsWithPrefix(
+      ctx,
+      podName,
+      normalizedStreamName,
+    );
 
     if (!streamsResult.success) {
       return failure(streamsResult.error);

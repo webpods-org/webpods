@@ -52,7 +52,7 @@ describe("CLI Transfer Command", function () {
         "INSERT INTO stream (pod_name, name, user_id) VALUES ($(podName), $(streamName), $(userId))",
         {
           podName: testPodName,
-          streamName: ".config/owner",
+          streamName: "/.config/owner",
           userId: testUser.userId,
         },
       );
@@ -63,7 +63,7 @@ describe("CLI Transfer Command", function () {
        VALUES ($(podName), $(streamName), $(name), $(content), $(contentType), $(hash), $(userId), 0)`,
       {
         podName: testPodName,
-        streamName: ".config/owner",
+        streamName: "/.config/owner",
         name: "owner",
         content: JSON.stringify({ owner: testUser.userId }),
         contentType: "application/json",
@@ -126,7 +126,7 @@ describe("CLI Transfer Command", function () {
       const ownerRecord = await testDb.getDb().oneOrNone(
         `SELECT * FROM record 
          WHERE pod_name = $(podName) 
-         AND stream_name = '.config/owner' 
+         AND stream_name = '/.config/owner' 
          AND name = 'owner'
          ORDER BY index DESC
          LIMIT 1`,
@@ -221,7 +221,7 @@ describe("CLI Transfer Command", function () {
       // Try to write to existing stream with old owner's token
       // This should fail since they're no longer the pod owner
       const existingStreamResult = await cli.exec(
-        ["write", testPodName, "test-stream", "test-record", "data"],
+        ["write", testPodName, "/test-stream", "test-record", "data"],
         {
           token: testToken,
         },
@@ -275,14 +275,14 @@ describe("CLI Transfer Command", function () {
          VALUES ($(podName), $(streamName), $(userId), 'public', NOW())`,
         {
           podName: testPodName,
-          streamName: "new-owner-stream",
+          streamName: "/new-owner-stream",
           userId: newOwnerId,
         },
       );
 
       // Try to write to the stream with new owner's token
       const result = await cli.exec(
-        ["write", testPodName, "new-owner-stream", "test-record", "data"],
+        ["write", testPodName, "/new-owner-stream", "test-record", "data"],
         {
           token: newOwnerToken,
         },

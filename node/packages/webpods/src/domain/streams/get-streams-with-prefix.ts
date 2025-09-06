@@ -8,6 +8,7 @@ import { createError } from "../../utils/errors.js";
 import { StreamDbRow } from "../../db-types.js";
 import { Stream } from "../../types.js";
 import { createLogger } from "../../logger.js";
+import { normalizeStreamName } from "../../utils/stream-utils.js";
 
 const logger = createLogger("webpods:domain:streams");
 
@@ -37,21 +38,24 @@ export async function getStreamsWithPrefix(
   podName: string,
   streamName: string,
 ): Promise<Result<Stream[]>> {
+  // Normalize stream name to ensure leading slash
+  const normalizedStreamName = normalizeStreamName(streamName);
+
   try {
-    // First query: exact match
+    // First query: exact match (using normalized name)
     const exactStream = await ctx.db.oneOrNone<StreamDbRow>(
       `SELECT * FROM stream 
        WHERE pod_name = $(pod_name) 
          AND name = $(stream_name)`,
-      { pod_name: podName, stream_name: streamName },
+      { pod_name: podName, stream_name: normalizedStreamName },
     );
 
-    // Second query: streams starting with prefix
+    // Second query: streams starting with prefix (using normalized name)
     const nestedStreams = await ctx.db.manyOrNone<StreamDbRow>(
       `SELECT * FROM stream 
        WHERE pod_name = $(pod_name) 
          AND name LIKE $(prefix)`,
-      { pod_name: podName, prefix: `${streamName}/%` },
+      { pod_name: podName, prefix: `${normalizedStreamName}/%` },
     );
 
     const allStreams: StreamDbRow[] = [];

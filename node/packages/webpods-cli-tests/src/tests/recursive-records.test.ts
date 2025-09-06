@@ -48,7 +48,7 @@ describe("CLI Recursive Records", function () {
       const db = testDb.getDb();
 
       // Create hierarchical streams
-      const streams = ["api", "api/v1", "api/v1/users", "api/v2", "other"];
+      const streams = ["/api", "/api/v1", "/api/v1/users", "/api/v2", "/other"];
 
       for (const streamName of streams) {
         await db.none(
@@ -64,15 +64,15 @@ describe("CLI Recursive Records", function () {
 
       // Add records to each stream
       const records = [
-        { stream: "api", name: "record1", content: '{"data": "api root"}' },
-        { stream: "api/v1", name: "record1", content: '{"data": "api v1"}' },
+        { stream: "/api", name: "record1", content: '{"data": "api root"}' },
+        { stream: "/api/v1", name: "record1", content: '{"data": "api v1"}' },
         {
-          stream: "api/v1/users",
+          stream: "/api/v1/users",
           name: "record1",
           content: '{"data": "api v1 users"}',
         },
-        { stream: "api/v2", name: "record1", content: '{"data": "api v2"}' },
-        { stream: "other", name: "record1", content: '{"data": "other"}' },
+        { stream: "/api/v2", name: "record1", content: '{"data": "api v2"}' },
+        { stream: "/other", name: "record1", content: '{"data": "other"}' },
       ];
 
       for (const record of records) {
@@ -97,7 +97,7 @@ describe("CLI Recursive Records", function () {
           "record",
           "list",
           testPodName,
-          "api",
+          "/api",
           "--recursive",
           "--format",
           "json",
@@ -173,7 +173,7 @@ describe("CLI Recursive Records", function () {
                    'sha256:' || encode(sha256($(content)::bytea), 'hex'), $(userId), NOW())`,
           {
             podName: testPodName,
-            streamName: "api",
+            streamName: "/api",
             index: i - 1,
             name: `record${i}`,
             content: JSON.stringify({ data: `api root ${i}` }),
@@ -187,7 +187,7 @@ describe("CLI Recursive Records", function () {
           "record",
           "list",
           testPodName,
-          "api",
+          "/api",
           "--recursive",
           "--limit",
           "3",
@@ -236,7 +236,7 @@ describe("CLI Recursive Records", function () {
           "record",
           "list",
           testPodName,
-          "api",
+          "/api",
           "--recursive",
           "--after",
           "-2",

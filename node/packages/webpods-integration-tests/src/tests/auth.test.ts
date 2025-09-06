@@ -236,11 +236,11 @@ describe("WebPods Authentication", () => {
       );
       await db.oneOrNone(
         `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId)`,
-        { pod_name: pod.name, streamId: "tracked" },
+        { pod_name: pod.name, streamId: "/tracked" },
       );
       const record = await db.oneOrNone(
         `SELECT * FROM record WHERE pod_name = $(pod_name) AND stream_name = $(streamId) ORDER BY index ASC LIMIT 1`,
-        { pod_name: pod.name, streamId: "tracked" },
+        { pod_name: pod.name, streamId: "/tracked" },
       );
 
       expect(record.user_id).to.equal(userId);
@@ -519,21 +519,21 @@ describe("WebPods Authentication", () => {
       // Check .config/owner for both pods
       await db.oneOrNone(
         `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId)`,
-        { pod_name: pod1.name, streamId: ".config/owner" },
+        { pod_name: pod1.name, streamId: "/.config/owner" },
       );
       const owner1Record = await db.oneOrNone(
         `SELECT * FROM record WHERE pod_name = $(pod_name) AND stream_name = $(streamId) ORDER BY index ASC LIMIT 1`,
-        { pod_name: pod1.name, streamId: ".config/owner" },
+        { pod_name: pod1.name, streamId: "/.config/owner" },
       );
       expect(JSON.parse(owner1Record.content).owner).to.equal(userId);
 
       await db.oneOrNone(
         `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId)`,
-        { pod_name: pod2.name, streamId: ".config/owner" },
+        { pod_name: pod2.name, streamId: "/.config/owner" },
       );
       const owner2Record = await db.oneOrNone(
         `SELECT * FROM record WHERE pod_name = $(pod_name) AND stream_name = $(streamId) ORDER BY index ASC LIMIT 1`,
-        { pod_name: pod2.name, streamId: ".config/owner" },
+        { pod_name: pod2.name, streamId: "/.config/owner" },
       );
       expect(JSON.parse(owner2Record.content).owner).to.equal(userId);
     });

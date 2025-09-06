@@ -10,6 +10,7 @@ import { isValidStreamId } from "../../utils.js";
 import { createLogger } from "../../logger.js";
 import { sql } from "../../db/index.js";
 import { createError } from "../../utils/errors.js";
+import { normalizeStreamName } from "../../utils/stream-utils.js";
 
 const logger = createLogger("webpods:domain:streams");
 
@@ -35,18 +36,21 @@ export async function createStream(
   userId: string,
   accessPermission: string = "public",
 ): Promise<Result<Stream>> {
-  // Validate stream ID
-  if (!isValidStreamId(streamName)) {
+  // Normalize stream name to ensure leading slash
+  const normalizedStreamName = normalizeStreamName(streamName);
+
+  // Validate stream ID (use original for validation in case validator expects no leading slash)
+  if (!isValidStreamId(streamName) && !isValidStreamId(normalizedStreamName)) {
     return failure(createError("INVALID_STREAM_ID", "Invalid stream ID"));
   }
 
   try {
-    // Check if stream already exists
+    // Check if stream already exists (using normalized name)
     const existingStream = await ctx.db.oneOrNone<StreamDbRow>(
       `SELECT * FROM stream 
        WHERE pod_name = $(pod_name) 
          AND name = $(name)`,
-      { pod_name: podName, name: streamName },
+      { pod_name: podName, name: normalizedStreamName },
     );
 
     if (existingStream) {
@@ -59,7 +63,7 @@ export async function createStream(
     const ownerRecord = await ctx.db.oneOrNone<RecordDbRow>(
       `SELECT r.* FROM record r
        WHERE r.pod_name = $(pod_name)
-         AND r.stream_name = '.config/owner'
+         AND r.stream_name = '/.config/owner'
          AND r.name = 'owner'
        ORDER BY r.index DESC
        LIMIT 1`,
@@ -94,10 +98,10 @@ export async function createStream(
       }
     }
 
-    // Create new stream
+    // Create new stream (with normalized name)
     const params = {
       pod_name: podName,
-      name: streamName,
+      name: normalizedStreamName,
       user_id: userId,
       access_permission: accessPermission,
       created_at: new Date(),

@@ -52,7 +52,7 @@ describe("CLI Record Commands", function () {
          VALUES ($(podName), $(streamName), 'public', NOW())`,
         {
           podName: testPodName,
-          streamName: "test-stream",
+          streamName: "/test-stream",
         },
       );
 
@@ -81,7 +81,7 @@ describe("CLI Record Commands", function () {
          WHERE s.pod_name = $(podName) AND s.name = $(streamName) AND r.name = $(recordName)`,
         {
           podName: testPodName,
-          streamName: "test-stream",
+          streamName: "/test-stream",
           recordName: "record1",
         },
       );
@@ -96,7 +96,7 @@ describe("CLI Record Commands", function () {
          VALUES ($(podName), $(streamName), 'public', NOW())`,
         {
           podName: testPodName,
-          streamName: "test-stream",
+          streamName: "/test-stream",
         },
       );
 
@@ -137,7 +137,7 @@ describe("CLI Record Commands", function () {
          VALUES ($(podName), $(streamName), $(userId), 'private', NOW())`,
         {
           podName: testPodName,
-          streamName: "test-stream",
+          streamName: "/test-stream",
           userId: testUser.userId,
         },
       );
@@ -167,7 +167,7 @@ describe("CLI Record Commands", function () {
           "SELECT * FROM stream WHERE pod_name = $(podName) AND name = $(name)",
           {
             podName: testPodName,
-            name: "test-stream",
+            name: "/test-stream",
           },
         );
       expect(stream.access_permission).to.equal("public"); // Updated to public
@@ -183,7 +183,7 @@ describe("CLI Record Commands", function () {
           "INSERT INTO stream (pod_name, name, user_id, access_permission) VALUES ($(podName), $(name), $(userId), $(permission))",
           {
             podName: testPodName,
-            name: "test-stream",
+            name: "/test-stream",
             userId: testUser.userId,
             permission: "private",
           },
@@ -194,7 +194,7 @@ describe("CLI Record Commands", function () {
          VALUES ($(podName), $(streamName), $(recordName), $(content), $(contentType), $(hash), $(userId), $(index))`,
         {
           podName: testPodName,
-          streamName: "test-stream",
+          streamName: "/test-stream",
           recordName: "record1",
           content: '{"value": 1}',
           contentType: "application/json",
@@ -209,7 +209,7 @@ describe("CLI Record Commands", function () {
          VALUES ($(podName), $(streamName), $(recordName), $(content), $(contentType), $(hash), $(previous), $(userId), $(index))`,
         {
           podName: testPodName,
-          streamName: "test-stream",
+          streamName: "/test-stream",
           recordName: "record2",
           content: '{"value": 2}',
           contentType: "application/json",
@@ -223,7 +223,7 @@ describe("CLI Record Commands", function () {
 
     it("should read a specific record by name", async () => {
       const result = await cli.exec(
-        ["read", testPodName, "test-stream", "record1"],
+        ["read", testPodName, "/test-stream", "record1"],
         {
           token: testToken,
         },
@@ -241,7 +241,7 @@ describe("CLI Record Commands", function () {
 
     it("should read latest record when no name specified", async () => {
       const result = await cli.exec(
-        ["read", testPodName, "test-stream", "--index", "-1"],
+        ["read", testPodName, "/test-stream", "--index", "-1"],
         {
           token: testToken,
         },
@@ -259,7 +259,7 @@ describe("CLI Record Commands", function () {
 
     it("should read by index", async () => {
       const result = await cli.exec(
-        ["read", testPodName, "test-stream", "--index", "0"],
+        ["read", testPodName, "/test-stream", "--index", "0"],
         {
           token: testToken,
         },
@@ -272,7 +272,7 @@ describe("CLI Record Commands", function () {
 
     it("should read by negative index", async () => {
       const result = await cli.exec(
-        ["read", testPodName, "test-stream", "--index", "-1"],
+        ["read", testPodName, "/test-stream", "--index", "-1"],
         {
           token: testToken,
         },
@@ -287,7 +287,14 @@ describe("CLI Record Commands", function () {
       const outputPath = `/tmp/output-${Date.now()}.json`;
 
       const result = await cli.exec(
-        ["read", testPodName, "test-stream", "record1", "--output", outputPath],
+        [
+          "read",
+          testPodName,
+          "/test-stream",
+          "record1",
+          "--output",
+          outputPath,
+        ],
         {
           token: testToken,
         },
@@ -314,7 +321,7 @@ describe("CLI Record Commands", function () {
           "INSERT INTO stream (pod_name, name, user_id, access_permission) VALUES ($(podName), $(name), $(userId), $(permission))",
           {
             podName: testPodName,
-            name: "test-stream",
+            name: "/test-stream",
             userId: testUser.userId,
             permission: "private",
           },
@@ -326,7 +333,7 @@ describe("CLI Record Commands", function () {
            VALUES ($(podName), $(streamName), $(name), $(content), $(contentType), $(hash), $(userId), $(index))`,
           {
             podName: testPodName,
-            streamName: "test-stream",
+            streamName: "/test-stream",
             name: `record${i}`,
             content: `{"index": ${i}}`,
             contentType: "application/json",
@@ -340,7 +347,7 @@ describe("CLI Record Commands", function () {
 
     it("should list records in a stream", async () => {
       const result = await cli.exec(
-        ["record", "list", testPodName, "test-stream", "--format", "json"],
+        ["record", "list", testPodName, "/test-stream", "--format", "json"],
         {
           token: testToken,
         },
@@ -404,7 +411,7 @@ describe("CLI Record Commands", function () {
          VALUES ($(podName), $(streamName), $(recordName), $(content), $(contentType), $(hash), $(userId), $(index))`,
         {
           podName: testPodName,
-          streamName: "test-stream",
+          streamName: "/test-stream",
           recordName: "record1",
           content: '{"updated": true}',
           contentType: "application/json",
@@ -497,7 +504,7 @@ describe("CLI Record Commands", function () {
           "SELECT * FROM stream WHERE pod_name = $(podName) AND name = $(name)",
           {
             podName: testPodName,
-            name: "new-stream",
+            name: "/new-stream",
           },
         );
       expect(stream).to.not.be.null;
@@ -530,7 +537,7 @@ describe("CLI Record Commands", function () {
           "SELECT * FROM stream WHERE pod_name = $(podName) AND name = $(name)",
           {
             podName: testPodName,
-            name: "private-stream",
+            name: "/private-stream",
           },
         );
       expect(stream).to.not.be.null;
@@ -556,11 +563,11 @@ describe("CLI Record Commands", function () {
           "SELECT * FROM stream WHERE pod_name = $(podName) AND name = $(name)",
           {
             podName: testPodName,
-            name: "team-permissions",
+            name: "/team-permissions",
           },
         );
       expect(stream).to.not.be.null;
-      expect(stream.name).to.equal("team-permissions");
+      expect(stream.name).to.equal("/team-permissions");
     });
 
     it("should require authentication", async () => {
@@ -586,7 +593,7 @@ describe("CLI Record Commands", function () {
           "INSERT INTO stream (pod_name, name, user_id) VALUES ($(podName), $(streamName), $(userId))",
           {
             podName: testPodName,
-            streamName: ".config/owner",
+            streamName: "/.config/owner",
             userId: testUser.userId,
           },
         );
@@ -597,7 +604,7 @@ describe("CLI Record Commands", function () {
          VALUES ($(podName), $(streamName), $(name), $(content), $(contentType), $(hash), $(userId), 0)`,
         {
           podName: testPodName,
-          streamName: ".config/owner",
+          streamName: "/.config/owner",
           name: "owner",
           content: JSON.stringify({ owner: testUser.userId }),
           contentType: "application/json",
@@ -612,7 +619,7 @@ describe("CLI Record Commands", function () {
           "INSERT INTO stream (pod_name, name, user_id, access_permission) VALUES ($(podName), $(name), $(userId), $(permission))",
           {
             podName: testPodName,
-            name: "test-stream",
+            name: "/test-stream",
             userId: testUser.userId,
             permission: "private",
           },
@@ -623,7 +630,7 @@ describe("CLI Record Commands", function () {
          VALUES ($(podName), $(streamName), $(recordName), $(content), $(contentType), $(hash), $(userId), $(index))`,
         {
           podName: testPodName,
-          streamName: "test-stream",
+          streamName: "/test-stream",
           recordName: "record1",
           content: '{"test": true}',
           contentType: "application/json",
@@ -636,7 +643,7 @@ describe("CLI Record Commands", function () {
 
     it("should delete a stream with force flag", async () => {
       const result = await cli.exec(
-        ["stream", "delete", testPodName, "test-stream", "--force"],
+        ["stream", "delete", testPodName, "/test-stream", "--force"],
         {
           token: testToken,
         },
@@ -657,7 +664,7 @@ describe("CLI Record Commands", function () {
           "SELECT * FROM stream WHERE pod_name = $(podName) AND name = $(name)",
           {
             podName: testPodName,
-            name: "test-stream",
+            name: "/test-stream",
           },
         );
       expect(stream).to.be.null;
@@ -668,7 +675,7 @@ describe("CLI Record Commands", function () {
           "SELECT * FROM record WHERE pod_name = $(podName) AND stream_name = $(streamName)",
           {
             podName: testPodName,
-            streamName: "test-stream",
+            streamName: "/test-stream",
           },
         );
       expect(records).to.have.length(0);

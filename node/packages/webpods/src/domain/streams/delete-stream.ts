@@ -8,6 +8,7 @@ import { createError } from "../../utils/errors.js";
 import { StreamDbRow } from "../../db-types.js";
 import { isSystemStream } from "../../utils.js";
 import { createLogger } from "../../logger.js";
+import { normalizeStreamName } from "../../utils/stream-utils.js";
 
 const logger = createLogger("webpods:domain:streams");
 
@@ -17,19 +18,22 @@ export async function deleteStream(
   streamId: string,
   userId: string,
 ): Promise<Result<void>> {
-  // Cannot delete system streams
-  if (isSystemStream(streamId)) {
+  // Normalize stream name to ensure leading slash
+  const normalizedStreamId = normalizeStreamName(streamId);
+
+  // Cannot delete system streams (check both forms)
+  if (isSystemStream(streamId) || isSystemStream(normalizedStreamId)) {
     return failure(new Error("Cannot delete system streams"));
   }
 
   try {
     return await ctx.db.tx(async (t) => {
-      // Get the stream
+      // Get the stream (using normalized name)
       const stream = await t.oneOrNone<StreamDbRow>(
         `SELECT * FROM stream
          WHERE pod_name = $(pod_name)
            AND name = $(name)`,
-        { pod_name: podName, name: streamId },
+        { pod_name: podName, name: normalizedStreamId },
       );
 
       if (!stream) {
@@ -43,20 +47,20 @@ export async function deleteStream(
         );
       }
 
-      // Delete all records in the stream
+      // Delete all records in the stream (using normalized name)
       await t.none(
         `DELETE FROM record 
          WHERE pod_name = $(pod_name)
            AND stream_name = $(stream_name)`,
-        { pod_name: podName, stream_name: streamId },
+        { pod_name: podName, stream_name: normalizedStreamId },
       );
 
-      // Delete the stream
+      // Delete the stream (using normalized name)
       await t.none(
         `DELETE FROM stream 
          WHERE pod_name = $(pod_name)
            AND name = $(name)`,
-        { pod_name: podName, name: streamId },
+        { pod_name: podName, name: normalizedStreamId },
       );
 
       logger.info("Stream deleted", {

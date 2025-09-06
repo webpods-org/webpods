@@ -63,7 +63,7 @@ export async function domainAdd(argv: Arguments) {
     // Add new domain - send updated full list
     currentDomains.push(domain);
     const response = await client.post(
-      `/.config/domains`,
+      `/.config/domains/domains`,
       JSON.stringify({ domains: currentDomains }),
       {
         headers: {
@@ -161,7 +161,7 @@ export async function domainRemove(argv: Arguments) {
     const updatedDomains = currentDomains.filter((d) => d !== domain);
 
     const response = await client.post(
-      `/.config/domains`,
+      `/.config/domains/domains`,
       JSON.stringify({ domains: updatedDomains }),
       {
         headers: {

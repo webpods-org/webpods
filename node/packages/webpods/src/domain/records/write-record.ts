@@ -10,6 +10,7 @@ import { StreamRecord } from "../../types.js";
 import { calculateRecordHash, isValidName } from "../../utils.js";
 import { createLogger } from "../../logger.js";
 import { sql } from "../../db/index.js";
+import { normalizeStreamName } from "../../utils/stream-utils.js";
 
 const logger = createLogger("webpods:domain:records");
 
@@ -45,6 +46,9 @@ export async function writeRecord(
   authorId: string,
   name: string,
 ): Promise<Result<StreamRecord>> {
+  // Normalize stream name to ensure leading slash
+  const normalizedStreamId = normalizeStreamName(streamId);
+
   // Validate name (required)
   if (!isValidName(name)) {
     return failure(
@@ -57,14 +61,14 @@ export async function writeRecord(
 
   try {
     return await ctx.db.tx(async (t) => {
-      // Get the previous record for hash chain
+      // Get the previous record for hash chain (using normalized stream name)
       const previousRecord = await t.oneOrNone<RecordDbRow>(
         `SELECT * FROM record 
          WHERE pod_name = $(pod_name)
            AND stream_name = $(stream_name)
          ORDER BY index DESC
          LIMIT 1`,
-        { pod_name: podName, stream_name: streamId },
+        { pod_name: podName, stream_name: normalizedStreamId },
       );
 
       const index = (previousRecord?.index ?? -1) + 1;
@@ -80,10 +84,10 @@ export async function writeRecord(
         storedContent = JSON.stringify(content);
       }
 
-      // Insert new record with snake_case parameters
+      // Insert new record with snake_case parameters (using normalized stream name)
       const params = {
         pod_name: podName,
-        stream_name: streamId,
+        stream_name: normalizedStreamId,
         index: index,
         content: storedContent,
         content_type: contentType,
@@ -99,7 +103,13 @@ export async function writeRecord(
         params,
       );
 
-      logger.info("Record written", { podName, streamId, index, name, hash });
+      logger.info("Record written", {
+        podName,
+        streamId: normalizedStreamId,
+        index,
+        name,
+        hash,
+      });
       return success(mapRecordFromDb(record));
     });
   } catch (error: unknown) {

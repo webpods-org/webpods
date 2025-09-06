@@ -9,6 +9,7 @@ import { Stream } from "../../types.js";
 import { isValidStreamId } from "../../utils.js";
 import { createLogger } from "../../logger.js";
 import { updateStreamPermissions } from "./update-stream-permissions.js";
+import { normalizeStreamName } from "../../utils/stream-utils.js";
 
 const logger = createLogger("webpods:domain:streams");
 
@@ -34,15 +35,18 @@ export async function getOrCreateStream(
   userId: string,
   accessPermission?: string,
 ): Promise<Result<{ stream: Stream; created: boolean; updated?: boolean }>> {
-  // Validate stream ID
-  if (!isValidStreamId(streamId)) {
+  // Normalize stream name to ensure leading slash
+  const normalizedStreamId = normalizeStreamName(streamId);
+
+  // Validate stream ID (try both original and normalized)
+  if (!isValidStreamId(streamId) && !isValidStreamId(normalizedStreamId)) {
     return failure(new Error("Invalid stream ID"));
   }
 
-  const actualStreamId = streamId;
+  const actualStreamId = normalizedStreamId;
 
   try {
-    // Try to find existing stream
+    // Try to find existing stream (using normalized name)
     let stream = await ctx.db.oneOrNone<StreamDbRow>(
       `SELECT * FROM stream 
        WHERE pod_name = $(pod_name) 

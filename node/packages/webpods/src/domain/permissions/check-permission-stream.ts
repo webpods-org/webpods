@@ -5,6 +5,7 @@
 import { DataContext } from "../data-context.js";
 import { StreamDbRow, RecordDbRow } from "../../db-types.js";
 import { createLogger } from "../../logger.js";
+import { normalizeStreamName } from "../../utils/stream-utils.js";
 
 const logger = createLogger("webpods:domain:permissions");
 
@@ -16,23 +17,29 @@ export async function checkPermissionStream(
   action: "read" | "write",
 ): Promise<boolean> {
   try {
+    // Normalize stream name to ensure leading slash
+    const normalizedStreamId = normalizeStreamName(streamId);
+
     logger.debug("Checking permission stream", {
       podName,
-      streamId,
+      streamId: normalizedStreamId,
       userId,
       action,
     });
 
-    // First check if the stream exists
+    // First check if the stream exists (using normalized name)
     const stream = await ctx.db.oneOrNone<StreamDbRow>(
       `SELECT * FROM stream
        WHERE pod_name = $(pod_name)
          AND name = $(name)`,
-      { pod_name: podName, name: streamId },
+      { pod_name: podName, name: normalizedStreamId },
     );
 
     if (!stream) {
-      logger.warn("Permission stream not found", { podName, streamId });
+      logger.warn("Permission stream not found", {
+        podName,
+        streamId: normalizedStreamId,
+      });
       return false;
     }
 
@@ -41,13 +48,13 @@ export async function checkPermissionStream(
       podName: stream.pod_name,
     });
 
-    // Get ALL records from the permission stream
+    // Get ALL records from the permission stream (using normalized name)
     const records = await ctx.db.manyOrNone<RecordDbRow>(
       `SELECT * FROM record
        WHERE pod_name = $(pod_name)
          AND stream_name = $(stream_name)
        ORDER BY index ASC`,
-      { pod_name: podName, stream_name: streamId },
+      { pod_name: podName, stream_name: normalizedStreamId },
     );
 
     // Process records in memory to find the latest permission for this user

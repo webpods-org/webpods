@@ -224,13 +224,13 @@ Streams are created automatically when you write the first record, or can be cre
 
 ```bash
 # Create a public stream (default)
-pod stream create my-pod blog/posts
+pod stream create my-pod /blog/posts
 
 # Create a private stream
-pod stream create my-pod private-notes --access private
+pod stream create my-pod /private-notes --access private
 
 # Create a stream with custom permissions
-pod stream create my-pod team-docs --access /team-permissions
+pod stream create my-pod /team-docs --access /team-permissions
 ```
 
 #### HTTP
@@ -256,19 +256,19 @@ curl -X POST https://my-pod.webpods.org/auto-stream/first-record \
 
 ```bash
 # Write text content (stream auto-creates)
-pod write my-pod blog/posts/first-post "This is my first blog post!"
+pod write my-pod /blog/posts/first-post "This is my first blog post!"
 
 # Write from file (stream auto-creates)
-pod write my-pod data/users/alice @user.json
+pod write my-pod /data/users/alice @user.json
 
 # Write from stdin (stream auto-creates)
-echo "Hello, World!" | pod write my-pod messages/greeting -
+echo "Hello, World!" | pod write my-pod /messages/greeting -
 
 # Write with specific content type (stream auto-creates)
-pod write my-pod styles/main.css @style.css --content-type text/css
+pod write my-pod /styles/main.css @style.css --content-type text/css
 
 # Write to private stream (specify access on first write)
-pod write my-pod private-notes/secret "My secret" --access private
+pod write my-pod /private-notes/secret "My secret" --access private
 ```
 
 #### HTTP
@@ -297,20 +297,20 @@ curl -X POST https://my-pod.webpods.org/private-notes/secret?access=private \
 
 ```bash
 # Read by name
-pod read my-pod blog/posts/first-post
+pod read my-pod /blog/posts/first-post
 
 # Read by index
-pod read my-pod blog/posts --index 0    # First record
-pod read my-pod blog/posts --index -1   # Latest record
+pod read my-pod /blog/posts --index 0    # First record
+pod read my-pod /blog/posts --index -1   # Latest record
 
 # Save to file
-pod read my-pod blog/posts/first-post -o post.txt
+pod read my-pod /blog/posts/first-post -o post.txt
 
 # Show metadata
-pod read my-pod blog/posts/first-post --metadata
+pod read my-pod /blog/posts/first-post --metadata
 
 # Read without a name (gets latest)
-pod read my-pod blog/posts
+pod read my-pod /blog/posts
 ```
 
 #### HTTP
@@ -331,6 +331,7 @@ curl https://my-pod.webpods.org/blog/posts?i=0:10 # Range (0-9)
 ### Delete a Record
 
 WebPods supports two deletion modes:
+
 - **Soft delete** (default): Creates a tombstone record marking deletion
 - **Hard delete/purge**: Overwrites the record content with deletion metadata
 
@@ -338,10 +339,10 @@ WebPods supports two deletion modes:
 
 ```bash
 # Soft delete a record (creates tombstone)
-pod delete my-pod blog/posts/old-post
+pod delete my-pod /blog/posts/old-post
 
 # Hard delete/purge a record (overwrites content)
-pod delete my-pod blog/posts/old-post --purge
+pod delete my-pod /blog/posts/old-post --purge
 ```
 
 #### HTTP
@@ -357,6 +358,7 @@ curl -X DELETE https://my-pod.webpods.org/blog/posts/old-post?purge=true \
 ```
 
 **Notes**:
+
 - Soft delete creates a new record named `{original-name}.deleted.{index}` with `{"deleted": true}`
 - Deleted records are excluded from `unique=true` queries
 - Purged records have their content replaced with `{"purged": true, "by": "user-id", "at": "timestamp"}`
@@ -449,6 +451,7 @@ curl https://my-pod.webpods.org/blog?recursive=true&after=-50
 #### Unique Records Filter
 
 Returns only the latest version of each named record, filtering out:
+
 - Records without names
 - Deleted records (marked with `{"deleted": true}`)
 - Purged records (marked with `{"purged": true}`)
@@ -477,13 +480,13 @@ curl https://my-pod.webpods.org/config?unique=true&limit=50&after=100
 
 #### Query Parameter Combinations
 
-| Parameter | Compatible With | Not Compatible With |
-|-----------|----------------|-------------------|
-| `limit` | All parameters | - |
-| `after` | All parameters | - |
-| `unique` | `limit`, `after` | `recursive`, `i` |
-| `recursive` | `limit`, `after` | `unique`, `i` |
-| `i` (index) | - | `unique`, `recursive`, `limit`, `after` |
+| Parameter   | Compatible With  | Not Compatible With                     |
+| ----------- | ---------------- | --------------------------------------- |
+| `limit`     | All parameters   | -                                       |
+| `after`     | All parameters   | -                                       |
+| `unique`    | `limit`, `after` | `recursive`, `i`                        |
+| `recursive` | `limit`, `after` | `unique`, `i`                           |
+| `i` (index) | -                | `unique`, `recursive`, `limit`, `after` |
 
 ## Stream Operations
 
@@ -495,17 +498,17 @@ Streams are created automatically when you write the first record, or can be cre
 
 ```bash
 # Create a public stream (default)
-pod stream create my-pod blog/posts
+pod stream create my-pod /blog/posts
 
 # Create nested streams
-pod stream create my-pod projects/webapp/logs
-pod stream create my-pod teams/engineering/members
+pod stream create my-pod /projects/webapp/logs
+pod stream create my-pod /teams/engineering/members
 
 # Create a private stream
-pod stream create my-pod private-notes --access private
+pod stream create my-pod /private-notes --access private
 
 # Create a stream with custom permissions
-pod stream create my-pod members --access /team-permissions
+pod stream create my-pod /members --access /team-permissions
 ```
 
 #### HTTP
@@ -528,10 +531,12 @@ curl -X POST https://my-pod.webpods.org/members?access=/team-permissions \
   -H "Authorization: Bearer $WEBPODS_TOKEN"
 ```
 
-**Notes**: 
+**Notes**:
+
 - All streams are regular data streams. Permission streams are just regular streams that contain permission records.
-- Nested paths are supported (e.g., `blog/posts/drafts`) and work with recursive queries
-- Stream names must be valid (alphanumeric, hyphens, underscores, periods, no leading/trailing periods)
+- Nested paths are supported (e.g., `/blog/posts/drafts`) and work with recursive queries
+- Stream names are automatically normalized with leading slashes (e.g., `blog/posts` becomes `/blog/posts`)
+- Stream names must be valid (alphanumeric, hyphens, underscores, periods, forward slashes, no leading/trailing periods)
 
 ### List All Streams
 
@@ -555,7 +560,7 @@ curl https://my-pod.webpods.org/.config/api/streams \
 #### CLI
 
 ```bash
-pod stream delete my-pod old-stream --force
+pod stream delete my-pod /old-stream --force
 ```
 
 #### HTTP
@@ -595,13 +600,13 @@ Permissions are set when creating streams, not when writing records.
 
 ```bash
 # Create a public stream (default)
-pod stream create my-pod public-blog
+pod stream create my-pod /public-blog
 
 # Create a private stream
-pod stream create my-pod private-notes --access private
+pod stream create my-pod /private-notes --access private
 
 # Create a stream with custom permissions (users in permission stream)
-pod stream create my-pod team-docs --access /team-permissions
+pod stream create my-pod /team-docs --access /team-permissions
 ```
 
 #### HTTP
@@ -622,16 +627,16 @@ curl -X POST https://my-pod.webpods.org/team-docs?access=/team-permissions \
 
 ```bash
 # Grant read access
-pod grant my-pod team-permissions user-123 --read
+pod grant my-pod /team-permissions user-123 --read
 
 # Grant read and write access
-pod grant my-pod team-permissions user-456 --read --write
+pod grant my-pod /team-permissions user-456 --read --write
 
 # Revoke access
-pod revoke my-pod team-permissions user-789
+pod revoke my-pod /team-permissions user-789
 
 # List permissions
-pod permissions my-pod team-permissions
+pod permissions my-pod /team-permissions
 ```
 
 #### HTTP
@@ -999,10 +1004,10 @@ Every record has a SHA-256 hash and links to the previous record:
 
 ```bash
 # View hash chain
-pod verify my-pod stream-name --show-chain
+pod verify my-pod /stream-name --show-chain
 
 # Verify integrity
-pod verify my-pod stream-name --check-integrity
+pod verify my-pod /stream-name --check-integrity
 ```
 
 #### HTTP
@@ -1108,18 +1113,18 @@ pod export my-pod -o my-pod-backup.json
 pod export my-pod --exclude-config  # Exclude .config/ streams
 
 # Verify stream integrity (check hash chain)
-pod verify my-pod stream-name
-pod verify my-pod stream-name --show-chain
-pod verify my-pod stream-name --check-integrity
+pod verify my-pod /stream-name
+pod verify my-pod /stream-name --show-chain
+pod verify my-pod /stream-name --check-integrity
 
 # Grant/revoke permissions
-pod grant my-pod permission-stream user-id --read
-pod grant my-pod permission-stream user-id --write
-pod grant my-pod permission-stream user-id --read --write
-pod revoke my-pod permission-stream user-id
+pod grant my-pod /permission-stream user-id --read
+pod grant my-pod /permission-stream user-id --write
+pod grant my-pod /permission-stream user-id --read --write
+pod revoke my-pod /permission-stream user-id
 
 # Manage links (URL routing)
-pod links set my-pod /about blog/about-page
+pod links set my-pod /about /blog/about-page
 pod links list my-pod
 pod links remove my-pod /about
 

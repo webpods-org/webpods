@@ -47,9 +47,9 @@ describe("CLI Export Command", function () {
 
     // Create multiple streams with records
     const streams = [
-      { name: "blog/posts", permission: "public" },
-      { name: "private/notes", permission: "private" },
-      { name: "data/users", permission: "private" },
+      { name: "/blog/posts", permission: "public" },
+      { name: "/private/notes", permission: "private" },
+      { name: "/data/users", permission: "private" },
     ];
 
     for (const stream of streams) {
