@@ -27,15 +27,40 @@ export async function deletePod(
         return failure(new Error("Pod not found"));
       }
 
-      // Verify ownership
-      const ownerRecord = await t.oneOrNone<RecordDbRow>(
-        `SELECT r.* FROM record r
-         WHERE r.pod_name = $(pod_name)
-           AND r.stream_name = '/.config/owner'
-           AND r.name = 'owner'
-         ORDER BY r.index DESC
-         LIMIT 1`,
+      // Verify ownership using separate queries
+      // Get .config stream
+      const configStream = await t.oneOrNone<{ id: string }>(
+        `SELECT id FROM stream 
+         WHERE pod_name = $(pod_name) 
+           AND name = '.config' 
+           AND parent_id IS NULL`,
         { pod_name: pod.name },
+      );
+
+      if (!configStream) {
+        return failure(new Error("Config stream not found"));
+      }
+
+      // Get owner stream (child of .config)
+      const ownerStream = await t.oneOrNone<{ id: string }>(
+        `SELECT id FROM stream 
+         WHERE parent_id = $(parent_id) 
+           AND name = 'owner'`,
+        { parent_id: configStream.id },
+      );
+
+      if (!ownerStream) {
+        return failure(new Error("Owner stream not found"));
+      }
+
+      // Get owner record
+      const ownerRecord = await t.oneOrNone<RecordDbRow>(
+        `SELECT * FROM record 
+         WHERE stream_id = $(stream_id)
+           AND name = 'owner'
+         ORDER BY index DESC
+         LIMIT 1`,
+        { stream_id: ownerStream.id },
       );
 
       if (!ownerRecord) {
@@ -53,10 +78,10 @@ export async function deletePod(
         return failure(new Error("Failed to verify ownership"));
       }
 
-      // Delete all records in all streams
+      // Delete all records in all streams of this pod
       await t.none(
         `DELETE FROM record
-         WHERE pod_name = $(pod_name)`,
+         WHERE stream_id IN (SELECT id FROM stream WHERE pod_name = $(pod_name))`,
         { pod_name: pod.name },
       );
 

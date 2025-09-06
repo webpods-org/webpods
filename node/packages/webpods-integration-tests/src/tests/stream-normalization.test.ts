@@ -173,9 +173,13 @@ describe("Stream Name Normalization", function () {
       await client.post("/record-test/item2", "Item 2");
 
       const db = testDb.getDb();
+      const stream = await db.oneOrNone(
+        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(name) AND parent_id IS NULL`,
+        { pod_name: testPodId, name: "record-test" },
+      );
       const records = await db.manyOrNone(
-        `SELECT * FROM record WHERE pod_name = $(pod_name) AND stream_name = $(stream_name) ORDER BY index`,
-        { pod_name: testPodId, stream_name: "/record-test" },
+        `SELECT * FROM record WHERE stream_id = $(stream_id) ORDER BY index`,
+        { stream_id: stream.id },
       );
 
       expect(records).to.have.lengthOf(2);

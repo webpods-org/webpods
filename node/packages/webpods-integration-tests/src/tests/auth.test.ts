@@ -108,7 +108,12 @@ describe("WebPods Authentication", () => {
       client.setAuthToken(authToken);
 
       // Create the stream first
-      await client.createStream("protected-stream");
+      const createResponse = await client.createStream("protected-stream");
+      
+      // Debug: Check if stream creation succeeded
+      if (createResponse.status !== 201) {
+        console.error("Stream creation failed:", createResponse.status, createResponse.data);
+      }
 
       const response = await client.post(
         "/protected-stream/auth",
@@ -189,12 +194,15 @@ describe("WebPods Authentication", () => {
     it("should allow anonymous read on public streams", async () => {
       // First create a public stream as authenticated user
       client.setAuthToken(authToken);
+      console.log("Creating stream /public-data");
       await client.createStream("public-data");
+      console.log("Posting to /public-data/public");
       await client.post("/public-data/public", "Public content");
 
       // Now read without auth
       client.clearAuthToken();
-      const response = await client.get("/public-data?i=0");
+      console.log("Reading /public-data/public without auth");
+      const response = await client.get("/public-data/public");
 
       expect(response.status).to.equal(200);
       expect(response.data).to.equal("Public content");
@@ -234,13 +242,13 @@ describe("WebPods Authentication", () => {
         `SELECT * FROM pod WHERE name = $(podId)`,
         { podId: testPodId },
       );
-      await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId)`,
-        { pod_name: pod.name, streamId: "/tracked" },
+      const stream = await db.oneOrNone(
+        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId) AND parent_id IS NULL`,
+        { pod_name: pod.name, streamId: "tracked" },
       );
       const record = await db.oneOrNone(
-        `SELECT * FROM record WHERE pod_name = $(pod_name) AND stream_name = $(streamId) ORDER BY index ASC LIMIT 1`,
-        { pod_name: pod.name, streamId: "/tracked" },
+        `SELECT * FROM record WHERE stream_id = $(stream_id) ORDER BY index ASC LIMIT 1`,
+        { stream_id: stream.id },
       );
 
       expect(record.user_id).to.equal(userId);
@@ -517,23 +525,35 @@ describe("WebPods Authentication", () => {
       expect(pod2).to.exist;
 
       // Check .config/owner for both pods
-      await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId)`,
-        { pod_name: pod1.name, streamId: "/.config/owner" },
+      // Get .config stream
+      const configStream1 = await db.oneOrNone(
+        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = '.config' AND parent_id IS NULL`,
+        { pod_name: pod1.name },
+      );
+      // Get owner stream (child of .config)
+      const ownerStream1 = await db.oneOrNone(
+        `SELECT * FROM stream WHERE parent_id = $(parent_id) AND name = 'owner'`,
+        { parent_id: configStream1.id },
       );
       const owner1Record = await db.oneOrNone(
-        `SELECT * FROM record WHERE pod_name = $(pod_name) AND stream_name = $(streamId) ORDER BY index ASC LIMIT 1`,
-        { pod_name: pod1.name, streamId: "/.config/owner" },
+        `SELECT * FROM record WHERE stream_id = $(stream_id) ORDER BY index ASC LIMIT 1`,
+        { stream_id: ownerStream1.id },
       );
       expect(JSON.parse(owner1Record.content).owner).to.equal(userId);
 
-      await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId)`,
-        { pod_name: pod2.name, streamId: "/.config/owner" },
+      // Get .config stream
+      const configStream2 = await db.oneOrNone(
+        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = '.config' AND parent_id IS NULL`,
+        { pod_name: pod2.name },
+      );
+      // Get owner stream (child of .config)
+      const ownerStream2 = await db.oneOrNone(
+        `SELECT * FROM stream WHERE parent_id = $(parent_id) AND name = 'owner'`,
+        { parent_id: configStream2.id },
       );
       const owner2Record = await db.oneOrNone(
-        `SELECT * FROM record WHERE pod_name = $(pod_name) AND stream_name = $(streamId) ORDER BY index ASC LIMIT 1`,
-        { pod_name: pod2.name, streamId: "/.config/owner" },
+        `SELECT * FROM record WHERE stream_id = $(stream_id) ORDER BY index ASC LIMIT 1`,
+        { stream_id: ownerStream2.id },
       );
       expect(JSON.parse(owner2Record.content).owner).to.equal(userId);
     });

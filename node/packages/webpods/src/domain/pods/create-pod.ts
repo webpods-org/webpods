@@ -68,18 +68,34 @@ export async function createPod(
         podParams,
       );
 
-      // Create .config/owner stream with snake_case parameters
-      const streamParams = {
+      // Create .config stream (root level)
+      const configParams = {
         pod_name: pod.name,
-        name: "/.config/owner",
+        name: ".config",
+        parent_id: null,
         user_id: userId,
         access_permission: "private",
         created_at: new Date(),
       };
 
-      await t.one<StreamDbRow>(
-        `${sql.insert("stream", streamParams)} RETURNING *`,
-        streamParams,
+      const configStream = await t.one<StreamDbRow>(
+        `${sql.insert("stream", configParams)} RETURNING *`,
+        configParams,
+      );
+
+      // Create owner stream (child of .config)
+      const ownerParams = {
+        pod_name: pod.name,
+        name: "owner",
+        parent_id: configStream.id,
+        user_id: userId,
+        access_permission: "private",
+        created_at: new Date(),
+      };
+
+      const ownerStream = await t.one<StreamDbRow>(
+        `${sql.insert("stream", ownerParams)} RETURNING *`,
+        ownerParams,
       );
 
       // Write initial owner record with snake_case parameters
@@ -89,8 +105,7 @@ export async function createPod(
       const hash = calculateRecordHash(null, contentHash, userId, timestamp);
 
       const recordParams = {
-        pod_name: pod.name,
-        stream_name: "/.config/owner",
+        stream_id: ownerStream.id,
         index: 0,
         content: JSON.stringify(ownerContent),
         content_type: "application/json",

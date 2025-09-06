@@ -9,7 +9,6 @@ import { StreamRecord } from "../../types.js";
 import { createLogger } from "../../logger.js";
 import { getStreamsWithPrefix } from "../streams/get-streams-with-prefix.js";
 import { canRead } from "../permissions/can-read.js";
-import { normalizeStreamName } from "../../utils/stream-utils.js";
 
 const logger = createLogger("webpods:domain:records");
 
@@ -18,13 +17,12 @@ const logger = createLogger("webpods:domain:records");
  */
 function mapRecordFromDb(row: RecordDbRow): StreamRecord {
   return {
-    id: row.id ? parseInt(row.id) : 0,
-    podName: row.pod_name,
-    streamName: row.stream_name,
+    id: row.id || 0,
+    streamId: row.stream_id,
     index: row.index,
     content: row.content,
     contentType: row.content_type,
-    name: row.name || "",
+    name: row.name,
     contentHash: row.content_hash,
     hash: row.hash,
     previousHash: row.previous_hash || null,
@@ -40,7 +38,7 @@ function mapRecordFromDb(row: RecordDbRow): StreamRecord {
 export async function listRecordsRecursive(
   ctx: DataContext,
   podName: string,
-  streamName: string,
+  streamPath: string,
   userId: string | null,
   limit: number = 100,
   after?: number,
@@ -48,13 +46,8 @@ export async function listRecordsRecursive(
   Result<{ records: StreamRecord[]; total: number; hasMore: boolean }>
 > {
   try {
-    const normalizedStreamName = normalizeStreamName(streamName);
     // Step 1: Get all matching streams
-    const streamsResult = await getStreamsWithPrefix(
-      ctx,
-      podName,
-      normalizedStreamName,
-    );
+    const streamsResult = await getStreamsWithPrefix(ctx, podName, streamPath);
 
     if (!streamsResult.success) {
       return failure(streamsResult.error);
@@ -97,10 +90,9 @@ export async function listRecordsRecursive(
       // Get records from this stream
       const records = await ctx.db.manyOrNone<RecordDbRow>(
         `SELECT * FROM record 
-         WHERE pod_name = $(pod_name) 
-           AND stream_name = $(stream_name)
+         WHERE stream_id = $(streamId) 
          ORDER BY index ASC`,
-        { pod_name: podName, stream_name: stream.name },
+        { streamId: stream.id },
       );
 
       allRecords.push(...records);
@@ -108,9 +100,8 @@ export async function listRecordsRecursive(
       // Get count for this stream
       const countResult = await ctx.db.one<{ count: string }>(
         `SELECT COUNT(*) as count FROM record 
-         WHERE pod_name = $(pod_name) 
-           AND stream_name = $(stream_name)`,
-        { pod_name: podName, stream_name: stream.name },
+         WHERE stream_id = $(streamId)`,
+        { streamId: stream.id },
       );
 
       totalCount += parseInt(countResult.count);
@@ -157,7 +148,7 @@ export async function listRecordsRecursive(
 
     logger.debug("Listed records recursively", {
       podName,
-      streamName,
+      streamPath,
       streamCount: readableStreams.length,
       totalRecords: totalCount,
       returnedRecords: paginatedRecords.length,
@@ -173,7 +164,7 @@ export async function listRecordsRecursive(
     logger.error("Failed to list records recursively", {
       error,
       podName,
-      streamName,
+      streamPath,
       limit,
       after,
     });

@@ -170,17 +170,31 @@ describe("WebPods Rate Limiting", () => {
       expect(pod2).to.exist;
 
       // Verify ownership via .config/owner stream
-      const owner1Record = await db.oneOrNone(
-        `SELECT r.content FROM record r
-         WHERE r.pod_name = $(pod_name) AND r.stream_name = '/.config/owner'
-         ORDER BY r.index DESC LIMIT 1`,
+      // Get .config stream for pod1
+      const configStream1 = await db.oneOrNone(
+        `SELECT id FROM stream WHERE pod_name = $(pod_name) AND name = '.config' AND parent_id IS NULL`,
         { pod_name: pod1.name },
       );
-      const owner2Record = await db.oneOrNone(
-        `SELECT r.content FROM record r
-         WHERE r.pod_name = $(pod_name) AND r.stream_name = '/.config/owner'
-         ORDER BY r.index DESC LIMIT 1`,
+      const ownerStream1 = await db.oneOrNone(
+        `SELECT id FROM stream WHERE parent_id = $(parent_id) AND name = 'owner'`,
+        { parent_id: configStream1.id },
+      );
+      const owner1Record = await db.oneOrNone(
+        `SELECT content FROM record WHERE stream_id = $(stream_id) AND name = 'owner' ORDER BY index DESC LIMIT 1`,
+        { stream_id: ownerStream1.id },
+      );
+      // Get .config stream for pod2
+      const configStream2 = await db.oneOrNone(
+        `SELECT id FROM stream WHERE pod_name = $(pod_name) AND name = '.config' AND parent_id IS NULL`,
         { pod_name: pod2.name },
+      );
+      const ownerStream2 = await db.oneOrNone(
+        `SELECT id FROM stream WHERE parent_id = $(parent_id) AND name = 'owner'`,
+        { parent_id: configStream2.id },
+      );
+      const owner2Record = await db.oneOrNone(
+        `SELECT content FROM record WHERE stream_id = $(stream_id) AND name = 'owner' ORDER BY index DESC LIMIT 1`,
+        { stream_id: ownerStream2.id },
       );
 
       expect(owner1Record).to.exist;

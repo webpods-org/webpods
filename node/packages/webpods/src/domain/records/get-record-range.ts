@@ -7,7 +7,6 @@ import { Result, success, failure } from "../../utils/result.js";
 import { RecordDbRow } from "../../db-types.js";
 import { StreamRecord } from "../../types.js";
 import { createLogger } from "../../logger.js";
-import { normalizeStreamName } from "../../utils/stream-utils.js";
 
 const logger = createLogger("webpods:domain:records");
 
@@ -16,13 +15,12 @@ const logger = createLogger("webpods:domain:records");
  */
 function mapRecordFromDb(row: RecordDbRow): StreamRecord {
   return {
-    id: row.id ? parseInt(row.id) : 0,
-    podName: row.pod_name,
-    streamName: row.stream_name,
+    id: row.id || 0,
+    streamId: row.stream_id,
     index: row.index,
     content: row.content,
     contentType: row.content_type,
-    name: row.name || "",
+    name: row.name,
     contentHash: row.content_hash,
     hash: row.hash,
     previousHash: row.previous_hash || null,
@@ -38,20 +36,19 @@ function mapRecordFromDb(row: RecordDbRow): StreamRecord {
 export async function getRecordRange(
   ctx: DataContext,
   podName: string,
-  streamId: string,
+  streamId: number,
   startIndex: number,
   endIndex: number,
 ): Promise<Result<StreamRecord[]>> {
   try {
-    const normalizedStreamId = normalizeStreamName(streamId);
     let actualStartIndex = startIndex;
     let actualEndIndex = endIndex;
 
     // Handle negative indices
     if (startIndex < 0 || endIndex < 0) {
       const countResult = await ctx.db.one<{ count: string }>(
-        `SELECT COUNT(*) as count FROM record WHERE pod_name = $(pod_name) AND stream_name = $(stream_name)`,
-        { pod_name: podName, stream_name: normalizedStreamId },
+        `SELECT COUNT(*) as count FROM record WHERE stream_id = $(streamId) `,
+        { streamId },
       );
       const totalCount = parseInt(countResult.count);
 
@@ -71,14 +68,12 @@ export async function getRecordRange(
 
     const records = await ctx.db.manyOrNone<RecordDbRow>(
       `SELECT * FROM record
-       WHERE pod_name = $(pod_name)
-         AND stream_name = $(stream_name)
+       WHERE stream_id = $(streamId)
          AND index >= $(start_index)
          AND index < $(end_index)
        ORDER BY index ASC`,
       {
-        pod_name: podName,
-        stream_name: normalizedStreamId,
+        streamId,
         start_index: actualStartIndex,
         end_index: actualEndIndex,
       },

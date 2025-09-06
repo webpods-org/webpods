@@ -8,7 +8,6 @@ import { RecordDbRow } from "../../db-types.js";
 import { StreamRecord } from "../../types.js";
 import { isNumericIndex } from "../../utils.js";
 import { createLogger } from "../../logger.js";
-import { normalizeStreamName } from "../../utils/stream-utils.js";
 
 const logger = createLogger("webpods:domain:records");
 
@@ -17,13 +16,12 @@ const logger = createLogger("webpods:domain:records");
  */
 function mapRecordFromDb(row: RecordDbRow): StreamRecord {
   return {
-    id: row.id ? parseInt(row.id) : 0,
-    podName: row.pod_name,
-    streamName: row.stream_name,
+    id: row.id || 0,
+    streamId: row.stream_id,
     index: row.index,
     content: row.content,
     contentType: row.content_type,
-    name: row.name || "",
+    name: row.name,
     contentHash: row.content_hash,
     hash: row.hash,
     previousHash: row.previous_hash || null,
@@ -39,12 +37,11 @@ function mapRecordFromDb(row: RecordDbRow): StreamRecord {
 export async function getRecord(
   ctx: DataContext,
   podName: string,
-  streamId: string,
+  streamId: number,
   target: string,
   preferName: boolean = false,
 ): Promise<Result<StreamRecord>> {
   try {
-    const normalizedStreamId = normalizeStreamName(streamId);
     let record: RecordDbRow | null = null;
 
     // If preferName is true, try name first even if target is numeric
@@ -52,12 +49,12 @@ export async function getRecord(
       // Try to get by name first - get the latest record with this name
       record = await ctx.db.oneOrNone<RecordDbRow>(
         `SELECT * FROM record
-         WHERE pod_name = $(pod_name)
-           AND stream_name = $(stream_name)
+         WHERE stream_id = $(streamId)
+           
            AND name = $(name)
          ORDER BY index DESC
          LIMIT 1`,
-        { pod_name: podName, stream_name: normalizedStreamId, name: target },
+        { streamId, name: target },
       );
 
       // If not found as name and target is numeric, try as index
@@ -67,8 +64,8 @@ export async function getRecord(
         // Handle negative indexing
         if (index < 0) {
           const countResult = await ctx.db.one<{ count: string }>(
-            `SELECT COUNT(*) as count FROM record WHERE pod_name = $(pod_name) AND stream_name = $(stream_name)`,
-            { pod_name: podName, stream_name: normalizedStreamId },
+            `SELECT COUNT(*) as count FROM record WHERE stream_id = $(streamId) `,
+            { streamId },
           );
 
           index = parseInt(countResult.count) + index;
@@ -79,10 +76,10 @@ export async function getRecord(
 
         record = await ctx.db.oneOrNone<RecordDbRow>(
           `SELECT * FROM record
-           WHERE pod_name = $(pod_name)
-             AND stream_name = $(stream_name)
+           WHERE stream_id = $(streamId)
+             
              AND index = $(index)`,
-          { pod_name: podName, stream_name: normalizedStreamId, index },
+          { streamId, index },
         );
       }
     } else if (isNumericIndex(target)) {
@@ -92,8 +89,8 @@ export async function getRecord(
       // Handle negative indexing
       if (index < 0) {
         const countResult = await ctx.db.one<{ count: string }>(
-          `SELECT COUNT(*) as count FROM record WHERE pod_name = $(pod_name) AND stream_name = $(stream_name)`,
-          { pod_name: podName, stream_name: normalizedStreamId },
+          `SELECT COUNT(*) as count FROM record WHERE stream_id = $(streamId) `,
+          { streamId },
         );
 
         index = parseInt(countResult.count) + index;
@@ -104,21 +101,21 @@ export async function getRecord(
 
       record = await ctx.db.oneOrNone<RecordDbRow>(
         `SELECT * FROM record
-         WHERE pod_name = $(pod_name)
-           AND stream_name = $(stream_name)
+         WHERE stream_id = $(streamId)
+           
            AND index = $(index)`,
-        { pod_name: podName, stream_name: normalizedStreamId, index },
+        { streamId, index },
       );
     } else {
       // Target is not numeric, treat as name - get the latest record with this name
       record = await ctx.db.oneOrNone<RecordDbRow>(
         `SELECT * FROM record
-         WHERE pod_name = $(pod_name)
-           AND stream_name = $(stream_name)
+         WHERE stream_id = $(streamId)
+           
            AND name = $(name)
          ORDER BY index DESC
          LIMIT 1`,
-        { pod_name: podName, stream_name: normalizedStreamId, name: target },
+        { streamId, name: target },
       );
     }
 

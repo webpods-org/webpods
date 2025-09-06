@@ -5,56 +5,78 @@
 import { DataContext } from "../data-context.js";
 import { StreamDbRow, RecordDbRow } from "../../db-types.js";
 import { createLogger } from "../../logger.js";
-import { normalizeStreamName } from "../../utils/stream-utils.js";
 
 const logger = createLogger("webpods:domain:permissions");
 
 export async function checkPermissionStream(
   ctx: DataContext,
   podName: string,
-  streamId: string,
+  streamPath: string,
   userId: string,
   action: "read" | "write",
 ): Promise<boolean> {
   try {
-    // Normalize stream name to ensure leading slash
-    const normalizedStreamId = normalizeStreamName(streamId);
-
     logger.debug("Checking permission stream", {
       podName,
-      streamId: normalizedStreamId,
+      streamPath,
       userId,
       action,
     });
 
-    // First check if the stream exists (using normalized name)
-    const stream = await ctx.db.oneOrNone<StreamDbRow>(
-      `SELECT * FROM stream
-       WHERE pod_name = $(pod_name)
-         AND name = $(name)`,
-      { pod_name: podName, name: normalizedStreamId },
-    );
+    // First resolve the stream path to get the stream
+    const segments = streamPath.split("/").filter(Boolean);
+    let currentStream: StreamDbRow | null = null;
+    let parentId: number | null = null;
+
+    // Traverse the path to find the stream
+    for (const segment of segments) {
+      const segmentStream: StreamDbRow | null = await ctx.db.oneOrNone<StreamDbRow>(
+        parentId === null
+          ? `SELECT * FROM stream 
+             WHERE pod_name = $(pod_name) 
+               AND name = $(name)
+               AND parent_id IS NULL`
+          : `SELECT * FROM stream 
+             WHERE pod_name = $(pod_name) 
+               AND name = $(name)
+               AND parent_id = $(parent_id)`,
+        { pod_name: podName, name: segment, parent_id: parentId },
+      );
+
+      if (!segmentStream) {
+        logger.warn("Permission stream not found", {
+          podName,
+          streamPath,
+          segment,
+        });
+        return false;
+      }
+
+      currentStream = segmentStream;
+      parentId = segmentStream.id;
+    }
+
+    const stream = currentStream;
 
     if (!stream) {
       logger.warn("Permission stream not found", {
         podName,
-        streamId: normalizedStreamId,
+        streamPath,
       });
       return false;
     }
 
     logger.info("Permission stream found", {
-      streamId: stream.name,
+      streamName: stream.name,
       podName: stream.pod_name,
     });
 
-    // Get ALL records from the permission stream (using normalized name)
+    // Get ALL records from the permission stream
     const records = await ctx.db.manyOrNone<RecordDbRow>(
       `SELECT * FROM record
-       WHERE pod_name = $(pod_name)
-         AND stream_name = $(stream_name)
+       WHERE stream_id = $(streamId)
        ORDER BY index ASC`,
-      { pod_name: podName, stream_name: normalizedStreamId },
+      { streamId: stream.id },
     );
 
     // Process records in memory to find the latest permission for this user
@@ -81,13 +103,13 @@ export async function checkPermissionStream(
     logger.info("Permission check result", {
       found: !!userPermission,
       userId,
-      streamId: stream.name,
+      streamName: stream.name,
       permission: userPermission,
       recordCount: records.length,
     });
 
     if (!userPermission) {
-      logger.debug("No permission found for user", { userId, streamId });
+      logger.debug("No permission found for user", { userId, streamPath });
       return false;
     }
 
@@ -105,7 +127,7 @@ export async function checkPermissionStream(
     logger.error("Failed to check permission stream", {
       error,
       podName,
-      streamId,
+      streamPath,
       userId,
     });
     return false;

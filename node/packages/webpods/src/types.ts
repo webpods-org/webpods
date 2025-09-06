@@ -49,8 +49,10 @@ export interface Pod {
 }
 
 export interface Stream {
-  podName: string; // Part of composite primary key
-  name: string; // Part of composite primary key - Stream path within pod (can include slashes)
+  id: number; // bigint primary key
+  podName: string; // References pod.name
+  name: string; // Stream name (no slashes - like directory name)
+  parentId: number | null; // References parent stream.id
   userId: string;
   accessPermission: string; // 'public', 'private', or '/streamname'
   metadata?: Record<string, unknown>;
@@ -60,12 +62,11 @@ export interface Stream {
 
 export interface StreamRecord {
   id: number;
-  podName: string; // References stream.podName
-  streamName: string; // References stream.name
+  streamId: number;
   index: number; // Position in stream (0-based)
   content: string | unknown; // Can be text or JSON
   contentType: string;
-  name: string; // Required name (like a filename)
+  name: string; // Required name (no slashes - like filename)
   contentHash: string; // SHA-256 hash of content only
   hash: string; // SHA-256 hash of (previous_hash + content_hash)
   previousHash: string | null;
@@ -94,10 +95,11 @@ export interface RateLimit {
 
 // API types
 export interface StreamRecordResponse {
+  name: string;
+  path: string; // Full path to this record (e.g., "/blog/posts/first-post")
   index: number; // Position in stream (0-based)
   content: unknown;
   contentType: string;
-  name: string;
   contentHash: string; // SHA-256 hash of content only
   hash: string; // SHA-256 hash of (previous_hash + content_hash)
   previousHash: string | null;
@@ -105,8 +107,15 @@ export interface StreamRecordResponse {
   timestamp: string;
 }
 
+export interface StreamInfo {
+  name: string;
+  path: string; // Full path to this stream (e.g., "/blog/posts")
+  createdAt: string;
+}
+
 export interface StreamListResponse {
   records: StreamRecordResponse[];
+  streams: StreamInfo[]; // Child streams in this directory
   total: number;
   hasMore: boolean;
   nextIndex: number | null; // Next index to fetch

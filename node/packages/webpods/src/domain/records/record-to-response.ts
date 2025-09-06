@@ -4,7 +4,10 @@
 
 import { StreamRecord, StreamRecordResponse } from "../../types.js";
 
-export function recordToResponse(record: StreamRecord): StreamRecordResponse {
+export function recordToResponse(
+  record: StreamRecord,
+  streamPath: string,
+): StreamRecordResponse {
   let content = record.content;
 
   // Parse JSON content if needed
@@ -19,11 +22,17 @@ export function recordToResponse(record: StreamRecord): StreamRecordResponse {
     }
   }
 
+  // Combine stream path with record name for full path
+  const fullPath = streamPath.endsWith("/")
+    ? `${streamPath}${record.name}`
+    : `${streamPath}/${record.name}`;
+
   return {
     index: record.index,
     content: content,
     contentType: record.contentType,
     name: record.name,
+    path: fullPath,
     contentHash: record.contentHash,
     hash: record.hash,
     previousHash: record.previousHash,

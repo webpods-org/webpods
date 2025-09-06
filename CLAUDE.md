@@ -85,6 +85,17 @@ The codebase follows a functional programming approach with these key directorie
 - **Always specify type parameters**: `db.one<UserDbRow>(...)`
 - **MIGRATION POLICY**: Never create new migration files. All schema changes go in `/database/webpods/migrations/20250810000000_initial_schema.js`
 
+### Query Optimization Guidelines
+
+- **Prefer simple separate queries over complex joins** when it only saves 1-3 database calls
+- **Use joins only to prevent N+1 query problems** (e.g., fetching data for many items in a loop)
+- **Prioritize code simplicity and readability** over minor performance optimizations
+- **Example**: Instead of a complex join to fetch owner record, use 3 simple queries:
+  1. Get config stream
+  2. Get owner stream (child of config)
+  3. Get owner record from owner stream
+- This approach makes the code easier to understand and maintain
+
 ## Git Workflow
 
 When the user asks you to commit and push:

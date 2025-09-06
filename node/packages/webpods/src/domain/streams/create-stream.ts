@@ -6,11 +6,9 @@ import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
 import { StreamDbRow, RecordDbRow } from "../../db-types.js";
 import { Stream } from "../../types.js";
-import { isValidStreamId } from "../../utils.js";
 import { createLogger } from "../../logger.js";
-import { sql } from "../../db/index.js";
 import { createError } from "../../utils/errors.js";
-import { normalizeStreamName } from "../../utils/stream-utils.js";
+import { isValidStreamName } from "../../utils/stream-utils.js";
 
 const logger = createLogger("webpods:domain:streams");
 
@@ -19,8 +17,10 @@ const logger = createLogger("webpods:domain:streams");
  */
 function mapStreamFromDb(row: StreamDbRow): Stream {
   return {
+    id: row.id,
     podName: row.pod_name,
     name: row.name,
+    parentId: row.parent_id || null,
     userId: row.user_id,
     accessPermission: row.access_permission,
     metadata: row.metadata,
@@ -34,23 +34,27 @@ export async function createStream(
   podName: string,
   streamName: string,
   userId: string,
+  parentId: number | null = null,
   accessPermission: string = "public",
 ): Promise<Result<Stream>> {
-  // Normalize stream name to ensure leading slash
-  const normalizedStreamName = normalizeStreamName(streamName);
-
-  // Validate stream ID (use original for validation in case validator expects no leading slash)
-  if (!isValidStreamId(streamName) && !isValidStreamId(normalizedStreamName)) {
-    return failure(createError("INVALID_STREAM_ID", "Invalid stream ID"));
+  // Validate stream name (no slashes allowed)
+  if (!isValidStreamName(streamName)) {
+    return failure(
+      createError(
+        "INVALID_STREAM_NAME",
+        "Invalid stream name - cannot contain slashes",
+      ),
+    );
   }
 
   try {
-    // Check if stream already exists (using normalized name)
+    // Check if stream already exists with same name in same parent
     const existingStream = await ctx.db.oneOrNone<StreamDbRow>(
       `SELECT * FROM stream 
-       WHERE pod_name = $(pod_name) 
-         AND name = $(name)`,
-      { pod_name: podName, name: normalizedStreamName },
+       WHERE pod_name = $(podName) 
+         AND name = $(name)
+         AND (parent_id = $(parentId) OR (parent_id IS NULL AND $(parentId)::bigint IS NULL))`,
+      { podName, name: streamName, parentId },
     );
 
     if (existingStream) {
@@ -60,56 +64,68 @@ export async function createStream(
     }
 
     // Check if user is the pod owner
-    const ownerRecord = await ctx.db.oneOrNone<RecordDbRow>(
-      `SELECT r.* FROM record r
-       WHERE r.pod_name = $(pod_name)
-         AND r.stream_name = '/.config/owner'
-         AND r.name = 'owner'
-       ORDER BY r.index DESC
-       LIMIT 1`,
-      { pod_name: podName },
+    // First find the .config/owner stream
+    const ownerStream = await ctx.db.oneOrNone<StreamDbRow>(
+      `SELECT * FROM stream
+       WHERE pod_name = $(podName)
+         AND name = 'owner'
+         AND parent_id IN (
+           SELECT id FROM stream 
+           WHERE pod_name = $(podName) 
+           AND name = '.config' 
+           AND parent_id IS NULL
+         )`,
+      { podName },
     );
 
-    if (ownerRecord) {
-      try {
-        const content = JSON.parse(ownerRecord.content);
-        const podOwner = content.owner;
+    if (ownerStream) {
+      const ownerRecord = await ctx.db.oneOrNone<RecordDbRow>(
+        `SELECT * FROM record
+         WHERE stream_id = $(streamId)
+           AND name = 'owner'
+         ORDER BY index DESC
+         LIMIT 1`,
+        { streamId: ownerStream.id },
+      );
 
-        // Only the pod owner can create new streams
-        if (podOwner !== userId) {
-          logger.warn("Non-owner attempted to create stream", {
-            podName,
-            streamName,
-            userId,
-            ownerId: podOwner,
-          });
-          return failure(
-            createError(
-              "FORBIDDEN",
-              "Only the pod owner can create new streams",
-            ),
-          );
+      if (ownerRecord) {
+        try {
+          const content = JSON.parse(ownerRecord.content);
+          const podOwner = content.owner;
+
+          // Only the pod owner can create new streams
+          if (podOwner !== userId) {
+            logger.warn("Non-owner attempted to create stream", {
+              podName,
+              streamName,
+              userId,
+              ownerId: podOwner,
+            });
+            return failure(
+              createError(
+                "FORBIDDEN",
+                "Only the pod owner can create new streams",
+              ),
+            );
+          }
+        } catch {
+          logger.warn("Failed to parse owner record", { podName });
         }
-      } catch {
-        // If we can't parse owner record, allow creation (backwards compatibility)
-        logger.warn("Failed to parse owner record, allowing stream creation", {
-          podName,
-        });
       }
     }
 
-    // Create new stream (with normalized name)
-    const params = {
-      pod_name: podName,
-      name: normalizedStreamName,
-      user_id: userId,
-      access_permission: accessPermission,
-      created_at: new Date(),
-    };
-
+    // Create new stream
     const stream = await ctx.db.one<StreamDbRow>(
-      `${sql.insert("stream", params)} RETURNING *`,
-      params,
+      `INSERT INTO stream (pod_name, name, parent_id, user_id, access_permission)
+       VALUES ($(podName), $(name), $(parentId), $(userId), $(accessPermission))
+       RETURNING *`,
+      {
+        podName,
+        name: streamName,
+        parentId,
+        userId,
+        accessPermission,
+      },
     );
 
     logger.info("Stream created", {

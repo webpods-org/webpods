@@ -43,42 +43,42 @@ export async function up(knex) {
     table.timestamp('updated_at').defaultTo(knex.fn.now());
   });
 
-  // Stream table - represents streams within pods (supports nested paths)
+  // Stream table - represents hierarchical streams within pods (like directories)
   await knex.schema.createTable('stream', (table) => {
+    table.bigIncrements('id').primary();
     table.string('pod_name', 63).references('name').inTable('pod').onDelete('CASCADE');
-    table.string('name', 256).notNullable(); // Stream path (can include slashes)
+    table.string('name', 256).notNullable(); // Stream name (no slashes allowed)
+    table.bigint('parent_id').references('id').inTable('stream').onDelete('CASCADE'); // Parent stream
     table.uuid('user_id').references('id').inTable('user').onDelete('RESTRICT');
     table.string('access_permission', 500).defaultTo('public');
     table.jsonb('metadata').defaultTo('{}');
     table.timestamp('created_at').defaultTo(knex.fn.now());
     table.timestamp('updated_at').defaultTo(knex.fn.now());
     
-    // Composite primary key
-    table.primary(['pod_name', 'name']);
+    // Can't have two streams with same name in same parent within a pod
+    table.unique(['pod_name', 'parent_id', 'name']);
+    // Index for efficient child lookups
+    table.index(['pod_name', 'parent_id']);
     table.index('user_id');
   });
 
-  // Record table - append-only records with hash chain
+  // Record table - append-only records with hash chain (like files)
   await knex.schema.createTable('record', (table) => {
     table.bigIncrements('id').primary();
-    table.string('pod_name', 63).notNullable();
-    table.string('stream_name', 256).notNullable();
+    table.bigint('stream_id').references('id').inTable('stream').onDelete('CASCADE');
     table.integer('index').notNullable(); // Position in stream (0-based)
     table.text('content'); // Can be text or JSON
     table.string('content_type', 100).defaultTo('text/plain');
-    table.string('name', 256).notNullable(); // Required name (like a filename)
+    table.string('name', 256).notNullable(); // Required name (no slashes - like a filename)
     table.string('content_hash', 100).notNullable(); // SHA-256 hash of content only
     table.string('hash', 100).notNullable(); // SHA-256 hash of (previous_hash + content_hash)
     table.string('previous_hash', 100); // NULL for first record
     table.uuid('user_id').references('id').inTable('user').onDelete('RESTRICT'); // User who created the record
     table.timestamp('created_at').defaultTo(knex.fn.now());
     
-    // Foreign key to stream composite primary key
-    table.foreign(['pod_name', 'stream_name']).references(['pod_name', 'name']).inTable('stream').onDelete('CASCADE');
-    
-    table.unique(['pod_name', 'stream_name', 'index']);
-    table.index(['pod_name', 'stream_name', 'index']);
-    table.index(['pod_name', 'stream_name', 'name']);
+    table.unique(['stream_id', 'index']);
+    table.index(['stream_id', 'index']);
+    table.index(['stream_id', 'name']);
     table.index('user_id');
     table.index('hash');
   });

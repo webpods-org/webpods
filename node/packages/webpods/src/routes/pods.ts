@@ -37,7 +37,7 @@ import { transferPodOwnership } from "../domain/pods/transfer-pod-ownership.js";
 import { getPodOwner } from "../domain/pods/get-pod-owner.js";
 import { getOrCreateStream } from "../domain/streams/get-or-create-stream.js";
 import { getStream } from "../domain/streams/get-stream.js";
-import { createStream } from "../domain/streams/create-stream.js";
+import { createStreamHierarchy } from "../domain/streams/create-stream-hierarchy.js";
 import { deleteStream } from "../domain/streams/delete-stream.js";
 import { writeRecord } from "../domain/records/write-record.js";
 import { getRecord } from "../domain/records/get-record.js";
@@ -466,7 +466,7 @@ router.post(
           return;
         }
 
-        const streamId = fullPath;
+        const streamPath = fullPath;
         const accessPermission = req.query.access as string | undefined;
 
         // Check if pod exists
@@ -481,19 +481,19 @@ router.post(
         }
 
         // Check if stream already exists
-        const existingStream = await getStream({ db }, req.podName, streamId);
+        const existingStream = await getStream({ db }, req.podName, streamPath);
         if (existingStream.success) {
           res.status(409).json({
             error: {
               code: "STREAM_ALREADY_EXISTS",
-              message: `Stream '${streamId}' already exists`,
+              message: `Stream '${streamPath}' already exists`,
             },
           });
           return;
         }
 
         // Check if this is a .config/* stream - only pod owner can create these
-        if (streamId.startsWith(".config/")) {
+        if (streamPath.startsWith(".config/")) {
           const ownerResult = await getPodOwner({ db }, req.podName);
           if (ownerResult.success && ownerResult.data !== req.auth.user_id) {
             res.status(403).json({
@@ -523,11 +523,11 @@ router.post(
           return;
         }
 
-        // Create the stream
-        const createResult = await createStream(
+        // Create the stream hierarchy
+        const createResult = await createStreamHierarchy(
           { db },
           req.podName,
-          streamId,
+          streamPath,
           req.auth.user_id,
           accessPermission || "public",
         );
@@ -596,8 +596,8 @@ router.post(
         return;
       }
 
-      const streamId = pathParts.length > 0 ? pathParts.join("/") : "/"; // Use '/' for root stream
-      logger.debug("Stream ID for writing", { pathParts, streamId, fullPath });
+      const streamPath = pathParts.length > 0 ? pathParts.join("/") : "/"; // Use '/' for root stream
+      logger.debug("Stream ID for writing", { pathParts, streamPath, fullPath });
       let content = writeSchema.parse(req.body);
       let contentType = detectContentType(req.headers);
       const accessPermission = req.query.access as string | undefined;
@@ -687,7 +687,7 @@ router.post(
       }
 
       // Check if stream exists first
-      const existingStream = await getStream({ db }, req.podName, streamId);
+      const existingStream = await getStream({ db }, req.podName, streamPath);
 
       // If stream doesn't exist, check rate limit before creating
       if (!existingStream.success) {
@@ -712,7 +712,7 @@ router.post(
       const streamResult = await getOrCreateStream(
         { db },
         req.podName,
-        streamId,
+        streamPath,
         req.auth!.user_id,
         accessPermission,
       );
@@ -733,7 +733,7 @@ router.post(
       // Note: stream_create rate limit was already incremented by checkRateLimit above
 
       // Check if this is a .config/* stream - only pod owner can write to these
-      if (streamId.startsWith(".config/")) {
+      if (streamPath.startsWith(".config/")) {
         const ownerResult = await getPodOwner({ db }, req.podName);
         if (ownerResult.success && ownerResult.data !== req.auth.user_id) {
           res.status(403).json({
@@ -765,8 +765,7 @@ router.post(
       // Write record
       const recordResult = await writeRecord(
         { db },
-        req.podName,
-        streamId,
+        streamResult.data.stream.id,
         content,
         contentType,
         req.auth.user_id,
@@ -788,7 +787,7 @@ router.post(
         return;
       }
 
-      res.status(201).json(recordToResponse(recordResult.data));
+      res.status(201).json(recordToResponse(recordResult.data, streamPath));
     } catch (error) {
       if (error instanceof z.ZodError) {
         res.status(400).json({
@@ -861,21 +860,21 @@ router.get(
 
     if (linkResult.success && linkResult.data) {
       // Redirect to the mapped stream/record
-      const { streamId, target } = linkResult.data;
+      const { streamPath, target } = linkResult.data;
 
       // Rewrite URL and forward to the stream handler
       if (target && target.startsWith("?")) {
         // Handle query parameters (e.g., "?i=-1")
-        req.url = `/${streamId}${target}`;
+        req.url = `/${streamPath}${target}`;
         req.query = Object.fromEntries(
           new URLSearchParams(target.substring(1)),
         );
       } else if (target) {
         // Handle path targets (e.g., "/record-name")
-        req.url = `/${streamId}${target}`;
+        req.url = `/${streamPath}${target}`;
       } else {
         // Just stream name
-        req.url = `/${streamId}`;
+        req.url = `/${streamPath}`;
       }
 
       // Let Express router handle the rewritten request
@@ -949,21 +948,21 @@ router.get(
 
     if (linkResult.success && linkResult.data) {
       // Redirect to the mapped stream/record
-      const { streamId, target } = linkResult.data;
+      const { streamPath, target } = linkResult.data;
 
       // Rewrite URL and forward to the stream handler
       if (target && target.startsWith("?")) {
         // Handle query parameters (e.g., "?i=-1")
-        req.url = `/${streamId}${target}`;
+        req.url = `/${streamPath}${target}`;
         req.query = Object.fromEntries(
           new URLSearchParams(target.substring(1)),
         );
       } else if (target) {
         // Handle path targets (e.g., "/record-name")
-        req.url = `/${streamId}${target}`;
+        req.url = `/${streamPath}${target}`;
       } else {
         // Just stream name
-        req.url = `/${streamId}`;
+        req.url = `/${streamPath}`;
       }
 
       // Let Express router handle the rewritten request
@@ -974,12 +973,12 @@ router.get(
     const indexQuery = req.query.i as string | undefined;
 
     // Determine if last part is a name or part of stream path
-    let streamId: string;
+    let streamPath: string;
     let name: string | undefined;
 
     if (indexQuery) {
-      // If using index query, entire path is stream ID
-      streamId = pathParts.join("/");
+      // If using index query, entire path is stream path
+      streamPath = pathParts.join("/");
     } else if (pathParts.length > 1) {
       // Check if last part could be a name (not using index query)
       // Try to find stream with full path first
@@ -987,18 +986,18 @@ router.get(
       const streamResult = await getStream({ db }, req.podName, fullPath);
 
       if (streamResult.success && streamResult.data) {
-        streamId = fullPath;
+        streamPath = fullPath;
       } else {
         // Assume last part is name
         name = pathParts.pop();
-        streamId = pathParts.join("/");
+        streamPath = pathParts.join("/");
       }
     } else {
-      streamId = pathParts[0]!;
+      streamPath = pathParts[0]!;
     }
 
     // Get stream
-    const streamResult = await getStream({ db }, req.podName, streamId);
+    const streamResult = await getStream({ db }, req.podName, streamPath);
 
     // Special handling for recursive queries - they can work even if exact stream doesn't exist
     const recursive = req.query.recursive === "true";
@@ -1035,7 +1034,7 @@ router.get(
         const result = await listRecordsRecursive(
           { db },
           req.podName,
-          streamId,
+          streamPath,
           req.auth?.user_id || null,
           limit,
           after,
@@ -1050,7 +1049,7 @@ router.get(
 
         const data = result.data;
         res.json({
-          records: data.records.map(recordToResponse),
+          records: data.records.map((r) => recordToResponse(r, streamPath)),
           total: data.total,
           hasMore: data.hasMore,
           nextIndex:
@@ -1068,7 +1067,7 @@ router.get(
         res.status(404).json({
           error: {
             code: "NOT_FOUND",
-            message: `Not found: no stream '${fullPath}' and no stream '${streamId}' with record '${name}'`,
+            message: `Not found: no stream '${fullPath}' and no stream '${streamPath}' with record '${name}'`,
           },
         });
       } else {
@@ -1076,7 +1075,7 @@ router.get(
         res.status(404).json({
           error: {
             code: "STREAM_NOT_FOUND",
-            message: `Stream '${streamId}' not found`,
+            message: `Stream '${streamPath}' not found`,
           },
         });
       }
@@ -1117,7 +1116,7 @@ router.get(
         const result = await getRecord(
           { db },
           req.podName,
-          streamResult.data.name,
+          streamResult.data.id,
           parsed.start.toString(),
           false,
         );
@@ -1193,7 +1192,7 @@ router.get(
         const result = await getRecordRange(
           { db },
           req.podName,
-          streamResult.data.name,
+          streamResult.data.id,
           parsed.start,
           parsed.end!,
         );
@@ -1206,7 +1205,7 @@ router.get(
         }
 
         res.json({
-          records: result.data.map(recordToResponse),
+          records: result.data.map((r) => recordToResponse(r, streamPath)),
           range: { start: parsed.start, end: parsed.end },
           total: result.data.length,
         });
@@ -1216,7 +1215,7 @@ router.get(
       const result = await getRecord(
         { db },
         req.podName,
-        streamResult.data.name,
+        streamResult.data.id,
         name,
         true,
       );
@@ -1232,15 +1231,13 @@ router.get(
       const tombstonePattern = `${name}.deleted.%`;
       const tombstones = await db.manyOrNone(
         `SELECT * FROM record
-         WHERE pod_name = $(podName)
-           AND stream_name = $(streamId)
+         WHERE stream_id = $(streamId)
            AND name LIKE $(pattern)
            AND index > $(index)
          ORDER BY index DESC
          LIMIT 1`,
         {
-          podName: req.podName,
-          streamId: streamResult.data.name,
+          streamId: streamResult.data.id,
           pattern: tombstonePattern,
           index: result.data.index,
         },
@@ -1350,7 +1347,7 @@ router.get(
         result = await listRecordsRecursive(
           { db },
           req.podName,
-          streamResult.data.name,
+          streamPath,
           req.auth?.user_id || null,
           limit,
           after,
@@ -1359,7 +1356,7 @@ router.get(
         result = await listUniqueRecords(
           { db },
           req.podName,
-          streamResult.data.name,
+          streamResult.data.id,
           limit,
           after,
         );
@@ -1367,7 +1364,7 @@ router.get(
         result = await listRecords(
           { db },
           req.podName,
-          streamResult.data.name,
+          streamResult.data.id,
           limit,
           after,
         );
@@ -1387,7 +1384,7 @@ router.get(
         hasMore: boolean;
       };
       res.json({
-        records: data.records.map(recordToResponse),
+        records: data.records.map((r) => recordToResponse(r, streamPath)),
         total: data.total,
         hasMore: data.hasMore,
         nextIndex:
@@ -1431,7 +1428,7 @@ router.delete(
 
     // Check if we're trying to delete a record or a stream
     // Similar logic to GET - check if full path is a stream first
-    let streamId: string;
+    let streamPath: string;
     let recordName: string | undefined;
 
     if (pathParts.length > 1) {
@@ -1440,18 +1437,18 @@ router.delete(
 
       if (streamResult.success && streamResult.data) {
         // Full path is a stream, delete the stream
-        streamId = fullPath;
+        streamPath = fullPath;
       } else {
         // Try as record in parent stream
         recordName = pathParts.pop();
-        streamId = pathParts.join("/");
+        streamPath = pathParts.join("/");
       }
     } else {
-      streamId = pathParts[0]!;
+      streamPath = pathParts[0]!;
     }
 
     // Prevent deletion of system streams via this endpoint
-    if (!recordName && streamId && isSystemStream(streamId)) {
+    if (!recordName && streamPath && isSystemStream(streamPath)) {
       res.status(403).json({
         error: {
           code: "FORBIDDEN",
@@ -1475,14 +1472,14 @@ router.delete(
 
     if (recordName) {
       // Delete or purge a record
-      const streamResult = await getStream({ db }, req.podName, streamId);
+      const streamResult = await getStream({ db }, req.podName, streamPath);
 
       if (!streamResult.success || !streamResult.data) {
         const fullPath = req.path.substring(1);
         res.status(404).json({
           error: {
             code: "NOT_FOUND",
-            message: `Not found: no stream '${fullPath}' and no stream '${streamId}' with record '${recordName}'`,
+            message: `Not found: no stream '${fullPath}' and no stream '${streamPath}' with record '${recordName}'`,
           },
         });
         return;
@@ -1494,12 +1491,10 @@ router.delete(
           `UPDATE record
            SET content = $(content),
                content_type = $(contentType)
-           WHERE pod_name = $(podName)
-             AND stream_name = $(streamId)
+           WHERE stream_id = $(streamId)
              AND name = $(recordName)`,
           {
-            podName: req.podName,
-            streamId: streamResult.data.name,
+            streamId: streamResult.data.id,
             recordName,
             content: JSON.stringify({
               deleted: true,
@@ -1516,7 +1511,7 @@ router.delete(
           res.status(404).json({
             error: {
               code: "RECORD_NOT_FOUND",
-              message: `Record '${recordName}' not found in stream '${streamId}'`,
+              message: `Record '${recordName}' not found in stream '${streamPath}'`,
             },
           });
           return;
@@ -1524,7 +1519,7 @@ router.delete(
 
         logger.info("Record purged", {
           podId: req.podName,
-          streamId,
+          streamPath,
           recordName,
           userId: req.auth.user_id,
         });
@@ -1534,13 +1529,11 @@ router.delete(
         // Get the next index for the tombstone
         const lastRecord = await db.oneOrNone(
           `SELECT * FROM record
-           WHERE pod_name = $(podName)
-             AND stream_name = $(streamId)
+           WHERE stream_id = $(streamId)
            ORDER BY index DESC
            LIMIT 1`,
           {
-            podName: req.podName,
-            streamId: streamResult.data.name,
+            streamId: streamResult.data.id,
           },
         );
 
@@ -1556,8 +1549,7 @@ router.delete(
 
         const writeResult = await writeRecord(
           { db },
-          req.podName,
-          streamResult.data.name,
+          streamResult.data.id,
           deletionRecord,
           "application/json",
           req.auth.user_id,
@@ -1573,7 +1565,7 @@ router.delete(
 
         logger.info("Record soft deleted", {
           podId: req.podName,
-          streamId,
+          streamPath,
           recordName,
           userId: req.auth.user_id,
         });
@@ -1581,10 +1573,23 @@ router.delete(
       }
     } else {
       // Delete entire stream
+      // First get the stream to get its ID
+      const streamResult = await getStream({ db }, req.podName, streamPath);
+      
+      if (!streamResult.success || !streamResult.data) {
+        res.status(404).json({
+          error: {
+            code: "STREAM_NOT_FOUND",
+            message: `Stream '${streamPath}' not found`,
+          },
+        });
+        return;
+      }
+      
       const result = await deleteStream(
         { db },
         req.podName,
-        streamId,
+        streamResult.data.id,
         req.auth!.user_id,
       );
 
