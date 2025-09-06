@@ -126,11 +126,6 @@ describe("WebPods Stream Operations", () => {
       );
       expect(stream.access_permission).to.equal("private");
     });
-
-    // Stream type field has been removed - skipping this test
-    it.skip("should create stream with type field", async () => {
-      // This test is no longer applicable as stream_type has been removed
-    });
   });
 
   describe("Writing Records", () => {

@@ -23,7 +23,6 @@ When you begin working on this project, you MUST:
    - `/README.md` - Project overview and API specification
    - `/CODING-STANDARDS.md` - Mandatory coding patterns and conventions
    - `/docs/architecture.md` - System architecture and design decisions
-   - `/docs/database.md` - Database schema and migrations
    - `.env.example` - Configuration options
 
 Only after reading these documents should you proceed with any implementation or analysis tasks.
@@ -83,8 +82,6 @@ The codebase follows a functional programming approach with these key directorie
 - **Always use named parameters**: `$(paramName)` not `$1`
 - **Always specify type parameters**: `db.one<UserDbRow>(...)`
 - **MIGRATION POLICY**: Never create new migration files. All schema changes go in `/database/webpods/migrations/20250810000000_initial_schema.js`
-
-For detailed schema information, see `/docs/database.md`
 
 ## Git Workflow
 

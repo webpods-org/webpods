@@ -224,13 +224,13 @@ Streams are created automatically when you write the first record, or can be cre
 
 ```bash
 # Create a public stream (default)
-pod stream create my-pod blog/posts
+pod stream create my-pod /blog/posts
 
 # Create a private stream
-pod stream create my-pod private-notes --access private
+pod stream create my-pod /private-notes --access private
 
 # Create a stream with custom permissions
-pod stream create my-pod team-docs --access /team-permissions
+pod stream create my-pod /team-docs --access /team-permissions
 ```
 
 #### HTTP
@@ -256,19 +256,19 @@ curl -X POST https://my-pod.webpods.org/auto-stream/first-record \
 
 ```bash
 # Write text content (stream auto-creates)
-pod write my-pod blog/posts/first-post "This is my first blog post!"
+pod write my-pod /blog/posts/first-post "This is my first blog post!"
 
 # Write from file (stream auto-creates)
-pod write my-pod data/users/alice @user.json
+pod write my-pod /data/users/alice @user.json
 
 # Write from stdin (stream auto-creates)
-echo "Hello, World!" | pod write my-pod messages/greeting -
+echo "Hello, World!" | pod write my-pod /messages/greeting -
 
 # Write with specific content type (stream auto-creates)
-pod write my-pod styles/main.css @style.css --content-type text/css
+pod write my-pod /styles/main.css @style.css --content-type text/css
 
 # Write to private stream (specify access on first write)
-pod write my-pod private-notes/secret "My secret" --access private
+pod write my-pod /private-notes/secret "My secret" --access private
 ```
 
 #### HTTP
@@ -297,20 +297,20 @@ curl -X POST https://my-pod.webpods.org/private-notes/secret?access=private \
 
 ```bash
 # Read by name
-pod read my-pod blog/posts/first-post
+pod read my-pod /blog/posts/first-post
 
 # Read by index
-pod read my-pod blog/posts --index 0    # First record
-pod read my-pod blog/posts --index -1   # Latest record
+pod read my-pod /blog/posts --index 0    # First record
+pod read my-pod /blog/posts --index -1   # Latest record
 
 # Save to file
-pod read my-pod blog/posts/first-post -o post.txt
+pod read my-pod /blog/posts/first-post -o post.txt
 
 # Show metadata
-pod read my-pod blog/posts/first-post --metadata
+pod read my-pod /blog/posts/first-post --metadata
 
 # Read without a name (gets latest)
-pod read my-pod blog/posts
+pod read my-pod /blog/posts
 ```
 
 #### HTTP
@@ -339,10 +339,10 @@ WebPods supports two deletion modes:
 
 ```bash
 # Soft delete a record (creates tombstone)
-pod delete my-pod blog/posts/old-post
+pod delete my-pod /blog/posts/old-post
 
 # Hard delete/purge a record (overwrites content)
-pod delete my-pod blog/posts/old-post --purge
+pod delete my-pod /blog/posts/old-post --purge
 ```
 
 #### HTTP
@@ -498,17 +498,17 @@ Streams are created automatically when you write the first record, or can be cre
 
 ```bash
 # Create a public stream (default)
-pod stream create my-pod blog/posts
+pod stream create my-pod /blog/posts
 
 # Create nested streams
-pod stream create my-pod projects/webapp/logs
-pod stream create my-pod teams/engineering/members
+pod stream create my-pod /projects/webapp/logs
+pod stream create my-pod /teams/engineering/members
 
 # Create a private stream
-pod stream create my-pod private-notes --access private
+pod stream create my-pod /private-notes --access private
 
 # Create a stream with custom permissions
-pod stream create my-pod members --access /team-permissions
+pod stream create my-pod /members --access /team-permissions
 ```
 
 #### HTTP
@@ -560,7 +560,7 @@ curl https://my-pod.webpods.org/.config/api/streams \
 #### CLI
 
 ```bash
-pod stream delete my-pod old-stream --force
+pod stream delete my-pod /old-stream --force
 ```
 
 #### HTTP
@@ -600,13 +600,13 @@ Permissions are set when creating streams, not when writing records.
 
 ```bash
 # Create a public stream (default)
-pod stream create my-pod public-blog
+pod stream create my-pod /public-blog
 
 # Create a private stream
-pod stream create my-pod private-notes --access private
+pod stream create my-pod /private-notes --access private
 
 # Create a stream with custom permissions (users in permission stream)
-pod stream create my-pod team-docs --access /team-permissions
+pod stream create my-pod /team-docs --access /team-permissions
 ```
 
 #### HTTP
@@ -627,16 +627,16 @@ curl -X POST https://my-pod.webpods.org/team-docs?access=/team-permissions \
 
 ```bash
 # Grant read access
-pod grant my-pod team-permissions user-123 --read
+pod grant my-pod /team-permissions user-123 --read
 
 # Grant read and write access
-pod grant my-pod team-permissions user-456 --read --write
+pod grant my-pod /team-permissions user-456 --read --write
 
 # Revoke access
-pod revoke my-pod team-permissions user-789
+pod revoke my-pod /team-permissions user-789
 
 # List permissions
-pod permissions my-pod team-permissions
+pod permissions my-pod /team-permissions
 ```
 
 #### HTTP
@@ -1004,10 +1004,10 @@ Every record has a SHA-256 hash and links to the previous record:
 
 ```bash
 # View hash chain
-pod verify my-pod stream-name --show-chain
+pod verify my-pod /stream-name --show-chain
 
 # Verify integrity
-pod verify my-pod stream-name --check-integrity
+pod verify my-pod /stream-name --check-integrity
 ```
 
 #### HTTP
@@ -1113,18 +1113,18 @@ pod export my-pod -o my-pod-backup.json
 pod export my-pod --exclude-config  # Exclude .config/ streams
 
 # Verify stream integrity (check hash chain)
-pod verify my-pod stream-name
-pod verify my-pod stream-name --show-chain
-pod verify my-pod stream-name --check-integrity
+pod verify my-pod /stream-name
+pod verify my-pod /stream-name --show-chain
+pod verify my-pod /stream-name --check-integrity
 
 # Grant/revoke permissions
-pod grant my-pod permission-stream user-id --read
-pod grant my-pod permission-stream user-id --write
-pod grant my-pod permission-stream user-id --read --write
-pod revoke my-pod permission-stream user-id
+pod grant my-pod /permission-stream user-id --read
+pod grant my-pod /permission-stream user-id --write
+pod grant my-pod /permission-stream user-id --read --write
+pod revoke my-pod /permission-stream user-id
 
 # Manage links (URL routing)
-pod links set my-pod /about blog/about-page
+pod links set my-pod /about /blog/about-page
 pod links list my-pod
 pod links remove my-pod /about
 
