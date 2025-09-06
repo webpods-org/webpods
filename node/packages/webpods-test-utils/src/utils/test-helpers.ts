@@ -112,7 +112,14 @@ export async function createTestPod(
   await db.none(
     `INSERT INTO record (stream_id, index, content, content_type, name, content_hash, hash, previous_hash, user_id, created_at)
      VALUES ($(streamId), 0, $(content), 'application/json', 'owner', $(contentHash), $(hash), NULL, $(ownerId), $(timestamp))`,
-    { streamId: ownerStream.id, content, contentHash, hash, ownerId, timestamp },
+    {
+      streamId: ownerStream.id,
+      content,
+      contentHash,
+      hash,
+      ownerId,
+      timestamp,
+    },
   );
 }
 

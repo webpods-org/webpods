@@ -30,18 +30,19 @@ export async function checkPermissionStream(
 
     // Traverse the path to find the stream
     for (const segment of segments) {
-      const segmentStream: StreamDbRow | null = await ctx.db.oneOrNone<StreamDbRow>(
-        parentId === null
-          ? `SELECT * FROM stream 
+      const segmentStream: StreamDbRow | null =
+        await ctx.db.oneOrNone<StreamDbRow>(
+          parentId === null
+            ? `SELECT * FROM stream 
              WHERE pod_name = $(pod_name) 
                AND name = $(name)
                AND parent_id IS NULL`
-          : `SELECT * FROM stream 
+            : `SELECT * FROM stream 
              WHERE pod_name = $(pod_name) 
                AND name = $(name)
                AND parent_id = $(parent_id)`,
-        { pod_name: podName, name: segment, parent_id: parentId },
-      );
+          { pod_name: podName, name: segment, parent_id: parentId },
+        );
 
       if (!segmentStream) {
         logger.warn("Permission stream not found", {

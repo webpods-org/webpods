@@ -109,10 +109,14 @@ describe("WebPods Authentication", () => {
 
       // Create the stream first
       const createResponse = await client.createStream("protected-stream");
-      
+
       // Debug: Check if stream creation succeeded
       if (createResponse.status !== 201) {
-        console.error("Stream creation failed:", createResponse.status, createResponse.data);
+        console.error(
+          "Stream creation failed:",
+          createResponse.status,
+          createResponse.data,
+        );
       }
 
       const response = await client.post(

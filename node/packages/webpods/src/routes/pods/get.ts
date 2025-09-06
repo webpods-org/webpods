@@ -1,0 +1,538 @@
+/**
+ * Main GET handler for content retrieval
+ */
+
+import {
+  Response,
+  NextFunction,
+  AuthRequest,
+  readMiddleware,
+  createRouteLogger,
+  parseIndexQuery,
+  isBinaryContentType,
+} from "./shared.js";
+import { getDb } from "../../db/index.js";
+import { getConfig } from "../../config-loader.js";
+import { getStream } from "../../domain/streams/get-stream.js";
+import { getRecord } from "../../domain/records/get-record.js";
+import { getRecordRange } from "../../domain/records/get-record-range.js";
+import { listRecords } from "../../domain/records/list-records.js";
+import { listUniqueRecords } from "../../domain/records/list-unique-records.js";
+import { listRecordsRecursive } from "../../domain/records/list-records-recursive.js";
+import { recordToResponse } from "../../domain/records/record-to-response.js";
+import { canRead } from "../../domain/permissions/can-read.js";
+import { resolveLink } from "../../domain/routing/resolve-link.js";
+import type { StreamRecord } from "../../types.js";
+
+const logger = createRouteLogger("get");
+
+/**
+ * Main content retrieval handler
+ * GET {pod}.webpods.org/{stream_path} - List records
+ * GET {pod}.webpods.org/{stream_path}?i=0 - Get by index
+ * GET {pod}.webpods.org/{stream_path}?i=10:20 - Get range
+ * GET {pod}.webpods.org/{stream_path}/{name} - Get by name
+ */
+export const getHandler = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  // If no pod_id was extracted, this is the main domain - skip to next handler
+  if (!req.podName) {
+    return next();
+  }
+
+  if (!req.pod) {
+    // On subdomains, return POD_NOT_FOUND
+    // On main domain (even with rootPod), fall through to generic 404
+    const hostname = req.hostname || req.headers.host?.split(":")[0] || "";
+    const config = getConfig();
+    const mainDomain = config.server.public?.hostname || "localhost";
+    const port = config.server.public?.port || config.server.port;
+
+    // Check if this is the main domain (with or without port)
+    const isMainDomain =
+      hostname === mainDomain ||
+      hostname === `${mainDomain}:${port}` ||
+      (hostname === "localhost" && mainDomain === "localhost");
+
+    if (isMainDomain) {
+      // Main domain - fall through to 404 handler
+      return next();
+    }
+
+    // Subdomain - pod not found
+    res.status(404).json({
+      error: {
+        code: "POD_NOT_FOUND",
+        message: "Pod not found",
+      },
+    });
+    return;
+  }
+
+  const pathParts = req.path.substring(1).split("/"); // Remove leading /
+  const db = getDb();
+
+  // First check if this path is mapped in .config/routing
+  const linkResult = await resolveLink({ db }, req.podName, req.path);
+
+  if (linkResult.success && linkResult.data) {
+    // Redirect to the mapped stream/record
+    const { streamPath, target } = linkResult.data;
+
+    // Rewrite URL and forward to the stream handler
+    if (target && target.startsWith("?")) {
+      // Handle query parameters (e.g., "?i=-1")
+      req.url = `/${streamPath}${target}`;
+      req.query = Object.fromEntries(new URLSearchParams(target.substring(1)));
+    } else if (target) {
+      // Handle path targets (e.g., "/record-name")
+      req.url = `/${streamPath}${target}`;
+    } else {
+      // Just stream name
+      req.url = `/${streamPath}`;
+    }
+
+    // Let Express router handle the rewritten request
+    // Note: In the extracted version, we'll need to handle this differently
+    // For now, we'll just note this needs special handling in the index router
+    logger.debug("Link resolved, would redirect", {
+      from: req.path,
+      to: req.url,
+    });
+    // This needs to be handled by recursively calling the router
+    // which will be done in the index.ts file
+    return next();
+  }
+
+  // Check for index query parameter
+  const indexQuery = req.query.i as string | undefined;
+
+  // Determine if last part is a name or part of stream path
+  let streamPath: string;
+  let name: string | undefined;
+
+  if (indexQuery) {
+    // If using index query, entire path is stream path
+    streamPath = pathParts.join("/");
+  } else if (pathParts.length > 1) {
+    // Check if last part could be a name (not using index query)
+    // Try to find stream with full path first
+    const fullPath = pathParts.join("/");
+    const streamResult = await getStream({ db }, req.podName, fullPath);
+
+    if (streamResult.success && streamResult.data) {
+      streamPath = fullPath;
+    } else {
+      // Assume last part is name
+      name = pathParts.pop();
+      streamPath = pathParts.join("/");
+    }
+  } else {
+    streamPath = pathParts[0]!;
+  }
+
+  // Get stream
+  const streamResult = await getStream({ db }, req.podName, streamPath);
+
+  // Special handling for recursive queries - they can work even if exact stream doesn't exist
+  const recursive = req.query.recursive === "true";
+
+  if (!streamResult.success || !streamResult.data) {
+    // If this is a recursive query and we're not looking for a specific record,
+    // we can still search for nested streams
+    if (recursive && !name && !indexQuery) {
+      // Try to find nested streams even if the exact stream doesn't exist
+      const config = getConfig();
+      const maxLimit = config.rateLimits.maxRecordLimit;
+
+      let limit = parseInt(req.query.limit as string) || 100;
+      if (limit > maxLimit) {
+        limit = maxLimit;
+      }
+
+      const after = req.query.after
+        ? parseInt(req.query.after as string)
+        : undefined;
+      const unique = req.query.unique === "true";
+
+      if (unique) {
+        res.status(400).json({
+          error: {
+            code: "INVALID_PARAMETERS",
+            message: "Cannot use 'unique' and 'recursive' parameters together",
+          },
+        });
+        return;
+      }
+
+      const result = await listRecordsRecursive(
+        { db },
+        req.podName,
+        streamPath,
+        req.auth?.user_id || null,
+        limit,
+        after,
+      );
+
+      if (!result.success) {
+        res.status(500).json({
+          error: result.error,
+        });
+        return;
+      }
+
+      const data = result.data;
+      res.json({
+        records: data.records.map((r) => recordToResponse(r, streamPath)),
+        total: data.total,
+        hasMore: data.hasMore,
+        nextIndex:
+          data.hasMore && data.records.length > 0
+            ? data.records[data.records.length - 1]?.index
+            : null,
+      });
+      return;
+    }
+
+    // Regular non-recursive case - stream not found
+    const fullPath = req.path.substring(1);
+    if (name) {
+      // We were looking for a record in a stream that doesn't exist
+      res.status(404).json({
+        error: {
+          code: "NOT_FOUND",
+          message: `Not found: no stream '${fullPath}' and no stream '${streamPath}' with record '${name}'`,
+        },
+      });
+    } else {
+      // We were looking for a stream
+      res.status(404).json({
+        error: {
+          code: "STREAM_NOT_FOUND",
+          message: `Stream '${streamPath}' not found`,
+        },
+      });
+    }
+    return;
+  }
+
+  // Check read permission
+  const canReadResult = await canRead(
+    { db },
+    streamResult.data,
+    req.auth?.user_id || null,
+  );
+  if (!canReadResult) {
+    res.status(403).json({
+      error: {
+        code: "FORBIDDEN",
+        message: "No read permission for this stream",
+      },
+    });
+    return;
+  }
+
+  // Handle index query parameter
+  if (indexQuery) {
+    const parsed = parseIndexQuery(indexQuery);
+    if (!parsed) {
+      res.status(400).json({
+        error: {
+          code: "INVALID_INDEX",
+          message: "Invalid index format. Use ?i=0, ?i=-1, or ?i=10:20",
+        },
+      });
+      return;
+    }
+
+    if (parsed.type === "single") {
+      // Single record by index (don't prefer name when using ?i=)
+      const result = await getRecord(
+        { db },
+        req.podName,
+        streamResult.data.id,
+        parsed.start.toString(),
+        false,
+      );
+
+      if (!result.success) {
+        res.status(404).json({
+          error: result.error,
+        });
+        return;
+      }
+
+      // Check if record is deleted
+      const record = result.data;
+      try {
+        const content =
+          typeof record.content === "string" &&
+          record.contentType === "application/json"
+            ? JSON.parse(record.content)
+            : record.content;
+
+        if (
+          typeof content === "object" &&
+          content !== null &&
+          content.deleted === true
+        ) {
+          res.status(404).json({
+            error: {
+              code: "RECORD_DELETED",
+              message: "Record has been deleted",
+            },
+          });
+          return;
+        }
+      } catch {
+        // Not JSON or can't parse, continue normally
+      }
+
+      // Return raw content for single records
+      // Set headers
+      res.setHeader("X-Content-Hash", record.contentHash);
+      res.setHeader("X-Hash", record.hash);
+      res.setHeader("X-Previous-Hash", record.previousHash || "");
+      res.setHeader("X-Author", record.userId);
+      res.setHeader("X-Timestamp", record.createdAt.toISOString());
+
+      // Set content type and send response
+      res.type(record.contentType);
+
+      // Handle different content types
+      if (isBinaryContentType(record.contentType)) {
+        // Decode base64 for binary content
+        const contentStr =
+          typeof record.content === "string"
+            ? record.content
+            : String(record.content);
+        const buffer = Buffer.from(contentStr, "base64");
+        res.send(buffer);
+      } else if (
+        record.contentType === "application/json" &&
+        typeof record.content === "string"
+      ) {
+        // Parse JSON content if needed
+        try {
+          res.send(JSON.parse(record.content));
+        } catch {
+          res.send(record.content);
+        }
+      } else {
+        res.send(record.content);
+      }
+    } else {
+      // Range of records
+      const result = await getRecordRange(
+        { db },
+        req.podName,
+        streamResult.data.id,
+        parsed.start,
+        parsed.end!,
+      );
+
+      if (!result.success) {
+        res.status(500).json({
+          error: result.error,
+        });
+        return;
+      }
+
+      res.json({
+        records: result.data.map((r) => recordToResponse(r, streamPath)),
+        range: { start: parsed.start, end: parsed.end },
+        total: result.data.length,
+      });
+    }
+  } else if (name) {
+    // Get by name (prefer name over index for path-based access)
+    const result = await getRecord(
+      { db },
+      req.podName,
+      streamResult.data.id,
+      name,
+      true,
+    );
+
+    if (!result.success) {
+      res.status(404).json({
+        error: result.error,
+      });
+      return;
+    }
+
+    // Check if there's a tombstone record for this name that's newer than the current record
+    const tombstonePattern = `${name}.deleted.%`;
+    const tombstones = await db.manyOrNone(
+      `SELECT * FROM record
+       WHERE stream_id = $(streamId)
+         AND name LIKE $(pattern)
+         AND index > $(index)
+       ORDER BY index DESC
+       LIMIT 1`,
+      {
+        streamId: streamResult.data.id,
+        pattern: tombstonePattern,
+        index: result.data.index,
+      },
+    );
+
+    if (tombstones.length > 0) {
+      // Found a newer tombstone, so this record is considered deleted
+      res.status(404).json({
+        error: {
+          code: "RECORD_DELETED",
+          message: "Record has been deleted",
+        },
+      });
+      return;
+    }
+
+    // Check if record itself is a purged record
+    const record = result.data;
+    try {
+      const content =
+        typeof record.content === "string" &&
+        record.contentType === "application/json"
+          ? JSON.parse(record.content)
+          : record.content;
+
+      if (
+        typeof content === "object" &&
+        content !== null &&
+        (content.deleted === true || content.purged === true)
+      ) {
+        res.status(404).json({
+          error: {
+            code: "RECORD_DELETED",
+            message: "Record has been deleted",
+          },
+        });
+        return;
+      }
+    } catch {
+      // Not JSON or can't parse, continue normally
+    }
+
+    // Return raw content for single records
+    // Set headers
+    res.setHeader("X-Content-Hash", record.contentHash);
+    res.setHeader("X-Hash", record.hash);
+    res.setHeader("X-Previous-Hash", record.previousHash || "");
+    res.setHeader("X-Author", record.userId);
+    res.setHeader("X-Timestamp", record.createdAt.toISOString());
+
+    // Set content type and send response
+    res.type(record.contentType);
+
+    // Handle different content types
+    if (isBinaryContentType(record.contentType)) {
+      // Decode base64 for binary content
+      const contentStr =
+        typeof record.content === "string"
+          ? record.content
+          : String(record.content);
+      const buffer = Buffer.from(contentStr, "base64");
+      res.send(buffer);
+    } else if (
+      record.contentType === "application/json" &&
+      typeof record.content === "string"
+    ) {
+      // Parse JSON content if needed
+      try {
+        res.send(JSON.parse(record.content));
+      } catch {
+        res.send(record.content);
+      }
+    } else {
+      res.send(record.content);
+    }
+  } else {
+    // List all records
+    const config = getConfig();
+    const maxLimit = config.rateLimits.maxRecordLimit;
+
+    // Parse and cap the limit to maxRecordLimit
+    let limit = parseInt(req.query.limit as string) || 100;
+    if (limit > maxLimit) {
+      limit = maxLimit; // Silently cap to max without erroring
+    }
+
+    const after = req.query.after
+      ? parseInt(req.query.after as string)
+      : undefined;
+    const unique = req.query.unique === "true";
+    // recursive was already defined earlier
+
+    // Use appropriate listing function based on parameters
+    let result;
+    if (recursive) {
+      // Recursive listing doesn't support unique mode yet
+      if (unique) {
+        res.status(400).json({
+          error: {
+            code: "INVALID_PARAMETERS",
+            message: "Cannot use 'unique' and 'recursive' parameters together",
+          },
+        });
+        return;
+      }
+      result = await listRecordsRecursive(
+        { db },
+        req.podName,
+        streamPath,
+        req.auth?.user_id || null,
+        limit,
+        after,
+      );
+    } else if (unique) {
+      result = await listUniqueRecords(
+        { db },
+        req.podName,
+        streamResult.data.id,
+        limit,
+        after,
+      );
+    } else {
+      result = await listRecords(
+        { db },
+        req.podName,
+        streamResult.data.id,
+        limit,
+        after,
+      );
+    }
+
+    if (!result.success) {
+      res.status(500).json({
+        error: result.error,
+      });
+      return;
+    }
+
+    // All listing functions now return the same format
+    const data = result.data as {
+      records: StreamRecord[];
+      total: number;
+      hasMore: boolean;
+    };
+    res.json({
+      records: data.records.map((r) => recordToResponse(r, streamPath)),
+      total: data.total,
+      hasMore: data.hasMore,
+      nextIndex:
+        data.hasMore && data.records.length > 0
+          ? data.records[data.records.length - 1]?.index
+          : null,
+    });
+  }
+};
+
+export const getRoute = {
+  path: "/*",
+  middleware: readMiddleware,
+  handler: getHandler,
+};

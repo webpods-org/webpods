@@ -27,7 +27,7 @@ export async function listUserPods(
 
     // Check ownership for each pod using separate queries
     const userPods: UserPod[] = [];
-    
+
     for (const pod of pods) {
       // Get .config stream
       const configStream = await ctx.db.oneOrNone<{ id: string }>(

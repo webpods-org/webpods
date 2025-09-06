@@ -71,9 +71,7 @@ async function getUserOwnedPods(userId: string): Promise<string[]> {
 
   try {
     // Get all pods
-    const pods = await db.manyOrNone<{ name: string }>(
-      `SELECT name FROM pod`,
-    );
+    const pods = await db.manyOrNone<{ name: string }>(`SELECT name FROM pod`);
 
     const ownedPods: string[] = [];
 

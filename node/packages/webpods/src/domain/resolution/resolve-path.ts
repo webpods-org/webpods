@@ -12,20 +12,20 @@ import { createLogger } from "../../logger.js";
 const logger = createLogger("webpods:domain:resolution");
 
 export interface PathResolution {
-  streamId: number;        // The resolved stream ID
-  streamPath: string;      // The stream path
-  recordName?: string;     // Optional record name if path points to a record
-  isStream: boolean;       // True if path points to a stream, false if to a record
+  streamId: number; // The resolved stream ID
+  streamPath: string; // The stream path
+  recordName?: string; // Optional record name if path points to a record
+  isStream: boolean; // True if path points to a stream, false if to a record
 }
 
 /**
  * Resolve a path to determine if it's a stream or a record
- * 
+ *
  * Resolution strategy:
  * 1. If using index query (?i=), entire path is a stream
  * 2. For multi-segment paths, check if full path is a stream first
  * 3. If not a stream, treat last segment as record name
- * 
+ *
  * @param ctx Database context
  * @param podName Pod name
  * @param path Path to resolve (e.g., "a/b/c/d")
@@ -40,7 +40,7 @@ export async function resolvePath(
 ): Promise<Result<PathResolution>> {
   try {
     const pathParts = path.split("/").filter(Boolean);
-    
+
     if (pathParts.length === 0) {
       return failure(createError("INVALID_PATH", "Empty path"));
     }
@@ -50,10 +50,10 @@ export async function resolvePath(
     // If using index query, entire path must be a stream
     if (hasIndexQuery) {
       const streamResult = await getStreamByPath(ctx, podName, path);
-      
+
       if (!streamResult.success) {
         return failure(
-          createError("STREAM_NOT_FOUND", `Stream not found: ${path}`)
+          createError("STREAM_NOT_FOUND", `Stream not found: ${path}`),
         );
       }
 
@@ -67,10 +67,10 @@ export async function resolvePath(
     // For single-segment paths, it's always a stream
     if (pathParts.length === 1) {
       const streamResult = await getStreamByPath(ctx, podName, path);
-      
+
       if (!streamResult.success) {
         return failure(
-          createError("STREAM_NOT_FOUND", `Stream not found: ${path}`)
+          createError("STREAM_NOT_FOUND", `Stream not found: ${path}`),
         );
       }
 
@@ -83,7 +83,7 @@ export async function resolvePath(
 
     // For multi-segment paths, try full path as stream first
     const fullStreamResult = await getStreamByPath(ctx, podName, path);
-    
+
     if (fullStreamResult.success) {
       // Full path is a stream
       return success({
@@ -96,16 +96,16 @@ export async function resolvePath(
     // Full path is not a stream, try as stream + record
     const recordName = pathParts.pop();
     const streamPath = pathParts.join("/");
-    
+
     const streamResult = await getStreamByPath(ctx, podName, streamPath);
-    
+
     if (!streamResult.success) {
       // Neither interpretation works
       return failure(
         createError(
           "NOT_FOUND",
-          `Not found: no stream '${path}' and no stream '${streamPath}' with record '${recordName}'`
-        )
+          `Not found: no stream '${path}' and no stream '${streamPath}' with record '${recordName}'`,
+        ),
       );
     }
 
@@ -125,7 +125,7 @@ export async function resolvePath(
 /**
  * Resolve a path for write operations
  * For writes, the last segment is always treated as the record name
- * 
+ *
  * @param ctx Database context
  * @param podName Pod name
  * @param path Path to resolve (e.g., "a/b/c/d")
@@ -138,7 +138,7 @@ export async function resolvePathForWrite(
 ): Promise<Result<PathResolution & { recordName: string }>> {
   try {
     const pathParts = path.split("/").filter(Boolean);
-    
+
     if (pathParts.length === 0) {
       return failure(createError("INVALID_PATH", "Empty path"));
     }
@@ -154,17 +154,17 @@ export async function resolvePathForWrite(
       // For root stream, we need to handle this specially
       // Root stream doesn't actually exist in the database
       return failure(
-        createError("INVALID_PATH", "Cannot write to root stream")
+        createError("INVALID_PATH", "Cannot write to root stream"),
       );
     }
 
     const streamResult = await getStreamByPath(ctx, podName, streamPath);
-    
+
     if (!streamResult.success) {
       // Stream doesn't exist - this is okay for writes as we might create it
       // Return a special result indicating stream needs creation
       return failure(
-        createError("STREAM_NOT_FOUND", `Stream not found: ${streamPath}`)
+        createError("STREAM_NOT_FOUND", `Stream not found: ${streamPath}`),
       );
     }
 

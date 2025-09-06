@@ -20,7 +20,7 @@ import oauthRouter from "./oauth/routes.js";
 import connectRouter from "./oauth/connect.js";
 import oauthClientsApi from "./api/oauth-clients.js";
 import podsApi from "./api/pods.js";
-import podsRouter from "./routes/pods.js";
+import podsRouter from "./routes/pods/index.js";
 
 const logger = createLogger("webpods");
 

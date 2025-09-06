@@ -49,7 +49,7 @@ async function checkStreamPermission(
 
   // Parse permission
   const perm = parsePermission(stream.accessPermission);
-  
+
   if (perm.type === "stream" && perm.streamPath) {
     // Check if user has read permission in the permission stream
     const result = await checkPermissionStream(
@@ -80,7 +80,7 @@ export async function canRead(
 
   // First get pod owner using separate queries
   let podOwner: string | null = null;
-  
+
   // Get .config stream
   const configStream = await ctx.db.oneOrNone<StreamDbRow>(
     `SELECT id FROM stream 
@@ -122,7 +122,12 @@ export async function canRead(
   }
 
   // Check current stream permissions
-  const currentPermission = await checkStreamPermission(ctx, stream, userId, podOwner);
+  const currentPermission = await checkStreamPermission(
+    ctx,
+    stream,
+    userId,
+    podOwner,
+  );
   if (currentPermission !== null) {
     return currentPermission;
   }
@@ -152,7 +157,12 @@ export async function canRead(
       updatedAt: parentStream.updated_at || parentStream.created_at,
     };
 
-    const parentPermission = await checkStreamPermission(ctx, parentStreamObj, userId, podOwner);
+    const parentPermission = await checkStreamPermission(
+      ctx,
+      parentStreamObj,
+      userId,
+      podOwner,
+    );
     if (parentPermission !== null) {
       logger.info("Permission inherited from parent stream", {
         streamId: stream.id,

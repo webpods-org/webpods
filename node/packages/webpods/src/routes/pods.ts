@@ -597,7 +597,11 @@ router.post(
       }
 
       const streamPath = pathParts.length > 0 ? pathParts.join("/") : "/"; // Use '/' for root stream
-      logger.debug("Stream ID for writing", { pathParts, streamPath, fullPath });
+      logger.debug("Stream ID for writing", {
+        pathParts,
+        streamPath,
+        fullPath,
+      });
       let content = writeSchema.parse(req.body);
       let contentType = detectContentType(req.headers);
       const accessPermission = req.query.access as string | undefined;
@@ -1575,7 +1579,7 @@ router.delete(
       // Delete entire stream
       // First get the stream to get its ID
       const streamResult = await getStream({ db }, req.podName, streamPath);
-      
+
       if (!streamResult.success || !streamResult.data) {
         res.status(404).json({
           error: {
@@ -1585,7 +1589,7 @@ router.delete(
         });
         return;
       }
-      
+
       const result = await deleteStream(
         { db },
         req.podName,

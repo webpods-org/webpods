@@ -15,9 +15,7 @@ export async function findPodByDomain(
 ): Promise<Result<PodDbRow | null>> {
   try {
     // Get all pods
-    const pods = await ctx.db.manyOrNone<PodDbRow>(
-      `SELECT * FROM pod`,
-    );
+    const pods = await ctx.db.manyOrNone<PodDbRow>(`SELECT * FROM pod`);
 
     // Check each pod's domains
     for (const pod of pods) {

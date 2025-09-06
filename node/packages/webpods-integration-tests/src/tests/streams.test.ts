@@ -88,21 +88,21 @@ describe("WebPods Stream Operations", () => {
 
       // Verify nested path stream hierarchy exists
       const db = testDb.getDb();
-      
+
       // blog stream (root level)
       const blogStream = await db.oneOrNone(
         `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = 'blog' AND parent_id IS NULL`,
         { pod_name: testPodId },
       );
       expect(blogStream).to.exist;
-      
+
       // posts stream (child of blog)
       const postsStream = await db.oneOrNone(
         `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = 'posts' AND parent_id = $(parent_id)`,
         { pod_name: testPodId, parent_id: blogStream.id },
       );
       expect(postsStream).to.exist;
-      
+
       // 2024 stream (child of posts)
       const yearStream = await db.oneOrNone(
         `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = '2024' AND parent_id = $(parent_id)`,
@@ -382,14 +382,14 @@ describe("WebPods Stream Operations", () => {
         `SELECT * FROM pod WHERE name = $(podId)`,
         { podId: testPodId },
       );
-      
+
       // Get .config stream
       const configStream = await db.oneOrNone(
         `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = '.config' AND parent_id IS NULL`,
         { pod_name: pod.name },
       );
       expect(configStream).to.exist;
-      
+
       // Get owner stream (child of .config)
       const ownerStream = await db.oneOrNone(
         `SELECT * FROM stream WHERE parent_id = $(parent_id) AND name = 'owner'`,

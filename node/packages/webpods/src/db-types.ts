@@ -4,7 +4,7 @@
  */
 
 // Utility type to make a row type suitable for inserts (omits id)
-export type InsertRow<T> = Omit<T, 'id'>;
+export type InsertRow<T> = Omit<T, "id">;
 
 // User table - container for multiple identities
 export type UserDbRow = {
