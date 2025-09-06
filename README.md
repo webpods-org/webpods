@@ -1339,19 +1339,19 @@ docker-compose -f docker-compose.test.yml up
 
 - `POST /api/pods` - Create pod
 - `GET /api/pods` - List user's pods
-- `DELETE /{pod}.webpods.org/` - Delete pod
+- `DELETE https://{pod}.webpods.org/` - Delete pod
 
 ### Streams
 
-- `POST /{pod}.webpods.org/{stream}?access={mode}` - Create a stream explicitly (or auto-create on first write)
-- `DELETE /{pod}.webpods.org/{stream}` - Delete stream
-- `GET /{pod}.webpods.org/.config/api/streams` - List all streams
+- `POST https://{pod}.webpods.org/{stream}?access={mode}` - Create a stream explicitly (or auto-create on first write)
+- `DELETE https://{pod}.webpods.org/{stream}` - Delete stream
+- `GET https://{pod}.webpods.org/.config/api/streams` - List all streams
 
 ### Records
 
-- `POST /{pod}.webpods.org/{stream}/{name}` - Write record
-- `GET /{pod}.webpods.org/{stream}/{name}` - Read record
-- `GET /{pod}.webpods.org/{stream}` - List records
+- `POST https://{pod}.webpods.org/{stream}/{name}` - Write record
+- `GET https://{pod}.webpods.org/{stream}/{name}` - Read record
+- `GET https://{pod}.webpods.org/{stream}` - List records
 
 ### OAuth Client Management
 
