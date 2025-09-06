@@ -302,6 +302,7 @@ export async function list(options: {
   limit?: number;
   after?: number;
   unique?: boolean;
+  recursive?: boolean;
   token?: string;
   server?: string;
   profile?: string;
@@ -317,10 +318,18 @@ export async function list(options: {
       limit: options.limit,
       after: options.after,
       unique: options.unique,
+      recursive: options.recursive,
     });
 
     if (!options.pod || !options.stream) {
       output.error("Pod and stream are required for listing records.");
+      process.exit(1);
+    }
+
+    // Check for incompatible options
+    if (options.recursive && options.unique) {
+      output.error("Cannot use --recursive and --unique together.");
+      logger.error("Incompatible options: recursive and unique");
       process.exit(1);
     }
 
@@ -337,6 +346,10 @@ export async function list(options: {
 
     if (options.unique) {
       params.set("unique", "true");
+    }
+
+    if (options.recursive) {
+      params.set("recursive", "true");
     }
 
     if (params.toString()) {
@@ -369,7 +382,11 @@ export async function list(options: {
     });
 
     if (response.records.length === 0) {
-      output.print("No records found in this stream.");
+      if (format === "json") {
+        output.print(JSON.stringify(response, null, 2));
+      } else {
+        output.print("No records found in this stream.");
+      }
       return;
     }
 
