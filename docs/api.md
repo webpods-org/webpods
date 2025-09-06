@@ -218,18 +218,35 @@ Deletes the pod and all its data. Only the owner can delete a pod.
 
 ### Create Stream
 
-Streams are created automatically when you first write to them. For explicit creation or to set permissions before writing, use:
+Streams support nested paths and are created automatically on first write. For explicit creation or to set permissions before writing:
 
 ```
 POST {pod}.webpods.org/{stream-path}
 Authorization: Bearer {token}
+Content-Length: 0
 ```
 
-With empty body to create the stream. Use `?access=private` query parameter to create private streams:
+Query parameters:
 
-```
-POST {pod}.webpods.org/{stream-path}?access=private
-Authorization: Bearer {token}
+- `access` - Permission mode:
+  - `public` (default) - Anyone can read, authenticated users can write
+  - `private` - Only pod owner and stream creator can access
+  - `/{permission-stream}` - Users listed in the permission stream can access
+
+Examples:
+
+```bash
+# Create public stream (default)
+POST {pod}.webpods.org/blog/posts
+
+# Create private stream
+POST {pod}.webpods.org/private-notes?access=private
+
+# Create nested stream
+POST {pod}.webpods.org/projects/webapp/logs
+
+# Create stream with custom permissions
+POST {pod}.webpods.org/team-docs?access=/team-permissions
 ```
 
 Response (201 Created):
@@ -242,6 +259,12 @@ Response (201 Created):
   "createdAt": "2024-01-01T00:00:00Z"
 }
 ```
+
+**Notes**:
+- Stream names support forward slashes for nested paths
+- Names must be alphanumeric with hyphens, underscores, periods
+- Cannot start or end with periods
+- Nested streams work with recursive queries
 
 ### Write Record
 
@@ -320,7 +343,7 @@ Index formats:
 #### List Records
 
 ```
-GET {pod}.webpods.org/{stream}?limit={n}&after={index}&unique={boolean}
+GET {pod}.webpods.org/{stream}?limit={n}&after={index}&unique={boolean}&recursive={boolean}
 ```
 
 Query parameters:
@@ -333,6 +356,7 @@ Query parameters:
   - `after=-3` returns the last 3 records
   - Negative values are converted relative to total record count
 - `unique` - When `true`, returns only latest version of each named record, excluding deleted/purged records
+- `recursive` - When `true`, includes records from all nested streams under the path
 
 Response:
 
@@ -345,6 +369,25 @@ Response:
 }
 ```
 
+##### Recursive Queries
+
+Get records from all nested streams:
+
+```bash
+# Get all records from blog/* streams
+GET {pod}.webpods.org/blog?recursive=true
+
+# With pagination
+GET {pod}.webpods.org/blog?recursive=true&limit=20&after=10
+
+# Get last 50 records across nested streams
+GET {pod}.webpods.org/blog?recursive=true&after=-50
+```
+
+**Note**: Cannot be combined with `unique=true` or `i` parameters.
+
+##### Unique Records Filter
+
 When `unique=true`:
 
 - Returns only the most recent record for each unique name
@@ -352,6 +395,54 @@ When `unique=true`:
 - Excludes records marked as purged (`{"purged": true}`)
 - Records without names are excluded
 - Useful for treating streams as key-value stores
+- Cannot be combined with `recursive=true` or `i` parameters
+
+##### Query Parameter Compatibility
+
+| Parameter | Compatible With | Not Compatible With |
+|-----------|----------------|-------------------|
+| `limit` | All parameters | - |
+| `after` | All parameters | - |
+| `unique` | `limit`, `after` | `recursive`, `i` |
+| `recursive` | `limit`, `after` | `unique`, `i` |
+| `i` (index) | - | `unique`, `recursive`, `limit`, `after` |
+
+### Delete Record
+
+```
+DELETE {pod}.webpods.org/{stream}/{name}?purge={boolean}
+Authorization: Bearer {token}
+```
+
+Parameters:
+
+- `purge` (optional) - When `true`, performs hard delete (overwrites content)
+
+Deletion modes:
+
+1. **Soft delete** (default):
+   - Creates tombstone record named `{name}.deleted.{index}`
+   - Contains `{"deleted": true}` marker
+   - Original record remains in history
+   - Excluded from `unique=true` queries
+
+2. **Hard delete/purge** (`purge=true`):
+   - Overwrites record content with deletion metadata
+   - Content replaced with: `{"purged": true, "by": "user-id", "at": "timestamp"}`
+   - Maintains hash chain integrity
+
+Response (200 OK):
+
+```json
+{
+  "deleted": true,
+  "mode": "soft" | "hard",
+  "record": {
+    "name": "deleted-record-name",
+    "index": 123
+  }
+}
+```
 
 ### Delete Stream
 
@@ -361,6 +452,34 @@ Authorization: Bearer {token}
 ```
 
 Only stream creator can delete. System streams (`.config/*`) cannot be deleted.
+
+### List Streams
+
+```
+GET {pod}.webpods.org/.config/api/streams
+Authorization: Bearer {token}
+```
+
+Returns all streams in the pod:
+
+```json
+{
+  "streams": [
+    {
+      "name": "blog/posts",
+      "recordCount": 42,
+      "accessPermission": "public",
+      "createdAt": "2024-01-01T00:00:00Z"
+    },
+    {
+      "name": "private-notes",
+      "recordCount": 10,
+      "accessPermission": "private",
+      "createdAt": "2024-01-02T00:00:00Z"
+    }
+  ]
+}
+```
 
 ## System Streams
 

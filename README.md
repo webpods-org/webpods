@@ -328,28 +328,67 @@ curl https://my-pod.webpods.org/blog/posts?i=-1   # Latest record
 curl https://my-pod.webpods.org/blog/posts?i=0:10 # Range (0-9)
 ```
 
+### Delete a Record
+
+WebPods supports two deletion modes:
+- **Soft delete** (default): Creates a tombstone record marking deletion
+- **Hard delete/purge**: Overwrites the record content with deletion metadata
+
+#### CLI
+
+```bash
+# Soft delete a record (creates tombstone)
+pod delete my-pod blog/posts/old-post
+
+# Hard delete/purge a record (overwrites content)
+pod delete my-pod blog/posts/old-post --purge
+```
+
+#### HTTP
+
+```bash
+# Soft delete (creates tombstone record)
+curl -X DELETE https://my-pod.webpods.org/blog/posts/old-post \
+  -H "Authorization: Bearer $WEBPODS_TOKEN"
+
+# Hard delete/purge (overwrites content)
+curl -X DELETE https://my-pod.webpods.org/blog/posts/old-post?purge=true \
+  -H "Authorization: Bearer $WEBPODS_TOKEN"
+```
+
+**Notes**:
+- Soft delete creates a new record named `{original-name}.deleted.{index}` with `{"deleted": true}`
+- Deleted records are excluded from `unique=true` queries
+- Purged records have their content replaced with `{"purged": true, "by": "user-id", "at": "timestamp"}`
+- Both deletion types maintain the hash chain integrity
+
 ### List Records in a Stream
 
 #### CLI
 
 ```bash
 # List all records
-pod records my-pod blog/posts
+pod record list my-pod blog/posts
 
-# With limit
-pod records my-pod blog/posts --limit 10
+# With limit (capped at server maximum, typically 1000)
+pod record list my-pod blog/posts --limit 10
 
-# Get last 20 records
-pod records my-pod blog/posts --after -20
+# Pagination with positive offset
+pod record list my-pod blog/posts --limit 10 --after 50
+
+# Negative indexing - get last N records
+pod record list my-pod blog/posts --after -20    # Last 20 records
+pod record list my-pod blog/posts --after -5     # Last 5 records
 
 # Get only unique named records (latest version of each)
-pod records my-pod blog/posts --unique
+pod record list my-pod blog/posts --unique
 
-# Pagination
-pod records my-pod blog/posts --limit 10 --after 50
+# List records from nested streams recursively
+pod record list my-pod blog --recursive          # All records in blog/* streams
+pod record list my-pod / --recursive             # All records in all streams
 
 # JSON output
-pod records my-pod blog/posts --format json
+pod record list my-pod blog/posts --format json
 ```
 
 #### HTTP
@@ -358,33 +397,115 @@ pod records my-pod blog/posts --format json
 # List all records
 curl https://my-pod.webpods.org/blog/posts
 
-# With pagination
+# With pagination (limit is capped at server maximum)
 curl https://my-pod.webpods.org/blog/posts?limit=10&after=20
 
-# Get last 20 records
-curl https://my-pod.webpods.org/blog/posts?after=-20
+# Negative indexing - get last N records
+curl https://my-pod.webpods.org/blog/posts?after=-20    # Last 20 records
+curl https://my-pod.webpods.org/blog/posts?after=-5     # Last 5 records
 
-# Get only unique named records
+# Get only unique named records (excludes deleted/purged)
 curl https://my-pod.webpods.org/blog/posts?unique=true
+
+# List records from nested streams recursively
+curl https://my-pod.webpods.org/blog?recursive=true      # All records in blog/* streams
+curl https://my-pod.webpods.org/?recursive=true          # All records in all streams
 ```
+
+### Advanced Query Features
+
+#### Recursive Stream Queries
+
+Query records from all nested streams under a path:
+
+##### CLI
+
+```bash
+# List all records in blog/* streams (blog/posts, blog/drafts, etc.)
+pod record list my-pod blog --recursive
+
+# Combine with pagination
+pod record list my-pod blog --recursive --limit 20 --after 10
+
+# Get last 50 records across all nested streams
+pod record list my-pod blog --recursive --after -50
+```
+
+##### HTTP
+
+```bash
+# List all records in blog/* streams
+curl https://my-pod.webpods.org/blog?recursive=true
+
+# With pagination
+curl https://my-pod.webpods.org/blog?recursive=true&limit=20&after=10
+
+# Get last 50 records across all nested streams
+curl https://my-pod.webpods.org/blog?recursive=true&after=-50
+```
+
+**Note**: Recursive queries cannot be combined with `unique=true`.
+
+#### Unique Records Filter
+
+Returns only the latest version of each named record, filtering out:
+- Records without names
+- Deleted records (marked with `{"deleted": true}`)
+- Purged records (marked with `{"purged": true}`)
+
+This effectively treats the stream as a key-value store.
+
+##### CLI
+
+```bash
+# Get latest version of each named record
+pod record list my-pod config --unique
+
+# Combine with negative indexing
+pod record list my-pod config --unique --after -10  # Last 10 unique records
+```
+
+##### HTTP
+
+```bash
+# Get latest version of each named record
+curl https://my-pod.webpods.org/config?unique=true
+
+# Combine with pagination
+curl https://my-pod.webpods.org/config?unique=true&limit=50&after=100
+```
+
+#### Query Parameter Combinations
+
+| Parameter | Compatible With | Not Compatible With |
+|-----------|----------------|-------------------|
+| `limit` | All parameters | - |
+| `after` | All parameters | - |
+| `unique` | `limit`, `after` | `recursive`, `i` |
+| `recursive` | `limit`, `after` | `unique`, `i` |
+| `i` (index) | - | `unique`, `recursive`, `limit`, `after` |
 
 ## Stream Operations
 
 ### Create a Stream
 
-Streams are created automatically when you write the first record, or can be created explicitly.
+Streams are created automatically when you write the first record, or can be created explicitly. Streams support nested paths using forward slashes.
 
 #### CLI
 
 ```bash
 # Create a public stream (default)
-pod create-stream my-pod blog/posts
+pod stream create my-pod blog/posts
+
+# Create nested streams
+pod stream create my-pod projects/webapp/logs
+pod stream create my-pod teams/engineering/members
 
 # Create a private stream
-pod create-stream my-pod private-notes --access private
+pod stream create my-pod private-notes --access private
 
 # Create a stream with custom permissions
-pod create-stream my-pod members --access /team-permissions
+pod stream create my-pod members --access /team-permissions
 ```
 
 #### HTTP
@@ -392,6 +513,10 @@ pod create-stream my-pod members --access /team-permissions
 ```bash
 # Create a public stream explicitly
 curl -X POST https://my-pod.webpods.org/blog/posts \
+  -H "Authorization: Bearer $WEBPODS_TOKEN"
+
+# Create nested streams
+curl -X POST https://my-pod.webpods.org/projects/webapp/logs \
   -H "Authorization: Bearer $WEBPODS_TOKEN"
 
 # Create a private stream explicitly
@@ -403,14 +528,17 @@ curl -X POST https://my-pod.webpods.org/members?access=/team-permissions \
   -H "Authorization: Bearer $WEBPODS_TOKEN"
 ```
 
-**Note**: All streams are regular data streams. Permission streams are just regular streams that contain permission records.
+**Notes**: 
+- All streams are regular data streams. Permission streams are just regular streams that contain permission records.
+- Nested paths are supported (e.g., `blog/posts/drafts`) and work with recursive queries
+- Stream names must be valid (alphanumeric, hyphens, underscores, periods, no leading/trailing periods)
 
 ### List All Streams
 
 #### CLI
 
 ```bash
-pod streams my-pod
+pod stream list my-pod
 ```
 
 #### HTTP
@@ -427,7 +555,7 @@ curl https://my-pod.webpods.org/.config/api/streams \
 #### CLI
 
 ```bash
-pod delete-stream my-pod old-stream --force
+pod stream delete my-pod old-stream --force
 ```
 
 #### HTTP
@@ -921,7 +1049,7 @@ curl -X POST https://my-pod.webpods.org/.config/owner \
 
 ```bash
 # List all streams
-pod streams my-pod
+pod stream list my-pod
 
 # Via HTTP
 curl https://my-pod.webpods.org/.config/api/streams
