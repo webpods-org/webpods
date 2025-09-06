@@ -12,6 +12,8 @@ import {
   testToken,
   testUser,
   testDb,
+  calculateContentHash,
+  calculateRecordHash,
 } from "../test-setup.js";
 
 describe("CLI Export Command", function () {
@@ -66,25 +68,39 @@ describe("CLI Export Command", function () {
         );
 
       // Add some records to each stream
+      let previousHash: string | null = null;
       for (let i = 0; i < 3; i++) {
+        const content = JSON.stringify({
+          stream: stream.name,
+          index: i,
+          data: `Content for ${stream.name} record ${i}`,
+        });
+        const contentHash = calculateContentHash(content);
+        const timestamp = new Date().toISOString();
+        const hash = calculateRecordHash(
+          previousHash,
+          contentHash,
+          testUser.userId,
+          timestamp,
+        );
+
         await testDb.getDb().none(
-          `INSERT INTO record (pod_name, stream_name, name, content, content_type, hash, user_id, index) 
-           VALUES ($(podName), $(streamName), $(name), $(content), $(contentType), $(hash), $(userId), $(index))`,
+          `INSERT INTO record (pod_name, stream_name, name, content, content_type, content_hash, hash, user_id, index, created_at) 
+           VALUES ($(podName), $(streamName), $(name), $(content), $(contentType), $(contentHash), $(hash), $(userId), $(index), $(timestamp))`,
           {
             podName: testPodName,
             streamName: stream.name,
             name: `record-${i}`,
-            content: JSON.stringify({
-              stream: stream.name,
-              index: i,
-              data: `Content for ${stream.name} record ${i}`,
-            }),
+            content,
             contentType: "application/json",
-            hash: `sha256:hash-${stream.name}-${i}`,
+            contentHash,
+            hash,
             userId: testUser.userId,
             index: i,
+            timestamp,
           },
         );
+        previousHash = hash;
       }
     }
   });

@@ -7,7 +7,11 @@ import { Result, success, failure } from "../../utils/result.js";
 import { createError } from "../../utils/errors.js";
 import { PodDbRow, StreamDbRow } from "../../db-types.js";
 import { Pod } from "../../types.js";
-import { isValidPodName, calculateRecordHash } from "../../utils.js";
+import {
+  isValidPodName,
+  calculateContentHash,
+  calculateRecordHash,
+} from "../../utils.js";
 import { createLogger } from "../../logger.js";
 import { sql } from "../../db/index.js";
 
@@ -81,7 +85,8 @@ export async function createPod(
       // Write initial owner record with snake_case parameters
       const ownerContent = { owner: userId };
       const timestamp = new Date().toISOString();
-      const hash = calculateRecordHash(null, timestamp, ownerContent);
+      const contentHash = calculateContentHash(ownerContent);
+      const hash = calculateRecordHash(null, contentHash, userId, timestamp);
 
       const recordParams = {
         pod_name: pod.name,
@@ -90,6 +95,7 @@ export async function createPod(
         content: JSON.stringify(ownerContent),
         content_type: "application/json",
         name: "owner",
+        content_hash: contentHash,
         hash: hash,
         previous_hash: null,
         user_id: userId,

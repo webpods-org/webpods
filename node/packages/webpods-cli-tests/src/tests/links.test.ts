@@ -11,6 +11,8 @@ import {
   testToken,
   testUser,
   testDb,
+  calculateContentHash,
+  calculateRecordHash,
 } from "../test-setup.js";
 
 describe("CLI Links Commands", function () {
@@ -54,17 +56,29 @@ describe("CLI Links Commands", function () {
       );
 
     // Add owner record
+    const content = JSON.stringify({ owner: testUser.userId });
+    const contentHash = calculateContentHash(content);
+    const timestamp = new Date().toISOString();
+    const hash = calculateRecordHash(
+      null,
+      contentHash,
+      testUser.userId,
+      timestamp,
+    );
+
     await testDb.getDb().none(
-      `INSERT INTO record (pod_name, stream_name, name, content, content_type, hash, user_id, index) 
-       VALUES ($(podName), $(streamName), $(name), $(content), $(contentType), $(hash), $(userId), 0)`,
+      `INSERT INTO record (pod_name, stream_name, name, content, content_type, content_hash, hash, user_id, index, created_at) 
+       VALUES ($(podName), $(streamName), $(name), $(content), $(contentType), $(contentHash), $(hash), $(userId), 0, $(timestamp))`,
       {
         podName: testPodName,
         streamName: "/.config/owner",
         name: "owner",
-        content: JSON.stringify({ owner: testUser.userId }),
+        content,
         contentType: "application/json",
-        hash: "hash-owner",
+        contentHash,
+        hash,
         userId: testUser.userId,
+        timestamp,
       },
     );
   });

@@ -11,8 +11,9 @@ import {
   testToken,
   testUser,
   testDb,
+  calculateContentHash,
+  calculateRecordHash,
 } from "../test-setup.js";
-import crypto from "crypto";
 
 describe("CLI Verify Command", function () {
   this.timeout(30000);
@@ -56,29 +57,29 @@ describe("CLI Verify Command", function () {
       );
 
     // Add records with proper hash chain
-    let previousHash = null;
+    let previousHash: string | null = null;
     for (let i = 0; i < 5; i++) {
       const contentObj = { index: i, data: `Record ${i}` };
       const content = JSON.stringify(contentObj);
+      const contentHash = calculateContentHash(content);
       const timestamp = new Date().toISOString();
-
-      // Calculate hash exactly like the server does
-      const hashData: string = JSON.stringify({
-        previous_hash: previousHash,
-        timestamp: timestamp,
-        content: contentObj, // Use the object, not the string
-      });
-      const hash: string = `sha256:${crypto.createHash("sha256").update(hashData).digest("hex")}`;
+      const hash = calculateRecordHash(
+        previousHash,
+        contentHash,
+        testUser.userId,
+        timestamp,
+      );
 
       await testDb.getDb().none(
-        `INSERT INTO record (pod_name, stream_name, name, content, content_type, hash, previous_hash, user_id, index, created_at) 
-         VALUES ($(podName), $(streamName), $(name), $(content), $(contentType), $(hash), $(previousHash), $(userId), $(index), $(createdAt))`,
+        `INSERT INTO record (pod_name, stream_name, name, content, content_type, content_hash, hash, previous_hash, user_id, index, created_at) 
+         VALUES ($(podName), $(streamName), $(name), $(content), $(contentType), $(contentHash), $(hash), $(previousHash), $(userId), $(index), $(createdAt))`,
         {
           podName: testPodName,
           streamName: "/test-stream",
           name: `record-${i}`,
           content,
           contentType: "application/json",
+          contentHash,
           hash,
           previousHash,
           userId: testUser.userId,
@@ -256,25 +257,25 @@ describe("CLI Verify Command", function () {
       // Add a record with proper hash
       const contentObj = { public: true };
       const content = JSON.stringify(contentObj);
+      const contentHash = calculateContentHash(content);
       const timestamp = new Date().toISOString();
-
-      // Calculate hash exactly like the server does
-      const hashData: string = JSON.stringify({
-        previous_hash: null,
-        timestamp: timestamp,
-        content: contentObj, // Use the object, not the string
-      });
-      const hash: string = `sha256:${crypto.createHash("sha256").update(hashData).digest("hex")}`;
+      const hash = calculateRecordHash(
+        null,
+        contentHash,
+        testUser.userId,
+        timestamp,
+      );
 
       await testDb.getDb().none(
-        `INSERT INTO record (pod_name, stream_name, name, content, content_type, hash, user_id, index, created_at) 
-         VALUES ($(podName), $(streamName), $(name), $(content), $(contentType), $(hash), $(userId), 0, $(createdAt))`,
+        `INSERT INTO record (pod_name, stream_name, name, content, content_type, content_hash, hash, user_id, index, created_at) 
+         VALUES ($(podName), $(streamName), $(name), $(content), $(contentType), $(contentHash), $(hash), $(userId), 0, $(createdAt))`,
         {
           podName: testPodName,
           streamName: "/public-stream",
           name: "record-0",
           content,
           contentType: "application/json",
+          contentHash,
           hash,
           userId: testUser.userId,
           createdAt: timestamp,

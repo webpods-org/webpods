@@ -6,7 +6,7 @@ import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
 import { createError } from "../../utils/errors.js";
 import { StreamDbRow, RecordDbRow } from "../../db-types.js";
-import { calculateRecordHash } from "../../utils.js";
+import { calculateContentHash, calculateRecordHash } from "../../utils.js";
 import { createLogger } from "../../logger.js";
 import { sql } from "../../db/index.js";
 
@@ -87,10 +87,12 @@ export async function transferPodOwnership(
 
       // Create new owner record
       const newOwnerContent = { owner: toUserId };
+      const contentHash = calculateContentHash(newOwnerContent);
       const hash = calculateRecordHash(
         previousHash,
+        contentHash,
+        fromUserId,
         timestamp,
-        newOwnerContent,
       );
 
       // Insert new owner record with snake_case parameters
@@ -101,6 +103,7 @@ export async function transferPodOwnership(
         content: JSON.stringify(newOwnerContent),
         content_type: "application/json",
         name: "owner",
+        content_hash: contentHash,
         hash: hash,
         previous_hash: previousHash,
         user_id: fromUserId,

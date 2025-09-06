@@ -12,6 +12,8 @@ import {
   testToken,
   testUser,
   testDb,
+  calculateContentHash,
+  calculateRecordHash,
 } from "../test-setup.js";
 
 describe("CLI Record Commands", function () {
@@ -189,34 +191,58 @@ describe("CLI Record Commands", function () {
           },
         );
 
+      const content1 = '{"value": 1}';
+      const contentHash1 = calculateContentHash(content1);
+      const timestamp1 = new Date().toISOString();
+      const hash1 = calculateRecordHash(
+        null,
+        contentHash1,
+        testUser.userId,
+        timestamp1,
+      );
+
       await testDb.getDb().none(
-        `INSERT INTO record (pod_name, stream_name, name, content, content_type, hash, user_id, index) 
-         VALUES ($(podName), $(streamName), $(recordName), $(content), $(contentType), $(hash), $(userId), $(index))`,
+        `INSERT INTO record (pod_name, stream_name, name, content, content_type, content_hash, hash, user_id, index, created_at) 
+         VALUES ($(podName), $(streamName), $(recordName), $(content), $(contentType), $(contentHash), $(hash), $(userId), $(index), $(timestamp))`,
         {
           podName: testPodName,
           streamName: "/test-stream",
           recordName: "record1",
-          content: '{"value": 1}',
+          content: content1,
           contentType: "application/json",
-          hash: "hash1",
+          contentHash: contentHash1,
+          hash: hash1,
           userId: testUser.userId,
           index: 0,
+          timestamp: timestamp1,
         },
       );
 
+      const content2 = '{"value": 2}';
+      const contentHash2 = calculateContentHash(content2);
+      const timestamp2 = new Date().toISOString();
+      const hash2 = calculateRecordHash(
+        hash1,
+        contentHash2,
+        testUser.userId,
+        timestamp2,
+      );
+
       await testDb.getDb().none(
-        `INSERT INTO record (pod_name, stream_name, name, content, content_type, hash, previous_hash, user_id, index) 
-         VALUES ($(podName), $(streamName), $(recordName), $(content), $(contentType), $(hash), $(previous), $(userId), $(index))`,
+        `INSERT INTO record (pod_name, stream_name, name, content, content_type, content_hash, hash, previous_hash, user_id, index, created_at) 
+         VALUES ($(podName), $(streamName), $(recordName), $(content), $(contentType), $(contentHash), $(hash), $(previous), $(userId), $(index), $(timestamp))`,
         {
           podName: testPodName,
           streamName: "/test-stream",
           recordName: "record2",
-          content: '{"value": 2}',
+          content: content2,
           contentType: "application/json",
-          hash: "hash2",
-          previous: "hash1",
+          contentHash: contentHash2,
+          hash: hash2,
+          previous: hash1,
           userId: testUser.userId,
           index: 1,
+          timestamp: timestamp2,
         },
       );
     });
@@ -327,21 +353,35 @@ describe("CLI Record Commands", function () {
           },
         );
 
+      let previousHash: string | null = null;
       for (let i = 0; i < 10; i++) {
+        const content = `{"index": ${i}}`;
+        const contentHash = calculateContentHash(content);
+        const timestamp = new Date().toISOString();
+        const hash = calculateRecordHash(
+          previousHash,
+          contentHash,
+          testUser.userId,
+          timestamp,
+        );
+
         await testDb.getDb().none(
-          `INSERT INTO record (pod_name, stream_name, name, content, content_type, hash, user_id, index) 
-           VALUES ($(podName), $(streamName), $(name), $(content), $(contentType), $(hash), $(userId), $(index))`,
+          `INSERT INTO record (pod_name, stream_name, name, content, content_type, content_hash, hash, user_id, index, created_at) 
+           VALUES ($(podName), $(streamName), $(name), $(content), $(contentType), $(contentHash), $(hash), $(userId), $(index), $(timestamp))`,
           {
             podName: testPodName,
             streamName: "/test-stream",
             name: `record${i}`,
-            content: `{"index": ${i}}`,
+            content,
             contentType: "application/json",
-            hash: `hash${i}`,
+            contentHash,
+            hash,
             userId: testUser.userId,
             index: i,
+            timestamp,
           },
         );
+        previousHash = hash;
       }
     });
 
@@ -405,19 +445,39 @@ describe("CLI Record Commands", function () {
     });
 
     it("should list only unique records when flag is set", async () => {
+      // Get the last record's hash to continue the chain
+      const lastRecord = await testDb.getDb().one(
+        `SELECT hash FROM record 
+         WHERE pod_name = $(podName) AND stream_name = $(streamName)
+         ORDER BY index DESC LIMIT 1`,
+        { podName: testPodName, streamName: "/test-stream" },
+      );
+
       // Add duplicate named records
+      const duplicateContent = '{"updated": true}';
+      const duplicateContentHash = calculateContentHash(duplicateContent);
+      const duplicateTimestamp = new Date().toISOString();
+      const duplicateHash = calculateRecordHash(
+        lastRecord.hash,
+        duplicateContentHash,
+        testUser.userId,
+        duplicateTimestamp,
+      );
+
       await testDb.getDb().none(
-        `INSERT INTO record (pod_name, stream_name, name, content, content_type, hash, user_id, index) 
-         VALUES ($(podName), $(streamName), $(recordName), $(content), $(contentType), $(hash), $(userId), $(index))`,
+        `INSERT INTO record (pod_name, stream_name, name, content, content_type, content_hash, hash, user_id, index, created_at) 
+         VALUES ($(podName), $(streamName), $(recordName), $(content), $(contentType), $(contentHash), $(hash), $(userId), $(index), $(timestamp))`,
         {
           podName: testPodName,
           streamName: "/test-stream",
           recordName: "record1",
-          content: '{"updated": true}',
+          content: duplicateContent,
           contentType: "application/json",
-          hash: "hash-new",
+          contentHash: duplicateContentHash,
+          hash: duplicateHash,
           userId: testUser.userId,
           index: 10,
+          timestamp: duplicateTimestamp,
         },
       );
 
@@ -599,17 +659,29 @@ describe("CLI Record Commands", function () {
         );
 
       // Add owner record
+      const ownerContent = JSON.stringify({ owner: testUser.userId });
+      const ownerContentHash = calculateContentHash(ownerContent);
+      const ownerTimestamp = new Date().toISOString();
+      const ownerHash = calculateRecordHash(
+        null,
+        ownerContentHash,
+        testUser.userId,
+        ownerTimestamp,
+      );
+
       await testDb.getDb().none(
-        `INSERT INTO record (pod_name, stream_name, name, content, content_type, hash, user_id, index) 
-         VALUES ($(podName), $(streamName), $(name), $(content), $(contentType), $(hash), $(userId), 0)`,
+        `INSERT INTO record (pod_name, stream_name, name, content, content_type, content_hash, hash, user_id, index, created_at) 
+         VALUES ($(podName), $(streamName), $(name), $(content), $(contentType), $(contentHash), $(hash), $(userId), 0, $(timestamp))`,
         {
           podName: testPodName,
           streamName: "/.config/owner",
           name: "owner",
-          content: JSON.stringify({ owner: testUser.userId }),
+          content: ownerContent,
           contentType: "application/json",
-          hash: "hash-owner",
+          contentHash: ownerContentHash,
+          hash: ownerHash,
           userId: testUser.userId,
+          timestamp: ownerTimestamp,
         },
       );
 
@@ -625,18 +697,30 @@ describe("CLI Record Commands", function () {
           },
         );
 
+      const testContent = '{"test": true}';
+      const testContentHash = calculateContentHash(testContent);
+      const testTimestamp = new Date().toISOString();
+      const testHash = calculateRecordHash(
+        ownerHash,
+        testContentHash,
+        testUser.userId,
+        testTimestamp,
+      );
+
       await testDb.getDb().none(
-        `INSERT INTO record (pod_name, stream_name, name, content, content_type, hash, user_id, index) 
-         VALUES ($(podName), $(streamName), $(recordName), $(content), $(contentType), $(hash), $(userId), $(index))`,
+        `INSERT INTO record (pod_name, stream_name, name, content, content_type, content_hash, hash, user_id, index, created_at) 
+         VALUES ($(podName), $(streamName), $(recordName), $(content), $(contentType), $(contentHash), $(hash), $(userId), $(index), $(timestamp))`,
         {
           podName: testPodName,
           streamName: "/test-stream",
           recordName: "record1",
-          content: '{"test": true}',
+          content: testContent,
           contentType: "application/json",
-          hash: "hash1",
+          contentHash: testContentHash,
+          hash: testHash,
           userId: testUser.userId,
           index: 0,
+          timestamp: testTimestamp,
         },
       );
     });

@@ -119,7 +119,7 @@ describe("WebPods Authentication", () => {
 
       expect(response.status).to.equal(201);
       expect(response.data).to.have.property("index", 0);
-      expect(response.data).to.have.property("author", userId);
+      expect(response.data).to.have.property("userId", userId);
     });
 
     it("should reject invalid OAuth token", async () => {
@@ -226,7 +226,7 @@ describe("WebPods Authentication", () => {
       });
 
       expect(response.status).to.equal(201);
-      expect(response.data.author).to.equal(userId);
+      expect(response.data.userId).to.equal(userId);
 
       // Verify in database
       const db = testDb.getDb();

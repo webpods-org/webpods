@@ -74,10 +74,13 @@ export interface StreamRecord {
   index: number;
   content: unknown;
   content_type: string;
+  contentType?: string; // API returns camelCase
   name: string;
+  contentHash: string;
   hash: string;
   previous_hash: string | null;
-  author: string;
+  previousHash?: string | null; // API returns camelCase
+  userId: string;
   timestamp: string;
 }
 

@@ -11,6 +11,8 @@ import {
   testToken,
   testUser,
   testDb,
+  calculateContentHash,
+  calculateRecordHash,
 } from "../test-setup.js";
 
 describe("CLI Recursive Records", function () {
@@ -76,16 +78,27 @@ describe("CLI Recursive Records", function () {
       ];
 
       for (const record of records) {
+        const contentHash = calculateContentHash(record.content);
+        const timestamp = new Date().toISOString();
+        const hash = calculateRecordHash(
+          null,
+          contentHash,
+          testUser.userId,
+          timestamp,
+        );
+
         await db.none(
-          `INSERT INTO record (pod_name, stream_name, index, name, content, content_type, hash, user_id, created_at)
-           VALUES ($(podName), $(streamName), 0, $(name), $(content), 'application/json', 
-                   'sha256:' || encode(sha256($(content)::bytea), 'hex'), $(userId), NOW())`,
+          `INSERT INTO record (pod_name, stream_name, index, name, content, content_type, content_hash, hash, user_id, created_at)
+           VALUES ($(podName), $(streamName), 0, $(name), $(content), 'application/json', $(contentHash), $(hash), $(userId), $(timestamp))`,
           {
             podName: testPodName,
             streamName: record.stream,
             name: record.name,
             content: record.content,
+            contentHash,
+            hash,
             userId: testUser.userId,
+            timestamp,
           },
         );
       }
@@ -166,20 +179,34 @@ describe("CLI Recursive Records", function () {
     it("should work with pagination parameters", async () => {
       // Add more records to test pagination
       const db = testDb.getDb();
+      let previousHash: string | null = null;
       for (let i = 2; i <= 5; i++) {
+        const content = JSON.stringify({ data: `api root ${i}` });
+        const contentHash = calculateContentHash(content);
+        const timestamp = new Date().toISOString();
+        const hash = calculateRecordHash(
+          previousHash,
+          contentHash,
+          testUser.userId,
+          timestamp,
+        );
+
         await db.none(
-          `INSERT INTO record (pod_name, stream_name, index, name, content, content_type, hash, user_id, created_at)
-           VALUES ($(podName), $(streamName), $(index), $(name), $(content), 'application/json', 
-                   'sha256:' || encode(sha256($(content)::bytea), 'hex'), $(userId), NOW())`,
+          `INSERT INTO record (pod_name, stream_name, index, name, content, content_type, content_hash, hash, user_id, created_at)
+           VALUES ($(podName), $(streamName), $(index), $(name), $(content), 'application/json', $(contentHash), $(hash), $(userId), $(timestamp))`,
           {
             podName: testPodName,
             streamName: "/api",
             index: i - 1,
             name: `record${i}`,
-            content: JSON.stringify({ data: `api root ${i}` }),
+            content,
+            contentHash,
+            hash,
             userId: testUser.userId,
+            timestamp,
           },
         );
+        previousHash = hash;
       }
 
       const result = await cli.exec(

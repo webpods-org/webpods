@@ -27,6 +27,8 @@ When you begin working on this project, you MUST:
 
 Only after reading these documents should you proceed with any implementation or analysis tasks.
 
+**IMPORTANT**: After every conversation compact/summary, you MUST re-read this CLAUDE.md file again as your first action. The conversation context gets compressed and critical project-specific instructions may be lost. Always start by reading CLAUDE.md after a compact.
+
 ## Documentation Principles
 
 **IMPORTANT**: When writing or updating documentation:
@@ -222,20 +224,22 @@ for (const record of records) {
 
 ### Test Output Strategy for Full Test Suites
 
-**IMPORTANT**: When running the full test suite (which takes 3+ minutes), always save output to a file for efficient analysis:
+**IMPORTANT**: When running the full test suite (which takes 3+ minutes), use `tee` to both display output to the user AND save to a file:
 
 ```bash
 # Create .tests directory if it doesn't exist (gitignored)
 mkdir -p .tests
 
-# Run full test suite and save output
-npm test > .tests/run-$(date +%s).txt 2>&1
+# Run full test suite with tee - shows output to user AND saves to file
+npm test | tee .tests/run-$(date +%s).txt
 
-# Then analyze the saved output multiple times without re-running tests:
+# Then you can analyze the saved output multiple times without re-running tests:
 grep "failing" .tests/run-*.txt
 tail -50 .tests/run-*.txt
 grep -A10 "specific test name" .tests/run-*.txt
 ```
+
+**NEVER use plain redirection (`>` or `2>&1`) as it hides output from the user.** Always use `tee` so the user can see test progress in real-time while you also get a saved copy for analysis.
 
 This strategy prevents the need to re-run lengthy test suites when you need different information from the output. The `.tests/` directory is gitignored to keep test outputs from cluttering the repository.
 

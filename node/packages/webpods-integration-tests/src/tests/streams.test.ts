@@ -179,6 +179,17 @@ describe("WebPods Stream Operations", () => {
 
       // Verify hash format
       expect(response1.data.hash).to.match(/^sha256:[a-f0-9]{64}$/);
+
+      // Verify contentHash exists and is different from record hash
+      expect(response1.data.contentHash).to.exist;
+      expect(response1.data.contentHash).to.match(/^sha256:[a-f0-9]{64}$/);
+      expect(response1.data.contentHash).to.not.equal(response1.data.hash);
+
+      // Content hash should be the same for identical content
+      const duplicate = await client.post("/hash-test/duplicate", "First");
+      expect(duplicate.data.contentHash).to.equal(response1.data.contentHash);
+      // But record hash should be different (different position in chain)
+      expect(duplicate.data.hash).to.not.equal(response1.data.hash);
     });
 
     it("should support names (including numeric)", async () => {
@@ -290,6 +301,7 @@ describe("WebPods Stream Operations", () => {
       const response = await client.get("/read-test?i=0");
       // Express adds charset, so check if content-type starts with expected value
       expect(response.headers["content-type"]).to.include("text/plain");
+      expect(response.headers["x-content-hash"]).to.exist;
       expect(response.headers["x-hash"]).to.exist;
       expect(response.headers["x-author"]).to.equal(userId);
       expect(response.headers["x-timestamp"]).to.exist;

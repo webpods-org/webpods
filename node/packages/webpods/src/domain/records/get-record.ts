@@ -24,6 +24,7 @@ function mapRecordFromDb(row: RecordDbRow): StreamRecord {
     content: row.content,
     contentType: row.content_type,
     name: row.name || "",
+    contentHash: row.content_hash,
     hash: row.hash,
     previousHash: row.previous_hash || null,
     userId: row.user_id,

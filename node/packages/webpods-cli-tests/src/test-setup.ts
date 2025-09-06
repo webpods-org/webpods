@@ -4,6 +4,7 @@
 
 import { TestDatabase, createTestUser } from "webpods-test-utils";
 import { sign } from "jsonwebtoken";
+import { createHash } from "crypto";
 import { CliTestServer } from "./cli-test-server.js";
 
 // Global test context
@@ -99,4 +100,30 @@ export async function resetCliTestDb(): Promise<void> {
   });
 
   testToken = createTestJWT(testUser.userId, testUser.email);
+}
+
+/**
+ * Calculate content hash for a record
+ */
+export function calculateContentHash(content: unknown): string {
+  const data = typeof content === "string" ? content : JSON.stringify(content);
+  return "sha256:" + createHash("sha256").update(data).digest("hex");
+}
+
+/**
+ * Calculate record hash
+ */
+export function calculateRecordHash(
+  previousHash: string | null,
+  contentHash: string,
+  userId: string,
+  timestamp: string,
+): string {
+  const data = JSON.stringify({
+    previous_hash: previousHash,
+    content_hash: contentHash,
+    user_id: userId,
+    timestamp: timestamp,
+  });
+  return "sha256:" + createHash("sha256").update(data).digest("hex");
 }

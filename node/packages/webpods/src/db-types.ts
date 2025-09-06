@@ -50,7 +50,8 @@ export type RecordDbRow = {
   index: number;
   content: string;
   content_type: string;
-  hash: string;
+  content_hash: string; // SHA-256 hash of content only
+  hash: string; // SHA-256 hash of (previous_hash + content_hash)
   previous_hash?: string | null;
   user_id: string; // References user.id
   name?: string | null;

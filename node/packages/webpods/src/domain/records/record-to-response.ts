@@ -24,9 +24,10 @@ export function recordToResponse(record: StreamRecord): StreamRecordResponse {
     content: content,
     contentType: record.contentType,
     name: record.name,
+    contentHash: record.contentHash,
     hash: record.hash,
     previousHash: record.previousHash,
-    author: record.userId,
+    userId: record.userId,
     timestamp: record.createdAt.toISOString(),
   };
 }

@@ -319,7 +319,6 @@ router.post(
         req.podName,
         data,
         req.auth.user_id,
-        req.auth.user_id,
       );
 
       if (!result.success) {
@@ -1158,6 +1157,7 @@ router.get(
 
         // Return raw content for single records
         // Set headers
+        res.setHeader("X-Content-Hash", record.contentHash);
         res.setHeader("X-Hash", record.hash);
         res.setHeader("X-Previous-Hash", record.previousHash || "");
         res.setHeader("X-Author", record.userId);
@@ -1285,6 +1285,7 @@ router.get(
 
       // Return raw content for single records
       // Set headers
+      res.setHeader("X-Content-Hash", record.contentHash);
       res.setHeader("X-Hash", record.hash);
       res.setHeader("X-Previous-Hash", record.previousHash || "");
       res.setHeader("X-Author", record.userId);
