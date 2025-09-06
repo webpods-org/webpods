@@ -44,6 +44,7 @@ import { getRecord } from "../domain/records/get-record.js";
 import { getRecordRange } from "../domain/records/get-record-range.js";
 import { listRecords } from "../domain/records/list-records.js";
 import { listUniqueRecords } from "../domain/records/list-unique-records.js";
+import { listRecordsRecursive } from "../domain/records/list-records-recursive.js";
 import { recordToResponse } from "../domain/records/record-to-response.js";
 import { canRead } from "../domain/permissions/can-read.js";
 import { canWrite } from "../domain/permissions/can-write.js";
@@ -999,8 +1000,68 @@ router.get(
     // Get stream
     const streamResult = await getStream({ db }, req.podName, streamId);
 
+    // Special handling for recursive queries - they can work even if exact stream doesn't exist
+    const recursive = req.query.recursive === "true";
+
     if (!streamResult.success || !streamResult.data) {
-      // Provide more informative error message
+      // If this is a recursive query and we're not looking for a specific record,
+      // we can still search for nested streams
+      if (recursive && !name && !indexQuery) {
+        // Try to find nested streams even if the exact stream doesn't exist
+        const config = getConfig();
+        const maxLimit = config.rateLimits.maxRecordLimit;
+
+        let limit = parseInt(req.query.limit as string) || 100;
+        if (limit > maxLimit) {
+          limit = maxLimit;
+        }
+
+        const after = req.query.after
+          ? parseInt(req.query.after as string)
+          : undefined;
+        const unique = req.query.unique === "true";
+
+        if (unique) {
+          res.status(400).json({
+            error: {
+              code: "INVALID_PARAMETERS",
+              message:
+                "Cannot use 'unique' and 'recursive' parameters together",
+            },
+          });
+          return;
+        }
+
+        const result = await listRecordsRecursive(
+          { db },
+          req.podName,
+          streamId,
+          req.auth?.user_id || null,
+          limit,
+          after,
+        );
+
+        if (!result.success) {
+          res.status(500).json({
+            error: result.error,
+          });
+          return;
+        }
+
+        const data = result.data;
+        res.json({
+          records: data.records.map(recordToResponse),
+          total: data.total,
+          hasMore: data.hasMore,
+          nextIndex:
+            data.hasMore && data.records.length > 0
+              ? data.records[data.records.length - 1]?.index
+              : null,
+        });
+        return;
+      }
+
+      // Regular non-recursive case - stream not found
       const fullPath = req.path.substring(1);
       if (name) {
         // We were looking for a record in a stream that doesn't exist
@@ -1268,23 +1329,47 @@ router.get(
         ? parseInt(req.query.after as string)
         : undefined;
       const unique = req.query.unique === "true";
+      // recursive was already defined earlier
 
-      // Use appropriate listing function based on unique parameter
-      const result = unique
-        ? await listUniqueRecords(
-            { db },
-            req.podName,
-            streamResult.data.name,
-            limit,
-            after,
-          )
-        : await listRecords(
-            { db },
-            req.podName,
-            streamResult.data.name,
-            limit,
-            after,
-          );
+      // Use appropriate listing function based on parameters
+      let result;
+      if (recursive) {
+        // Recursive listing doesn't support unique mode yet
+        if (unique) {
+          res.status(400).json({
+            error: {
+              code: "INVALID_PARAMETERS",
+              message:
+                "Cannot use 'unique' and 'recursive' parameters together",
+            },
+          });
+          return;
+        }
+        result = await listRecordsRecursive(
+          { db },
+          req.podName,
+          streamResult.data.name,
+          req.auth?.user_id || null,
+          limit,
+          after,
+        );
+      } else if (unique) {
+        result = await listUniqueRecords(
+          { db },
+          req.podName,
+          streamResult.data.name,
+          limit,
+          after,
+        );
+      } else {
+        result = await listRecords(
+          { db },
+          req.podName,
+          streamResult.data.name,
+          limit,
+          after,
+        );
+      }
 
       if (!result.success) {
         res.status(500).json({
@@ -1293,7 +1378,7 @@ router.get(
         return;
       }
 
-      // Both listRecords and listUniqueRecords now return the same format
+      // All listing functions now return the same format
       const data = result.data as {
         records: StreamRecord[];
         total: number;

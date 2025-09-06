@@ -19,7 +19,11 @@ import {
   infoPod,
 } from "./commands/pods/index.js";
 import { write, read, list } from "./commands/records/index.js";
-import { streams, deleteStream, createStream } from "./commands/streams/index.js";
+import {
+  streams,
+  deleteStream,
+  createStream,
+} from "./commands/streams/index.js";
 import { permissions } from "./commands/permissions/index.js";
 import {
   oauthRegister,
@@ -369,6 +373,10 @@ export async function main() {
                 .option("unique", {
                   type: "boolean",
                   describe: "Show only unique named records",
+                })
+                .option("recursive", {
+                  type: "boolean",
+                  describe: "Include records from nested streams",
                 })
                 .option("token", {
                   type: "string",
