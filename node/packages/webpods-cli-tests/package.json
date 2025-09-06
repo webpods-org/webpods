@@ -1,6 +1,6 @@
 {
   "name": "webpods-cli-tests",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Integration tests for WebPods CLI",
   "type": "module",
   "scripts": {

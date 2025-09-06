@@ -8,43 +8,112 @@ import {
   clearToken,
   setToken as saveToken,
   getToken,
+  saveConfig,
 } from "../../config/index.js";
-import { User } from "../../types.js";
+import { getCurrentProfile } from "../../config/profiles.js";
+import { User, WebPodsProfile } from "../../types.js";
 import { createLogger, createCliOutput } from "../../logger.js";
 
 const logger = createLogger("webpods:cli:auth");
 
 /**
- * Print OAuth login link for manual token retrieval
+ * Show available OAuth providers for authentication
  */
 export async function login(options: {
   quiet?: boolean;
-  provider?: string;
-  server?: string;
   [key: string]: unknown;
 }): Promise<void> {
   const output = createCliOutput(options.quiet);
 
   try {
-    logger.debug("Starting login process", { provider: options.provider });
+    logger.debug("Starting login process");
 
-    const config = await loadConfig();
-    const server = options.server || config.server;
-    const provider = options.provider || "github";
+    // Get the current profile
+    let profile = await getCurrentProfile();
 
-    const loginUrl = `${server}/auth/${provider}`;
+    // If no profile exists, create default webpods profile
+    if (!profile) {
+      logger.info("No profile found, creating default 'webpods' profile");
+      const config = await loadConfig();
+      const webpodsProfile: WebPodsProfile = {
+        name: "webpods",
+        server: "https://webpods.org",
+      };
 
-    output.print("To authenticate with WebPods:");
-    output.print(`1. Open this URL in your browser: ${loginUrl}`);
-    output.print("2. Complete the OAuth flow");
-    output.print("3. Copy the token from the success page");
-    output.print("4. Run: pod token set <your-token>");
-    output.print("");
-    output.print(
-      "Note: The token will be displayed after successful authentication.",
-    );
+      // Save the profile and set it as current
+      config.profiles = { webpods: webpodsProfile };
+      config.currentProfile = "webpods";
+      await saveConfig(config);
+      profile = webpodsProfile;
 
-    logger.info("Login URL provided", { loginUrl });
+      output.print(
+        "Created default profile 'webpods' pointing to https://webpods.org",
+      );
+      output.print(
+        "To use a different server, run: pod profile add <name> --server <url>",
+      );
+      output.print("");
+    }
+
+    const server = profile.server;
+
+    // Fetch available providers from the server
+    const providersUrl = `${server}/auth/providers`;
+    logger.debug("Fetching providers from", { url: providersUrl });
+
+    try {
+      const response = await apiRequest<{
+        providers: Array<{ id: string; name: string; login_url: string }>;
+      }>(providersUrl, { method: "GET" });
+
+      if (!response.success) {
+        // Can't connect to server or endpoint doesn't exist - use fallback
+        throw new Error("Cannot fetch providers");
+      }
+
+      if (!response.data?.providers || response.data.providers.length === 0) {
+        output.error("No authentication providers available on this server.");
+        process.exit(1);
+      }
+
+      const providers = response.data.providers;
+
+      // Show all available providers
+      output.print("To authenticate with WebPods:");
+      output.print("");
+      providers.forEach((provider, index) => {
+        output.print(
+          `${index + 1}. Open this URL in your browser: ${provider.login_url}`,
+        );
+      });
+      output.print("");
+      output.print("After completing the OAuth flow, copy the token and run:");
+      output.print("pod token set <your-token>");
+
+      output.print("");
+      output.print(
+        "Note: The token will be displayed after successful authentication.",
+      );
+    } catch (fetchError) {
+      // Fallback if endpoint doesn't exist or server is unreachable
+      logger.warn("Could not fetch providers, using fallback", {
+        error: fetchError,
+      });
+
+      // Show generic message when can't fetch providers
+      output.print("To authenticate with WebPods:");
+      output.print(`1. Visit your server's auth page: ${server}/auth/`);
+      output.print("2. Choose an authentication provider");
+      output.print("3. Complete the OAuth flow");
+      output.print("4. Copy the token from the success page");
+      output.print("5. Run: pod token set <your-token>");
+      output.print("");
+      output.print(
+        "Note: The token will be displayed after successful authentication.",
+      );
+    }
+
+    logger.info("Login URLs provided", { server });
     process.exit(0);
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -187,7 +256,6 @@ export async function token(options: {
 export async function tokenSet(options: {
   quiet?: boolean;
   token?: string;
-  server?: string;
   [key: string]: unknown;
 }): Promise<void> {
   const output = createCliOutput(options.quiet);
@@ -203,10 +271,19 @@ export async function tokenSet(options: {
       process.exit(1);
     }
 
+    // Get current profile to get server
+    const profile = await getCurrentProfile();
+    if (!profile) {
+      output.error(
+        "No profile configured. Run 'pod profile add <name> --server <url>' to configure a server.",
+      );
+      process.exit(1);
+    }
+
     // Test the token by making a whoami request
     const result = await apiRequest<User>("/auth/whoami", {
       token: options.token,
-      server: options.server,
+      server: profile.server,
     });
 
     if (!result.success) {

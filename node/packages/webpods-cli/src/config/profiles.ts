@@ -41,6 +41,8 @@ export async function getCurrentProfile(): Promise<WebPodsProfile | undefined> {
         outputFormat: config.outputFormat,
       };
     }
+
+    // No profile exists
     return undefined;
   }
 

@@ -45,14 +45,9 @@ describe("CLI Auth Commands", function () {
       expect(result.exitCode).to.equal(0);
       expect(result.stdout).to.include("To authenticate with WebPods:");
       expect(result.stdout).to.include("Open this URL in your browser:");
-      expect(result.stdout).to.include("http://localhost:3456/auth/");
-    });
-
-    it("should support custom provider", async () => {
-      const result = await cli.exec(["login", "--provider", "google"]);
-
-      expect(result.exitCode).to.equal(0);
-      expect(result.stdout).to.include("/auth/google");
+      expect(result.stdout).to.include(
+        "http://localhost:3456/auth/test-provider",
+      );
     });
   });
 

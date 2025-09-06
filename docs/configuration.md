@@ -111,17 +111,18 @@ WebPods supports configurable rate limits to prevent abuse:
 
 Rate limits can be set in `config.json` or via environment variables:
 
-| Field | Environment Variable | Default | Description |
-|-------|---------------------|---------|-------------|
-| `read` | `RATE_LIMIT_READS` | 10000 | Read requests per hour per IP |
-| `write` | `RATE_LIMIT_WRITES` | 1000 | Write requests per hour per user |
-| `podCreate` | `RATE_LIMIT_POD_CREATE` | 10 | Pod creations per day per user |
-| `streamCreate` | `RATE_LIMIT_STREAM_CREATE` | 100 | Stream creations per day per user |
-| `maxRecordLimit` | `MAX_RECORD_LIMIT` | 1000 | Maximum records returned per request |
+| Field            | Environment Variable       | Default | Description                          |
+| ---------------- | -------------------------- | ------- | ------------------------------------ |
+| `read`           | `RATE_LIMIT_READS`         | 10000   | Read requests per hour per IP        |
+| `write`          | `RATE_LIMIT_WRITES`        | 1000    | Write requests per hour per user     |
+| `podCreate`      | `RATE_LIMIT_POD_CREATE`    | 10      | Pod creations per day per user       |
+| `streamCreate`   | `RATE_LIMIT_STREAM_CREATE` | 100     | Stream creations per day per user    |
+| `maxRecordLimit` | `MAX_RECORD_LIMIT`         | 1000    | Maximum records returned per request |
 
 ### Rate Limit Headers
 
 When rate limits are exceeded, the API returns:
+
 - Status: `429 Too Many Requests`
 - Headers:
   - `X-RateLimit-Limit`: Request limit

@@ -39,10 +39,11 @@ pod read my-pod notes/today
 Start the OAuth authentication flow:
 
 ```bash
-pod login [--provider github]
+# Show all available OAuth providers for the current server
+pod login
 ```
 
-This will print a URL to visit in your browser. After authenticating, copy the token from the success page.
+This will print login URL(s) to visit in your browser. After authenticating, copy the token from the success page.
 
 ### Set Token
 

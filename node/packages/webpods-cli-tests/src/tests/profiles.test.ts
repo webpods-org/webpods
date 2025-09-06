@@ -4,6 +4,12 @@
 
 import { expect } from "chai";
 import { CliTestHelper } from "../cli-test-helpers.js";
+import { promises as fs } from "fs";
+import path from "path";
+import { spawn } from "child_process";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 describe("CLI Profile Management", () => {
   let cli: CliTestHelper;
@@ -47,7 +53,8 @@ describe("CLI Profile Management", () => {
       expect(result.stderr).to.include("Invalid server URL");
     });
 
-    it("should set first profile as current", async () => {
+    it("should keep existing profile as current when adding new profile", async () => {
+      // Test profile already exists and is current
       await cli.exec([
         "profile",
         "add",
@@ -58,7 +65,8 @@ describe("CLI Profile Management", () => {
       const result = await cli.exec(["profile", "current", "--format", "json"]);
 
       const data = JSON.parse(result.stdout);
-      expect(data.profileName).to.equal("first");
+      // Should still be test profile as current
+      expect(data.profileName).to.equal("test");
     });
   });
 
@@ -103,9 +111,10 @@ describe("CLI Profile Management", () => {
 
       expect(result.exitCode).to.equal(0);
       const data = JSON.parse(result.stdout);
+      expect(data.profiles).to.have.property("test"); // Default test profile
       expect(data.profiles).to.have.property("local");
       expect(data.profiles).to.have.property("prod");
-      expect(data.current).to.equal("local");
+      expect(data.current).to.equal("test"); // Test profile is current
     });
   });
 
@@ -175,7 +184,8 @@ describe("CLI Profile Management", () => {
 
       const result = await cli.exec(["profile", "current", "--format", "json"]);
       const data = JSON.parse(result.stdout);
-      expect(data.profileName).to.equal("keep");
+      // After deleting temp, it should pick one of the remaining profiles
+      expect(["test", "keep"]).to.include(data.profileName);
     });
   });
 
@@ -188,6 +198,8 @@ describe("CLI Profile Management", () => {
         "--server",
         "http://active.com",
       ]);
+      // Switch to the active profile
+      await cli.exec(["profile", "use", "active"]);
     });
 
     it("should show current profile details", async () => {
@@ -210,9 +222,16 @@ describe("CLI Profile Management", () => {
     });
 
     it("should handle no current profile", async () => {
-      // Test with fresh CLI instance
+      // Test with fresh CLI instance with empty config
       const freshCli = new CliTestHelper();
-      await freshCli.setup();
+
+      // Create empty config directory without calling setup()
+      const webpodsDir = path.join(freshCli["configDir"], ".webpods");
+      await fs.mkdir(webpodsDir, { recursive: true });
+
+      // Create empty config
+      const configPath = path.join(webpodsDir, "config.json");
+      await fs.writeFile(configPath, JSON.stringify({}, null, 2));
 
       const result = await freshCli.exec(["profile", "current"]);
 
@@ -279,6 +298,52 @@ describe("CLI Profile Management", () => {
       expect(result.stdout).to.include("Available profiles:");
 
       await legacyCli.cleanup();
+    });
+  });
+
+  describe("auto-creation of webpods profile", () => {
+    it("should auto-create webpods profile when no config exists", async () => {
+      // Create a fresh CLI with no config at all
+      const freshCli = new CliTestHelper();
+
+      // Don't call setup() - we want a truly empty config
+      const webpodsDir = path.join(freshCli["configDir"], ".webpods");
+      await fs.mkdir(webpodsDir, { recursive: true });
+
+      const configPath = path.join(webpodsDir, "config.json");
+      await fs.writeFile(configPath, JSON.stringify({}, null, 2));
+
+      // Set HOME to use our test config directory
+      const env = {
+        ...process.env,
+        HOME: freshCli["configDir"],
+        CLI_SILENT: "true",
+      };
+
+      // Run login command directly without test helper to avoid automatic profile creation
+      const cliPath = path.resolve(
+        __dirname,
+        "../../../webpods-cli/dist/index.js",
+      );
+
+      const child = spawn("node", [cliPath, "login"], { env });
+
+      let stdout = "";
+      child.stdout.on("data", (data: Buffer) => {
+        stdout += data.toString();
+      });
+
+      await new Promise((resolve) => {
+        child.on("close", resolve);
+      });
+
+      // Should create the webpods profile
+      expect(stdout).to.include(
+        "Created default profile 'webpods' pointing to https://webpods.org",
+      );
+      expect(stdout).to.include("To authenticate with WebPods");
+
+      await freshCli.cleanup();
     });
   });
 });
