@@ -20,7 +20,7 @@ describe("WebPods Rate Limiting", () => {
     // Create a new client instance for each test
     client = new TestHttpClient("http://localhost:3000");
     const db = testDb.getDb();
-    
+
     // Clear any existing rate limits to ensure test isolation
     await db.none(`DELETE FROM rate_limit`);
     const user = await createTestUser(db, {

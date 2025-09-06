@@ -525,10 +525,10 @@ export class TestHttpClient {
     _streamType?: string,
   ): Promise<FetchResponse> {
     // Create stream using POST with empty body
-    const url = accessPermission 
+    const url = accessPermission
       ? `/${streamName}?access=${encodeURIComponent(accessPermission)}`
       : `/${streamName}`;
-    
+
     return this.post(url, "", {
       headers: {
         "Content-Type": "application/json",

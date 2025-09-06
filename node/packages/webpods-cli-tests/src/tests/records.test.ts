@@ -540,12 +540,7 @@ describe("CLI Record Commands", function () {
 
     it("should create a permission stream", async () => {
       const result = await cli.exec(
-        [
-          "stream",
-          "create",
-          testPodName,
-          "team-permissions",
-        ],
+        ["stream", "create", testPodName, "team-permissions"],
         {
           token: testToken,
         },

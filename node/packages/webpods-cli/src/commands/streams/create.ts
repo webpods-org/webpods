@@ -49,7 +49,7 @@ export async function createStream(options: {
     }
 
     const accessPermission = options.access || "public";
-    
+
     // Create stream using POST with empty body
     // Add access permission as query parameter if not public
     const streamPath =
@@ -57,16 +57,12 @@ export async function createStream(options: {
         ? `/${options.stream}?access=${accessPermission}`
         : `/${options.stream}`;
 
-    const result = await podRequest(
-      options.pod,
-      streamPath,
-      {
-        method: "POST",
-        body: "",
-        token: options.token,
-        server: options.server,
-      },
-    );
+    const result = await podRequest(options.pod, streamPath, {
+      method: "POST",
+      body: "",
+      token: options.token,
+      server: options.server,
+    });
 
     if (!result.success) {
       output.error("Error: " + result.error.message);
@@ -79,7 +75,9 @@ export async function createStream(options: {
     }
 
     // Success message matching test expectations
-    output.print(`Stream '${options.stream}' created successfully in pod '${options.pod}'.`);
+    output.print(
+      `Stream '${options.stream}' created successfully in pod '${options.pod}'.`,
+    );
     if (accessPermission !== "public") {
       output.print(`Access permission: ${accessPermission}`);
     }

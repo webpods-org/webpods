@@ -60,7 +60,10 @@ describe("WebPods Stream Operations", () => {
       );
       expect(writeResponse.status).to.equal(201);
       expect(writeResponse.data).to.have.property("index", 0);
-      expect(writeResponse.data).to.have.property("content", "Hello from second stream!");
+      expect(writeResponse.data).to.have.property(
+        "content",
+        "Hello from second stream!",
+      );
 
       // Verify stream exists in database
       const db = testDb.getDb();

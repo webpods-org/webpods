@@ -45,13 +45,9 @@ describe("Unique Records Listing", () => {
   describe("GET /{stream}?unique=true", () => {
     it("should return only latest version of each named record", async () => {
       // Create stream first
-      await podClient.post(
-        "/blog",
-        "",
-        {
-          headers: { Authorization: `Bearer ${authToken}` },
-        },
-      );
+      await podClient.post("/blog", "", {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
 
       // Write multiple versions of the same named records
       const firstResponse = await podClient.post("/blog/post-1", "Version 1", {
