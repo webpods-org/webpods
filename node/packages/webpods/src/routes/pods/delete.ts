@@ -13,9 +13,12 @@ import {
   CodedError,
 } from "./shared.js";
 import { getDb } from "../../db/index.js";
-import { getStream } from "../../domain/streams/get-stream.js";
+import { getStreamById } from "../../domain/streams/get-stream-by-id.js";
+import { resolvePath } from "../../domain/resolution/resolve-path.js";
 import { deleteStream } from "../../domain/streams/delete-stream.js";
-import { writeRecord } from "../../domain/records/write-record.js";
+import { purgeRecord } from "../../domain/records/purge-record.js";
+import { deleteRecord } from "../../domain/records/delete-record.js";
+import { recordToResponse } from "../../domain/records/record-to-response.js";
 import { getPodOwner } from "../../domain/pods/get-pod-owner.js";
 
 const logger = createRouteLogger("delete");
@@ -47,32 +50,33 @@ export const deleteHandler = async (
   }
 
   const db = getDb();
-  const pathParts = req.path.substring(1).split("/"); // Remove leading /
+  const fullPath = req.path.substring(1); // Remove leading /
   const purge = req.query.purge === "true";
 
-  // Check if we're trying to delete a record or a stream
-  // Similar logic to GET - check if full path is a stream first
-  let streamPath: string;
-  let recordName: string | undefined;
+  // Use path resolution to determine if this is a stream or record
+  const resolutionResult = await resolvePath(
+    { db },
+    req.podName,
+    fullPath,
+    false, // No index query for DELETE
+  );
 
-  if (pathParts.length > 1) {
-    const fullPath = pathParts.join("/");
-    const streamResult = await getStream({ db }, req.podName, fullPath);
-
-    if (streamResult.success && streamResult.data) {
-      // Full path is a stream, delete the stream
-      streamPath = fullPath;
-    } else {
-      // Try as record in parent stream
-      recordName = pathParts.pop();
-      streamPath = pathParts.join("/");
-    }
-  } else {
-    streamPath = pathParts[0]!;
+  if (!resolutionResult.success) {
+    res.status(404).json({
+      error: {
+        code: "NOT_FOUND",
+        message: `Path not found: ${fullPath}`,
+      },
+    });
+    return;
   }
 
+  const streamId = resolutionResult.data.streamId;
+  const streamPath = resolutionResult.data.streamPath;
+  const recordName = resolutionResult.data.recordName;
+
   // Prevent deletion of system streams via this endpoint
-  if (!recordName && streamPath && isSystemStream(streamPath)) {
+  if (!recordName && isSystemStream(streamPath)) {
     res.status(403).json({
       error: {
         code: "FORBIDDEN",
@@ -96,14 +100,14 @@ export const deleteHandler = async (
 
   if (recordName) {
     // Delete or purge a record
-    const streamResult = await getStream({ db }, req.podName, streamPath);
+    // Stream already resolved, get it by ID
+    const streamResult = await getStreamById({ db }, streamId);
 
-    if (!streamResult.success || !streamResult.data) {
-      const fullPath = req.path.substring(1);
+    if (!streamResult.success) {
       res.status(404).json({
         error: {
-          code: "NOT_FOUND",
-          message: `Not found: no stream '${fullPath}' and no stream '${streamPath}' with record '${recordName}'`,
+          code: "STREAM_NOT_FOUND",
+          message: `Stream not found`,
         },
       });
       return;
@@ -111,32 +115,16 @@ export const deleteHandler = async (
 
     if (purge) {
       // Hard delete - physically overwrite the content
-      const updateResult = await db.result(
-        `UPDATE record
-         SET content = $(content),
-             content_type = $(contentType)
-         WHERE stream_id = $(streamId)
-           AND name = $(recordName)`,
-        {
-          streamId: streamResult.data.id,
-          recordName,
-          content: JSON.stringify({
-            deleted: true,
-            purged: true,
-            purgedAt: new Date().toISOString(),
-            purgedBy: req.auth.user_id,
-          }),
-          contentType: "application/json",
-        },
-        (r) => r.rowCount,
+      const purgeResult = await purgeRecord(
+        { db },
+        streamId,
+        recordName,
+        req.auth.user_id,
       );
 
-      if (updateResult === 0) {
+      if (!purgeResult.success) {
         res.status(404).json({
-          error: {
-            code: "RECORD_NOT_FOUND",
-            message: `Record '${recordName}' not found in stream '${streamPath}'`,
-          },
+          error: purgeResult.error,
         });
         return;
       }
@@ -149,40 +137,17 @@ export const deleteHandler = async (
       });
       res.status(204).send();
     } else {
-      // Soft delete - add a tombstone record with a unique name
-      // Get the next index for the tombstone
-      const lastRecord = await db.oneOrNone(
-        `SELECT * FROM record
-         WHERE stream_id = $(streamId)
-         ORDER BY index DESC
-         LIMIT 1`,
-        {
-          streamId: streamResult.data.id,
-        },
-      );
-
-      const nextIndex = (lastRecord?.index ?? -1) + 1;
-      const tombstoneName = `${recordName}.deleted.${nextIndex}`;
-
-      const deletionRecord = {
-        deleted: true,
-        deletedAt: new Date().toISOString(),
-        deletedBy: req.auth.user_id,
-        originalName: recordName,
-      };
-
-      const writeResult = await writeRecord(
+      // Soft delete - add a tombstone record
+      const deleteResult = await deleteRecord(
         { db },
-        streamResult.data.id,
-        deletionRecord,
-        "application/json",
+        streamId,
+        recordName,
         req.auth.user_id,
-        tombstoneName,
       );
 
-      if (!writeResult.success) {
+      if (!deleteResult.success) {
         res.status(500).json({
-          error: writeResult.error,
+          error: deleteResult.error,
         });
         return;
       }
@@ -191,29 +156,17 @@ export const deleteHandler = async (
         podId: req.podName,
         streamPath,
         recordName,
+        tombstoneName: deleteResult.data.name,
         userId: req.auth.user_id,
       });
-      res.status(204).send();
+      res.json(recordToResponse(deleteResult.data, streamPath));
     }
   } else {
     // Delete entire stream
-    // First get the stream to get its ID
-    const streamResult = await getStream({ db }, req.podName, streamPath);
-
-    if (!streamResult.success || !streamResult.data) {
-      res.status(404).json({
-        error: {
-          code: "STREAM_NOT_FOUND",
-          message: `Stream '${streamPath}' not found`,
-        },
-      });
-      return;
-    }
-
     const result = await deleteStream(
       { db },
       req.podName,
-      streamResult.data.id,
+      streamId,
       req.auth!.user_id,
     );
 

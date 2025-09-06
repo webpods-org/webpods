@@ -13,16 +13,20 @@ import {
 } from "./shared.js";
 import { getDb } from "../../db/index.js";
 import { getConfig } from "../../config-loader.js";
-import { getStream } from "../../domain/streams/get-stream.js";
+import { getStreamById } from "../../domain/streams/get-stream-by-id.js";
+import { listChildStreams } from "../../domain/streams/list-child-streams.js";
+import { getStreamPath } from "../../domain/streams/get-stream-by-path.js";
+import { resolvePath } from "../../domain/resolution/resolve-path.js";
 import { getRecord } from "../../domain/records/get-record.js";
 import { getRecordRange } from "../../domain/records/get-record-range.js";
 import { listRecords } from "../../domain/records/list-records.js";
 import { listUniqueRecords } from "../../domain/records/list-unique-records.js";
 import { listRecordsRecursive } from "../../domain/records/list-records-recursive.js";
 import { recordToResponse } from "../../domain/records/record-to-response.js";
+import { hasTombstone } from "../../domain/records/check-tombstone.js";
 import { canRead } from "../../domain/permissions/can-read.js";
 import { resolveLink } from "../../domain/routing/resolve-link.js";
-import type { StreamRecord } from "../../types.js";
+import type { StreamRecord, StreamInfo } from "../../types.js";
 
 const logger = createRouteLogger("get");
 
@@ -109,38 +113,44 @@ export const getHandler = async (
 
   // Check for index query parameter
   const indexQuery = req.query.i as string | undefined;
+  const fullPath = pathParts.join("/");
 
-  // Determine if last part is a name or part of stream path
+  // Use path resolution to determine if this is a stream or record
+  const resolutionResult = await resolvePath(
+    { db },
+    req.podName,
+    fullPath,
+    !!indexQuery,
+  );
+
+  // Extract resolved components
+  let streamId: number | undefined;
   let streamPath: string;
   let name: string | undefined;
 
-  if (indexQuery) {
-    // If using index query, entire path is stream path
-    streamPath = pathParts.join("/");
-  } else if (pathParts.length > 1) {
-    // Check if last part could be a name (not using index query)
-    // Try to find stream with full path first
-    const fullPath = pathParts.join("/");
-    const streamResult = await getStream({ db }, req.podName, fullPath);
-
-    if (streamResult.success && streamResult.data) {
-      streamPath = fullPath;
-    } else {
-      // Assume last part is name
-      name = pathParts.pop();
-      streamPath = pathParts.join("/");
-    }
+  if (resolutionResult.success) {
+    streamId = resolutionResult.data.streamId;
+    streamPath = resolutionResult.data.streamPath;
+    name = resolutionResult.data.recordName;
   } else {
-    streamPath = pathParts[0]!;
+    // Path resolution failed - handle special cases
+    streamPath = fullPath;
   }
 
-  // Get stream
-  const streamResult = await getStream({ db }, req.podName, streamPath);
+  // Get stream by ID if we have one
+  const streamResult = streamId
+    ? await getStreamById({ db }, streamId)
+    : {
+        success: false as const,
+        error: !resolutionResult.success
+          ? resolutionResult.error
+          : { code: "STREAM_NOT_FOUND", message: "Stream not found" },
+      };
 
   // Special handling for recursive queries - they can work even if exact stream doesn't exist
   const recursive = req.query.recursive === "true";
 
-  if (!streamResult.success || !streamResult.data) {
+  if (!streamResult.success) {
     // If this is a recursive query and we're not looking for a specific record,
     // we can still search for nested streams
     if (recursive && !name && !indexQuery) {
@@ -168,6 +178,8 @@ export const getHandler = async (
         return;
       }
 
+      // For recursive listing when stream doesn't exist, we still use the path-based approach
+      // This is a special case that needs to search for nested streams
       const result = await listRecordsRecursive(
         { db },
         req.podName,
@@ -187,6 +199,7 @@ export const getHandler = async (
       const data = result.data;
       res.json({
         records: data.records.map((r) => recordToResponse(r, streamPath)),
+        streams: [], // Recursive listing doesn't include child streams separately
         total: data.total,
         hasMore: data.hasMore,
         nextIndex:
@@ -365,22 +378,14 @@ export const getHandler = async (
     }
 
     // Check if there's a tombstone record for this name that's newer than the current record
-    const tombstonePattern = `${name}.deleted.%`;
-    const tombstones = await db.manyOrNone(
-      `SELECT * FROM record
-       WHERE stream_id = $(streamId)
-         AND name LIKE $(pattern)
-         AND index > $(index)
-       ORDER BY index DESC
-       LIMIT 1`,
-      {
-        streamId: streamResult.data.id,
-        pattern: tombstonePattern,
-        index: result.data.index,
-      },
+    const hasTombstoneRecord = await hasTombstone(
+      { db },
+      streamResult.data.id,
+      name,
+      result.data.index,
     );
 
-    if (tombstones.length > 0) {
+    if (hasTombstoneRecord) {
       // Found a newer tombstone, so this record is considered deleted
       res.status(404).json({
         error: {
@@ -519,8 +524,33 @@ export const getHandler = async (
       total: number;
       hasMore: boolean;
     };
+
+    // Get child streams for this directory
+    const childStreamsResult = await listChildStreams(
+      { db },
+      streamId || null,
+      req.podName,
+    );
+
+    // Build StreamInfo for child streams
+    const childStreams: StreamInfo[] = [];
+    if (childStreamsResult.success) {
+      for (const childStream of childStreamsResult.data) {
+        // Get the full path for each child stream
+        const childPathResult = await getStreamPath({ db }, childStream.id);
+        if (childPathResult.success) {
+          childStreams.push({
+            name: childStream.name,
+            path: childPathResult.data,
+            createdAt: childStream.createdAt.toISOString(),
+          });
+        }
+      }
+    }
+
     res.json({
       records: data.records.map((r) => recordToResponse(r, streamPath)),
+      streams: childStreams,
       total: data.total,
       hasMore: data.hasMore,
       nextIndex:

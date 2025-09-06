@@ -1,4 +1,6 @@
-# Security TODOs for WebPods
+# Security TODOs for WebPods (FUTURE - DO NOT PRIORITIZE NOW)
+
+**NOTE: These are future considerations and should NOT be looked at or worked on now. Focus on core functionality first.**
 
 This document tracks security improvements and considerations for the WebPods project.
 

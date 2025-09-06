@@ -41,14 +41,33 @@ export async function deleteStream(
         );
       }
 
+      // Check if stream has child streams
+      const childCount = await t.oneOrNone<{ count: string }>(
+        `SELECT COUNT(*) as count FROM stream
+         WHERE pod_name = $(podName)
+           AND parent_id = $(streamId)`,
+        { podName, streamId },
+      );
+
+      const childStreamCount = parseInt(childCount?.count || "0");
+      if (childStreamCount > 0) {
+        // Note: The CASCADE will delete them, but we log this for clarity
+        logger.info("Deleting stream with child streams", {
+          podName,
+          streamId,
+          childCount: childStreamCount,
+        });
+      }
+
       // Delete all records in the stream
+      // Note: Child streams and their records will be CASCADE deleted by PostgreSQL
       await t.none(
         `DELETE FROM record 
          WHERE stream_id = $(streamId)`,
         { streamId },
       );
 
-      // Delete the stream
+      // Delete the stream (CASCADE will delete child streams)
       await t.none(
         `DELETE FROM stream 
          WHERE id = $(streamId)
@@ -56,7 +75,7 @@ export async function deleteStream(
         { streamId, pod_name: podName },
       );
 
-      logger.info("Stream deleted", {
+      logger.info("Stream and all children deleted", {
         podName,
         streamId,
       });

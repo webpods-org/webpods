@@ -19,9 +19,10 @@ import {
 } from "./shared.js";
 import { getDb } from "../../db/index.js";
 import { getConfig } from "../../config-loader.js";
-import { getStream } from "../../domain/streams/get-stream.js";
-import { getOrCreateStream } from "../../domain/streams/get-or-create-stream.js";
+import { getStreamById } from "../../domain/streams/get-stream-by-id.js";
+import { getStreamByPath } from "../../domain/streams/get-stream-by-path.js";
 import { createStreamHierarchy } from "../../domain/streams/create-stream-hierarchy.js";
+import { resolvePathForWrite } from "../../domain/resolution/resolve-path.js";
 import { writeRecord } from "../../domain/records/write-record.js";
 import { recordToResponse } from "../../domain/records/record-to-response.js";
 import { canWrite } from "../../domain/permissions/can-write.js";
@@ -93,7 +94,11 @@ export const postHandler = async (
       }
 
       // Check if stream already exists
-      const existingStream = await getStream({ db }, req.podName, streamPath);
+      const existingStream = await getStreamByPath(
+        { db },
+        req.podName,
+        streamPath,
+      );
       if (existingStream.success) {
         res.status(409).json({
           error: {
@@ -297,11 +302,19 @@ export const postHandler = async (
       return;
     }
 
-    // Check if stream exists first
-    const existingStream = await getStream({ db }, req.podName, streamPath);
+    // Try to resolve the path for writing
+    const resolutionResult = await resolvePathForWrite(
+      { db },
+      req.podName,
+      fullPath,
+    );
 
-    // If stream doesn't exist, check rate limit before creating
-    if (!existingStream.success) {
+    let streamId: number;
+    let resolvedStreamPath: string;
+
+    if (!resolutionResult.success) {
+      // Stream doesn't exist, need to create it
+      // Check rate limit before creating
       const streamLimitResult = await checkRateLimit(
         { db },
         req.auth.user_id,
@@ -317,25 +330,48 @@ export const postHandler = async (
         });
         return;
       }
+
+      // Create the stream hierarchy
+      const createResult = await createStreamHierarchy(
+        { db },
+        req.podName,
+        streamPath,
+        req.auth!.user_id,
+        accessPermission || "public",
+      );
+
+      if (!createResult.success) {
+        const status =
+          (createResult.error as CodedError).code === "FORBIDDEN" ? 403 : 500;
+        res.status(status).json({
+          error: createResult.error,
+        });
+        return;
+      }
+
+      streamId = createResult.data.id;
+      resolvedStreamPath = streamPath;
+    } else {
+      // Stream exists, use resolved values
+      streamId = resolutionResult.data.streamId;
+      resolvedStreamPath = resolutionResult.data.streamPath;
+      // Verify the record name matches what we expected
+      if (resolutionResult.data.recordName !== name) {
+        res.status(400).json({
+          error: {
+            code: "INVALID_PATH",
+            message: "Path resolution mismatch",
+          },
+        });
+        return;
+      }
     }
 
-    // Get the stream (no longer auto-creates)
-    const streamResult = await getOrCreateStream(
-      { db },
-      req.podName,
-      streamPath,
-      req.auth!.user_id,
-      accessPermission,
-    );
+    // Get the stream by ID for permission checking
+    const streamResult = await getStreamById({ db }, streamId);
 
     if (!streamResult.success) {
-      const status =
-        (streamResult.error as CodedError).code === "FORBIDDEN"
-          ? 403
-          : (streamResult.error as CodedError).code === "STREAM_NOT_FOUND"
-            ? 404
-            : 500;
-      res.status(status).json({
+      res.status(500).json({
         error: streamResult.error,
       });
       return;
@@ -344,7 +380,7 @@ export const postHandler = async (
     // Note: stream_create rate limit was already incremented by checkRateLimit above
 
     // Check if this is a .config/* stream - only pod owner can write to these
-    if (streamPath.startsWith(".config/")) {
+    if (resolvedStreamPath.startsWith(".config/")) {
       const ownerResult = await getPodOwner({ db }, req.podName);
       if (ownerResult.success && ownerResult.data !== req.auth.user_id) {
         res.status(403).json({
@@ -359,7 +395,7 @@ export const postHandler = async (
       // For non-.config streams, check regular write permissions
       const canWriteResult = await canWrite(
         { db },
-        streamResult.data.stream,
+        streamResult.data,
         req.auth.user_id,
       );
       if (!canWriteResult) {
@@ -376,7 +412,7 @@ export const postHandler = async (
     // Write record
     const recordResult = await writeRecord(
       { db },
-      streamResult.data.stream.id,
+      streamId,
       content,
       contentType,
       req.auth.user_id,
@@ -398,7 +434,9 @@ export const postHandler = async (
       return;
     }
 
-    res.status(201).json(recordToResponse(recordResult.data, streamPath));
+    res
+      .status(201)
+      .json(recordToResponse(recordResult.data, resolvedStreamPath));
   } catch (error) {
     if (error instanceof z.ZodError) {
       res.status(400).json({
