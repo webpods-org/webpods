@@ -6,11 +6,11 @@ HTTP-based append-only logs using subdomains (pods) and paths (streams).
 
 WebPods organizes data into:
 
-- **Pods**: Subdomains that act as namespaces (e.g., `alice.yourdomain.com`)
+- **Pods**: Subdomains that act as namespaces (e.g., `alice.webpods.org`)
 - **Streams**: Append-only logs within pods (e.g., `/blog`, `/data/2024`)
 - **Records**: Immutable entries with SHA-256 hash chains
 
-> **Note**: Throughout this documentation, we use `webpods.example.com` as an example domain. Replace it with your actual WebPods server domain (e.g., `webpods.org`, `data.mycompany.com`, or `localhost:3000` for local development).
+> **Important**: Throughout this documentation, `webpods.org` is used as an example domain. When you deploy WebPods, replace it with your actual server domain (e.g., `data.mycompany.com`, `pods.example.net`, or `localhost:3000` for local development). Each WebPods deployment is completely independent.
 
 ## Table of Contents
 
@@ -45,14 +45,15 @@ pod --version
 The CLI needs to know which WebPods server to connect to. By default, it uses `http://localhost:3000`.
 
 ```bash
-# For a production server
-pod config server https://webpods.example.com
+# For a production server (replace with your actual server)
+pod config server https://your-webpods-server.com
 
 # Or use the --server flag with any command
-pod login --server https://webpods.example.com
+pod login --server https://your-webpods-server.com
 
 # For multiple servers, use profiles (recommended)
-pod profile add prod --server https://webpods.example.com
+pod profile add prod --server https://webpods.org
+pod profile add work --server https://pods.mycompany.com
 pod profile add dev --server http://localhost:3000
 pod profile use prod  # Switch to production server
 ```
@@ -94,7 +95,7 @@ npm run migrate:latest
 
 ### How Authentication Works
 
-1. **Authentication happens on the main domain** of your WebPods server (e.g., `webpods.example.com`), not on pod subdomains
+1. **Authentication happens on the main domain** of your WebPods server (e.g., `webpods.org`), not on pod subdomains
 2. **Once authenticated**, you receive a JWT token that works across all pods on that server
 3. **Each WebPods deployment is independent** - a token from one server won't work on another
 
@@ -130,7 +131,7 @@ pod login
 pod token set "your-jwt-token-here"
 
 # Or login to a specific server
-pod login --server https://webpods.example.com
+pod login --server https://webpods.org
 
 # Login with a different OAuth provider (default is github)
 pod login --provider google
@@ -145,20 +146,20 @@ pod whoami
 #### HTTP
 
 ```bash
-# Replace 'webpods.example.com' with your actual WebPods server domain
+# Replace 'webpods.org' with your actual WebPods server domain
 
 # 1. List available OAuth providers
-curl https://webpods.example.com/auth/providers
+curl https://webpods.org/auth/providers
 
 # 2. For CLI/API usage, get token directly
-curl "https://webpods.example.com/auth/github?no_redirect=1"
+curl "https://webpods.org/auth/github?no_redirect=1"
 # This returns a URL - visit it in browser, authenticate, get your token
 
 # 3. Store token for shell session
 export WEBPODS_TOKEN="your-jwt-token-here"
 
 # 4. Verify authentication
-curl https://webpods.example.com/auth/whoami \
+curl https://webpods.org/auth/whoami \
   -H "Authorization: Bearer $WEBPODS_TOKEN"
 ```
 
@@ -168,7 +169,7 @@ You can manage pods across multiple WebPods deployments using profiles:
 
 ```bash
 # Add profiles for different servers
-pod profile add production --server https://webpods.example.com
+pod profile add production --server https://webpods.org
 pod profile add staging --server https://staging.example.com
 pod profile add local --server http://localhost:3000
 
@@ -207,7 +208,7 @@ pod logout
 
 ```bash
 # For API clients (returns JSON)
-curl -X POST https://webpods.example.com/auth/logout \
+curl -X POST https://webpods.org/auth/logout \
   -H "Authorization: Bearer $WEBPODS_TOKEN"
 ```
 
@@ -230,7 +231,7 @@ pod create my-awesome-pod
 #### HTTP
 
 ```bash
-curl -X POST https://webpods.example.com/api/pods \
+curl -X POST https://webpods.org/api/pods \
   -H "Authorization: Bearer $WEBPODS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name": "my-awesome-pod"}'
@@ -250,7 +251,7 @@ pod list --format json
 #### HTTP
 
 ```bash
-curl https://webpods.example.com/api/pods \
+curl https://webpods.org/api/pods \
   -H "Authorization: Bearer $WEBPODS_TOKEN"
 ```
 
@@ -271,7 +272,7 @@ pod delete my-awesome-pod --force
 #### HTTP
 
 ```bash
-curl -X DELETE https://my-awesome-pod.webpods.example.com/ \
+curl -X DELETE https://my-awesome-pod.webpods.org/ \
   -H "Authorization: Bearer $WEBPODS_TOKEN"
 ```
 
@@ -302,15 +303,15 @@ pod stream create my-pod /team-docs --access /team-permissions
 
 ```bash
 # Create a public stream explicitly
-curl -X POST https://my-pod.webpods.example.com/blog/posts \
+curl -X POST https://my-pod.webpods.org/blog/posts \
   -H "Authorization: Bearer $WEBPODS_TOKEN"
 
 # Create a private stream explicitly
-curl -X POST https://my-pod.webpods.example.com/private-notes?access=private \
+curl -X POST https://my-pod.webpods.org/private-notes?access=private \
   -H "Authorization: Bearer $WEBPODS_TOKEN"
 
 # Streams also auto-create when writing first record
-curl -X POST https://my-pod.webpods.example.com/auto-stream/first-record \
+curl -X POST https://my-pod.webpods.org/auto-stream/first-record \
   -H "Authorization: Bearer $WEBPODS_TOKEN" \
   -d "This creates the stream automatically"
 ```
@@ -340,18 +341,18 @@ pod write my-pod /private-notes/secret "My secret" --access private
 
 ```bash
 # Write text content (stream auto-creates as public)
-curl -X POST https://my-pod.webpods.example.com/blog/posts/first-post \
+curl -X POST https://my-pod.webpods.org/blog/posts/first-post \
   -H "Authorization: Bearer $WEBPODS_TOKEN" \
   -d "This is my first blog post!"
 
 # Write JSON content (stream auto-creates as public)
-curl -X POST https://my-pod.webpods.example.com/data/users/alice \
+curl -X POST https://my-pod.webpods.org/data/users/alice \
   -H "Authorization: Bearer $WEBPODS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name": "Alice", "age": 30}'
 
 # Write to private stream (specify access on first write)
-curl -X POST https://my-pod.webpods.example.com/private-notes/secret?access=private \
+curl -X POST https://my-pod.webpods.org/private-notes/secret?access=private \
   -H "Authorization: Bearer $WEBPODS_TOKEN" \
   -d "This is private data"
 ```
@@ -382,15 +383,15 @@ pod read my-pod /blog/posts
 
 ```bash
 # Read by name (returns raw content)
-curl https://my-pod.webpods.example.com/blog/posts/first-post
+curl https://my-pod.webpods.org/blog/posts/first-post
 
 # Read with metadata in headers
-curl -i https://my-pod.webpods.example.com/blog/posts/first-post
+curl -i https://my-pod.webpods.org/blog/posts/first-post
 
 # Read by index
-curl https://my-pod.webpods.example.com/blog/posts?i=0    # First record
-curl https://my-pod.webpods.example.com/blog/posts?i=-1   # Latest record
-curl https://my-pod.webpods.example.com/blog/posts?i=0:10 # Range (0-9)
+curl https://my-pod.webpods.org/blog/posts?i=0    # First record
+curl https://my-pod.webpods.org/blog/posts?i=-1   # Latest record
+curl https://my-pod.webpods.org/blog/posts?i=0:10 # Range (0-9)
 ```
 
 ### Delete a Record
@@ -414,11 +415,11 @@ pod delete my-pod /blog/posts/old-post --purge
 
 ```bash
 # Soft delete (creates tombstone record)
-curl -X DELETE https://my-pod.webpods.example.com/blog/posts/old-post \
+curl -X DELETE https://my-pod.webpods.org/blog/posts/old-post \
   -H "Authorization: Bearer $WEBPODS_TOKEN"
 
 # Hard delete/purge (overwrites content)
-curl -X DELETE https://my-pod.webpods.example.com/blog/posts/old-post?purge=true \
+curl -X DELETE https://my-pod.webpods.org/blog/posts/old-post?purge=true \
   -H "Authorization: Bearer $WEBPODS_TOKEN"
 ```
 
@@ -462,21 +463,21 @@ pod record list my-pod blog/posts --format json
 
 ```bash
 # List all records
-curl https://my-pod.webpods.example.com/blog/posts
+curl https://my-pod.webpods.org/blog/posts
 
 # With pagination (limit is capped at server maximum)
-curl https://my-pod.webpods.example.com/blog/posts?limit=10&after=20
+curl https://my-pod.webpods.org/blog/posts?limit=10&after=20
 
 # Negative indexing - get last N records
-curl https://my-pod.webpods.example.com/blog/posts?after=-20    # Last 20 records
-curl https://my-pod.webpods.example.com/blog/posts?after=-5     # Last 5 records
+curl https://my-pod.webpods.org/blog/posts?after=-20    # Last 20 records
+curl https://my-pod.webpods.org/blog/posts?after=-5     # Last 5 records
 
 # Get only unique named records (excludes deleted/purged)
-curl https://my-pod.webpods.example.com/blog/posts?unique=true
+curl https://my-pod.webpods.org/blog/posts?unique=true
 
 # List records from nested streams recursively
-curl https://my-pod.webpods.example.com/blog?recursive=true      # All records in blog/* streams
-curl https://my-pod.webpods.example.com/?recursive=true          # All records in all streams
+curl https://my-pod.webpods.org/blog?recursive=true      # All records in blog/* streams
+curl https://my-pod.webpods.org/?recursive=true          # All records in all streams
 ```
 
 ### Advanced Query Features
@@ -502,13 +503,13 @@ pod record list my-pod blog --recursive --after -50
 
 ```bash
 # List all records in blog/* streams
-curl https://my-pod.webpods.example.com/blog?recursive=true
+curl https://my-pod.webpods.org/blog?recursive=true
 
 # With pagination
-curl https://my-pod.webpods.example.com/blog?recursive=true&limit=20&after=10
+curl https://my-pod.webpods.org/blog?recursive=true&limit=20&after=10
 
 # Get last 50 records across all nested streams
-curl https://my-pod.webpods.example.com/blog?recursive=true&after=-50
+curl https://my-pod.webpods.org/blog?recursive=true&after=-50
 ```
 
 **Note**: Recursive queries cannot be combined with `unique=true`.
@@ -537,10 +538,10 @@ pod record list my-pod config --unique --after -10  # Last 10 unique records
 
 ```bash
 # Get latest version of each named record
-curl https://my-pod.webpods.example.com/config?unique=true
+curl https://my-pod.webpods.org/config?unique=true
 
 # Combine with pagination
-curl https://my-pod.webpods.example.com/config?unique=true&limit=50&after=100
+curl https://my-pod.webpods.org/config?unique=true&limit=50&after=100
 ```
 
 #### Query Parameter Combinations
@@ -580,19 +581,19 @@ pod stream create my-pod /members --access /team-permissions
 
 ```bash
 # Create a public stream explicitly
-curl -X POST https://my-pod.webpods.example.com/blog/posts \
+curl -X POST https://my-pod.webpods.org/blog/posts \
   -H "Authorization: Bearer $WEBPODS_TOKEN"
 
 # Create nested streams
-curl -X POST https://my-pod.webpods.example.com/projects/webapp/logs \
+curl -X POST https://my-pod.webpods.org/projects/webapp/logs \
   -H "Authorization: Bearer $WEBPODS_TOKEN"
 
 # Create a private stream explicitly
-curl -X POST https://my-pod.webpods.example.com/private-notes?access=private \
+curl -X POST https://my-pod.webpods.org/private-notes?access=private \
   -H "Authorization: Bearer $WEBPODS_TOKEN"
 
 # Create stream with custom permissions
-curl -X POST https://my-pod.webpods.example.com/members?access=/team-permissions \
+curl -X POST https://my-pod.webpods.org/members?access=/team-permissions \
   -H "Authorization: Bearer $WEBPODS_TOKEN"
 ```
 
@@ -614,7 +615,7 @@ pod stream list my-pod
 #### HTTP
 
 ```bash
-curl https://my-pod.webpods.example.com/.config/api/streams \
+curl https://my-pod.webpods.org/.config/api/streams \
   -H "Authorization: Bearer $WEBPODS_TOKEN"
 ```
 
@@ -631,7 +632,7 @@ pod stream delete my-pod /old-stream --force
 #### HTTP
 
 ```bash
-curl -X DELETE https://my-pod.webpods.example.com/old-stream \
+curl -X DELETE https://my-pod.webpods.org/old-stream \
   -H "Authorization: Bearer $WEBPODS_TOKEN"
 ```
 
@@ -678,11 +679,11 @@ pod stream create my-pod /team-docs --access /team-permissions
 
 ```bash
 # Create a private stream explicitly
-curl -X POST https://my-pod.webpods.example.com/private-notes?access=private \
+curl -X POST https://my-pod.webpods.org/private-notes?access=private \
   -H "Authorization: Bearer $WEBPODS_TOKEN"
 
 # Create a stream with custom permissions
-curl -X POST https://my-pod.webpods.example.com/team-docs?access=/team-permissions \
+curl -X POST https://my-pod.webpods.org/team-docs?access=/team-permissions \
   -H "Authorization: Bearer $WEBPODS_TOKEN"
 ```
 
@@ -708,13 +709,13 @@ pod permissions my-pod /team-permissions
 
 ```bash
 # Grant read access to a user
-curl -X POST https://my-pod.webpods.example.com/team-permissions/user-123 \
+curl -X POST https://my-pod.webpods.org/team-permissions/user-123 \
   -H "Authorization: Bearer $WEBPODS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"id": "user-123", "read": true, "write": false}'
 
 # Revoke access
-curl -X POST https://my-pod.webpods.example.com/team-permissions/user-789 \
+curl -X POST https://my-pod.webpods.org/team-permissions/user-789 \
   -H "Authorization: Bearer $WEBPODS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"id": "user-789", "read": false, "write": false}'
@@ -757,7 +758,7 @@ pod links remove my-pod /old-page
 
 ```bash
 # Set up multiple routes at once
-curl -X POST https://my-pod.webpods.example.com/.config/routing/routes \
+curl -X POST https://my-pod.webpods.org/.config/routing/routes \
   -H "Authorization: Bearer $WEBPODS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -784,9 +785,9 @@ pod links set my-pod /posts "blog/posts?unique=true"  # All posts
 pod links set my-pod /latest "blog/posts?i=-1"        # Latest post
 
 # Now visitors can access:
-# https://my-pod.webpods.example.com/          -> Shows homepage
-# https://my-pod.webpods.example.com/posts     -> Lists all posts
-# https://my-pod.webpods.example.com/latest    -> Shows most recent post
+# https://my-pod.webpods.org/          -> Shows homepage
+# https://my-pod.webpods.org/posts     -> Lists all posts
+# https://my-pod.webpods.org/latest    -> Shows most recent post
 ```
 
 ## Custom Domains
@@ -812,7 +813,7 @@ pod domain remove my-pod blog.example.com
 
 ```bash
 # Add custom domain
-curl -X POST https://my-pod.webpods.example.com/.config/domains/custom \
+curl -X POST https://my-pod.webpods.org/.config/domains/custom \
   -H "Authorization: Bearer $WEBPODS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"domain": "blog.example.com"}'
@@ -824,7 +825,7 @@ After adding a custom domain, configure your DNS:
 
 ```
 # CNAME record (recommended)
-blog.example.com. CNAME my-pod.webpods.example.com.
+blog.example.com. CNAME my-pod.webpods.org.
 
 # Or A record (if CNAME not possible)
 blog.example.com. A <webpods-server-ip>
@@ -949,14 +950,14 @@ Use the OAuth access token to make requests:
 
 ```javascript
 // Read from a pod
-const response = await fetch("https://alice.webpods.example.com/data/info", {
+const response = await fetch("https://alice.webpods.org/data/info", {
   headers: {
     Authorization: "Bearer " + accessToken,
   },
 });
 
 // Write to a pod
-const writeResponse = await fetch("https://alice.webpods.example.com/app-data/record", {
+const writeResponse = await fetch("https://alice.webpods.org/app-data/record", {
   method: "POST",
   headers: {
     Authorization: "Bearer " + accessToken,
@@ -1028,13 +1029,13 @@ pod read my-pod images/logo -o downloaded-logo.png
 ```bash
 # Upload an image (must be base64 encoded)
 IMAGE_BASE64=$(base64 -w 0 < image.png)
-curl -X POST https://my-pod.webpods.example.com/images/logo \
+curl -X POST https://my-pod.webpods.org/images/logo \
   -H "Authorization: Bearer $WEBPODS_TOKEN" \
   -H "X-Content-Type: image/png" \
   -d "$IMAGE_BASE64"
 
 # Images are automatically decoded when served
-curl https://my-pod.webpods.example.com/images/logo > logo.png
+curl https://my-pod.webpods.org/images/logo > logo.png
 ```
 
 ### Serving Web Content
@@ -1058,7 +1059,7 @@ pod write my-pod img/hero.jpg @hero.jpg --content-type image/jpeg
 pod links set my-pod / "index.html"
 pod links set my-pod /style.css "css/styles.css"
 
-# Your site is live at https://my-pod.webpods.example.com/
+# Your site is live at https://my-pod.webpods.org/
 ```
 
 ### Hash Chain Verification
@@ -1079,7 +1080,7 @@ pod verify my-pod /stream-name --check-integrity
 
 ```bash
 # Headers include hash information
-curl -i https://my-pod.webpods.example.com/verified/data
+curl -i https://my-pod.webpods.org/verified/data
 # X-Hash: sha256:abc123...
 # X-Previous-Hash: sha256:def456...
 ```
@@ -1109,7 +1110,7 @@ pod info my-pod --owner
 pod transfer my-pod new-user-id --force
 
 # Transfer ownership (HTTP)
-curl -X POST https://my-pod.webpods.example.com/.config/owner \
+curl -X POST https://my-pod.webpods.org/.config/owner \
   -H "Authorization: Bearer $WEBPODS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"owner": "new-user-id"}'
@@ -1122,7 +1123,7 @@ curl -X POST https://my-pod.webpods.example.com/.config/owner \
 pod stream list my-pod
 
 # Via HTTP
-curl https://my-pod.webpods.example.com/.config/api/streams
+curl https://my-pod.webpods.org/.config/api/streams
 ```
 
 #### .config/routing
@@ -1159,7 +1160,7 @@ pod limits --action write
 
 ```bash
 # Rate limit info is in response headers
-curl -i https://my-pod.webpods.example.com/test \
+curl -i https://my-pod.webpods.org/test \
   -H "Authorization: Bearer $WEBPODS_TOKEN"
 
 # Headers:
@@ -1404,19 +1405,19 @@ docker-compose -f docker-compose.test.yml up
 
 - `POST /api/pods` - Create pod
 - `GET /api/pods` - List user's pods
-- `DELETE https://{pod}.webpods.example.com/` - Delete pod
+- `DELETE https://{pod}.webpods.org/` - Delete pod
 
 ### Streams
 
-- `POST https://{pod}.webpods.example.com/{stream}?access={mode}` - Create a stream explicitly (or auto-create on first write)
-- `DELETE https://{pod}.webpods.example.com/{stream}` - Delete stream
-- `GET https://{pod}.webpods.example.com/.config/api/streams` - List all streams
+- `POST https://{pod}.webpods.org/{stream}?access={mode}` - Create a stream explicitly (or auto-create on first write)
+- `DELETE https://{pod}.webpods.org/{stream}` - Delete stream
+- `GET https://{pod}.webpods.org/.config/api/streams` - List all streams
 
 ### Records
 
-- `POST https://{pod}.webpods.example.com/{stream}/{name}` - Write record
-- `GET https://{pod}.webpods.example.com/{stream}/{name}` - Read record
-- `GET https://{pod}.webpods.example.com/{stream}` - List records
+- `POST https://{pod}.webpods.org/{stream}/{name}` - Write record
+- `GET https://{pod}.webpods.org/{stream}/{name}` - Read record
+- `GET https://{pod}.webpods.org/{stream}` - List records
 
 ### OAuth Client Management
 
