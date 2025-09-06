@@ -40,7 +40,7 @@ export async function linksSet(argv: Arguments) {
 
     // POST to /.config/routing endpoint
     const response = await client.post(
-      `/.config/routing`,
+      `/.config/routing/routes`,
       JSON.stringify(linksData),
       {
         headers: {
@@ -158,7 +158,7 @@ export async function linksRemove(argv: Arguments) {
 
       // Write updated links back
       const response = await client.post(
-        `/.config/routing`,
+        `/.config/routing/routes`,
         JSON.stringify(currentLinks),
         {
           headers: {

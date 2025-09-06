@@ -48,7 +48,7 @@ describe("CLI Grant/Revoke Commands", function () {
          VALUES ($(podName), $(streamName), 'public', NOW())`,
       {
         podName: testPodName,
-        streamName: "team-permissions",
+        streamName: "/team-permissions",
       },
     );
 
@@ -65,7 +65,7 @@ describe("CLI Grant/Revoke Commands", function () {
   describe("grant command", () => {
     it("should grant read permission to a user", async () => {
       const result = await cli.exec(
-        ["grant", testPodName, "team-permissions", otherUserId, "--read"],
+        ["grant", testPodName, "/team-permissions", otherUserId, "--read"],
         {
           token: testToken,
         },
@@ -78,7 +78,7 @@ describe("CLI Grant/Revoke Commands", function () {
 
     it("should grant write permission to a user", async () => {
       const result = await cli.exec(
-        ["grant", testPodName, "team-permissions", otherUserId, "--write"],
+        ["grant", testPodName, "/team-permissions", otherUserId, "--write"],
         {
           token: testToken,
         },
@@ -109,7 +109,7 @@ describe("CLI Grant/Revoke Commands", function () {
 
     it("should require at least one permission flag", async () => {
       const result = await cli.exec(
-        ["grant", testPodName, "team-permissions", otherUserId],
+        ["grant", testPodName, "/team-permissions", otherUserId],
         {
           token: testToken,
         },
@@ -153,7 +153,7 @@ describe("CLI Grant/Revoke Commands", function () {
 
     it("should revoke all permissions from a user", async () => {
       const result = await cli.exec(
-        ["revoke", testPodName, "team-permissions", otherUserId],
+        ["revoke", testPodName, "/team-permissions", otherUserId],
         {
           token: testToken,
         },

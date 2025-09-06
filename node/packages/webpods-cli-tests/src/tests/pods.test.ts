@@ -63,7 +63,7 @@ describe("CLI Pod Commands", function () {
       const ownerRecord = await testDb.getDb().oneOrNone(
         `SELECT * FROM record 
            WHERE pod_name = $(podName) 
-           AND stream_name = '.config/owner' 
+           AND stream_name = '/.config/owner' 
            AND name = 'owner'`,
         { podName: "test-pod" },
       );
@@ -120,7 +120,7 @@ describe("CLI Pod Commands", function () {
             "INSERT INTO stream (pod_name, name, user_id) VALUES ($(podName), $(streamName), $(userId))",
             {
               podName,
-              streamName: ".config/owner",
+              streamName: "/.config/owner",
               userId: testUser.userId,
             },
           );
@@ -131,7 +131,7 @@ describe("CLI Pod Commands", function () {
            VALUES ($(podName), $(streamName), $(name), $(content), $(contentType), $(hash), $(userId), 0)`,
           {
             podName,
-            streamName: ".config/owner",
+            streamName: "/.config/owner",
             name: "owner",
             content: JSON.stringify({ owner: testUser.userId }),
             contentType: "application/json",
@@ -199,7 +199,7 @@ describe("CLI Pod Commands", function () {
           "INSERT INTO stream (pod_name, name, user_id) VALUES ($(podName), $(streamName), $(userId))",
           {
             podName: "test-pod",
-            streamName: ".config/owner",
+            streamName: "/.config/owner",
             userId: testUser.userId,
           },
         );
@@ -210,7 +210,7 @@ describe("CLI Pod Commands", function () {
          VALUES ($(podName), $(streamName), $(name), $(content), $(contentType), $(hash), $(userId), 0)`,
         {
           podName: "test-pod",
-          streamName: ".config/owner",
+          streamName: "/.config/owner",
           name: "owner",
           content: JSON.stringify({ owner: testUser.userId }),
           contentType: "application/json",
@@ -228,7 +228,7 @@ describe("CLI Pod Commands", function () {
           "INSERT INTO stream (pod_name, name, user_id) VALUES ($(podName), $(streamName), $(userId))",
           {
             podName: "test-pod",
-            streamName: "test-stream",
+            streamName: "/test-stream",
             userId: testUser.userId,
           },
         );
@@ -271,7 +271,7 @@ describe("CLI Pod Commands", function () {
           "INSERT INTO stream (pod_name, name, user_id) VALUES ($(podName), $(streamName), $(userId))",
           {
             podName: "test-pod",
-            streamName: ".config/owner",
+            streamName: "/.config/owner",
             userId: testUser.userId,
           },
         );
@@ -282,7 +282,7 @@ describe("CLI Pod Commands", function () {
          VALUES ($(podName), $(streamName), $(name), $(content), $(contentType), $(hash), $(userId), 0)`,
         {
           podName: "test-pod",
-          streamName: ".config/owner",
+          streamName: "/.config/owner",
           name: "owner",
           content: JSON.stringify({ owner: testUser.userId }),
           contentType: "application/json",

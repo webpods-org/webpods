@@ -273,7 +273,7 @@ Only use the standard `./build.sh` (with formatting) for final builds before com
 
 ## Git Workflow
 
-**IMPORTANT**: NEVER commit and push changes without explicit user permission. When the user asks you to commit and push, follow the git commit guidelines in the main Claude system prompt.
+**IMPORTANT**: NEVER commit, push, revert, or perform ANY git operations (including but not limited to: git checkout, git reset, git stash, git merge, git rebase) without explicit user permission. This includes never reverting changes unless explicitly asked by the user. When the user asks you to commit and push, follow the git commit guidelines in the main Claude system prompt.
 
 **VERSION UPDATES**: Whenever committing changes, you MUST increment the patch version in `/node/packages/webpods/package.json`. For example, from 0.0.5 to 0.0.6. This ensures proper version tracking for all changes.
 

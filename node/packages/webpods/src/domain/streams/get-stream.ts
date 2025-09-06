@@ -8,6 +8,7 @@ import { createError } from "../../utils/errors.js";
 import { StreamDbRow } from "../../db-types.js";
 import { Stream } from "../../types.js";
 import { createLogger } from "../../logger.js";
+import { normalizeStreamName } from "../../utils/stream-utils.js";
 
 const logger = createLogger("webpods:domain:streams");
 
@@ -31,12 +32,15 @@ export async function getStream(
   podName: string,
   streamId: string,
 ): Promise<Result<Stream>> {
+  // Normalize stream name to ensure leading slash
+  const normalizedStreamId = normalizeStreamName(streamId);
+
   try {
     const stream = await ctx.db.oneOrNone<StreamDbRow>(
       `SELECT * FROM stream
        WHERE pod_name = $(pod_name)
          AND name = $(name)`,
-      { pod_name: podName, name: streamId },
+      { pod_name: podName, name: normalizedStreamId },
     );
 
     if (!stream) {

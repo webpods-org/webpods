@@ -597,7 +597,8 @@ router.post(
         return;
       }
 
-      const streamId = pathParts.join("/") || "default"; // Use 'default' if no stream path
+      const streamId = pathParts.length > 0 ? pathParts.join("/") : "/"; // Use '/' for root stream
+      logger.debug("Stream ID for writing", { pathParts, streamId, fullPath });
       let content = writeSchema.parse(req.body);
       let contentType = detectContentType(req.headers);
       const accessPermission = req.query.access as string | undefined;

@@ -7,6 +7,7 @@ import { Result, success, failure } from "../../utils/result.js";
 import { RecordDbRow } from "../../db-types.js";
 import { StreamRecord } from "../../types.js";
 import { createLogger } from "../../logger.js";
+import { normalizeStreamName } from "../../utils/stream-utils.js";
 
 const logger = createLogger("webpods:domain:records");
 
@@ -43,6 +44,7 @@ export async function listUniqueRecords(
   Result<{ records: StreamRecord[]; total: number; hasMore: boolean }>
 > {
   try {
+    const normalizedStreamId = normalizeStreamName(streamId);
     // Get all records with names, ordered by index
     const allRecords = await ctx.db.manyOrNone<RecordDbRow>(
       `SELECT * FROM record
@@ -50,7 +52,7 @@ export async function listUniqueRecords(
          AND stream_name = $(stream_name)
          AND name IS NOT NULL
        ORDER BY index ASC`,
-      { pod_name: podName, stream_name: streamId },
+      { pod_name: podName, stream_name: normalizedStreamId },
     );
 
     // Build map of latest record per name, excluding deleted
@@ -97,7 +99,7 @@ export async function listUniqueRecords(
           count: string;
         }>(
           `SELECT COUNT(*) as count FROM record WHERE pod_name = $(pod_name) AND stream_name = $(stream_name)`,
-          { pod_name: podName, stream_name: streamId },
+          { pod_name: podName, stream_name: normalizedStreamId },
         )
         .then((r) => parseInt(r.count));
 

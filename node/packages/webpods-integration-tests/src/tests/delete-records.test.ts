@@ -83,7 +83,7 @@ describe("WebPods Record Deletion", () => {
       );
       const stream = await db.oneOrNone(
         `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId)`,
-        { pod_name: pod.name, streamId: "documents" },
+        { pod_name: pod.name, streamId: "/documents" },
       );
 
       // Check for tombstone record
@@ -167,11 +167,11 @@ describe("WebPods Record Deletion", () => {
       );
       await db.oneOrNone(
         `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId)`,
-        { pod_name: pod.name, streamId: "secrets" },
+        { pod_name: pod.name, streamId: "/secrets" },
       );
       const record = await db.oneOrNone(
         `SELECT * FROM record WHERE pod_name = $(pod_name) AND stream_name = $(streamId) AND name = $(name)`,
-        { pod_name: pod.name, streamId: "secrets", name: "password" },
+        { pod_name: pod.name, streamId: "/secrets", name: "password" },
       );
 
       expect(record).to.exist;

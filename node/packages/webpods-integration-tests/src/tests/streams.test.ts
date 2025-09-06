@@ -69,7 +69,7 @@ describe("WebPods Stream Operations", () => {
       const db = testDb.getDb();
       const stream = await db.oneOrNone(
         `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId)`,
-        { pod_name: testPodId, streamId: "my-first-stream" },
+        { pod_name: testPodId, streamId: "/my-first-stream" },
       );
       expect(stream).to.exist;
       expect(stream.user_id).to.equal(userId);
@@ -90,15 +90,15 @@ describe("WebPods Stream Operations", () => {
       const db = testDb.getDb();
       const stream = await db.oneOrNone(
         `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId)`,
-        { pod_name: testPodId, streamId: "blog/posts/2024" },
+        { pod_name: testPodId, streamId: "/blog/posts/2024" },
       );
       expect(stream).to.exist;
-      expect(stream.name).to.equal("blog/posts/2024");
+      expect(stream.name).to.equal("/blog/posts/2024");
 
       // Verify the record was created with name 'january'
       const record = await db.oneOrNone(
         `SELECT * FROM record WHERE pod_name = $(pod_name) AND stream_name = $(streamId) AND name = $(name)`,
-        { pod_name: testPodId, streamId: "blog/posts/2024", name: "january" },
+        { pod_name: testPodId, streamId: "/blog/posts/2024", name: "january" },
       );
       expect(record).to.exist;
     });
@@ -122,7 +122,7 @@ describe("WebPods Stream Operations", () => {
       const db = testDb.getDb();
       const stream = await db.oneOrNone(
         `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId)`,
-        { pod_name: testPodId, streamId: "private-stream" },
+        { pod_name: testPodId, streamId: "/private-stream" },
       );
       expect(stream.access_permission).to.equal("private");
     });
@@ -362,7 +362,7 @@ describe("WebPods Stream Operations", () => {
       );
       const ownerStream = await db.oneOrNone(
         `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId)`,
-        { pod_name: pod.name, streamId: ".config/owner" },
+        { pod_name: pod.name, streamId: "/.config/owner" },
       );
 
       expect(ownerStream).to.exist;
@@ -371,7 +371,7 @@ describe("WebPods Stream Operations", () => {
       // Check owner record
       const ownerRecord = await db.oneOrNone(
         `SELECT * FROM record WHERE pod_name = $(pod_name) AND stream_name = $(streamId) ORDER BY index ASC LIMIT 1`,
-        { pod_name: pod.name, streamId: ".config/owner" },
+        { pod_name: pod.name, streamId: "/.config/owner" },
       );
       const content = JSON.parse(ownerRecord.content);
       expect(content.owner).to.equal(userId);
@@ -394,10 +394,10 @@ describe("WebPods Stream Operations", () => {
       expect(response.data.streams).to.be.an("array");
 
       expect(response.data.streams.map((s: any) => s.name)).to.include.members([
-        "stream1",
-        "stream2",
-        "nested/stream3",
-        ".config/owner",
+        "/stream1",
+        "/stream2",
+        "/nested/stream3",
+        "/.config/owner",
       ]);
     });
 

@@ -48,7 +48,7 @@ describe("CLI Links Commands", function () {
         "INSERT INTO stream (pod_name, name, user_id) VALUES ($(podName), $(streamName), $(userId))",
         {
           podName: testPodName,
-          streamName: ".config/owner",
+          streamName: "/.config/owner",
           userId: testUser.userId,
         },
       );
@@ -59,7 +59,7 @@ describe("CLI Links Commands", function () {
        VALUES ($(podName), $(streamName), $(name), $(content), $(contentType), $(hash), $(userId), 0)`,
       {
         podName: testPodName,
-        streamName: ".config/owner",
+        streamName: "/.config/owner",
         name: "owner",
         content: JSON.stringify({ owner: testUser.userId }),
         contentType: "application/json",

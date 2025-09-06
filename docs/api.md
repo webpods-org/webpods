@@ -261,8 +261,10 @@ Response (201 Created):
 ```
 
 **Notes**:
+
 - Stream names support forward slashes for nested paths
-- Names must be alphanumeric with hyphens, underscores, periods
+- Stream names are automatically normalized with leading slashes (e.g., `blog/posts` becomes `/blog/posts`)
+- Names must be alphanumeric with hyphens, underscores, periods, forward slashes
 - Cannot start or end with periods
 - Nested streams work with recursive queries
 
@@ -399,13 +401,13 @@ When `unique=true`:
 
 ##### Query Parameter Compatibility
 
-| Parameter | Compatible With | Not Compatible With |
-|-----------|----------------|-------------------|
-| `limit` | All parameters | - |
-| `after` | All parameters | - |
-| `unique` | `limit`, `after` | `recursive`, `i` |
-| `recursive` | `limit`, `after` | `unique`, `i` |
-| `i` (index) | - | `unique`, `recursive`, `limit`, `after` |
+| Parameter   | Compatible With  | Not Compatible With                     |
+| ----------- | ---------------- | --------------------------------------- |
+| `limit`     | All parameters   | -                                       |
+| `after`     | All parameters   | -                                       |
+| `unique`    | `limit`, `after` | `recursive`, `i`                        |
+| `recursive` | `limit`, `after` | `unique`, `i`                           |
+| `i` (index) | -                | `unique`, `recursive`, `limit`, `after` |
 
 ### Delete Record
 

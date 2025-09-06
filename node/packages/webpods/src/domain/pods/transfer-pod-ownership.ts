@@ -34,7 +34,7 @@ export async function transferPodOwnership(
       const ownerStream = await t.oneOrNone<StreamDbRow>(
         `SELECT * FROM stream
          WHERE pod_name = $(pod_name)
-           AND name = '.config/owner'`,
+           AND name = '/.config/owner'`,
         { pod_name: podName },
       );
 
@@ -46,7 +46,7 @@ export async function transferPodOwnership(
       const currentOwnerRecord = await t.oneOrNone<RecordDbRow>(
         `SELECT * FROM record
          WHERE pod_name = $(pod_name)
-           AND stream_name = '.config/owner'
+           AND stream_name = '/.config/owner'
            AND name = 'owner'
          ORDER BY index DESC
          LIMIT 1`,
@@ -75,7 +75,7 @@ export async function transferPodOwnership(
       const previousRecord = await t.oneOrNone<RecordDbRow>(
         `SELECT * FROM record
          WHERE pod_name = $(pod_name)
-           AND stream_name = '.config/owner'
+           AND stream_name = '/.config/owner'
          ORDER BY index DESC
          LIMIT 1`,
         { pod_name: podName },
@@ -96,7 +96,7 @@ export async function transferPodOwnership(
       // Insert new owner record with snake_case parameters
       const params = {
         pod_name: podName,
-        stream_name: ".config/owner",
+        stream_name: "/.config/owner",
         index: index,
         content: JSON.stringify(newOwnerContent),
         content_type: "application/json",

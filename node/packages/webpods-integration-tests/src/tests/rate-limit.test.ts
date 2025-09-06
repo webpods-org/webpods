@@ -172,13 +172,13 @@ describe("WebPods Rate Limiting", () => {
       // Verify ownership via .config/owner stream
       const owner1Record = await db.oneOrNone(
         `SELECT r.content FROM record r
-         WHERE r.pod_name = $(pod_name) AND r.stream_name = '.config/owner'
+         WHERE r.pod_name = $(pod_name) AND r.stream_name = '/.config/owner'
          ORDER BY r.index DESC LIMIT 1`,
         { pod_name: pod1.name },
       );
       const owner2Record = await db.oneOrNone(
         `SELECT r.content FROM record r
-         WHERE r.pod_name = $(pod_name) AND r.stream_name = '.config/owner'
+         WHERE r.pod_name = $(pod_name) AND r.stream_name = '/.config/owner'
          ORDER BY r.index DESC LIMIT 1`,
         { pod_name: pod2.name },
       );
@@ -598,7 +598,7 @@ describe("WebPods Rate Limiting", () => {
          ON CONFLICT (pod_name, name) DO NOTHING`,
         {
           podName: uniquePodId,
-          streamName: "can-write",
+          streamName: "/can-write",
           userId: uniqueUser.userId,
         },
       );

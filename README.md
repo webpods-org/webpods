@@ -331,6 +331,7 @@ curl https://my-pod.webpods.org/blog/posts?i=0:10 # Range (0-9)
 ### Delete a Record
 
 WebPods supports two deletion modes:
+
 - **Soft delete** (default): Creates a tombstone record marking deletion
 - **Hard delete/purge**: Overwrites the record content with deletion metadata
 
@@ -357,6 +358,7 @@ curl -X DELETE https://my-pod.webpods.org/blog/posts/old-post?purge=true \
 ```
 
 **Notes**:
+
 - Soft delete creates a new record named `{original-name}.deleted.{index}` with `{"deleted": true}`
 - Deleted records are excluded from `unique=true` queries
 - Purged records have their content replaced with `{"purged": true, "by": "user-id", "at": "timestamp"}`
@@ -449,6 +451,7 @@ curl https://my-pod.webpods.org/blog?recursive=true&after=-50
 #### Unique Records Filter
 
 Returns only the latest version of each named record, filtering out:
+
 - Records without names
 - Deleted records (marked with `{"deleted": true}`)
 - Purged records (marked with `{"purged": true}`)
@@ -477,13 +480,13 @@ curl https://my-pod.webpods.org/config?unique=true&limit=50&after=100
 
 #### Query Parameter Combinations
 
-| Parameter | Compatible With | Not Compatible With |
-|-----------|----------------|-------------------|
-| `limit` | All parameters | - |
-| `after` | All parameters | - |
-| `unique` | `limit`, `after` | `recursive`, `i` |
-| `recursive` | `limit`, `after` | `unique`, `i` |
-| `i` (index) | - | `unique`, `recursive`, `limit`, `after` |
+| Parameter   | Compatible With  | Not Compatible With                     |
+| ----------- | ---------------- | --------------------------------------- |
+| `limit`     | All parameters   | -                                       |
+| `after`     | All parameters   | -                                       |
+| `unique`    | `limit`, `after` | `recursive`, `i`                        |
+| `recursive` | `limit`, `after` | `unique`, `i`                           |
+| `i` (index) | -                | `unique`, `recursive`, `limit`, `after` |
 
 ## Stream Operations
 
@@ -528,10 +531,12 @@ curl -X POST https://my-pod.webpods.org/members?access=/team-permissions \
   -H "Authorization: Bearer $WEBPODS_TOKEN"
 ```
 
-**Notes**: 
+**Notes**:
+
 - All streams are regular data streams. Permission streams are just regular streams that contain permission records.
-- Nested paths are supported (e.g., `blog/posts/drafts`) and work with recursive queries
-- Stream names must be valid (alphanumeric, hyphens, underscores, periods, no leading/trailing periods)
+- Nested paths are supported (e.g., `/blog/posts/drafts`) and work with recursive queries
+- Stream names are automatically normalized with leading slashes (e.g., `blog/posts` becomes `/blog/posts`)
+- Stream names must be valid (alphanumeric, hyphens, underscores, periods, forward slashes, no leading/trailing periods)
 
 ### List All Streams
 

@@ -7,6 +7,7 @@ import { Result, success, failure } from "../../utils/result.js";
 import { RecordDbRow } from "../../db-types.js";
 import { StreamRecord } from "../../types.js";
 import { createLogger } from "../../logger.js";
+import { normalizeStreamName } from "../../utils/stream-utils.js";
 
 const logger = createLogger("webpods:domain:records");
 
@@ -41,6 +42,7 @@ export async function getRecordRange(
   endIndex: number,
 ): Promise<Result<StreamRecord[]>> {
   try {
+    const normalizedStreamId = normalizeStreamName(streamId);
     let actualStartIndex = startIndex;
     let actualEndIndex = endIndex;
 
@@ -48,7 +50,7 @@ export async function getRecordRange(
     if (startIndex < 0 || endIndex < 0) {
       const countResult = await ctx.db.one<{ count: string }>(
         `SELECT COUNT(*) as count FROM record WHERE pod_name = $(pod_name) AND stream_name = $(stream_name)`,
-        { pod_name: podName, stream_name: streamId },
+        { pod_name: podName, stream_name: normalizedStreamId },
       );
       const totalCount = parseInt(countResult.count);
 
@@ -75,7 +77,7 @@ export async function getRecordRange(
        ORDER BY index ASC`,
       {
         pod_name: podName,
-        stream_name: streamId,
+        stream_name: normalizedStreamId,
         start_index: actualStartIndex,
         end_index: actualEndIndex,
       },
