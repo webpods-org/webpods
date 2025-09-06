@@ -5,7 +5,7 @@
 import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
 import { PodDbRow, StreamDbRow, RecordDbRow } from "../../db-types.js";
-import { calculateRecordHash } from "../../utils.js";
+import { calculateContentHash, calculateRecordHash } from "../../utils.js";
 import { createLogger } from "../../logger.js";
 import { sql } from "../../db/index.js";
 
@@ -95,7 +95,13 @@ export async function updateCustomDomains(
       // Store the complete list of domains in a single record
       const timestamp = new Date().toISOString();
       const content = { domains };
-      const hash = calculateRecordHash(previousHash, timestamp, content);
+      const contentHash = calculateContentHash(content);
+      const hash = calculateRecordHash(
+        previousHash,
+        contentHash,
+        userId,
+        timestamp,
+      );
 
       const params = {
         pod_name: podName,
@@ -104,6 +110,7 @@ export async function updateCustomDomains(
         content: JSON.stringify(content),
         content_type: "application/json",
         name: `domains`,
+        content_hash: contentHash,
         hash: hash,
         previous_hash: previousHash,
         user_id: userId,

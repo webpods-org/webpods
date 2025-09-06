@@ -7,7 +7,11 @@ import { Result, success, failure } from "../../utils/result.js";
 import { createError } from "../../utils/errors.js";
 import { RecordDbRow } from "../../db-types.js";
 import { StreamRecord } from "../../types.js";
-import { calculateRecordHash, isValidName } from "../../utils.js";
+import {
+  calculateContentHash,
+  calculateRecordHash,
+  isValidName,
+} from "../../utils.js";
 import { createLogger } from "../../logger.js";
 import { sql } from "../../db/index.js";
 import { normalizeStreamName } from "../../utils/stream-utils.js";
@@ -26,6 +30,7 @@ function mapRecordFromDb(row: RecordDbRow): StreamRecord {
     content: row.content,
     contentType: row.content_type,
     name: row.name || "",
+    contentHash: row.content_hash,
     hash: row.hash,
     previousHash: row.previous_hash || null,
     userId: row.user_id,
@@ -43,7 +48,7 @@ export async function writeRecord(
   streamId: string,
   content: unknown,
   contentType: string,
-  authorId: string,
+  userId: string,
   name: string,
 ): Promise<Result<StreamRecord>> {
   // Normalize stream name to ensure leading slash
@@ -75,8 +80,16 @@ export async function writeRecord(
       const previousHash = previousRecord?.hash || null;
       const timestamp = new Date().toISOString();
 
-      // Calculate hash
-      const hash = calculateRecordHash(previousHash, timestamp, content);
+      // Calculate content hash first
+      const contentHash = calculateContentHash(content);
+
+      // Calculate record hash with all parameters
+      const hash = calculateRecordHash(
+        previousHash,
+        contentHash,
+        userId,
+        timestamp,
+      );
 
       // Prepare content for storage
       let storedContent = content;
@@ -92,9 +105,10 @@ export async function writeRecord(
         content: storedContent,
         content_type: contentType,
         name: name,
+        content_hash: contentHash,
         hash: hash,
         previous_hash: previousHash,
-        user_id: authorId,
+        user_id: userId,
         created_at: timestamp,
       };
 

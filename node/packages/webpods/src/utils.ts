@@ -82,17 +82,27 @@ export function parseIndexQuery(
 }
 
 /**
- * Calculate SHA-256 hash for record
+ * Calculate SHA-256 hash for content only
+ */
+export function calculateContentHash(content: unknown): string {
+  const data = typeof content === "string" ? content : JSON.stringify(content);
+  return "sha256:" + createHash("sha256").update(data).digest("hex");
+}
+
+/**
+ * Calculate SHA-256 hash for record (chain hash)
  */
 export function calculateRecordHash(
   previousHash: string | null,
+  contentHash: string,
+  userId: string,
   timestamp: string,
-  content: unknown,
 ): string {
   const data = JSON.stringify({
     previous_hash: previousHash,
+    content_hash: contentHash,
+    user_id: userId,
     timestamp: timestamp,
-    content: content,
   });
 
   return "sha256:" + createHash("sha256").update(data).digest("hex");

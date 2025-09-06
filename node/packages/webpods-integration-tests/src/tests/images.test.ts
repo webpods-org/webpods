@@ -66,6 +66,7 @@ describe("WebPods Image Support", () => {
       expect(response.data).to.have.property("contentType", "image/png");
       expect(response.data).to.have.property("name", "main-logo");
       expect(response.data).to.have.property("hash");
+      expect(response.data).to.have.property("contentHash");
     });
 
     it("should upload image using data URL", async () => {
@@ -196,6 +197,7 @@ describe("WebPods Image Support", () => {
       const response = await client.get("/gallery/photo1/first");
 
       expect(response.status).to.equal(200);
+      expect(response.headers).to.have.property("x-content-hash");
       expect(response.headers).to.have.property("x-hash");
       expect(response.headers).to.have.property("x-author", userId);
       expect(response.headers).to.have.property("x-timestamp");

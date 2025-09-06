@@ -84,13 +84,26 @@ export async function createTestPod(
   );
 
   // Add ownership record
-  const content = JSON.stringify({ owner: ownerId });
-  const hash = crypto.createHash("sha256").update(content).digest("hex");
+  const ownerObj = { owner: ownerId };
+  const content = JSON.stringify(ownerObj);
+  const contentHash =
+    "sha256:" + crypto.createHash("sha256").update(content).digest("hex");
+  const timestamp = new Date().toISOString();
+
+  // Calculate record hash (previousHash + contentHash + userId + timestamp)
+  const hashData = JSON.stringify({
+    previous_hash: null,
+    content_hash: contentHash,
+    user_id: ownerId,
+    timestamp: timestamp,
+  });
+  const hash =
+    "sha256:" + crypto.createHash("sha256").update(hashData).digest("hex");
 
   await db.none(
-    `INSERT INTO record (pod_name, stream_name, index, content, content_type, name, hash, previous_hash, user_id, created_at)
-     VALUES ($(podName), '/.config/owner', 0, $(content), 'application/json', 'owner', $(hash), NULL, $(ownerId), NOW())`,
-    { podName, content, hash, ownerId },
+    `INSERT INTO record (pod_name, stream_name, index, content, content_type, name, content_hash, hash, previous_hash, user_id, created_at)
+     VALUES ($(podName), '/.config/owner', 0, $(content), 'application/json', 'owner', $(contentHash), $(hash), NULL, $(ownerId), $(timestamp))`,
+    { podName, content, contentHash, hash, ownerId, timestamp },
   );
 }
 

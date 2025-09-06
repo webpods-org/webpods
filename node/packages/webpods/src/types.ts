@@ -66,7 +66,8 @@ export interface StreamRecord {
   content: string | unknown; // Can be text or JSON
   contentType: string;
   name: string; // Required name (like a filename)
-  hash: string;
+  contentHash: string; // SHA-256 hash of content only
+  hash: string; // SHA-256 hash of (previous_hash + content_hash)
   previousHash: string | null;
   userId: string; // User ID who created the record
   metadata?: Record<string, unknown>;
@@ -97,9 +98,10 @@ export interface StreamRecordResponse {
   content: unknown;
   contentType: string;
   name: string;
-  hash: string;
+  contentHash: string; // SHA-256 hash of content only
+  hash: string; // SHA-256 hash of (previous_hash + content_hash)
   previousHash: string | null;
-  author: string;
+  userId: string;
   timestamp: string;
 }
 

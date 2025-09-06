@@ -77,11 +77,12 @@ export async function verify(argv: Arguments) {
         }
 
         // Verify the hash itself
-        // Server uses: previous_hash, timestamp, content (the original object, not stringified)
+        // Server uses: hash(previous_hash + content_hash + user_id + timestamp)
         const hashData = JSON.stringify({
           previous_hash: record.previousHash || null,
+          content_hash: record.contentHash,
+          user_id: record.userId,
           timestamp: record.timestamp,
-          content: record.content,
         });
 
         const computedHash = crypto

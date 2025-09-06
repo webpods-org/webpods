@@ -5,7 +5,7 @@
 import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
 import { PodDbRow, StreamDbRow, RecordDbRow } from "../../db-types.js";
-import { calculateRecordHash } from "../../utils.js";
+import { calculateContentHash, calculateRecordHash } from "../../utils.js";
 import { createLogger } from "../../logger.js";
 import { sql } from "../../db/index.js";
 
@@ -16,7 +16,6 @@ export async function updateLinks(
   podName: string,
   links: Record<string, string>,
   userId: string,
-  authorId: string,
 ): Promise<Result<void>> {
   try {
     return await ctx.db.tx(async (t) => {
@@ -69,7 +68,13 @@ export async function updateLinks(
       const timestamp = new Date().toISOString();
 
       // Calculate hash
-      const hash = calculateRecordHash(previousHash, timestamp, links);
+      const contentHash = calculateContentHash(links);
+      const hash = calculateRecordHash(
+        previousHash,
+        contentHash,
+        userId,
+        timestamp,
+      );
 
       // Write new links record with all links in one record
       const params = {
@@ -79,9 +84,10 @@ export async function updateLinks(
         content: JSON.stringify(links),
         content_type: "application/json",
         name: `links-${index}`,
+        content_hash: contentHash,
         hash: hash,
         previous_hash: previousHash,
-        user_id: authorId,
+        user_id: userId,
         created_at: timestamp,
       };
 

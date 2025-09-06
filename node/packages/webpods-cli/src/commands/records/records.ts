@@ -402,14 +402,14 @@ export async function list(options: {
           output.print(`content_type: ${record.content_type}`);
           output.print(`hash: ${record.hash}`);
           output.print(`timestamp: ${record.timestamp}`);
-          output.print(`author: ${record.author}`);
+          output.print(`userId: ${record.userId}`);
         });
         break;
       case "csv":
-        output.print("index,name,content_type,hash,timestamp,author");
+        output.print("index,name,content_type,hash,timestamp,userId");
         response.records.forEach((record) => {
           output.print(
-            `${record.index},"${record.name}","${record.content_type}","${record.hash}","${record.timestamp}","${record.author}"`,
+            `${record.index},"${record.name}","${record.content_type}","${record.hash}","${record.timestamp}","${record.userId}"`,
           );
         });
         break;

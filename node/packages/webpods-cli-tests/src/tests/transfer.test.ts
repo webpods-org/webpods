@@ -13,6 +13,8 @@ import {
   testToken,
   testUser,
   testDb,
+  calculateContentHash,
+  calculateRecordHash,
 } from "../test-setup.js";
 
 describe("CLI Transfer Command", function () {
@@ -58,17 +60,29 @@ describe("CLI Transfer Command", function () {
       );
 
     // Add owner record
+    const ownerContent = JSON.stringify({ owner: testUser.userId });
+    const ownerContentHash = calculateContentHash(ownerContent);
+    const ownerTimestamp = new Date().toISOString();
+    const ownerHash = calculateRecordHash(
+      null,
+      ownerContentHash,
+      testUser.userId,
+      ownerTimestamp,
+    );
+
     await testDb.getDb().none(
-      `INSERT INTO record (pod_name, stream_name, name, content, content_type, hash, user_id, index) 
-       VALUES ($(podName), $(streamName), $(name), $(content), $(contentType), $(hash), $(userId), 0)`,
+      `INSERT INTO record (pod_name, stream_name, name, content, content_type, content_hash, hash, user_id, index, created_at) 
+       VALUES ($(podName), $(streamName), $(name), $(content), $(contentType), $(contentHash), $(hash), $(userId), 0, $(timestamp))`,
       {
         podName: testPodName,
         streamName: "/.config/owner",
         name: "owner",
-        content: JSON.stringify({ owner: testUser.userId }),
+        content: ownerContent,
         contentType: "application/json",
-        hash: "hash-owner",
+        contentHash: ownerContentHash,
+        hash: ownerHash,
         userId: testUser.userId,
+        timestamp: ownerTimestamp,
       },
     );
 
