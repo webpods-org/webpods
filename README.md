@@ -10,6 +10,8 @@ WebPods organizes data into:
 - **Streams**: Append-only logs within pods (e.g., `/blog`, `/data/2024`)
 - **Records**: Immutable entries with SHA-256 hash chains
 
+> **Important**: Throughout this documentation, `webpods.org` is used as an example domain. When you deploy WebPods, replace it with your actual server domain (e.g., `data.mycompany.com`, `pods.example.net`, or `localhost:3000` for local development). Each WebPods deployment is completely independent.
+
 ## Table of Contents
 
 - [Installation](#installation)
@@ -36,9 +38,24 @@ npm install -g webpods-cli
 
 # Verify installation
 pod --version
+```
 
-# Configure default server (optional) - NOT YET IMPLEMENTED
-# # pod config set server https://webpods.org  # NOT YET IMPLEMENTED
+#### Configure Your Server
+
+The CLI needs to know which WebPods server to connect to. By default, it uses `http://localhost:3000`.
+
+```bash
+# For a production server (replace with your actual server)
+pod config server https://your-webpods-server.com
+
+# Or use the --server flag with any command
+pod login --server https://your-webpods-server.com
+
+# For multiple servers, use profiles (recommended)
+pod profile add prod --server https://webpods.org
+pod profile add work --server https://pods.mycompany.com
+pod profile add dev --server http://localhost:3000
+pod profile use prod  # Switch to production server
 ```
 
 ### Server Installation
@@ -76,6 +93,12 @@ npm run migrate:latest
 
 ## Authentication
 
+### How Authentication Works
+
+1. **Authentication happens on the main domain** of your WebPods server (e.g., `webpods.org`), not on pod subdomains
+2. **Once authenticated**, you receive a JWT token that works across all pods on that server
+3. **Each WebPods deployment is independent** - a token from one server won't work on another
+
 ### Token Types Explained
 
 WebPods uses two different token systems:
@@ -96,17 +119,25 @@ WebPods uses two different token systems:
 
 ### Login and Get Token
 
+**Important**: Authentication happens on the main domain of your WebPods server, not on pod subdomains.
+
 #### CLI
 
 ```bash
-# Interactive login (opens browser, automatically saves token)
+# Login to your configured server (defaults to http://localhost:3000)
 pod login
+# This shows a URL like: http://localhost:3000/auth/github
+# Visit the URL, authenticate, then copy and set the token:
+pod token set "your-jwt-token-here"
+
+# Or login to a specific server
+pod login --server https://webpods.org
+
+# Login with a different OAuth provider (default is github)
+pod login --provider google
 
 # View saved token
 pod token get
-
-# Manually set token (if you got it elsewhere)
-pod token set "your-jwt-token-here"
 
 # Show current user info
 pod whoami
@@ -115,6 +146,8 @@ pod whoami
 #### HTTP
 
 ```bash
+# Replace 'webpods.org' with your actual WebPods server domain
+
 # 1. List available OAuth providers
 curl https://webpods.org/auth/providers
 
@@ -128,6 +161,39 @@ export WEBPODS_TOKEN="your-jwt-token-here"
 # 4. Verify authentication
 curl https://webpods.org/auth/whoami \
   -H "Authorization: Bearer $WEBPODS_TOKEN"
+```
+
+### Working with Multiple Servers
+
+You can manage pods across multiple WebPods deployments using profiles:
+
+```bash
+# Add profiles for different servers
+pod profile add production --server https://webpods.org
+pod profile add staging --server https://staging.example.com
+pod profile add local --server http://localhost:3000
+
+# Login to each server (tokens are stored per-profile)
+pod profile use production
+pod login  # Authenticate with production server
+pod token set "production-token"
+
+pod profile use staging
+pod login  # Authenticate with staging server
+pod token set "staging-token"
+
+# Switch between servers
+pod profile use production
+pod list  # Shows pods on production
+
+pod profile use staging
+pod list  # Shows pods on staging
+
+# List all profiles
+pod profile list
+
+# Use a different profile for a single command
+pod list --profile staging
 ```
 
 ### Logout
