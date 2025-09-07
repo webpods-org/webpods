@@ -42,8 +42,13 @@ export const getHandler = async (
   res: Response,
   next: NextFunction,
 ) => {
+  console.log('[GET-HANDLER] Starting with path:', req.path);
+  console.log('[GET-HANDLER] req.podName:', req.podName);
+  console.log('[GET-HANDLER] req.pod exists?', !!req.pod);
+  
   // If no pod_id was extracted, this is the main domain - skip to next handler
   if (!req.podName) {
+    console.log('[GET-HANDLER] No podName, calling next()');
     return next();
   }
 
@@ -562,7 +567,7 @@ export const getHandler = async (
 };
 
 export const getRoute = {
-  path: "/:path(*)", // Capture any path
+  path: "*",  // This should match any path
   middleware: readMiddleware,
   handler: getHandler,
 };
