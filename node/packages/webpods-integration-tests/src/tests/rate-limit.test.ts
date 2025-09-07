@@ -72,12 +72,22 @@ describe("WebPods Rate Limiting", () => {
     ];
 
     for (const streamName of streamsToCreate) {
-      await db.none(
-        `INSERT INTO stream (pod_name, name, user_id, access_permission, created_at)
-         VALUES ($(podName), $(streamName), $(userId), 'public', NOW())
-         ON CONFLICT (pod_name, name) DO NOTHING`,
-        { podName: testPodId, streamName, userId },
+      // Check if stream already exists at root level
+      const existing = await db.oneOrNone(
+        `SELECT id FROM stream 
+         WHERE pod_name = $(podName) 
+           AND name = $(streamName) 
+           AND parent_id IS NULL`,
+        { podName: testPodId, streamName },
       );
+      
+      if (!existing) {
+        await db.none(
+          `INSERT INTO stream (pod_name, name, parent_id, user_id, access_permission, created_at)
+           VALUES ($(podName), $(streamName), NULL, $(userId), 'public', NOW())`,
+          { podName: testPodId, streamName, userId },
+        );
+      }
     }
 
     // Get OAuth token
@@ -505,9 +515,8 @@ describe("WebPods Rate Limiting", () => {
 
       // Pre-create streams for user2's pod
       await db.none(
-        `INSERT INTO stream (pod_name, name, user_id, access_permission, created_at)
-         VALUES ($(podName), $(streamName), $(userId), 'public', NOW())
-         ON CONFLICT (pod_name, name) DO NOTHING`,
+        `INSERT INTO stream (pod_name, name, parent_id, user_id, access_permission, created_at)
+         VALUES ($(podName), $(streamName), NULL, $(userId), 'public', NOW())`,
         {
           podName: user2PodId,
           streamName: "user2-allowed",
@@ -607,9 +616,8 @@ describe("WebPods Rate Limiting", () => {
 
       // Pre-create ONLY the can-write stream (stream-99, stream-100, stream-101 need to be created during test)
       await db.none(
-        `INSERT INTO stream (pod_name, name, user_id, access_permission, created_at)
-         VALUES ($(podName), $(streamName), $(userId), 'public', NOW())
-         ON CONFLICT (pod_name, name) DO NOTHING`,
+        `INSERT INTO stream (pod_name, name, parent_id, user_id, access_permission, created_at)
+         VALUES ($(podName), $(streamName), NULL, $(userId), 'public', NOW())`,
         {
           podName: uniquePodId,
           streamName: "/can-write",

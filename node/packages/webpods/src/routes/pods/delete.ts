@@ -18,7 +18,6 @@ import { resolvePath } from "../../domain/resolution/resolve-path.js";
 import { deleteStream } from "../../domain/streams/delete-stream.js";
 import { purgeRecord } from "../../domain/records/purge-record.js";
 import { deleteRecord } from "../../domain/records/delete-record.js";
-import { recordToResponse } from "../../domain/records/record-to-response.js";
 import { getPodOwner } from "../../domain/pods/get-pod-owner.js";
 
 const logger = createRouteLogger("delete");
@@ -159,7 +158,7 @@ export const deleteHandler = async (
         tombstoneName: deleteResult.data.name,
         userId: req.auth.user_id,
       });
-      res.json(recordToResponse(deleteResult.data, streamPath));
+      res.status(204).send();
     }
   } else {
     // Delete entire stream

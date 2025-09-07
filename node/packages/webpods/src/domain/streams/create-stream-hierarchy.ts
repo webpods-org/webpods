@@ -6,11 +6,12 @@ import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
 import { createError } from "../../utils/errors.js";
 import { Stream } from "../../types.js";
+import { StreamDbRow } from "../../db-types.js";
 import {
   parseStreamPath,
   isValidStreamName,
 } from "../../utils/stream-utils.js";
-import { createStream } from "./create-stream.js";
+import { createStream, mapStreamFromDb } from "./create-stream.js";
 import { getStreamByPath } from "./get-stream-by-path.js";
 import { createLogger } from "../../logger.js";
 
@@ -33,8 +34,32 @@ export async function createStreamHierarchy(
 ): Promise<Result<Stream>> {
   const segments = parseStreamPath(path);
 
-  if (segments.length === 0) {
-    return failure(createError("INVALID_PATH", "Cannot create root stream"));
+  // Handle root stream case
+  if (segments.length === 0 || path === "/") {
+    // Check if a root stream already exists
+    const existingRoot = await ctx.db.oneOrNone<StreamDbRow>(
+      `SELECT * FROM stream 
+       WHERE pod_name = $(podName) 
+         AND name = $(name) 
+         AND parent_id IS NULL`,
+      { podName, name: "/" },
+    );
+    
+    if (existingRoot) {
+      return success(mapStreamFromDb(existingRoot));
+    }
+    
+    // Create root stream
+    const createResult = await createStream(
+      ctx,
+      podName,
+      "/",
+      userId,
+      null, // No parent for root
+      accessPermission,
+    );
+    
+    return createResult;
   }
 
   // Validate all segment names

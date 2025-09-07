@@ -22,6 +22,7 @@ import { getConfig } from "../../config-loader.js";
 import { getStreamById } from "../../domain/streams/get-stream-by-id.js";
 import { getStreamByPath } from "../../domain/streams/get-stream-by-path.js";
 import { createStreamHierarchy } from "../../domain/streams/create-stream-hierarchy.js";
+import { updateStreamPermission } from "../../domain/streams/update-stream-permission.js";
 import { resolvePathForWrite } from "../../domain/resolution/resolve-path.js";
 import { writeRecord } from "../../domain/records/write-record.js";
 import { recordToResponse } from "../../domain/records/record-to-response.js";
@@ -341,8 +342,13 @@ export const postHandler = async (
       );
 
       if (!createResult.success) {
-        const status =
-          (createResult.error as CodedError).code === "FORBIDDEN" ? 403 : 500;
+        let status = 500;
+        const errorCode = (createResult.error as CodedError).code;
+        if (errorCode === "FORBIDDEN") {
+          status = 403;
+        } else if (errorCode === "NAME_CONFLICT" || errorCode === "STREAM_EXISTS") {
+          status = 409;
+        }
         res.status(status).json({
           error: createResult.error,
         });
@@ -364,6 +370,28 @@ export const postHandler = async (
           },
         });
         return;
+      }
+      
+      // If access parameter is provided and stream exists, update its permissions
+      // But only if the user is the stream creator
+      if (accessPermission) {
+        // Get the stream to check creator
+        const streamCheck = await getStreamById({ db }, streamId);
+        if (streamCheck.success && streamCheck.data.userId === req.auth.user_id) {
+          const updateResult = await updateStreamPermission(
+            { db },
+            streamId,
+            accessPermission,
+          );
+          if (!updateResult.success) {
+            logger.warn("Failed to update stream permission", {
+              error: updateResult.error,
+              streamId,
+              accessPermission,
+            });
+            // Don't fail the request, just log the warning
+          }
+        }
       }
     }
 
@@ -423,6 +451,8 @@ export const postHandler = async (
       // Check for specific error codes
       let status = 500;
       if ((recordResult.error as CodedError).code === "NAME_EXISTS") {
+        status = 409;
+      } else if ((recordResult.error as CodedError).code === "NAME_CONFLICT") {
         status = 409;
       } else if ((recordResult.error as CodedError).code === "INVALID_NAME") {
         status = 400;

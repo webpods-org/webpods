@@ -12,13 +12,20 @@ import { createLogger } from "../../logger.js";
 const logger = createLogger("webpods:domain:pods");
 
 /**
- * Map database row to domain type
+ * Map database row to domain type with full path
  */
-function mapStreamFromDb(row: StreamDbRow): Stream {
+function mapStreamFromDb(row: StreamDbRow, pathMap: Map<number, string>): Stream {
+  // Build full path from parent hierarchy
+  let fullPath = "/" + row.name;
+  if (row.parent_id && pathMap.has(row.parent_id)) {
+    const parentPath = pathMap.get(row.parent_id)!;
+    fullPath = parentPath === "/" ? "/" + row.name : parentPath + "/" + row.name;
+  }
+  
   return {
     id: row.id,
     podName: row.pod_name,
-    name: row.name,
+    name: fullPath, // Use full path as name for API compatibility
     parentId: row.parent_id || null,
     userId: row.user_id,
     accessPermission: row.access_permission,
@@ -45,11 +52,22 @@ export async function listPodStreams(
     const streams = await ctx.db.manyOrNone<StreamDbRow>(
       `SELECT * FROM stream 
        WHERE pod_name = $(pod_name)
-       ORDER BY created_at ASC`,
+       ORDER BY parent_id ASC NULLS FIRST, created_at ASC`,
       { pod_name: pod.name },
     );
 
-    return success(streams.map(mapStreamFromDb));
+    // Build path map to construct full paths
+    const pathMap = new Map<number, string>();
+    const result: Stream[] = [];
+    
+    // Process streams in order (parents first due to ORDER BY)
+    for (const stream of streams) {
+      const mapped = mapStreamFromDb(stream, pathMap);
+      pathMap.set(stream.id, mapped.name);
+      result.push(mapped);
+    }
+
+    return success(result);
   } catch (error: unknown) {
     logger.error("Failed to list pod streams", { error, podName });
     return failure(createError("DATABASE_ERROR", "Failed to list streams"));

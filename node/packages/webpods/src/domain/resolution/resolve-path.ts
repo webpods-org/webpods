@@ -8,6 +8,7 @@ import { Result, success, failure } from "../../utils/result.js";
 import { createError } from "../../utils/errors.js";
 import { getStreamByPath } from "../streams/get-stream-by-path.js";
 import { createLogger } from "../../logger.js";
+import { StreamDbRow } from "../../db-types.js";
 
 const logger = createLogger("webpods:domain:resolution");
 
@@ -151,11 +152,28 @@ export async function resolvePathForWrite(
 
     // Special case for root stream
     if (streamPath === "/") {
-      // For root stream, we need to handle this specially
-      // Root stream doesn't actually exist in the database
-      return failure(
-        createError("INVALID_PATH", "Cannot write to root stream"),
+      // Check if a root stream exists
+      const rootStream = await ctx.db.oneOrNone<StreamDbRow>(
+        `SELECT * FROM stream 
+         WHERE pod_name = $(podName) 
+           AND name = $(name) 
+           AND parent_id IS NULL`,
+        { podName, name: "/" },
       );
+      
+      if (!rootStream) {
+        // Root stream doesn't exist - need to create it
+        return failure(
+          createError("STREAM_NOT_FOUND", "Root stream not found"),
+        );
+      }
+      
+      return success({
+        streamId: rootStream.id,
+        streamPath: "/",
+        recordName,
+        isStream: false,
+      });
     }
 
     const streamResult = await getStreamByPath(ctx, podName, streamPath);

@@ -48,9 +48,24 @@ export async function buildStreamPath(
  * @returns true if valid
  */
 export function isValidStreamName(name: string): boolean {
-  // Stream names cannot contain slashes and must be non-empty
-  if (!name || name.includes("/")) {
+  // Stream names cannot be empty
+  if (!name) {
     return false;
+  }
+
+  // Special case: "/" is allowed as root stream
+  if (name === "/") {
+    return true;
+  }
+
+  // No slashes allowed in regular stream names
+  if (name.includes("/")) {
+    return false;
+  }
+
+  // Special case: .config is allowed as a system stream
+  if (name === ".config") {
+    return true;
   }
 
   // Cannot start or end with periods
@@ -74,7 +89,7 @@ export function isValidRecordName(name: string): boolean {
     return false;
   }
 
-  // Cannot start or end with periods
+  // Cannot start or end with periods (no exceptions for records)
   if (name.startsWith(".") || name.endsWith(".")) {
     return false;
   }

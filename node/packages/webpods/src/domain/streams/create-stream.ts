@@ -15,7 +15,7 @@ const logger = createLogger("webpods:domain:streams");
 /**
  * Map database row to domain type
  */
-function mapStreamFromDb(row: StreamDbRow): Stream {
+export function mapStreamFromDb(row: StreamDbRow): Stream {
   return {
     id: row.id,
     podName: row.pod_name,
@@ -61,6 +61,26 @@ export async function createStream(
       return failure(
         createError("STREAM_EXISTS", `Stream '${streamName}' already exists`),
       );
+    }
+
+    // Check if a record with the same name exists in the parent stream
+    if (parentId) {
+      const existingRecord = await ctx.db.oneOrNone<RecordDbRow>(
+        `SELECT * FROM record 
+         WHERE stream_id = $(parentId) 
+           AND name = $(name)
+         LIMIT 1`,
+        { parentId, name: streamName },
+      );
+
+      if (existingRecord) {
+        return failure(
+          createError(
+            "NAME_CONFLICT",
+            `A record named '${streamName}' already exists in the parent stream`,
+          ),
+        );
+      }
     }
 
     // Check if user is the pod owner

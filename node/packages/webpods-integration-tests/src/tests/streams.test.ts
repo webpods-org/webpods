@@ -68,8 +68,8 @@ describe("WebPods Stream Operations", () => {
       // Verify stream exists in database
       const db = testDb.getDb();
       const stream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId)`,
-        { pod_name: testPodId, streamId: "/my-first-stream" },
+        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamName) AND parent_id IS NULL`,
+        { pod_name: testPodId, streamName: "my-first-stream" },
       );
       expect(stream).to.exist;
       expect(stream.user_id).to.equal(userId);
@@ -136,9 +136,10 @@ describe("WebPods Stream Operations", () => {
 
       const db = testDb.getDb();
       const stream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId)`,
-        { pod_name: testPodId, streamId: "/private-stream" },
+        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamName) AND parent_id IS NULL`,
+        { pod_name: testPodId, streamName: "private-stream" },
       );
+      expect(stream).to.exist;
       expect(stream.access_permission).to.equal("private");
     });
   });
@@ -445,7 +446,7 @@ describe("WebPods Stream Operations", () => {
         "/blog": "blog?i=-10:-1",
       };
 
-      const response = await client.post("/.config/routing", links);
+      const response = await client.post("/.config/routing/routes", links);
       expect(response.status).to.equal(201);
 
       // Verify links work

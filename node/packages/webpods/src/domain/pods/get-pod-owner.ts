@@ -63,6 +63,9 @@ export async function getPodOwner(
     }
   } catch (error: unknown) {
     logger.error("Failed to get pod owner", { error, podName });
-    return failure(new Error("Failed to get pod owner"));
+    return failure({
+      code: "GET_OWNER_ERROR",
+      message: "Failed to get pod owner"
+    } as any);
   }
 }

@@ -197,16 +197,13 @@ describe("WebPods Permissions", () => {
 
       // User2 is now owner and can update .config/ streams
       client.setAuthToken(user2Token);
-      const response2 = await client.post("/.config/routing", {
-        "/": "homepage",
-      });
+      // Post to create .config/routing stream and add content
+      const response2 = await client.post("/.config/routing/home", "homepage");
       expect(response2.status).to.equal(201);
 
       // User1 can no longer update .config/ streams
       client.setAuthToken(user1Token);
-      const response3 = await client.post("/.config/routing", {
-        "/about": "about",
-      });
+      const response3 = await client.post("/.config/routing/about", "about page");
       expect(response3.status).to.equal(403);
     });
 
@@ -238,8 +235,8 @@ describe("WebPods Permissions", () => {
         { podId: testPodId },
       );
       let stream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId)`,
-        { pod_name: pod.name, streamId: "/perm-update" },
+        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamName) AND parent_id IS NULL`,
+        { pod_name: pod.name, streamName: "perm-update" },
       );
       expect(stream.access_permission).to.equal("public");
 
@@ -258,8 +255,8 @@ describe("WebPods Permissions", () => {
 
       // Verify permissions were actually updated
       stream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId)`,
-        { pod_name: pod.name, streamId: "/perm-update" },
+        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamName) AND parent_id IS NULL`,
+        { pod_name: pod.name, streamName: "perm-update" },
       );
       expect(stream.access_permission).to.equal("private");
 
@@ -287,8 +284,8 @@ describe("WebPods Permissions", () => {
         { podId: testPodId },
       );
       let stream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId)`,
-        { pod_name: pod.name, streamId: "/perm-noncreator" },
+        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamName) AND parent_id IS NULL`,
+        { pod_name: pod.name, streamName: "perm-noncreator" },
       );
       expect(stream.access_permission).to.equal("public");
 
@@ -302,8 +299,8 @@ describe("WebPods Permissions", () => {
 
       // But permissions should remain unchanged
       stream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId)`,
-        { pod_name: pod.name, streamId: "/perm-noncreator" },
+        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamName) AND parent_id IS NULL`,
+        { pod_name: pod.name, streamName: "perm-noncreator" },
       );
       expect(stream.access_permission).to.equal("public"); // Still public
     });

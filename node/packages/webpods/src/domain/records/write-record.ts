@@ -5,7 +5,7 @@
 import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
 import { createError } from "../../utils/errors.js";
-import { RecordDbRow } from "../../db-types.js";
+import { RecordDbRow, StreamDbRow } from "../../db-types.js";
 import { StreamRecord } from "../../types.js";
 import { calculateContentHash, calculateRecordHash } from "../../utils.js";
 import { createLogger } from "../../logger.js";
@@ -56,6 +56,24 @@ export async function writeRecord(
 
   try {
     return await ctx.db.tx(async (t) => {
+      // Check if a child stream with the same name exists
+      const existingChildStream = await t.oneOrNone<StreamDbRow>(
+        `SELECT * FROM stream 
+         WHERE parent_id = $(streamId) 
+           AND name = $(name)
+         LIMIT 1`,
+        { streamId, name },
+      );
+
+      if (existingChildStream) {
+        return failure(
+          createError(
+            "NAME_CONFLICT",
+            `A stream named '${name}' already exists as a child of this stream`,
+          ),
+        );
+      }
+
       // Get the previous record for hash chain
       const previousRecord = await t.oneOrNone<RecordDbRow>(
         `SELECT * FROM record 

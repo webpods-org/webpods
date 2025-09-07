@@ -45,14 +45,27 @@ export async function resolveLink(
       return success(null);
     }
 
-    // Get the latest routing record
-    const record = await ctx.db.oneOrNone<RecordDbRow>(
+    // Get the routing record named "routes" (or latest unnamed for backward compatibility)
+    let record = await ctx.db.oneOrNone<RecordDbRow>(
       `SELECT * FROM record 
        WHERE stream_id = $(stream_id)
+         AND name = 'routes'
        ORDER BY created_at DESC
        LIMIT 1`,
       { stream_id: routingStream.id },
     );
+    
+    // Fallback to latest unnamed record for backward compatibility
+    if (!record) {
+      record = await ctx.db.oneOrNone<RecordDbRow>(
+        `SELECT * FROM record 
+         WHERE stream_id = $(stream_id)
+           AND name IS NULL
+         ORDER BY created_at DESC
+         LIMIT 1`,
+        { stream_id: routingStream.id },
+      );
+    }
 
     if (!record) {
       return success(null);
