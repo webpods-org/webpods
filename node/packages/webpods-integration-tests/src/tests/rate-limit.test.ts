@@ -620,7 +620,7 @@ describe("WebPods Rate Limiting", () => {
          VALUES ($(podName), $(streamName), NULL, $(userId), 'public', NOW())`,
         {
           podName: uniquePodId,
-          streamName: "/can-write",
+          streamName: "can-write",
           userId: uniqueUser.userId,
         },
       );
