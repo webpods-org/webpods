@@ -103,12 +103,6 @@ export async function verifyHydraToken(
         } else {
           const payload = decoded as HydraTokenPayload;
 
-          logger.debug("Token verified successfully", {
-            sub: payload.sub,
-            client_id: payload.client_id,
-            pods: payload.ext?.pods,
-          });
-
           resolve({
             success: true,
             data: payload,

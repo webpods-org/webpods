@@ -187,7 +187,7 @@ router.delete(
     try {
       const count = await revokeUserSessions(req.auth!.user_id);
 
-      logger.info("All sessions revoked", { userId: req.auth!.user_id, count });
+      logger.info("All sessions revoked", { count });
 
       res.json({
         success: true,

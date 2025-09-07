@@ -114,10 +114,7 @@ export async function findOrCreateUser(
         // User exists with different provider
         user = mapUserFromDb(existingUserByEmail);
         userId = existingUserByEmail.id;
-        logger.info("Linking new provider to existing user", {
-          userId,
-          provider: provider.provider,
-        });
+        logger.info("Linking new provider to existing user");
       } else {
         // Create new user with snake_case parameters
         const userParams = {
@@ -133,7 +130,7 @@ export async function findOrCreateUser(
 
         user = mapUserFromDb(newUserRow);
         userId = user.id;
-        logger.info("Created new user", { userId });
+        logger.info("Created new user");
       }
 
       // Create identity with snake_case parameters
@@ -155,11 +152,7 @@ export async function findOrCreateUser(
       );
 
       const identity = mapIdentityFromDb(identityRow);
-      logger.info("Created new identity", {
-        userId,
-        provider: provider.provider,
-        providerId,
-      });
+      logger.info("Created new identity");
 
       return success({ user, identity });
     });

@@ -44,7 +44,7 @@ export async function storePKCEState(
     },
   );
 
-  logger.info("PKCE state stored", { state, pod, expiresAt });
+  logger.info("PKCE state stored", { expiresAt });
 }
 
 /**
@@ -76,7 +76,7 @@ export async function retrievePKCEState(
   // Delete the state (one-time use)
   await db.none(`DELETE FROM oauth_state WHERE state = $(state)`, { state });
 
-  logger.info("PKCE state retrieved and deleted", { state });
+  logger.info("PKCE state retrieved and deleted");
 
   return {
     state: row.state,

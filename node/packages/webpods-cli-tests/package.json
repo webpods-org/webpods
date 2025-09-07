@@ -4,8 +4,8 @@
   "description": "Integration tests for WebPods CLI",
   "type": "module",
   "scripts": {
-    "test": "mocha",
-    "test:watch": "mocha --watch",
+    "test": "LOG_LEVEL=error mocha",
+    "test:watch": "LOG_LEVEL=error mocha --watch",
     "build": "tsc --noEmit",
     "lint": "eslint src"
   },

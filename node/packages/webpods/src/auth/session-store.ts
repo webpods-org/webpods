@@ -140,7 +140,7 @@ export async function revokeUserSessions(userId: string): Promise<number> {
     }
   }
 
-  logger.info("Revoked user sessions", { userId, count: revokedCount });
+  logger.info("Revoked user sessions", { count: revokedCount });
   return revokedCount;
 }
 

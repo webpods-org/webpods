@@ -57,11 +57,6 @@ export function generateWebPodsToken(userId: string): Result<string> {
       token = jwt.sign(payload, secret);
     }
 
-    logger.debug("Generated WebPods JWT", {
-      userId,
-      hasExpiry: config.auth.jwtExpiry && config.auth.jwtExpiry !== "unlimited",
-    });
-
     return {
       success: true,
       data: token,
@@ -69,7 +64,6 @@ export function generateWebPodsToken(userId: string): Result<string> {
   } catch (error) {
     logger.error("Failed to generate JWT", {
       error: (error as Error).message,
-      userId,
     });
 
     return {

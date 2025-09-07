@@ -110,18 +110,11 @@ export async function checkPermissionStream(
     });
 
     if (!userPermission) {
-      logger.debug("No permission found for user", { userId, streamPath });
       return false;
     }
 
     // Check if action is allowed
     const allowed = userPermission[action] === true;
-    logger.info("Permission check final result", {
-      userId,
-      action,
-      allowed,
-      userPermission,
-    });
 
     return allowed;
   } catch (error) {

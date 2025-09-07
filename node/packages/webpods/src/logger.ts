@@ -9,7 +9,7 @@ export interface Logger {
 
 export function createLogger(name: string): Logger {
   const logLevel = process.env.LOG_LEVEL || "info";
-  const levels = ["debug", "info", "warn", "error"];
+  const levels = ["debug", "info", "warn", "error", "silent"];
   const currentLevelIndex = levels.indexOf(logLevel);
 
   const shouldLog = (level: string): boolean => {

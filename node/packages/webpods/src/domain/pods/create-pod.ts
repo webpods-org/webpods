@@ -119,7 +119,7 @@ export async function createPod(
 
       await t.none(sql.insert("record", recordParams), recordParams);
 
-      logger.info("Pod created", { podName, userId });
+      logger.info("Pod created", { podName });
       const mappedPod = mapPodFromDb(pod);
       mappedPod.userId = userId; // Set owner from what we just wrote
       return success(mappedPod);

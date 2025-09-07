@@ -152,14 +152,6 @@ router.get("/consent", async (req: Request, res: Response) => {
       consentChallenge,
     });
 
-    logger.info("Consent request received", {
-      challenge: consentChallenge,
-      client: consentRequest.client?.client_id,
-      subject: consentRequest.subject,
-      requestedScope: consentRequest.requested_scope,
-      oidcContext: consentRequest.oidc_context,
-    });
-
     // Test mode: auto-accept consent (only in controlled environments)
     if (req.headers["x-test-consent"]) {
       if (!isTestModeAllowed(req)) {
@@ -173,11 +165,7 @@ router.get("/consent", async (req: Request, res: Response) => {
         return;
       }
 
-      logger.info("Test mode: auto-accepting consent", {
-        query: req.query,
-        requestedScope: consentRequest.requested_scope,
-        oidcContext: consentRequest.oidc_context,
-      });
+      logger.info("Test mode: auto-accepting consent");
 
       const pods = Array.from(
         parseRequestedPods(

@@ -50,26 +50,6 @@ export function createApp(): Express {
   const sessionMiddleware = session(getSessionConfig());
   app.use(sessionMiddleware);
 
-  // Request logging
-  app.use((req, res, next) => {
-    const start = Date.now();
-    res.on("finish", () => {
-      const duration = Date.now() - start;
-
-      logger.info("Request completed", {
-        method: req.method,
-        url: req.url,
-        originalUrl: req.originalUrl,
-        path: req.path,
-        hostname: req.hostname,
-        status: res.statusCode,
-        duration,
-        ip: req.ip,
-      });
-    });
-    next();
-  });
-
   // Health check endpoint (main domain only)
   app.get("/health", async (req, res) => {
     // Only allow health checks on main domain

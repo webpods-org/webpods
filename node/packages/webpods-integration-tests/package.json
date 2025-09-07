@@ -5,8 +5,8 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "test": "mocha --exit",
-    "test:grep": "mocha --exit --grep",
+    "test": "LOG_LEVEL=error mocha --exit",
+    "test:grep": "LOG_LEVEL=error mocha --exit --grep",
     "build": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",

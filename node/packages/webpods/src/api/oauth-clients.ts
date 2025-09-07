@@ -130,11 +130,7 @@ router.post(
           },
         });
 
-        logger.info("Created OAuth client in Hydra", {
-          clientId,
-          clientName: clientData.client_name,
-          userId,
-        });
+        logger.info("Created OAuth client in Hydra");
 
         // Store client in our database
         const clientRecord = await db.one<OAuthClientDbRow>(
@@ -391,7 +387,7 @@ router.delete(
 
       try {
         await hydraAdmin.deleteOAuth2Client({ id: clientId || "" });
-        logger.info("Deleted OAuth client from Hydra", { clientId, userId });
+        logger.info("Deleted OAuth client from Hydra");
       } catch (error) {
         // If already deleted from Hydra, continue
         if (
@@ -420,7 +416,7 @@ router.delete(
         { client_id: clientId, user_id: userId },
       );
 
-      logger.info("Deleted OAuth client", { clientId, userId });
+      logger.info("Deleted OAuth client");
 
       res.status(204).send();
     } catch (error) {

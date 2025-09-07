@@ -29,38 +29,64 @@ export async function updateLinks(
         return failure(new Error("Pod not found"));
       }
 
-      // Get or create .config/routing stream
-      let linksStream = await t.oneOrNone<StreamDbRow>(
+      // Get or create .config stream
+      let configStream = await t.oneOrNone<StreamDbRow>(
         `SELECT * FROM stream
          WHERE pod_name = $(pod_name)
-           AND name = '.config/routing'`,
+           AND name = '.config'
+           AND parent_id IS NULL`,
         { pod_name: podName },
       );
 
-      if (!linksStream) {
-        // Create the stream with snake_case parameters
-        const streamParams = {
+      if (!configStream) {
+        // Create .config stream
+        const configParams = {
           pod_name: podName,
-          name: ".config/routing",
+          name: ".config",
+          parent_id: null,
           user_id: userId,
           access_permission: "private",
           created_at: new Date(),
         };
 
-        linksStream = await t.one<StreamDbRow>(
-          `${sql.insert("stream", streamParams)} RETURNING *`,
-          streamParams,
+        configStream = await t.one<StreamDbRow>(
+          `${sql.insert("stream", configParams)} RETURNING *`,
+          configParams,
+        );
+      }
+
+      // Get or create routing stream as child of .config
+      let routingStream = await t.oneOrNone<StreamDbRow>(
+        `SELECT * FROM stream
+         WHERE parent_id = $(parent_id)
+           AND name = 'routing'`,
+        { parent_id: configStream.id },
+      );
+
+      if (!routingStream) {
+        // Create routing stream
+        const routingParams = {
+          pod_name: podName,
+          name: "routing",
+          parent_id: configStream.id,
+          user_id: userId,
+          access_permission: "private",
+          created_at: new Date(),
+        };
+
+        routingStream = await t.one<StreamDbRow>(
+          `${sql.insert("stream", routingParams)} RETURNING *`,
+          routingParams,
         );
       }
 
       // Get previous record for hash chain
       const previousRecord = await t.oneOrNone<RecordDbRow>(
         `SELECT * FROM record
-         WHERE pod_name = $(pod_name)
-           AND stream_name = $(stream_name)
+         WHERE stream_id = $(stream_id)
          ORDER BY index DESC
          LIMIT 1`,
-        { pod_name: podName, stream_name: ".config/routing" },
+        { stream_id: routingStream.id },
       );
 
       const index = (previousRecord?.index ?? -1) + 1;
@@ -78,12 +104,11 @@ export async function updateLinks(
 
       // Write new links record with all links in one record
       const params = {
-        pod_name: podName,
-        stream_name: ".config/routing",
+        stream_id: routingStream.id,
         index: index,
         content: JSON.stringify(links),
         content_type: "application/json",
-        name: `links-${index}`,
+        name: "routes",
         content_hash: contentHash,
         hash: hash,
         previous_hash: previousHash,
@@ -93,10 +118,6 @@ export async function updateLinks(
 
       await t.none(sql.insert("record", params), params);
 
-      logger.info("Links updated", {
-        podName,
-        linkCount: Object.keys(links).length,
-      });
       return success(undefined);
     });
   } catch (error: unknown) {

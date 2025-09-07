@@ -95,11 +95,11 @@ export async function deletePod(
         pod_name: pod.name,
       });
 
-      logger.info("Pod deleted", { podName, userId });
+      logger.info("Pod deleted", { podName });
       return success(undefined);
     });
   } catch (error: unknown) {
-    logger.error("Failed to delete pod", { error, podName, userId });
+    logger.error("Failed to delete pod", { error, podName });
     return failure(new Error("Failed to delete pod"));
   }
 }
