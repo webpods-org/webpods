@@ -52,19 +52,9 @@ export function createApp(): Express {
 
   // Request logging
   app.use((req, res, next) => {
-    console.log("[SERVER] === NEW REQUEST ===");
-    console.log("[SERVER] Method:", req.method);
-    console.log("[SERVER] URL:", req.url);
-    console.log("[SERVER] Path:", req.path);
-    console.log("[SERVER] Hostname:", req.hostname);
-    console.log("[SERVER] Headers.host:", req.headers.host);
-
     const start = Date.now();
     res.on("finish", () => {
       const duration = Date.now() - start;
-      console.log("[SERVER] === REQUEST FINISHED ===");
-      console.log("[SERVER] Status:", res.statusCode);
-      console.log("[SERVER] Duration:", duration, "ms");
 
       logger.info("Request completed", {
         method: req.method,
@@ -228,19 +218,10 @@ export function createApp(): Express {
   });
 
   // Pod routes (subdomain-based and rootPod)
-  app.use((req, _res, next) => {
-    console.log(
-      "[SERVER] About to enter podsRouter for:",
-      req.method,
-      req.path,
-    );
-    next();
-  });
   app.use(podsRouter);
 
   // 404 handler
   app.use((req, res) => {
-    console.log("[SERVER] Reached 404 handler for:", req.method, req.path);
     const hostname = req.hostname || req.headers.host?.split(":")[0] || "";
     const mainDomain = config.server.public?.hostname || "localhost";
 

@@ -92,10 +92,6 @@ describe("CLI Links Commands", function () {
         },
       );
 
-      if (result.exitCode !== 0) {
-        console.log("STDERR:", result.stderr);
-        console.log("STDOUT:", result.stdout);
-      }
       expect(result.exitCode).to.equal(0);
       expect(result.stdout).to.include("Link set: /about → pages/about");
     });
@@ -151,10 +147,6 @@ describe("CLI Links Commands", function () {
         token: testToken,
       });
 
-      if (result.exitCode !== 0) {
-        console.log("LIST ERROR - STDERR:", result.stderr);
-        console.log("LIST ERROR - STDOUT:", result.stdout);
-      }
       expect(result.exitCode).to.equal(0);
       expect(result.stdout).to.include(`Links for pod '${testPodName}'`);
       expect(result.stdout).to.include("/ → homepage/index");
@@ -219,10 +211,6 @@ describe("CLI Links Commands", function () {
       const listResult = await cli.exec(["links", "list", testPodName], {
         token: testToken,
       });
-      if (listResult.stdout.includes("/about → pages/about")) {
-        console.log("ERROR: /about still present after remove!");
-        console.log("LIST OUTPUT:", listResult.stdout);
-      }
       expect(listResult.stdout).to.not.include("/about → pages/about");
       expect(listResult.stdout).to.include("/blog → blog/posts"); // Other links remain
     });

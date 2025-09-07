@@ -46,12 +46,6 @@ describe("CLI Pod Commands", function () {
         token: testToken,
       });
 
-      if (result.exitCode !== 0) {
-        console.log("Pod creation failed - Exit code:", result.exitCode);
-        console.log("Stdout:", result.stdout);
-        console.log("Stderr:", result.stderr);
-      }
-
       expect(result.exitCode).to.equal(0);
       expect(result.stdout).to.include("Pod 'test-pod' created successfully");
 

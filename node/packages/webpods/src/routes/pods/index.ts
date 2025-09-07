@@ -21,19 +21,6 @@ import { deleteRoute } from "./delete.js";
 
 const router = Router({ mergeParams: true });
 
-// Log all requests entering this router
-router.use((req, _res, next) => {
-  console.log(
-    "[PODS-ROUTER] Entered router with:",
-    req.method,
-    req.path,
-    req.url,
-  );
-  console.log("[PODS-ROUTER] req.podName:", (req as any).podName);
-  console.log("[PODS-ROUTER] req.pod exists?", !!(req as any).pod);
-  next();
-});
-
 // Register routes in specific order (more specific routes first)
 
 // 1. Authentication routes
@@ -75,7 +62,6 @@ router.delete(
 
 // 4. Root path handler (must come before catch-all)
 router.get(rootRoute.path, ...rootRoute.middleware, async (req, res, next) => {
-  console.log("[PODS-ROUTER] Root route (/) matched");
   // Call the root handler
   await rootRoute.handler(req, res, next);
 
@@ -91,7 +77,6 @@ router.get(rootRoute.path, ...rootRoute.middleware, async (req, res, next) => {
 // We need to register multiple patterns to catch all paths
 // First, handle single-segment paths like /about, /status
 router.get("/:segment", ...getRoute.middleware, async (req, res, next) => {
-  console.log("[PODS-ROUTER] Single segment catch-all matched for:", req.path);
   // Handle link resolution that requires re-routing
   const originalUrl = req.url;
   await getRoute.handler(req, res, next);
@@ -104,7 +89,6 @@ router.get("/:segment", ...getRoute.middleware, async (req, res, next) => {
 
 // Then handle multi-segment paths like /api/v1/status
 router.get("/*", ...getRoute.middleware, async (req, res, next) => {
-  console.log("[PODS-ROUTER] Multi-segment catch-all matched for:", req.path);
   // Handle link resolution that requires re-routing
   const originalUrl = req.url;
   await getRoute.handler(req, res, next);
@@ -117,16 +101,5 @@ router.get("/*", ...getRoute.middleware, async (req, res, next) => {
 
 router.post(postRoute.path, ...postRoute.middleware, postRoute.handler);
 router.delete(deleteRoute.path, ...deleteRoute.middleware, deleteRoute.handler);
-
-// Log all registered routes
-console.log("[PODS-ROUTER] === REGISTERED ROUTES ===");
-router.stack.forEach((layer: any) => {
-  if (layer.route) {
-    const methods = layer.route.methods;
-    const method = methods ? Object.keys(methods)[0]?.toUpperCase() : "UNKNOWN";
-    console.log("[PODS-ROUTER]", method, layer.route.path);
-  }
-});
-console.log("[PODS-ROUTER] === END ROUTES ===");
 
 export default router;

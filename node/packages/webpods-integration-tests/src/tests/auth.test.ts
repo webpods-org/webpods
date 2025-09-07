@@ -198,14 +198,11 @@ describe("WebPods Authentication", () => {
     it("should allow anonymous read on public streams", async () => {
       // First create a public stream as authenticated user
       client.setAuthToken(authToken);
-      console.log("Creating stream /public-data");
       await client.createStream("public-data");
-      console.log("Posting to /public-data/public");
       await client.post("/public-data/public", "Public content");
 
       // Now read without auth
       client.clearAuthToken();
-      console.log("Reading /public-data/public without auth");
       const response = await client.get("/public-data/public");
 
       expect(response.status).to.equal(200);

@@ -144,13 +144,9 @@ describe("Stream Name Normalization", function () {
       // This might be in the .config stream or another top-level stream
       if (!record) {
         // Check if a new top-level stream was created
-        const streams = await db.manyOrNone(
+        await db.manyOrNone(
           `SELECT * FROM stream WHERE pod_name = $(pod_name) AND parent_id IS NULL`,
           { pod_name: testPodId },
-        );
-        console.log(
-          "Top-level streams:",
-          streams.map((s) => s.name),
         );
       }
 

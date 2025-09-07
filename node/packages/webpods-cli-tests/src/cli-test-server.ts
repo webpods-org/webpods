@@ -50,10 +50,6 @@ export class CliTestServer {
 
       const checkStartup = (data: Buffer) => {
         const message = data.toString();
-        // Debug logging to see what we're getting
-        if (process.env.DEBUG_CLI_TEST) {
-          console.log("[CLI Test Server Output]:", message.trim());
-        }
         // Check for startup message (can appear with log prefix like [INFO] [webpods])
         if (
           !started &&

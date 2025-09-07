@@ -255,11 +255,6 @@ describe("CLI Record Commands", function () {
         },
       );
 
-      if (result.exitCode !== 0) {
-        console.log("Read failed:");
-        console.log("stdout:", result.stdout);
-        console.log("stderr:", result.stderr);
-      }
       expect(result.exitCode).to.equal(0);
       const data = cli.parseJson(result.stdout);
       expect(data.value).to.equal(1);
@@ -273,11 +268,6 @@ describe("CLI Record Commands", function () {
         },
       );
 
-      if (result.exitCode !== 0) {
-        console.log("Read latest failed:");
-        console.log("stdout:", result.stdout);
-        console.log("stderr:", result.stderr);
-      }
       expect(result.exitCode).to.equal(0);
       const data = cli.parseJson(result.stdout);
       expect(data.value).to.equal(2);
@@ -530,11 +520,6 @@ describe("CLI Record Commands", function () {
         },
       );
 
-      if (result.exitCode !== 0) {
-        console.log("Streams command failed:");
-        console.log("stdout:", result.stdout);
-        console.log("stderr:", result.stderr);
-      }
       expect(result.exitCode).to.equal(0);
       const streams = cli.parseJson(result.stdout);
       expect(streams).to.be.an("array");
@@ -733,11 +718,6 @@ describe("CLI Record Commands", function () {
         },
       );
 
-      if (result.exitCode !== 0) {
-        console.log("Delete stream failed:");
-        console.log("stdout:", result.stdout);
-        console.log("stderr:", result.stderr);
-      }
       expect(result.exitCode).to.equal(0);
       expect(result.stdout).to.include("deleted successfully");
 

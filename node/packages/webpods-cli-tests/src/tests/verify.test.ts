@@ -161,11 +161,6 @@ describe("CLI Verify Command", function () {
         },
       );
 
-      if (result.exitCode !== 0) {
-        console.log("VERIFY ERROR - STDERR:", result.stderr);
-        console.log("VERIFY ERROR - STDOUT:", result.stdout);
-      }
-
       expect(result.exitCode).to.equal(0);
       expect(result.stdout).to.include(
         "Verifying integrity of stream '/test-stream'",
@@ -193,11 +188,6 @@ describe("CLI Verify Command", function () {
           token: testToken,
         },
       );
-
-      if (!result.stdout.includes("Hash chain broken")) {
-        console.log("BROKEN CHAIN TEST - STDOUT:", result.stdout);
-        console.log("BROKEN CHAIN TEST - STDERR:", result.stderr);
-      }
 
       expect(result.exitCode).to.not.equal(0);
       expect(result.stderr).to.include("Hash chain broken");
@@ -283,12 +273,6 @@ describe("CLI Verify Command", function () {
       );
 
       const result = await cli.exec(["verify", testPodName, "/public-stream"]);
-
-      if (!result.stdout.includes("Stream '/public-stream' summary:")) {
-        console.log("PUBLIC STREAM TEST - STDOUT:", result.stdout);
-        console.log("PUBLIC STREAM TEST - STDERR:", result.stderr);
-        console.log("PUBLIC STREAM TEST - EXIT CODE:", result.exitCode);
-      }
 
       // Should work without authentication for public streams
       expect(result.stdout).to.include("Stream '/public-stream' summary:");

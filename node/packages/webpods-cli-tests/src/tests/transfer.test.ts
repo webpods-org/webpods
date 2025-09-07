@@ -242,11 +242,6 @@ describe("CLI Transfer Command", function () {
       );
 
       // Should be denied access to existing stream
-      console.log("EXISTING STREAM WRITE ATTEMPT:", {
-        exitCode: existingStreamResult.exitCode,
-        stdout: existingStreamResult.stdout,
-        stderr: existingStreamResult.stderr,
-      });
       expect(existingStreamResult.exitCode).to.not.equal(0);
 
       // Try to write to a non-existent stream with old owner's token
