@@ -91,6 +91,26 @@ export async function createStreamHierarchy(
         continue;
       }
 
+      // Before creating a stream, check if a record with this name exists in the parent
+      if (parentId !== null) {
+        const recordCheck = await ctx.db.oneOrNone<{ id: number }>(
+          `SELECT id FROM record 
+           WHERE stream_id = $(streamId) 
+             AND name = $(name)
+           LIMIT 1`,
+          { streamId: parentId, name: segment },
+        );
+
+        if (recordCheck) {
+          return failure(
+            createError(
+              "NAME_CONFLICT",
+              `Cannot create stream '${segment}': a record with this name already exists in the parent stream`,
+            ),
+          );
+        }
+      }
+
       // Create this level
       // Use provided access permission for leaf, inherit parent's for intermediate levels
       const streamAccessPermission = isLeaf ? accessPermission : "public";

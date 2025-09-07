@@ -30,16 +30,16 @@ export async function extractPod(
   next: NextFunction,
 ): Promise<void> {
   try {
-    console.log('[EXTRACT-POD] Starting pod extraction for path:', req.path);
+    console.log("[EXTRACT-POD] Starting pod extraction for path:", req.path);
     // If pod_name is already set (e.g., by rootPod handler), skip extraction
     if (req.podName) {
-      console.log('[EXTRACT-POD] Pod already set:', req.podName);
+      console.log("[EXTRACT-POD] Pod already set:", req.podName);
       next();
       return;
     }
 
     const hostname = req.hostname || req.headers.host?.split(":")[0] || "";
-    console.log('[EXTRACT-POD] Hostname:', hostname);
+    console.log("[EXTRACT-POD] Hostname:", hostname);
     const db = getDb();
 
     // Get config to determine main domain
@@ -69,13 +69,13 @@ export async function extractPod(
     }
 
     // If still no pod found and this is the main domain, check for rootPod config
-    console.log('[EXTRACT-POD] Checking rootPod:', {
+    console.log("[EXTRACT-POD] Checking rootPod:", {
       podName,
       isMain: isMainDomain(hostname, mainDomain),
       configRootPod: config.rootPod,
     });
     if (!podName && isMainDomain(hostname, mainDomain) && config.rootPod) {
-      console.log('[EXTRACT-POD] Setting rootPod:', config.rootPod);
+      console.log("[EXTRACT-POD] Setting rootPod:", config.rootPod);
       logger.debug("Setting rootPod for main domain", {
         rootPod: config.rootPod,
         hostname,
@@ -87,23 +87,23 @@ export async function extractPod(
 
     if (!podName) {
       // No pod found - just continue without setting pod
-      console.log('[EXTRACT-POD] No pod found, continuing without pod');
+      console.log("[EXTRACT-POD] No pod found, continuing without pod");
       next();
       return;
     }
 
     // Store the pod_name for reference
     req.podName = podName;
-    console.log('[EXTRACT-POD] Set req.podName to:', podName);
+    console.log("[EXTRACT-POD] Set req.podName to:", podName);
 
     // Try to get the pod
     const podResult = await getPod({ db }, podName);
 
     if (podResult.success) {
       req.pod = podResult.data;
-      console.log('[EXTRACT-POD] Found pod in database:', podName);
+      console.log("[EXTRACT-POD] Found pod in database:", podName);
     } else {
-      console.log('[EXTRACT-POD] Pod not found in database:', podName);
+      console.log("[EXTRACT-POD] Pod not found in database:", podName);
     }
     // If pod doesn't exist, operations will fail with POD_NOT_FOUND
 

@@ -191,7 +191,10 @@ export async function optionalAuthHybrid(
   _res: Response,
   next: NextFunction,
 ): Promise<void> {
-  console.log('[OPTIONAL-AUTH] Running optional auth middleware for:', req.path);
+  console.log(
+    "[OPTIONAL-AUTH] Running optional auth middleware for:",
+    req.path,
+  );
   try {
     req.ipAddress = getIpAddress(req);
 

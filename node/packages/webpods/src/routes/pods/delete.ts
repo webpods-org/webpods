@@ -63,8 +63,8 @@ export const deleteHandler = async (
   if (!resolutionResult.success) {
     res.status(404).json({
       error: {
-        code: "NOT_FOUND",
-        message: `Path not found: ${fullPath}`,
+        code: (resolutionResult.error as any).code || "NOT_FOUND",
+        message: resolutionResult.error.message,
       },
     });
     return;

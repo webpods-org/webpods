@@ -79,7 +79,7 @@ export class TestServer {
       // We need to wait for the server to start in a different way
       // Let's wait longer to make sure server is fully up
       setTimeout(() => {
-        console.log('[TEST-SERVER] Server should be started now');
+        console.log("[TEST-SERVER] Server should be started now");
         resolve();
       }, 3000); // Wait 3 seconds for server to start
 

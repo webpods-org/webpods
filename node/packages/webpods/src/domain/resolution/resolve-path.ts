@@ -102,12 +102,7 @@ export async function resolvePath(
 
     if (!streamResult.success) {
       // Neither interpretation works
-      return failure(
-        createError(
-          "NOT_FOUND",
-          `Not found: no stream '${path}' and no stream '${streamPath}' with record '${recordName}'`,
-        ),
-      );
+      return failure(createError("NOT_FOUND", `Path not found: ${path}`));
     }
 
     // Found as stream + record

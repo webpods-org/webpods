@@ -3,6 +3,7 @@
 ## Hierarchical Streams Refactoring - Remaining Work
 
 ### 1. CLI Package Updates ⚠️ PRIORITY
+
 The CLI package (`/node/packages/webpods-cli`) has not been updated to work with the new hierarchical streams architecture. Many CLI tests are failing because:
 
 - CLI commands still use the old flat stream model (pod_name/stream_name)
@@ -13,6 +14,7 @@ The CLI package (`/node/packages/webpods-cli`) has not been updated to work with
   - New database schema with `parent_id` relationships
 
 **Required Changes:**
+
 - Update all CLI commands to use hierarchical paths
 - Fix database queries to use `stream_id` instead of `pod_name`/`stream_name`
 - Update stream creation/deletion to handle parent-child relationships
@@ -20,6 +22,7 @@ The CLI package (`/node/packages/webpods-cli`) has not been updated to work with
 - Update test helpers to work with new schema
 
 ### 2. Field Naming Standardization
+
 Currently there's inconsistency in user ID field naming across the codebase:
 
 - **Current State:**
@@ -34,6 +37,7 @@ Currently there's inconsistency in user ID field naming across the codebase:
   - No backward compatibility needed (greenfield project)
 
 ### 3. Documentation Updates
+
 - Update CLAUDE.md to reflect:
   - Hierarchical streams architecture
   - Field naming standardization (userId)
@@ -44,6 +48,7 @@ Currently there's inconsistency in user ID field naming across the codebase:
 ## Completed Items ✅
 
 ### Hierarchical Streams Core Implementation
+
 - ✅ Database schema migrated to hierarchical structure with `parent_id`
 - ✅ Stream IDs converted to bigint serial primary keys
 - ✅ Records reference streams by `stream_id` instead of `pod_name`/`stream_name`
@@ -55,6 +60,7 @@ Currently there's inconsistency in user ID field naming across the codebase:
 - ✅ Integration tests passing
 
 ### Route Reorganization
+
 - ✅ Split monolithic `/src/routes/pods.ts` into organized modules
 - ✅ Created separate files for each route handler
 - ✅ Shared utilities extracted

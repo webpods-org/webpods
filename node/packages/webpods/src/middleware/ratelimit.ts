@@ -22,7 +22,11 @@ export function rateLimit(
     res: Response,
     next: NextFunction,
   ): Promise<void> => {
-    console.log('[RATE-LIMIT] Running rate limit middleware for:', action, req.path);
+    console.log(
+      "[RATE-LIMIT] Running rate limit middleware for:",
+      action,
+      req.path,
+    );
     try {
       const db = getDb();
 

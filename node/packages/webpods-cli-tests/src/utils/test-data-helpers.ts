@@ -15,7 +15,7 @@ interface StreamData {
 
 interface RecordData {
   streamId: number;
-  name?: string | null;  // Allow null for database
+  name?: string | null; // Allow null for database
   content: string;
   contentType?: string;
   userId: string;
@@ -32,17 +32,17 @@ export async function createTestStream(
   data: StreamData,
 ): Promise<number> {
   const { podName, streamPath, userId, accessPermission = "public" } = data;
-  
+
   // Split the path into segments
-  const segments = streamPath.split("/").filter(s => s.length > 0);
-  
+  const segments = streamPath.split("/").filter((s) => s.length > 0);
+
   if (segments.length === 0) {
     throw new Error("Stream path cannot be empty");
   }
-  
+
   let parentId: number | null = null;
   let currentStreamId: number | null = null;
-  
+
   // Create each level of the hierarchy
   for (const segment of segments) {
     // Check if this stream already exists at this level
@@ -57,7 +57,7 @@ export async function createTestStream(
         parentId,
       },
     );
-    
+
     if (existing) {
       currentStreamId = existing.id;
     } else {
@@ -77,11 +77,11 @@ export async function createTestStream(
       );
       currentStreamId = result.id;
     }
-    
+
     // This stream becomes the parent for the next level
     parentId = currentStreamId;
   }
-  
+
   return currentStreamId!;
 }
 
@@ -101,12 +101,12 @@ export async function createTestRecord(
     index = 0,
     previousHash = null,
   } = data;
-  
+
   // Calculate content hash
   const contentHash = `sha256:${createHash("sha256")
     .update(content)
     .digest("hex")}`;
-  
+
   // Calculate record hash (simplified for testing)
   const hashInput = [
     previousHash || "",
@@ -115,11 +115,9 @@ export async function createTestRecord(
     name || "",
     index.toString(),
   ].join(":");
-  
-  const hash = `sha256:${createHash("sha256")
-    .update(hashInput)
-    .digest("hex")}`;
-  
+
+  const hash = `sha256:${createHash("sha256").update(hashInput).digest("hex")}`;
+
   await db.none(
     `INSERT INTO record (stream_id, name, content, content_type, content_hash, hash, previous_hash, user_id, index, created_at)
      VALUES ($(streamId), $(name), $(content), $(contentType), $(contentHash), $(hash), $(previousHash), $(userId), $(index), $(timestamp))`,
@@ -158,7 +156,7 @@ export async function createStreamWithRecord(
     userId,
     accessPermission,
   });
-  
+
   // Create the record
   await createTestRecord(db, {
     streamId,
@@ -168,7 +166,7 @@ export async function createStreamWithRecord(
     userId,
     index: 0,
   });
-  
+
   return { streamId };
 }
 
@@ -189,7 +187,7 @@ export async function createPermissionStream(
     userId,
     accessPermission: "private",
   });
-  
+
   // Create .config/permissions stream
   await createTestStream(db, {
     podName,
@@ -197,7 +195,7 @@ export async function createPermissionStream(
     userId,
     accessPermission: "private",
   });
-  
+
   // Create the specific permission stream for the target
   const fullPath = `.config/permissions/${targetStreamPath}`;
   const streamId = await createTestStream(db, {
@@ -206,7 +204,7 @@ export async function createPermissionStream(
     userId,
     accessPermission: "private",
   });
-  
+
   // Add permission records
   for (let i = 0; i < permissions.length; i++) {
     const perm = permissions[i];
@@ -238,7 +236,7 @@ export async function createRoutingConfig(
     userId,
     accessPermission: "private",
   });
-  
+
   // Add routing record
   await createTestRecord(db, {
     streamId,
@@ -266,7 +264,7 @@ export async function createDomainConfig(
     userId,
     accessPermission: "private",
   });
-  
+
   // Add domains record
   await createTestRecord(db, {
     streamId,
@@ -294,7 +292,7 @@ export async function createOwnerConfig(
     userId,
     accessPermission: "private",
   });
-  
+
   // Add owner record - owner stream doesn't use named records
   await createTestRecord(db, {
     streamId,

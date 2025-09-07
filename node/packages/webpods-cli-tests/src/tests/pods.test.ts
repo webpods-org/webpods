@@ -13,7 +13,10 @@ import {
   testUser,
   testDb,
 } from "../test-setup.js";
-import { createOwnerConfig, createStreamWithRecord } from "../utils/test-data-helpers.js";
+import {
+  createOwnerConfig,
+  createStreamWithRecord,
+} from "../utils/test-data-helpers.js";
 
 describe("CLI Pod Commands", function () {
   this.timeout(30000);
