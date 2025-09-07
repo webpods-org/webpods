@@ -81,7 +81,7 @@ describe("WebPods Record Deletion", () => {
         `SELECT * FROM pod WHERE name = $(podId)`,
         { podId: testPodId },
       );
-      
+
       // Find the stream using hierarchical structure
       const stream = await db.oneOrNone(
         `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamName) AND parent_id IS NULL`,
@@ -248,13 +248,13 @@ describe("WebPods Record Deletion", () => {
       // First create a record named "config" in /app stream
       await client.createStream("app");
       await client.post("/app/config", "Config record in app stream");
-      
+
       // Try to create /app/config as a stream by posting to a child path
       // This would require /app/config to be a stream, not a record
       const response = await client.post("/app/config/test", "Test content");
       expect(response.status).to.equal(409); // Conflict
       expect(response.data.error.code).to.equal("NAME_CONFLICT");
-      
+
       // Verify the record still exists and works
       const getResponse = await client.get("/app/config");
       expect(getResponse.status).to.equal(200);

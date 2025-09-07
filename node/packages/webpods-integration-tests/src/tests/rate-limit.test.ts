@@ -80,7 +80,7 @@ describe("WebPods Rate Limiting", () => {
            AND parent_id IS NULL`,
         { podName: testPodId, streamName },
       );
-      
+
       if (!existing) {
         await db.none(
           `INSERT INTO stream (pod_name, name, parent_id, user_id, access_permission, created_at)

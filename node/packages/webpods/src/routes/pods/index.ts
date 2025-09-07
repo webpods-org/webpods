@@ -73,19 +73,41 @@ router.get(rootRoute.path, ...rootRoute.middleware, async (req, res, next) => {
   }
 });
 
-// 5. Catch-all routes (must be last)
-router.get(getRoute.path, ...getRoute.middleware, async (req, res, next) => {
-  // Handle link resolution that requires re-routing
-  const originalUrl = req.url;
-  await getRoute.handler(req, res, next);
-
-  // If the URL was rewritten for link resolution, re-run the router
-  if (req.url !== originalUrl) {
-    return router(req, res, next);
-  }
-});
-
+// 5. Catch-all routes for POST and DELETE
 router.post(postRoute.path, ...postRoute.middleware, postRoute.handler);
 router.delete(deleteRoute.path, ...deleteRoute.middleware, deleteRoute.handler);
+
+// 6. Final catch-all for GET requests (must be last)
+// This will catch any GET request that hasn't been handled by specific routes
+router.use(async (req, res, next) => {
+  // Only handle GET requests
+  if (req.method !== "GET") {
+    return next();
+  }
+
+  // Run the GET middleware chain
+  let middlewareIndex = 0;
+  const runMiddleware = () => {
+    if (middlewareIndex < getRoute.middleware.length) {
+      const mw = getRoute.middleware[middlewareIndex++];
+      if (mw) {
+        mw(req as any, res, runMiddleware);
+      } else {
+        runMiddleware();
+      }
+    } else {
+      // All middleware done, run handler
+      const originalUrl = req.url;
+      getRoute.handler(req as any, res, next).then(() => {
+        // If the URL was rewritten for link resolution, re-run the router
+        if (req.url !== originalUrl) {
+          router(req, res, next);
+        }
+      });
+    }
+  };
+
+  runMiddleware();
+});
 
 export default router;

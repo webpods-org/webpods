@@ -14,14 +14,18 @@ const logger = createLogger("webpods:domain:pods");
 /**
  * Map database row to domain type with full path
  */
-function mapStreamFromDb(row: StreamDbRow, pathMap: Map<number, string>): Stream {
+function mapStreamFromDb(
+  row: StreamDbRow,
+  pathMap: Map<number, string>,
+): Stream {
   // Build full path from parent hierarchy
   let fullPath = "/" + row.name;
   if (row.parent_id && pathMap.has(row.parent_id)) {
     const parentPath = pathMap.get(row.parent_id)!;
-    fullPath = parentPath === "/" ? "/" + row.name : parentPath + "/" + row.name;
+    fullPath =
+      parentPath === "/" ? "/" + row.name : parentPath + "/" + row.name;
   }
-  
+
   return {
     id: row.id,
     podName: row.pod_name,
@@ -59,7 +63,7 @@ export async function listPodStreams(
     // Build path map to construct full paths
     const pathMap = new Map<number, string>();
     const result: Stream[] = [];
-    
+
     // Process streams in order (parents first due to ORDER BY)
     for (const stream of streams) {
       const mapped = mapStreamFromDb(stream, pathMap);

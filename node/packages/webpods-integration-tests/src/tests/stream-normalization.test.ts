@@ -54,7 +54,7 @@ describe("Stream Name Normalization", function () {
       );
       expect(blogStream).to.exist;
       expect(blogStream.name).to.equal("blog");
-      
+
       // Check child stream "posts"
       const postsStream = await db.oneOrNone(
         `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(name) AND parent_id = $(parent_id)`,
@@ -79,7 +79,7 @@ describe("Stream Name Normalization", function () {
       );
       expect(projectsStream).to.exist;
       expect(projectsStream.name).to.equal("projects");
-      
+
       // Check child stream "webapp"
       const webappStream = await db.oneOrNone(
         `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(name) AND parent_id = $(parent_id)`,
@@ -100,19 +100,19 @@ describe("Stream Name Normalization", function () {
         { pod_name: testPodId, name: "api" },
       );
       expect(apiStream).to.exist;
-      
+
       const v1Stream = await db.oneOrNone(
         `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(name) AND parent_id = $(parent_id)`,
         { pod_name: testPodId, name: "v1", parent_id: apiStream.id },
       );
       expect(v1Stream).to.exist;
-      
+
       const usersStream = await db.oneOrNone(
         `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(name) AND parent_id = $(parent_id)`,
         { pod_name: testPodId, name: "users", parent_id: v1Stream.id },
       );
       expect(usersStream).to.exist;
-      
+
       const profilesStream = await db.oneOrNone(
         `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(name) AND parent_id = $(parent_id)`,
         { pod_name: testPodId, name: "profiles", parent_id: usersStream.id },
@@ -138,7 +138,7 @@ describe("Stream Name Normalization", function () {
            AND r.name = $(name)`,
         { pod_name: testPodId, name: "root-record" },
       );
-      
+
       // Since we don't have a root stream concept anymore,
       // we need to check if the record was created properly
       // This might be in the .config stream or another top-level stream
@@ -148,9 +148,12 @@ describe("Stream Name Normalization", function () {
           `SELECT * FROM stream WHERE pod_name = $(pod_name) AND parent_id IS NULL`,
           { pod_name: testPodId },
         );
-        console.log("Top-level streams:", streams.map(s => s.name));
+        console.log(
+          "Top-level streams:",
+          streams.map((s) => s.name),
+        );
       }
-      
+
       // The test needs to be adjusted for hierarchical structure
       // Root records should be handled differently
       expect(response.data).to.have.property("index");
@@ -275,7 +278,7 @@ describe("Stream Name Normalization", function () {
       );
       expect(configStream).to.exist;
       expect(configStream.name).to.equal(".config");
-      
+
       const ownerStream = await db.oneOrNone(
         `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(name) AND parent_id = $(parent_id)`,
         { pod_name: testPodId, name: "owner", parent_id: configStream.id },

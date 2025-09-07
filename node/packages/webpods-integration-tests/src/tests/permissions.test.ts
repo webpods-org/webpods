@@ -203,7 +203,10 @@ describe("WebPods Permissions", () => {
 
       // User1 can no longer update .config/ streams
       client.setAuthToken(user1Token);
-      const response3 = await client.post("/.config/routing/about", "about page");
+      const response3 = await client.post(
+        "/.config/routing/about",
+        "about page",
+      );
       expect(response3.status).to.equal(403);
     });
 

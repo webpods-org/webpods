@@ -37,11 +37,11 @@ export async function updateStreamPermission(
       return failure(createError("STREAM_NOT_FOUND", "Stream not found"));
     }
 
-    logger.debug("Updated stream permission", { 
-      streamId, 
+    logger.debug("Updated stream permission", {
+      streamId,
       accessPermission,
       podName: updated.pod_name,
-      streamName: updated.name 
+      streamName: updated.name,
     });
 
     return success({ updated: true });

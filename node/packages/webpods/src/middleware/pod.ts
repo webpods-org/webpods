@@ -67,6 +67,12 @@ export async function extractPod(
 
     // If still no pod found and this is the main domain, check for rootPod config
     if (!podName && isMainDomain(hostname, mainDomain) && config.rootPod) {
+      logger.debug("Setting rootPod for main domain", {
+        rootPod: config.rootPod,
+        hostname,
+        mainDomain,
+        isMain: isMainDomain(hostname, mainDomain),
+      });
       podName = config.rootPod;
     }
 

@@ -65,7 +65,7 @@ export async function getPodOwner(
     logger.error("Failed to get pod owner", { error, podName });
     return failure({
       code: "GET_OWNER_ERROR",
-      message: "Failed to get pod owner"
+      message: "Failed to get pod owner",
     } as any);
   }
 }

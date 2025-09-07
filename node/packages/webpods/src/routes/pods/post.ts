@@ -346,7 +346,10 @@ export const postHandler = async (
         const errorCode = (createResult.error as CodedError).code;
         if (errorCode === "FORBIDDEN") {
           status = 403;
-        } else if (errorCode === "NAME_CONFLICT" || errorCode === "STREAM_EXISTS") {
+        } else if (
+          errorCode === "NAME_CONFLICT" ||
+          errorCode === "STREAM_EXISTS"
+        ) {
           status = 409;
         }
         res.status(status).json({
@@ -371,13 +374,16 @@ export const postHandler = async (
         });
         return;
       }
-      
+
       // If access parameter is provided and stream exists, update its permissions
       // But only if the user is the stream creator
       if (accessPermission) {
         // Get the stream to check creator
         const streamCheck = await getStreamById({ db }, streamId);
-        if (streamCheck.success && streamCheck.data.userId === req.auth.user_id) {
+        if (
+          streamCheck.success &&
+          streamCheck.data.userId === req.auth.user_id
+        ) {
           const updateResult = await updateStreamPermission(
             { db },
             streamId,

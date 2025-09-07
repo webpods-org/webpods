@@ -44,11 +44,11 @@ export async function createStreamHierarchy(
          AND parent_id IS NULL`,
       { podName, name: "/" },
     );
-    
+
     if (existingRoot) {
       return success(mapStreamFromDb(existingRoot));
     }
-    
+
     // Create root stream
     const createResult = await createStream(
       ctx,
@@ -58,7 +58,7 @@ export async function createStreamHierarchy(
       null, // No parent for root
       accessPermission,
     );
-    
+
     return createResult;
   }
 

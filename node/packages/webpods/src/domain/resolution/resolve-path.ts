@@ -160,14 +160,14 @@ export async function resolvePathForWrite(
            AND parent_id IS NULL`,
         { podName, name: "/" },
       );
-      
+
       if (!rootStream) {
         // Root stream doesn't exist - need to create it
         return failure(
           createError("STREAM_NOT_FOUND", "Root stream not found"),
         );
       }
-      
+
       return success({
         streamId: rootStream.id,
         streamPath: "/",

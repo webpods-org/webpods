@@ -562,7 +562,7 @@ export const getHandler = async (
 };
 
 export const getRoute = {
-  path: "/*",
+  path: "/:path(*)", // Capture any path
   middleware: readMiddleware,
   handler: getHandler,
 };

@@ -54,7 +54,7 @@ export async function resolveLink(
        LIMIT 1`,
       { stream_id: routingStream.id },
     );
-    
+
     // Fallback to latest unnamed record for backward compatibility
     if (!record) {
       record = await ctx.db.oneOrNone<RecordDbRow>(
