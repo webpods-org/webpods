@@ -86,6 +86,19 @@ export async function start() {
         process.exit(0);
       });
     });
+
+    // Handle uncaught exceptions and rejections in test mode
+    if (process.env.NODE_ENV === "test") {
+      process.on("uncaughtException", (error) => {
+        logger.error("Uncaught exception in test mode", { error });
+        // Don't exit in test mode, let tests continue
+      });
+
+      process.on("unhandledRejection", (reason, promise) => {
+        logger.error("Unhandled rejection in test mode", { reason, promise });
+        // Don't exit in test mode, let tests continue
+      });
+    }
   } catch (error: unknown) {
     console.error(`\nError: ${(error as Error).message}`);
     process.exit(1);
