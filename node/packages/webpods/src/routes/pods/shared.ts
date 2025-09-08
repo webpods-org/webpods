@@ -7,7 +7,10 @@ import type {
   Response,
   NextFunction,
 } from "express";
-import type { AuthRequest as BaseAuthRequest, StreamRecord } from "../../types.js";
+import type {
+  AuthRequest as BaseAuthRequest,
+  StreamRecord,
+} from "../../types.js";
 
 // Extend AuthRequest with routing properties
 export interface AuthRequest extends BaseAuthRequest {

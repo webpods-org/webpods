@@ -63,9 +63,10 @@ export async function getStreamByPath(
              AND name = $(name)
              AND parent_id IS NULL`;
 
-      const params: { podName: string; name: string; parentId?: number } = parentId
-        ? { podName, name: segment, parentId }
-        : { podName, name: segment };
+      const params: { podName: string; name: string; parentId?: number } =
+        parentId
+          ? { podName, name: segment, parentId }
+          : { podName, name: segment };
 
       const stream: StreamDbRow | null = await ctx.db.oneOrNone<StreamDbRow>(
         query,
