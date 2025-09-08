@@ -78,9 +78,13 @@ describe("CLI Verify Command", function () {
         previousHash,
       });
 
-      // For next iteration, we'd need to get the actual hash from the created record
-      // but for testing purposes, this should work
-      previousHash = "dummy-hash";
+      // Get the actual hash for the next iteration
+      const record = await testDb.getDb().one<{ hash: string }>(
+        `SELECT hash FROM record 
+         WHERE stream_id = $(streamId) AND index = $(index)`,
+        { streamId, index: i },
+      );
+      previousHash = record.hash;
     }
   });
 
@@ -149,6 +153,9 @@ describe("CLI Verify Command", function () {
         },
       );
 
+      console.log("Verify stdout:", result.stdout);
+      console.log("Verify stderr:", result.stderr);
+      console.log("Verify exitCode:", result.exitCode);
       expect(result.exitCode).to.equal(0);
       expect(result.stdout).to.include(
         "Verifying integrity of stream '/test-stream'",
@@ -160,11 +167,9 @@ describe("CLI Verify Command", function () {
     it("should detect broken hash chain", async () => {
       // Break the hash chain by updating a record's previous_hash
       // First get the stream
-      const stream = await testDb
-        .getDb()
-        .one<{
-          id: number;
-        }>(`SELECT id FROM stream WHERE pod_name = $(podName) AND name = $(streamName) AND parent_id IS NULL`, { podName: testPodName, streamName: "test-stream" });
+      const stream = await testDb.getDb().one<{
+        id: number;
+      }>(`SELECT id FROM stream WHERE pod_name = $(podName) AND name = $(streamName) AND parent_id IS NULL`, { podName: testPodName, streamName: "test-stream" });
 
       await testDb
         .getDb()
@@ -191,11 +196,9 @@ describe("CLI Verify Command", function () {
     it("should detect invalid first record with previous_hash", async () => {
       // Add previous_hash to first record (should be null)
       // First get the stream
-      const stream = await testDb
-        .getDb()
-        .one<{
-          id: number;
-        }>(`SELECT id FROM stream WHERE pod_name = $(podName) AND name = $(streamName) AND parent_id IS NULL`, { podName: testPodName, streamName: "test-stream" });
+      const stream = await testDb.getDb().one<{
+        id: number;
+      }>(`SELECT id FROM stream WHERE pod_name = $(podName) AND name = $(streamName) AND parent_id IS NULL`, { podName: testPodName, streamName: "test-stream" });
 
       await testDb
         .getDb()
