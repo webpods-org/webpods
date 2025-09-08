@@ -149,7 +149,7 @@ describe("WebPods Permissions", () => {
       // Create permission stream with user2 allowed to read but not write
       await client.createStream("members", "public", "permission");
       await client.post("/members/perms", {
-        id: user2Id,
+        userId: user2Id,
         read: true,
         write: false,
       });
@@ -360,7 +360,7 @@ describe("WebPods Permissions", () => {
 
       // Create permission stream
       await client.post("/members/perms1", {
-        id: user2Id,
+        userId: user2Id,
         read: true,
         write: false,
       });
@@ -379,7 +379,7 @@ describe("WebPods Permissions", () => {
       // User1 updates permission to revoke user2's access
       client.setAuthToken(user1Token);
       await client.post("/members/perms2", {
-        id: user2Id,
+        userId: user2Id,
         read: false,
         write: false,
       });

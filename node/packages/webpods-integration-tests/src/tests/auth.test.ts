@@ -540,7 +540,7 @@ describe("WebPods Authentication", () => {
         `SELECT * FROM record WHERE stream_id = $(stream_id) ORDER BY index ASC LIMIT 1`,
         { stream_id: ownerStream1.id },
       );
-      expect(JSON.parse(owner1Record.content).owner).to.equal(userId);
+      expect(JSON.parse(owner1Record.content).userId).to.equal(userId);
 
       // Get .config stream
       const configStream2 = await db.oneOrNone(
@@ -556,7 +556,7 @@ describe("WebPods Authentication", () => {
         `SELECT * FROM record WHERE stream_id = $(stream_id) ORDER BY index ASC LIMIT 1`,
         { stream_id: ownerStream2.id },
       );
-      expect(JSON.parse(owner2Record.content).owner).to.equal(userId);
+      expect(JSON.parse(owner2Record.content).userId).to.equal(userId);
     });
   });
 

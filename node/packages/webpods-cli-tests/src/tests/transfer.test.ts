@@ -123,7 +123,7 @@ describe("CLI Transfer Command", function () {
         { streamId: ownerStream.id },
       );
       const ownerContent = JSON.parse(ownerRecord.content);
-      expect(ownerContent.owner).to.equal(testUser.userId); // Still original owner
+      expect(ownerContent.userId).to.equal(testUser.userId); // Still original owner
     });
 
     it("should transfer ownership with --force flag", async () => {

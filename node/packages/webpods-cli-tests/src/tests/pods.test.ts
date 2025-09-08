@@ -70,7 +70,7 @@ describe("CLI Pod Commands", function () {
       );
       expect(ownerRecord).to.not.be.null;
       const ownerContent = JSON.parse(ownerRecord.content);
-      expect(ownerContent.owner).to.equal(testUser.userId);
+      expect(ownerContent.userId).to.equal(testUser.userId);
     });
 
     it("should reject invalid pod names", async () => {

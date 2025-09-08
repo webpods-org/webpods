@@ -208,11 +208,11 @@ describe("WebPods Rate Limiting", () => {
       );
 
       expect(owner1Record).to.exist;
-      expect(JSON.parse(owner1Record.content).owner).to.equal(
+      expect(JSON.parse(owner1Record.content).userId).to.equal(
         podTestUser.userId,
       );
       expect(owner2Record).to.exist;
-      expect(JSON.parse(owner2Record.content).owner).to.equal(
+      expect(JSON.parse(owner2Record.content).userId).to.equal(
         podTestUser.userId,
       );
 
