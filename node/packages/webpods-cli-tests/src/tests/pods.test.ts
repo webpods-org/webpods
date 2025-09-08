@@ -70,7 +70,7 @@ describe("CLI Pod Commands", function () {
       );
       expect(ownerRecord).to.not.be.null;
       const ownerContent = JSON.parse(ownerRecord.content);
-      expect(ownerContent.id).to.equal(testUser.userId);
+      expect(ownerContent.owner).to.equal(testUser.userId);
     });
 
     it("should reject invalid pod names", async () => {
@@ -203,7 +203,7 @@ describe("CLI Pod Commands", function () {
       // The info command returns streams data, not pod metadata
       expect(info.pod).to.equal("test-pod");
       expect(info.streams).to.be.an("array");
-      expect(info.streams).to.have.length(2); // .config/owner and test-stream
+      expect(info.streams).to.have.length(3); // .config, .config/owner, and test-stream
     });
 
     it("should fail for non-existent pod", async () => {

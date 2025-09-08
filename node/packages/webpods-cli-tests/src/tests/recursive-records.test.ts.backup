@@ -11,12 +11,9 @@ import {
   testToken,
   testUser,
   testDb,
+  calculateContentHash,
+  calculateRecordHash,
 } from "../test-setup.js";
-import {
-  createOwnerConfig,
-  createTestStream,
-  createTestRecord,
-} from "../utils/test-data-helpers.js";
 
 describe("CLI Recursive Records", function () {
   this.timeout(30000);
@@ -52,39 +49,58 @@ describe("CLI Recursive Records", function () {
     beforeEach(async () => {
       const db = testDb.getDb();
 
-      // Create owner config first
-      await createOwnerConfig(
-        db,
-        testPodName,
-        testUser.userId,
-        testUser.userId,
-      );
+      // Create hierarchical streams
+      const streams = ["/api", "/api/v1", "/api/v1/users", "/api/v2", "/other"];
 
-      // Create hierarchical streams using the helper
-      const streams = [
-        { path: "api", content: '{"data": "api root"}' },
-        { path: "api/v1", content: '{"data": "api v1"}' },
-        { path: "api/v1/users", content: '{"data": "api v1 users"}' },
-        { path: "api/v2", content: '{"data": "api v2"}' },
-        { path: "other", content: '{"data": "other"}' },
+      for (const streamName of streams) {
+        await db.none(
+          `INSERT INTO stream (pod_name, name, user_id, access_permission, created_at) 
+           VALUES ($(podName), $(streamName), $(userId), 'public', NOW())`,
+          {
+            podName: testPodName,
+            streamName,
+            userId: testUser.userId,
+          },
+        );
+      }
+
+      // Add records to each stream
+      const records = [
+        { stream: "/api", name: "record1", content: '{"data": "api root"}' },
+        { stream: "/api/v1", name: "record1", content: '{"data": "api v1"}' },
+        {
+          stream: "/api/v1/users",
+          name: "record1",
+          content: '{"data": "api v1 users"}',
+        },
+        { stream: "/api/v2", name: "record1", content: '{"data": "api v2"}' },
+        { stream: "/other", name: "record1", content: '{"data": "other"}' },
       ];
 
-      for (const stream of streams) {
-        const streamId = await createTestStream(db, {
-          podName: testPodName,
-          streamPath: stream.path,
-          userId: testUser.userId,
-          accessPermission: "public",
-        });
+      for (const record of records) {
+        const contentHash = calculateContentHash(record.content);
+        const timestamp = new Date().toISOString();
+        const hash = calculateRecordHash(
+          null,
+          contentHash,
+          testUser.userId,
+          timestamp,
+        );
 
-        await createTestRecord(db, {
-          streamId,
-          name: "record1",
-          content: stream.content,
-          contentType: "application/json",
-          userId: testUser.userId,
-          index: 0,
-        });
+        await db.none(
+          `INSERT INTO record (pod_name, stream_name, index, name, content, content_type, content_hash, hash, user_id, created_at)
+           VALUES ($(podName), $(streamName), 0, $(name), $(content), 'application/json', $(contentHash), $(hash), $(userId), $(timestamp))`,
+          {
+            podName: testPodName,
+            streamName: record.stream,
+            name: record.name,
+            content: record.content,
+            contentHash,
+            hash,
+            userId: testUser.userId,
+            timestamp,
+          },
+        );
       }
     });
 
@@ -163,26 +179,34 @@ describe("CLI Recursive Records", function () {
     it("should work with pagination parameters", async () => {
       // Add more records to test pagination
       const db = testDb.getDb();
-
-      // Get the /api stream ID
-      const apiStream = await db.one<{ id: number }>(
-        `SELECT id FROM stream 
-         WHERE pod_name = $(podName) AND name = 'api' AND parent_id IS NULL`,
-        { podName: testPodName },
-      );
-
       let previousHash: string | null = null;
       for (let i = 2; i <= 5; i++) {
         const content = JSON.stringify({ data: `api root ${i}` });
-        await createTestRecord(db, {
-          streamId: apiStream.id,
-          name: `record${i}`,
-          content,
-          contentType: "application/json",
-          userId: testUser.userId,
-          index: i - 1,
+        const contentHash = calculateContentHash(content);
+        const timestamp = new Date().toISOString();
+        const hash = calculateRecordHash(
           previousHash,
-        });
+          contentHash,
+          testUser.userId,
+          timestamp,
+        );
+
+        await db.none(
+          `INSERT INTO record (pod_name, stream_name, index, name, content, content_type, content_hash, hash, user_id, created_at)
+           VALUES ($(podName), $(streamName), $(index), $(name), $(content), 'application/json', $(contentHash), $(hash), $(userId), $(timestamp))`,
+          {
+            podName: testPodName,
+            streamName: "/api",
+            index: i - 1,
+            name: `record${i}`,
+            content,
+            contentHash,
+            hash,
+            userId: testUser.userId,
+            timestamp,
+          },
+        );
+        previousHash = hash;
       }
 
       const result = await cli.exec(

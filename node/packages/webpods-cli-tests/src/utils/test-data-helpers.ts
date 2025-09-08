@@ -15,7 +15,7 @@ interface StreamData {
 
 interface RecordData {
   streamId: number;
-  name?: string | null; // Allow null for database
+  name?: string; // Name is required in new schema, use generated name if not provided
   content: string;
   contentType?: string;
   userId: string;
@@ -94,7 +94,7 @@ export async function createTestRecord(
 ): Promise<void> {
   const {
     streamId,
-    name,
+    name = "", // Use empty string as default for unnamed records
     content,
     contentType = "text/plain",
     userId,
@@ -160,7 +160,7 @@ export async function createStreamWithRecord(
   // Create the record
   await createTestRecord(db, {
     streamId,
-    name: recordName,
+    name: recordName || undefined, // Let function generate name if not provided
     content,
     contentType: "application/json",
     userId,
@@ -205,12 +205,12 @@ export async function createPermissionStream(
     accessPermission: "private",
   });
 
-  // Add permission records
+  // Add permission records - use user ID as the record name
   for (let i = 0; i < permissions.length; i++) {
-    const perm = permissions[i];
+    const perm = permissions[i]!;
     await createTestRecord(db, {
       streamId,
-      name: null, // Use null instead of undefined for database insert
+      name: perm.id, // Use the user ID as the record name
       content: JSON.stringify(perm),
       contentType: "application/json",
       userId,
@@ -237,10 +237,10 @@ export async function createRoutingConfig(
     accessPermission: "private",
   });
 
-  // Add routing record
+  // Add routing record with name "routes" to match update-links.ts
   await createTestRecord(db, {
     streamId,
-    name: null, // Use null instead of undefined for database insert
+    name: "routes",
     content: JSON.stringify(routes),
     contentType: "application/json",
     userId,
@@ -265,10 +265,10 @@ export async function createDomainConfig(
     accessPermission: "private",
   });
 
-  // Add domains record
+  // Add domains record with name "domains" to match update-custom-domains.ts
   await createTestRecord(db, {
     streamId,
-    name: null, // Use null instead of undefined for database insert
+    name: "domains",
     content: JSON.stringify({ domains }),
     contentType: "application/json",
     userId,
@@ -293,11 +293,11 @@ export async function createOwnerConfig(
     accessPermission: "private",
   });
 
-  // Add owner record - owner stream doesn't use named records
+  // Add owner record with name "owner" to match what create-pod does
   await createTestRecord(db, {
     streamId,
-    name: null, // Use null instead of undefined for database insert
-    content: JSON.stringify({ id: ownerId }),
+    name: "owner",
+    content: JSON.stringify({ owner: ownerId }), // Use "owner" field, not "user_id"
     contentType: "application/json",
     userId,
     index: 0,

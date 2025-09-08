@@ -20,6 +20,7 @@ export class CliTestServer {
 
   public async start(): Promise<void> {
     const serverPath = path.join(__dirname, "../../webpods/dist/index.js");
+    // When compiled, this file is in dist/, so we need to go up one level
     const configPath = path.join(__dirname, "../test-config.json");
 
     const env: any = {
@@ -36,7 +37,7 @@ export class CliTestServer {
       JWT_SECRET: "test-secret-key",
       SESSION_SECRET: "test-session-secret",
       PORT: String(this.port),
-      LOG_LEVEL: process.env.LOG_LEVEL || "info", // Need info level to see startup message
+      LOG_LEVEL: "info", // Need info level to see startup message
       DOMAIN: "localhost",
     };
 

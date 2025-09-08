@@ -43,12 +43,12 @@ export async function listUniqueRecords(
   Result<{ records: StreamRecord[]; total: number; hasMore: boolean }>
 > {
   try {
-    // Get all records with names, ordered by index
+    // Get all records with names (excluding empty names), ordered by index
     const allRecords = await ctx.db.manyOrNone<RecordDbRow>(
       `SELECT * FROM record
        WHERE stream_id = $(streamId)
-         
          AND name IS NOT NULL
+         AND name != ''
        ORDER BY index ASC`,
       { streamId },
     );
