@@ -58,7 +58,7 @@ export const configMiddleware = [extractPod, optionalAuth] as const;
 export const writeSchema = z.union([z.string(), z.object({}).passthrough()]);
 
 export const ownerSchema = z.object({
-  owner: z.string(),
+  userId: z.string(),
 });
 
 export const linksSchema = z.record(z.string());

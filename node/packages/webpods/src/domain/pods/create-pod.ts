@@ -99,7 +99,7 @@ export async function createPod(
       );
 
       // Write initial owner record with snake_case parameters
-      const ownerContent = { owner: userId };
+      const ownerContent = { userId };
       const timestamp = new Date().toISOString();
       const contentHash = calculateContentHash(ownerContent);
       const hash = calculateRecordHash(null, contentHash, userId, timestamp);

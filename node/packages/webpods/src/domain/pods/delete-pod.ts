@@ -69,7 +69,7 @@ export async function deletePod(
 
       try {
         const content = JSON.parse(ownerRecord.content);
-        if (content.owner !== userId) {
+        if (content.userId !== userId) {
           return failure(
             createError("FORBIDDEN", "Only the pod owner can delete the pod"),
           );

@@ -113,7 +113,7 @@ export async function canRead(
       if (ownerRecord) {
         try {
           const content = JSON.parse(ownerRecord.content);
-          podOwner = content.owner || null;
+          podOwner = content.userId || null;
         } catch {
           // If we can't parse owner record, podOwner remains null
         }

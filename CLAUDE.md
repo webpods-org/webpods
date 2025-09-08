@@ -225,7 +225,7 @@ const records = await db("record")
 // Process in memory to find latest permission
 for (const record of records) {
   const content = JSON.parse(record.content);
-  if (content.id === userId) {
+  if (content.userId === userId) {
     userPermission = content; // Last record wins
   }
 }
@@ -278,6 +278,7 @@ cd .analysis
 ```
 
 **Benefits of using `.analysis/` directory:**
+
 - Keeps analysis artifacts separate from source code
 - Allows iterative work without cluttering the repository
 - Can save large analysis outputs without affecting git

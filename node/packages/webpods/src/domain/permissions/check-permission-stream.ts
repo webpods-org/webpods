@@ -91,7 +91,7 @@ export async function checkPermissionStream(
             : record.content;
 
         // Check if this record is for our user
-        if (content.id === userId) {
+        if (content.userId === userId) {
           // Last record wins
           userPermission = content;
         }

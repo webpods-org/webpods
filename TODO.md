@@ -2,31 +2,22 @@
 
 ## Next Work Items
 
-### 1. Field Naming Standardization
+### 1. Documentation Updates
 
-Currently there's inconsistency in user ID field naming across the codebase:
-
-- **Current State:**
-  - Permission streams use `id` field for user identification
-  - Owner records use `owner` field for user identification
-  - Some places use `userId`
-
-- **Target State:**
-  - Standardize to `userId` everywhere for consistency
-  - Update all API endpoints to expect `userId`
-  - Update tests to use `userId`
-  - No backward compatibility needed (greenfield project)
-
-### 2. Documentation Updates
-
-- Update CLAUDE.md to reflect:
-  - Hierarchical streams architecture
-  - Field naming standardization (userId)
-  - New path resolution patterns
 - Update README.md API examples with hierarchical paths
 - Document the parent-child stream relationships
+- Add examples of the new .config/api/streams endpoint
 
 ## Completed Items ✅
+
+### User ID Field Standardization (COMPLETE)
+
+- ✅ Changed owner records from `{ owner: "userId" }` to `{ userId: "userId" }`
+- ✅ Changed permission records from `{ id: "userId" }` to `{ userId: "userId" }`
+- ✅ Updated all domain functions to use consistent field names
+- ✅ Updated CLI commands to use new format
+- ✅ Updated tests and test helpers
+- ✅ Updated documentation (CLAUDE.md)
 
 ### Hierarchical Streams Refactoring (COMPLETE)
 

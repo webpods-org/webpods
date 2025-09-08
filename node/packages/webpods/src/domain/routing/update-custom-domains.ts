@@ -70,7 +70,7 @@ export async function updateCustomDomains(
 
       try {
         const content = JSON.parse(ownerRecord.content);
-        if (content.owner !== userId) {
+        if (content.userId !== userId) {
           return failure(
             new Error("Only the pod owner can update custom domains"),
           );

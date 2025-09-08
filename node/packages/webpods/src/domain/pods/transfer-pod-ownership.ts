@@ -71,7 +71,7 @@ export async function transferPodOwnership(
 
       try {
         const content = JSON.parse(currentOwnerRecord.content);
-        if (content.owner !== fromUserId) {
+        if (content.userId !== fromUserId) {
           return failure(
             createError(
               "FORBIDDEN",
@@ -97,7 +97,7 @@ export async function transferPodOwnership(
       const timestamp = new Date().toISOString();
 
       // Create new owner record
-      const newOwnerContent = { owner: toUserId };
+      const newOwnerContent = { userId: toUserId };
       const contentHash = calculateContentHash(newOwnerContent);
       const hash = calculateRecordHash(
         previousHash,

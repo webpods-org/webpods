@@ -297,7 +297,7 @@ export async function createOwnerConfig(
   await createTestRecord(db, {
     streamId,
     name: "owner",
-    content: JSON.stringify({ owner: ownerId }), // Use "owner" field, not "user_id"
+    content: JSON.stringify({ userId: ownerId }),
     contentType: "application/json",
     userId,
     index: 0,

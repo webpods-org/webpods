@@ -74,7 +74,7 @@ export async function getPod(
     if (ownerRecord) {
       try {
         const content = JSON.parse(ownerRecord.content);
-        mappedPod.userId = content.owner || "";
+        mappedPod.userId = content.userId || "";
       } catch {
         logger.warn("Failed to parse owner record", { podName });
       }

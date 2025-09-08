@@ -111,7 +111,7 @@ async function getUserOwnedPods(userId: string): Promise<string[]> {
       if (ownerRecord) {
         try {
           const content = JSON.parse(ownerRecord.content);
-          if (content.owner === userId) {
+          if (content.userId === userId) {
             ownedPods.push(pod.name);
           }
         } catch {

@@ -111,7 +111,7 @@ export async function createStream(
       if (ownerRecord) {
         try {
           const content = JSON.parse(ownerRecord.content);
-          const podOwner = content.owner;
+          const podOwner = content.userId;
 
           // Only the pod owner can create new streams
           if (podOwner !== userId) {

@@ -63,7 +63,7 @@ export async function listUserPods(
       if (ownerRecord) {
         try {
           const content = JSON.parse(ownerRecord.content);
-          if (content.owner === userId) {
+          if (content.userId === userId) {
             userPods.push({
               name: pod.name,
               created_at: pod.created_at,

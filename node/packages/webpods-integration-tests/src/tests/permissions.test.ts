@@ -191,7 +191,7 @@ describe("WebPods Permissions", () => {
 
       // Transfer ownership to user2
       const response = await client.post("/.config/owner", {
-        owner: user2Id,
+        userId: user2Id,
       });
       expect(response.status).to.equal(201);
 
@@ -217,7 +217,7 @@ describe("WebPods Permissions", () => {
       // User2 cannot transfer ownership
       client.setAuthToken(user2Token);
       const response = await client.post("/.config/owner", {
-        owner: user2Id,
+        userId: user2Id,
       });
       expect(response.status).to.equal(403);
       expect(response.data.error.code).to.equal("FORBIDDEN");

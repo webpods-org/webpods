@@ -42,7 +42,7 @@ export const transferOwnerHandler = async (req: AuthRequest, res: Response) => {
       { db },
       req.podName,
       req.auth.user_id,
-      data.owner,
+      data.userId,
     );
 
     if (!result.success) {

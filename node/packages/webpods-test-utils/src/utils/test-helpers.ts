@@ -93,7 +93,7 @@ export async function createTestPod(
   );
 
   // Add ownership record
-  const ownerObj = { owner: ownerId };
+  const ownerObj = { userId: ownerId };
   const content = JSON.stringify(ownerObj);
   const contentHash =
     "sha256:" + crypto.createHash("sha256").update(content).digest("hex");

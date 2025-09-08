@@ -406,7 +406,7 @@ describe("WebPods Stream Operations", () => {
         { stream_id: ownerStream.id },
       );
       const content = JSON.parse(ownerRecord.content);
-      expect(content.owner).to.equal(userId);
+      expect(content.userId).to.equal(userId);
     });
 
     it("should list streams via .config/api/streams", async () => {
@@ -474,7 +474,7 @@ describe("WebPods Stream Operations", () => {
       // Try to update .config/owner as second user
       client.setAuthToken(token2);
       const response = await client.post("/.config/owner", {
-        owner: user2.userId,
+        userId: user2.userId,
       });
 
       expect(response.status).to.equal(403);
