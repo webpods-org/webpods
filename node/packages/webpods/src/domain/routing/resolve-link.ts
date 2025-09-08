@@ -4,13 +4,13 @@
 
 import { DataContext } from "../data-context.js";
 import { Result, success } from "../../utils/result.js";
-import { RecordDbRow } from "../../db-types.js";
+import { RecordDbRow, StreamDbRow } from "../../db-types.js";
 import { createLogger } from "../../logger.js";
 
 const logger = createLogger("webpods:domain:routing");
 
 interface LinkMapping {
-  streamId: string;
+  streamPath: string;
   target: string;
 }
 
@@ -20,16 +20,52 @@ export async function resolveLink(
   path: string,
 ): Promise<Result<LinkMapping | null>> {
   try {
-    // Get the latest .config/routing record
-    const record = await ctx.db.oneOrNone<RecordDbRow>(
-      `SELECT r.*
-       FROM record r
-       WHERE r.pod_name = $(pod_name)
-         AND r.stream_name = '.config/routing'
-       ORDER BY r.created_at DESC
-       LIMIT 1`,
+    // Get .config stream
+    const configStream = await ctx.db.oneOrNone<StreamDbRow>(
+      `SELECT id FROM stream 
+       WHERE pod_name = $(pod_name) 
+         AND name = '.config' 
+         AND parent_id IS NULL`,
       { pod_name: podName },
     );
+
+    if (!configStream) {
+      return success(null);
+    }
+
+    // Get routing stream (child of .config)
+    const routingStream = await ctx.db.oneOrNone<StreamDbRow>(
+      `SELECT id FROM stream 
+       WHERE parent_id = $(parent_id) 
+         AND name = 'routing'`,
+      { parent_id: configStream.id },
+    );
+
+    if (!routingStream) {
+      return success(null);
+    }
+
+    // Get the routing record named "routes" (or latest unnamed for backward compatibility)
+    let record = await ctx.db.oneOrNone<RecordDbRow>(
+      `SELECT * FROM record 
+       WHERE stream_id = $(stream_id)
+         AND name = 'routes'
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      { stream_id: routingStream.id },
+    );
+
+    // Fallback to latest unnamed record for backward compatibility
+    if (!record) {
+      record = await ctx.db.oneOrNone<RecordDbRow>(
+        `SELECT * FROM record 
+         WHERE stream_id = $(stream_id)
+           AND name IS NULL
+         ORDER BY created_at DESC
+         LIMIT 1`,
+        { stream_id: routingStream.id },
+      );
+    }
 
     if (!record) {
       return success(null);
@@ -50,9 +86,9 @@ export async function resolveLink(
     // Check if it has query parameters
     if (mapping.includes("?")) {
       // Handle format like "homepage?i=-1"
-      const [streamId, query] = mapping.split("?");
+      const [streamPath, query] = mapping.split("?");
       return success({
-        streamId: streamId!,
+        streamPath: streamPath!,
         target: query ? `?${query}` : "",
       });
     }
@@ -63,16 +99,16 @@ export async function resolveLink(
     if (parts.length === 1) {
       // Just stream name, no target
       return success({
-        streamId: parts[0]!,
+        streamPath: parts[0]!,
         target: "",
       });
     }
 
     // Stream name with record name/index
-    const streamId = parts[0]!;
+    const streamPath = parts[0]!;
     const recordTarget = parts.slice(1).join("/");
     return success({
-      streamId,
+      streamPath,
       target: `/${recordTarget}`,
     });
   } catch (error: unknown) {

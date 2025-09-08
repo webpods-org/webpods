@@ -11,9 +11,8 @@ import {
   testToken,
   testUser,
   testDb,
-  calculateContentHash,
-  calculateRecordHash,
 } from "../test-setup.js";
+import { createOwnerConfig } from "../utils/test-data-helpers.js";
 
 describe("CLI Domain Commands", function () {
   this.timeout(30000);
@@ -43,43 +42,12 @@ describe("CLI Domain Commands", function () {
         name: testPodName,
       });
 
-    // Create .config/owner stream for pod ownership
-    await testDb
-      .getDb()
-      .none(
-        "INSERT INTO stream (pod_name, name, user_id) VALUES ($(podName), $(streamName), $(userId))",
-        {
-          podName: testPodName,
-          streamName: "/.config/owner",
-          userId: testUser.userId,
-        },
-      );
-
-    // Add owner record
-    const ownerContent = JSON.stringify({ owner: testUser.userId });
-    const contentHash = calculateContentHash(ownerContent);
-    const timestamp = new Date().toISOString();
-    const hash = calculateRecordHash(
-      null,
-      contentHash,
+    // Create .config/owner stream for pod ownership using the new helper
+    await createOwnerConfig(
+      testDb.getDb(),
+      testPodName,
       testUser.userId,
-      timestamp,
-    );
-
-    await testDb.getDb().none(
-      `INSERT INTO record (pod_name, stream_name, name, content, content_type, content_hash, hash, user_id, index, created_at) 
-       VALUES ($(podName), $(streamName), $(name), $(content), $(contentType), $(contentHash), $(hash), $(userId), 0, $(timestamp))`,
-      {
-        podName: testPodName,
-        streamName: "/.config/owner",
-        name: "owner",
-        content: ownerContent,
-        contentType: "application/json",
-        contentHash,
-        hash,
-        userId: testUser.userId,
-        timestamp,
-      },
+      testUser.userId,
     );
   });
 

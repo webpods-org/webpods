@@ -1,5 +1,5 @@
 /**
- * Get all streams matching a prefix pattern
+ * Get all child streams under a path (recursively)
  */
 
 import { DataContext } from "../data-context.js";
@@ -8,7 +8,7 @@ import { createError } from "../../utils/errors.js";
 import { StreamDbRow } from "../../db-types.js";
 import { Stream } from "../../types.js";
 import { createLogger } from "../../logger.js";
-import { normalizeStreamName } from "../../utils/stream-utils.js";
+import { getStreamByPath } from "./get-stream-by-path.js";
 
 const logger = createLogger("webpods:domain:streams");
 
@@ -17,8 +17,10 @@ const logger = createLogger("webpods:domain:streams");
  */
 function mapStreamFromDb(row: StreamDbRow): Stream {
   return {
+    id: row.id,
     podName: row.pod_name,
     name: row.name,
+    parentId: row.parent_id || null,
     userId: row.user_id,
     accessPermission: row.access_permission,
     metadata: row.metadata,
@@ -28,59 +30,57 @@ function mapStreamFromDb(row: StreamDbRow): Stream {
 }
 
 /**
- * Get streams that match exactly or start with a prefix
- * For streamName "a/b", this will match:
- * - "a/b" (exact match)
- * - "a/b/c", "a/b/d", etc. (starts with "a/b/")
+ * Get all child streams under a given path (recursive)
+ * For path "/blog", this will return all streams under /blog including nested ones
  */
 export async function getStreamsWithPrefix(
   ctx: DataContext,
   podName: string,
-  streamName: string,
+  streamPath: string,
 ): Promise<Result<Stream[]>> {
-  // Normalize stream name to ensure leading slash
-  const normalizedStreamName = normalizeStreamName(streamName);
-
   try {
-    // First query: exact match (using normalized name)
-    const exactStream = await ctx.db.oneOrNone<StreamDbRow>(
-      `SELECT * FROM stream 
-       WHERE pod_name = $(pod_name) 
-         AND name = $(stream_name)`,
-      { pod_name: podName, stream_name: normalizedStreamName },
-    );
-
-    // Second query: streams starting with prefix (using normalized name)
-    const nestedStreams = await ctx.db.manyOrNone<StreamDbRow>(
-      `SELECT * FROM stream 
-       WHERE pod_name = $(pod_name) 
-         AND name LIKE $(prefix)`,
-      { pod_name: podName, prefix: `${normalizedStreamName}/%` },
-    );
-
-    const allStreams: StreamDbRow[] = [];
-
-    // Add exact match if it exists
-    if (exactStream) {
-      allStreams.push(exactStream);
+    // Get the parent stream
+    const parentResult = await getStreamByPath(ctx, podName, streamPath);
+    if (!parentResult.success) {
+      // If parent doesn't exist, return empty array (no children)
+      return success([]);
     }
 
-    // Add nested streams
-    allStreams.push(...nestedStreams);
+    const parentStream = parentResult.data;
+    const allStreams: Stream[] = [parentStream];
+
+    // Recursive function to get all descendants
+    async function getDescendants(parentId: number): Promise<void> {
+      const children = await ctx.db.manyOrNone<StreamDbRow>(
+        `SELECT * FROM stream 
+         WHERE pod_name = $(podName) 
+           AND parent_id = $(parentId)`,
+        { podName, parentId },
+      );
+
+      for (const child of children) {
+        const childStream = mapStreamFromDb(child);
+        allStreams.push(childStream);
+        // Recursively get children of this child
+        await getDescendants(child.id);
+      }
+    }
+
+    // Get all descendants
+    await getDescendants(parentStream.id);
 
     logger.debug("Found streams with prefix", {
       podName,
-      streamName,
+      streamPath,
       count: allStreams.length,
-      streams: allStreams.map((s) => s.name),
     });
 
-    return success(allStreams.map(mapStreamFromDb));
+    return success(allStreams);
   } catch (error: unknown) {
     logger.error("Failed to get streams with prefix", {
       error,
       podName,
-      streamName,
+      streamPath,
     });
     return failure(
       createError("DATABASE_ERROR", "Failed to fetch streams with prefix"),

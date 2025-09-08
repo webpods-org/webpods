@@ -11,9 +11,12 @@ import {
   testToken,
   testUser,
   testDb,
-  calculateContentHash,
-  calculateRecordHash,
 } from "../test-setup.js";
+import {
+  createOwnerConfig,
+  createTestStream,
+  createTestRecord,
+} from "../utils/test-data-helpers.js";
 
 describe("CLI Verify Command", function () {
   this.timeout(30000);
@@ -43,52 +46,45 @@ describe("CLI Verify Command", function () {
         name: testPodName,
       });
 
+    // Create owner config
+    await createOwnerConfig(
+      testDb.getDb(),
+      testPodName,
+      testUser.userId,
+      testUser.userId,
+    );
+
     // Create test stream with proper hash chain
-    await testDb
-      .getDb()
-      .none(
-        "INSERT INTO stream (pod_name, name, user_id, access_permission) VALUES ($(podName), $(name), $(userId), $(permission))",
-        {
-          podName: testPodName,
-          name: "/test-stream",
-          userId: testUser.userId,
-          permission: "private",
-        },
-      );
+    const streamId = await createTestStream(testDb.getDb(), {
+      podName: testPodName,
+      streamPath: "test-stream",
+      userId: testUser.userId,
+      accessPermission: "private",
+    });
 
     // Add records with proper hash chain
     let previousHash: string | null = null;
     for (let i = 0; i < 5; i++) {
       const contentObj = { index: i, data: `Record ${i}` };
       const content = JSON.stringify(contentObj);
-      const contentHash = calculateContentHash(content);
-      const timestamp = new Date().toISOString();
-      const hash = calculateRecordHash(
+
+      await createTestRecord(testDb.getDb(), {
+        streamId,
+        name: `record-${i}`,
+        content,
+        contentType: "application/json",
+        userId: testUser.userId,
+        index: i,
         previousHash,
-        contentHash,
-        testUser.userId,
-        timestamp,
-      );
+      });
 
-      await testDb.getDb().none(
-        `INSERT INTO record (pod_name, stream_name, name, content, content_type, content_hash, hash, previous_hash, user_id, index, created_at) 
-         VALUES ($(podName), $(streamName), $(name), $(content), $(contentType), $(contentHash), $(hash), $(previousHash), $(userId), $(index), $(createdAt))`,
-        {
-          podName: testPodName,
-          streamName: "/test-stream",
-          name: `record-${i}`,
-          content,
-          contentType: "application/json",
-          contentHash,
-          hash,
-          previousHash,
-          userId: testUser.userId,
-          index: i,
-          createdAt: timestamp,
-        },
+      // Get the actual hash for the next iteration
+      const record = await testDb.getDb().one<{ hash: string }>(
+        `SELECT hash FROM record 
+         WHERE stream_id = $(streamId) AND index = $(index)`,
+        { streamId, index: i },
       );
-
-      previousHash = hash;
+      previousHash = record.hash;
     }
   });
 
@@ -107,17 +103,13 @@ describe("CLI Verify Command", function () {
     });
 
     it("should handle empty stream", async () => {
-      // Create empty stream
-      await testDb
-        .getDb()
-        .none(
-          "INSERT INTO stream (pod_name, name, user_id) VALUES ($(podName), $(name), $(userId))",
-          {
-            podName: testPodName,
-            name: "/empty-stream",
-            userId: testUser.userId,
-          },
-        );
+      // Create empty stream using helper
+      await createTestStream(testDb.getDb(), {
+        podName: testPodName,
+        streamPath: "empty-stream",
+        userId: testUser.userId,
+        accessPermission: "private",
+      });
 
       const result = await cli.exec(["verify", testPodName, "/empty-stream"], {
         token: testToken,
@@ -161,11 +153,9 @@ describe("CLI Verify Command", function () {
         },
       );
 
-      if (result.exitCode !== 0) {
-        console.log("VERIFY ERROR - STDERR:", result.stderr);
-        console.log("VERIFY ERROR - STDOUT:", result.stdout);
-      }
-
+      console.log("Verify stdout:", result.stdout);
+      console.log("Verify stderr:", result.stderr);
+      console.log("Verify exitCode:", result.exitCode);
       expect(result.exitCode).to.equal(0);
       expect(result.stdout).to.include(
         "Verifying integrity of stream '/test-stream'",
@@ -176,14 +166,18 @@ describe("CLI Verify Command", function () {
 
     it("should detect broken hash chain", async () => {
       // Break the hash chain by updating a record's previous_hash
+      // First get the stream
+      const stream = await testDb.getDb().one<{
+        id: number;
+      }>(`SELECT id FROM stream WHERE pod_name = $(podName) AND name = $(streamName) AND parent_id IS NULL`, { podName: testPodName, streamName: "test-stream" });
+
       await testDb
         .getDb()
         .none(
-          "UPDATE record SET previous_hash = $(brokenHash) WHERE pod_name = $(podName) AND stream_name = $(streamName) AND index = 3",
+          "UPDATE record SET previous_hash = $(brokenHash) WHERE stream_id = $(streamId) AND index = 3",
           {
             brokenHash: "sha256:broken",
-            podName: testPodName,
-            streamName: "/test-stream",
+            streamId: stream.id,
           },
         );
 
@@ -194,11 +188,6 @@ describe("CLI Verify Command", function () {
         },
       );
 
-      if (!result.stdout.includes("Hash chain broken")) {
-        console.log("BROKEN CHAIN TEST - STDOUT:", result.stdout);
-        console.log("BROKEN CHAIN TEST - STDERR:", result.stderr);
-      }
-
       expect(result.exitCode).to.not.equal(0);
       expect(result.stderr).to.include("Hash chain broken");
       expect(result.stderr).to.include("✗ Stream integrity check failed");
@@ -206,14 +195,18 @@ describe("CLI Verify Command", function () {
 
     it("should detect invalid first record with previous_hash", async () => {
       // Add previous_hash to first record (should be null)
+      // First get the stream
+      const stream = await testDb.getDb().one<{
+        id: number;
+      }>(`SELECT id FROM stream WHERE pod_name = $(podName) AND name = $(streamName) AND parent_id IS NULL`, { podName: testPodName, streamName: "test-stream" });
+
       await testDb
         .getDb()
         .none(
-          "UPDATE record SET previous_hash = $(hash) WHERE pod_name = $(podName) AND stream_name = $(streamName) AND index = 0",
+          "UPDATE record SET previous_hash = $(hash) WHERE stream_id = $(streamId) AND index = 0",
           {
             hash: "sha256:shouldnothaveprevious",
-            podName: testPodName,
-            streamName: "/test-stream",
+            streamId: stream.id,
           },
         );
 
@@ -242,53 +235,27 @@ describe("CLI Verify Command", function () {
 
     it("should work for public streams without auth", async () => {
       // Create public stream
-      await testDb
-        .getDb()
-        .none(
-          "INSERT INTO stream (pod_name, name, user_id, access_permission) VALUES ($(podName), $(name), $(userId), $(permission))",
-          {
-            podName: testPodName,
-            name: "/public-stream",
-            userId: testUser.userId,
-            permission: "public",
-          },
-        );
+      const publicStreamId = await createTestStream(testDb.getDb(), {
+        podName: testPodName,
+        streamPath: "public-stream",
+        userId: testUser.userId,
+        accessPermission: "public",
+      });
 
       // Add a record with proper hash
       const contentObj = { public: true };
       const content = JSON.stringify(contentObj);
-      const contentHash = calculateContentHash(content);
-      const timestamp = new Date().toISOString();
-      const hash = calculateRecordHash(
-        null,
-        contentHash,
-        testUser.userId,
-        timestamp,
-      );
 
-      await testDb.getDb().none(
-        `INSERT INTO record (pod_name, stream_name, name, content, content_type, content_hash, hash, user_id, index, created_at) 
-         VALUES ($(podName), $(streamName), $(name), $(content), $(contentType), $(contentHash), $(hash), $(userId), 0, $(createdAt))`,
-        {
-          podName: testPodName,
-          streamName: "/public-stream",
-          name: "record-0",
-          content,
-          contentType: "application/json",
-          contentHash,
-          hash,
-          userId: testUser.userId,
-          createdAt: timestamp,
-        },
-      );
+      await createTestRecord(testDb.getDb(), {
+        streamId: publicStreamId,
+        name: "record-0",
+        content,
+        contentType: "application/json",
+        userId: testUser.userId,
+        index: 0,
+      });
 
       const result = await cli.exec(["verify", testPodName, "/public-stream"]);
-
-      if (!result.stdout.includes("Stream '/public-stream' summary:")) {
-        console.log("PUBLIC STREAM TEST - STDOUT:", result.stdout);
-        console.log("PUBLIC STREAM TEST - STDERR:", result.stderr);
-        console.log("PUBLIC STREAM TEST - EXIT CODE:", result.exitCode);
-      }
 
       // Should work without authentication for public streams
       expect(result.stdout).to.include("Stream '/public-stream' summary:");

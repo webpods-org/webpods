@@ -76,10 +76,7 @@ router.post("/register", async (req: Request, res: Response) => {
       },
     });
 
-    logger.info("Client registered", {
-      clientId: client.client_id,
-      clientName: client.client_name,
-    });
+    logger.info("Client registered successfully");
 
     // Return client credentials
     res.status(201).json({

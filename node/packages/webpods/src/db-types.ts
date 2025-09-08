@@ -3,6 +3,9 @@
  * All database columns use snake_case
  */
 
+// Utility type to make a row type suitable for inserts (omits id)
+export type InsertRow<T> = Omit<T, "id">;
+
 // User table - container for multiple identities
 export type UserDbRow = {
   id: string;
@@ -31,10 +34,12 @@ export type PodDbRow = {
   updated_at?: Date | null;
 };
 
-// Stream table
+// Stream table - hierarchical streams (like directories)
 export type StreamDbRow = {
-  pod_name: string; // Part of composite primary key
-  name: string; // Part of composite primary key (stream name/path)
+  id: number; // bigint serial primary key
+  pod_name: string; // References pod.name
+  name: string; // Stream name (no slashes - like directory name)
+  parent_id?: number | null; // References parent stream.id (bigint)
   user_id: string;
   access_permission: string;
   metadata?: Record<string, unknown>; // JSONB
@@ -42,19 +47,18 @@ export type StreamDbRow = {
   updated_at?: Date | null;
 };
 
-// Record table
+// Record table - files within streams
 export type RecordDbRow = {
-  id?: string; // bigserial - Optional for inserts
-  pod_name: string; // References stream.pod_name
-  stream_name: string; // References stream.name
+  id: number; // bigserial primary key
+  stream_id: number;
   index: number;
   content: string;
   content_type: string;
+  name: string; // Required name (no slashes - like filename)
   content_hash: string; // SHA-256 hash of content only
   hash: string; // SHA-256 hash of (previous_hash + content_hash)
   previous_hash?: string | null;
   user_id: string; // References user.id
-  name?: string | null;
   created_at: Date | string; // Can be string when inserting
 };
 

@@ -21,7 +21,7 @@ export async function grant(argv: Arguments) {
     }
 
     const permissionData = {
-      id: userId,
+      userId,
       read,
       write,
     };

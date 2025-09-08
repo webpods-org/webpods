@@ -14,21 +14,38 @@ export async function findPodByDomain(
   domain: string,
 ): Promise<Result<PodDbRow | null>> {
   try {
-    // Get all pods that have .config/domains streams
-    const pods = await ctx.db.manyOrNone<PodDbRow>(
-      `SELECT DISTINCT p.* FROM pod p
-       JOIN stream s ON s.pod_name = p.name
-       WHERE s.name = '.config/domains'`,
-    );
+    // Get all pods
+    const pods = await ctx.db.manyOrNone<PodDbRow>(`SELECT * FROM pod`);
 
     // Check each pod's domains
     for (const pod of pods) {
+      // Get .config stream
+      const configStream = await ctx.db.oneOrNone<{ id: string }>(
+        `SELECT id FROM stream 
+         WHERE pod_name = $(pod_name) 
+           AND name = '.config' 
+           AND parent_id IS NULL`,
+        { pod_name: pod.name },
+      );
+
+      if (!configStream) continue;
+
+      // Get domains stream (child of .config)
+      const domainsStream = await ctx.db.oneOrNone<{ id: string }>(
+        `SELECT id FROM stream 
+         WHERE parent_id = $(parent_id) 
+           AND name = 'domains'`,
+        { parent_id: configStream.id },
+      );
+
+      if (!domainsStream) continue;
+
+      // Get domain records
       const records = await ctx.db.manyOrNone<RecordDbRow>(
         `SELECT * FROM record
-         WHERE pod_name = $(pod_name)
-           AND stream_name = $(stream_name)
+         WHERE stream_id = $(stream_id)
          ORDER BY index ASC`,
-        { pod_name: pod.name, stream_name: ".config/domains" },
+        { stream_id: domainsStream.id },
       );
 
       // Build current domain list

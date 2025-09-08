@@ -72,31 +72,15 @@ export class TestServer {
     return new Promise((resolve, reject) => {
       this.process = spawn("node", [serverPath], {
         env,
-        stdio: "pipe",
+        stdio: ["pipe", "inherit", "inherit"], // stdin pipe, stdout/stderr inherit to see console logs
       });
 
-      this.process.stdout?.on("data", (data) => {
-        const message = data.toString();
-        // Server output is handled silently during tests
-        if (
-          message.includes("WebPods server started") ||
-          message.includes("Server listening")
-        ) {
-          resolve();
-        }
-      });
-
-      this.process.stderr?.on("data", (data) => {
-        const message = data.toString();
-        // Server errors are handled silently during tests
-        // Sometimes the server logs to stderr
-        if (
-          message.includes("WebPods server started") ||
-          message.includes("Server listening")
-        ) {
-          resolve();
-        }
-      });
+      // With inherit, we can't listen to stdout/stderr directly
+      // We need to wait for the server to start in a different way
+      // Let's wait longer to make sure server is fully up
+      setTimeout(() => {
+        resolve();
+      }, 3000); // Wait 3 seconds for server to start
 
       this.process.on("error", (err) => {
         this.logger.error("Failed to start test server", { error: err });

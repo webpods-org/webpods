@@ -19,7 +19,9 @@ WebPods is an HTTP-based append-only log service using subdomains for multi-tena
 ```
 User
  └── Pod (subdomain namespace)
-      └── Stream (append-only log)
+      └── Stream (hierarchical append-only log)
+           ├── Parent Stream → Stream
+           ├── Child Streams → [Stream]
            └── Record (immutable entry)
                 ├── content
                 ├── hash (SHA-256)
@@ -99,9 +101,10 @@ WebPods implements two distinct OAuth flows:
 
 #### stream
 
-- `id` (UUID): Primary key
-- `pod_id` → pod.id: Parent pod (foreign key)
-- `stream_id`: Path (e.g., `/blog/2024`)
+- `id` (BIGINT): Primary key
+- `pod_name` → pod.name: Parent pod (foreign key)
+- `name`: Stream name (no slashes)
+- `parent_id` → stream.id: Parent stream (nullable)
 - `user_id` → user: Creator
 - `access_permission`: Access mode
 

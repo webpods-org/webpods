@@ -1,73 +1,45 @@
 /**
- * Get or create a stream
+ * Get or create a stream hierarchy
  */
 
 import { DataContext } from "../data-context.js";
-import { Result, success, failure } from "../../utils/result.js";
-import { StreamDbRow } from "../../db-types.js";
+import { Result, success } from "../../utils/result.js";
 import { Stream } from "../../types.js";
-import { isValidStreamId } from "../../utils.js";
 import { createLogger } from "../../logger.js";
+import { createError } from "../../utils/errors.js";
+import { getStreamByPath } from "./get-stream-by-path.js";
+import { createStreamHierarchy } from "./create-stream-hierarchy.js";
 import { updateStreamPermissions } from "./update-stream-permissions.js";
-import { normalizeStreamName } from "../../utils/stream-utils.js";
 
 const logger = createLogger("webpods:domain:streams");
-
-/**
- * Map database row to domain type
- */
-function mapStreamFromDb(row: StreamDbRow): Stream {
-  return {
-    podName: row.pod_name,
-    name: row.name,
-    userId: row.user_id,
-    accessPermission: row.access_permission,
-    metadata: row.metadata,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at || row.created_at,
-  };
-}
 
 export async function getOrCreateStream(
   ctx: DataContext,
   podName: string,
-  streamId: string,
+  streamPath: string,
   userId: string,
   accessPermission?: string,
 ): Promise<Result<{ stream: Stream; created: boolean; updated?: boolean }>> {
-  // Normalize stream name to ensure leading slash
-  const normalizedStreamId = normalizeStreamName(streamId);
-
-  // Validate stream ID (try both original and normalized)
-  if (!isValidStreamId(streamId) && !isValidStreamId(normalizedStreamId)) {
-    return failure(new Error("Invalid stream ID"));
-  }
-
-  const actualStreamId = normalizedStreamId;
-
   try {
-    // Try to find existing stream (using normalized name)
-    let stream = await ctx.db.oneOrNone<StreamDbRow>(
-      `SELECT * FROM stream 
-       WHERE pod_name = $(pod_name) 
-         AND name = $(name)`,
-      { pod_name: podName, name: actualStreamId },
-    );
+    // Try to find existing stream by path
+    const existingResult = await getStreamByPath(ctx, podName, streamPath);
 
-    if (stream) {
+    if (existingResult.success) {
+      const stream = existingResult.data;
+
       // Check if permissions need to be updated
-      if (accessPermission && accessPermission !== stream.access_permission) {
+      if (accessPermission && accessPermission !== stream.accessPermission) {
         // Only the creator can update permissions
-        if (stream.user_id !== userId) {
+        if (stream.userId !== userId) {
           logger.warn("Non-creator attempted to update stream permissions", {
-            podName: stream.pod_name,
-            streamId: stream.name,
+            podName,
+            streamPath,
             userId,
-            creatorId: stream.user_id,
+            creatorId: stream.userId,
           });
           // Return the existing stream without updating
           return success({
-            stream: mapStreamFromDb(stream),
+            stream,
             created: false,
             updated: false,
           });
@@ -76,75 +48,74 @@ export async function getOrCreateStream(
         // Update the stream permissions
         const updateResult = await updateStreamPermissions(
           ctx,
-          stream.pod_name,
+          podName,
           stream.name,
           accessPermission,
         );
 
         if (!updateResult.success) {
           logger.error("Failed to update stream permissions", {
-            podName: stream.pod_name,
-            streamId: stream.name,
+            podName,
+            streamPath,
             error: updateResult.error,
           });
           // Return the existing stream even if update fails
           return success({
-            stream: mapStreamFromDb(stream),
+            stream,
             created: false,
             updated: false,
           });
         }
 
-        // Fetch the updated stream
-        stream = await ctx.db.one<StreamDbRow>(
-          `SELECT * FROM stream 
-           WHERE pod_name = $(pod_name) 
-             AND name = $(name)`,
-          { pod_name: stream.pod_name, name: stream.name },
-        );
-
-        return success({
-          stream: mapStreamFromDb(stream),
-          created: false,
-          updated: true,
-        });
+        // Get the updated stream
+        const updatedResult = await getStreamByPath(ctx, podName, streamPath);
+        if (updatedResult.success) {
+          return success({
+            stream: updatedResult.data,
+            created: false,
+            updated: true,
+          });
+        }
       }
 
       return success({
-        stream: mapStreamFromDb(stream),
+        stream,
         created: false,
       });
     }
 
-    // Stream doesn't exist - create it
-    const newStream = await ctx.db.one<StreamDbRow>(
-      `INSERT INTO stream (pod_name, name, user_id, access_permission)
-       VALUES ($(pod_name), $(name), $(user_id), $(access_permission))
-       RETURNING *`,
-      {
-        pod_name: podName,
-        name: actualStreamId,
-        user_id: userId,
-        access_permission: accessPermission || "public",
-      },
+    // Stream doesn't exist - create the hierarchy
+    const createResult = await createStreamHierarchy(
+      ctx,
+      podName,
+      streamPath,
+      userId,
+      accessPermission || "public",
     );
 
-    logger.info("Stream created", {
-      podName: newStream.pod_name,
-      streamId: newStream.name,
+    if (!createResult.success) {
+      return createResult;
+    }
+
+    logger.info("Stream hierarchy created", {
+      podName,
+      streamPath,
       userId,
     });
 
     return success({
-      stream: mapStreamFromDb(newStream),
+      stream: createResult.data,
       created: true,
     });
   } catch (error: unknown) {
     logger.error("Failed to get or create stream", {
       error,
       podName,
-      streamId,
+      streamPath,
     });
-    return failure(new Error("Failed to get or create stream"));
+    return {
+      success: false,
+      error: createError("UNKNOWN_ERROR", "Failed to get or create stream"),
+    };
   }
 }

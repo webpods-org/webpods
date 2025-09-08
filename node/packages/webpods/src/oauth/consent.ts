@@ -70,25 +70,57 @@ async function getUserOwnedPods(userId: string): Promise<string[]> {
   const db = getDb();
 
   try {
-    // Query all pods and check ownership via .config/owner stream
-    const pods = await db.manyOrNone<{ name: string }>(
-      `SELECT DISTINCT p.name
-       FROM pod p
-       WHERE EXISTS (
-         SELECT 1 FROM stream s
-         JOIN record r ON r.pod_name = s.pod_name AND r.stream_name = s.name
-         WHERE s.pod_name = p.name
-         AND s.name = '/.config/owner'
-         AND r.content::jsonb->>'owner' = $(user_id)
-         AND r.index = (
-           SELECT MAX(r2.index) FROM record r2
-           WHERE r2.pod_name = s.pod_name AND r2.stream_name = s.name
-         )
-       )`,
-      { user_id: userId },
-    );
+    // Get all pods
+    const pods = await db.manyOrNone<{ name: string }>(`SELECT name FROM pod`);
 
-    return pods.map((p) => p.name);
+    const ownedPods: string[] = [];
+
+    // Check ownership for each pod using simple queries
+    for (const pod of pods) {
+      // Get .config stream
+      const configStream = await db.oneOrNone<{ id: string }>(
+        `SELECT id FROM stream 
+         WHERE pod_name = $(pod_name) 
+           AND name = '.config' 
+           AND parent_id IS NULL`,
+        { pod_name: pod.name },
+      );
+
+      if (!configStream) continue;
+
+      // Get owner stream (child of .config)
+      const ownerStream = await db.oneOrNone<{ id: string }>(
+        `SELECT id FROM stream 
+         WHERE parent_id = $(parent_id) 
+           AND name = 'owner'`,
+        { parent_id: configStream.id },
+      );
+
+      if (!ownerStream) continue;
+
+      // Get latest owner record
+      const ownerRecord = await db.oneOrNone<{ content: string }>(
+        `SELECT content FROM record 
+         WHERE stream_id = $(stream_id)
+           AND name = 'owner'
+         ORDER BY index DESC
+         LIMIT 1`,
+        { stream_id: ownerStream.id },
+      );
+
+      if (ownerRecord) {
+        try {
+          const content = JSON.parse(ownerRecord.content);
+          if (content.userId === userId) {
+            ownedPods.push(pod.name);
+          }
+        } catch {
+          // Invalid JSON, skip
+        }
+      }
+    }
+
+    return ownedPods;
   } catch (error) {
     logger.error("Failed to get user pods", { error, userId });
     return [];
@@ -120,14 +152,6 @@ router.get("/consent", async (req: Request, res: Response) => {
       consentChallenge,
     });
 
-    logger.info("Consent request received", {
-      challenge: consentChallenge,
-      client: consentRequest.client?.client_id,
-      subject: consentRequest.subject,
-      requestedScope: consentRequest.requested_scope,
-      oidcContext: consentRequest.oidc_context,
-    });
-
     // Test mode: auto-accept consent (only in controlled environments)
     if (req.headers["x-test-consent"]) {
       if (!isTestModeAllowed(req)) {
@@ -141,11 +165,7 @@ router.get("/consent", async (req: Request, res: Response) => {
         return;
       }
 
-      logger.info("Test mode: auto-accepting consent", {
-        query: req.query,
-        requestedScope: consentRequest.requested_scope,
-        oidcContext: consentRequest.oidc_context,
-      });
+      logger.info("Test mode: auto-accepting consent");
 
       const pods = Array.from(
         parseRequestedPods(

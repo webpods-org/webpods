@@ -85,6 +85,17 @@ The codebase follows a functional programming approach with these key directorie
 - **Always specify type parameters**: `db.one<UserDbRow>(...)`
 - **MIGRATION POLICY**: Never create new migration files. All schema changes go in `/database/webpods/migrations/20250810000000_initial_schema.js`
 
+### Query Optimization Guidelines
+
+- **Prefer simple separate queries over complex joins** when it only saves 1-3 database calls
+- **Use joins only to prevent N+1 query problems** (e.g., fetching data for many items in a loop)
+- **Prioritize code simplicity and readability** over minor performance optimizations
+- **Example**: Instead of a complex join to fetch owner record, use 3 simple queries:
+  1. Get config stream
+  2. Get owner stream (child of config)
+  3. Get owner record from owner stream
+- This approach makes the code easier to understand and maintain
+
 ## Git Workflow
 
 When the user asks you to commit and push:
@@ -214,7 +225,7 @@ const records = await db("record")
 // Process in memory to find latest permission
 for (const record of records) {
   const content = JSON.parse(record.content);
-  if (content.id === userId) {
+  if (content.userId === userId) {
     userPermission = content; // Last record wins
   }
 }
@@ -242,6 +253,57 @@ grep -A10 "specific test name" .tests/run-*.txt
 **NEVER use plain redirection (`>` or `2>&1`) as it hides output from the user.** Always use `tee` so the user can see test progress in real-time while you also get a saved copy for analysis.
 
 This strategy prevents the need to re-run lengthy test suites when you need different information from the output. The `.tests/` directory is gitignored to keep test outputs from cluttering the repository.
+
+## Analysis and Documentation
+
+### Analysis Working Directory
+
+**IMPORTANT**: When performing long-running analysis, research, or documentation tasks, use the `.analysis/` directory as your working space:
+
+```bash
+# Create .analysis directory if it doesn't exist (gitignored)
+mkdir -p .analysis
+
+# Use for analysis outputs, reports, and working files
+cd .analysis
+
+# Examples of analysis work:
+# - Code complexity reports
+# - API documentation generation
+# - Dependency analysis
+# - Performance profiling results
+# - Architecture diagrams and documentation
+# - Database schema analysis
+# - Security audit reports
+```
+
+**Benefits of using `.analysis/` directory:**
+
+- Keeps analysis artifacts separate from source code
+- Allows iterative work without cluttering the repository
+- Can save large analysis outputs without affecting git
+- Provides a consistent location for all analysis work
+- Enables saving intermediate results for complex multi-step analysis
+
+**Common analysis patterns:**
+
+```bash
+# Save analysis results with timestamps
+echo "Analysis results" > .analysis/api-analysis-$(date +%Y%m%d).md
+
+# Create subdirectories for different analysis types
+mkdir -p .analysis/performance
+mkdir -p .analysis/security
+mkdir -p .analysis/dependencies
+
+# Use for generating documentation
+npx typedoc --out .analysis/api-docs src/
+
+# Save database schema analysis
+pg_dump --schema-only webpodsdb > .analysis/schema-$(date +%Y%m%d).sql
+```
+
+The `.analysis/` directory is gitignored to prevent temporary analysis files from being committed to the repository.
 
 **Note**: This approach is NOT needed for selective test runs, which complete quickly:
 

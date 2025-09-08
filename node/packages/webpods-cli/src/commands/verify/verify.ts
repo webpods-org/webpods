@@ -77,17 +77,18 @@ export async function verify(argv: Arguments) {
         }
 
         // Verify the hash itself
-        // Server uses: hash(previous_hash + content_hash + user_id + timestamp)
-        const hashData = JSON.stringify({
-          previous_hash: record.previousHash || null,
-          content_hash: record.contentHash,
-          user_id: record.userId,
-          timestamp: record.timestamp,
-        });
+        // Server uses: hash(previousHash + contentHash + userId + name + index)
+        const hashInput = [
+          record.previousHash || "",
+          record.contentHash,
+          record.userId,
+          record.name || "",
+          record.index.toString(),
+        ].join(":");
 
         const computedHash = crypto
           .createHash("sha256")
-          .update(hashData)
+          .update(hashInput)
           .digest("hex");
 
         const expectedHash = record.hash.replace("sha256:", "");

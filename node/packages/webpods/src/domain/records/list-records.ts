@@ -7,7 +7,6 @@ import { Result, success, failure } from "../../utils/result.js";
 import { RecordDbRow } from "../../db-types.js";
 import { StreamRecord } from "../../types.js";
 import { createLogger } from "../../logger.js";
-import { normalizeStreamName } from "../../utils/stream-utils.js";
 
 const logger = createLogger("webpods:domain:records");
 
@@ -16,13 +15,12 @@ const logger = createLogger("webpods:domain:records");
  */
 function mapRecordFromDb(row: RecordDbRow): StreamRecord {
   return {
-    id: row.id ? parseInt(row.id) : 0,
-    podName: row.pod_name,
-    streamName: row.stream_name,
+    id: row.id || 0,
+    streamId: row.stream_id,
     index: row.index,
     content: row.content,
     contentType: row.content_type,
-    name: row.name || "",
+    name: row.name,
     contentHash: row.content_hash,
     hash: row.hash,
     previousHash: row.previous_hash || null,
@@ -38,22 +36,20 @@ function mapRecordFromDb(row: RecordDbRow): StreamRecord {
 export async function listRecords(
   ctx: DataContext,
   podName: string,
-  streamId: string,
+  streamId: number,
   limit: number = 100,
   after?: number,
 ): Promise<
   Result<{ records: StreamRecord[]; total: number; hasMore: boolean }>
 > {
   // Normalize stream name to ensure leading slash
-  const normalizedStreamId = normalizeStreamName(streamId);
 
   try {
     let query = `SELECT * FROM record 
-                  WHERE pod_name = $(pod_name) 
-                    AND stream_name = $(stream_name)`;
+                  WHERE stream_id = $(streamId) 
+                    `;
     const params: Record<string, unknown> = {
-      pod_name: podName,
-      stream_name: normalizedStreamId,
+      streamId,
       limit: limit + 1,
     };
 
@@ -63,9 +59,9 @@ export async function listRecords(
       // Get total count to convert negative index (using normalized stream name)
       const countResult = await ctx.db.one<{ count: string }>(
         `SELECT COUNT(*) as count FROM record 
-         WHERE pod_name = $(pod_name) 
-           AND stream_name = $(stream_name)`,
-        { pod_name: podName, stream_name: normalizedStreamId },
+         WHERE stream_id = $(streamId) 
+           `,
+        { streamId },
       );
       const totalCount = parseInt(countResult.count);
       // after=-3 means "get the last 3 records", so we skip totalCount-3 records
@@ -89,9 +85,9 @@ export async function listRecords(
 
     const countResult = await ctx.db.one<{ count: string }>(
       `SELECT COUNT(*) as count FROM record 
-       WHERE pod_name = $(pod_name) 
-         AND stream_name = $(stream_name)`,
-      { pod_name: podName, stream_name: normalizedStreamId },
+       WHERE stream_id = $(streamId) 
+         `,
+      { streamId },
     );
 
     const total = parseInt(countResult.count);

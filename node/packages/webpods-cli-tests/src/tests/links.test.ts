@@ -11,9 +11,8 @@ import {
   testToken,
   testUser,
   testDb,
-  calculateContentHash,
-  calculateRecordHash,
 } from "../test-setup.js";
+import { createOwnerConfig } from "../utils/test-data-helpers.js";
 
 describe("CLI Links Commands", function () {
   this.timeout(30000);
@@ -44,42 +43,11 @@ describe("CLI Links Commands", function () {
       });
 
     // Create .config/owner stream for pod ownership
-    await testDb
-      .getDb()
-      .none(
-        "INSERT INTO stream (pod_name, name, user_id) VALUES ($(podName), $(streamName), $(userId))",
-        {
-          podName: testPodName,
-          streamName: "/.config/owner",
-          userId: testUser.userId,
-        },
-      );
-
-    // Add owner record
-    const content = JSON.stringify({ owner: testUser.userId });
-    const contentHash = calculateContentHash(content);
-    const timestamp = new Date().toISOString();
-    const hash = calculateRecordHash(
-      null,
-      contentHash,
+    await createOwnerConfig(
+      testDb.getDb(),
+      testPodName,
       testUser.userId,
-      timestamp,
-    );
-
-    await testDb.getDb().none(
-      `INSERT INTO record (pod_name, stream_name, name, content, content_type, content_hash, hash, user_id, index, created_at) 
-       VALUES ($(podName), $(streamName), $(name), $(content), $(contentType), $(contentHash), $(hash), $(userId), 0, $(timestamp))`,
-      {
-        podName: testPodName,
-        streamName: "/.config/owner",
-        name: "owner",
-        content,
-        contentType: "application/json",
-        contentHash,
-        hash,
-        userId: testUser.userId,
-        timestamp,
-      },
+      testUser.userId,
     );
   });
 
@@ -92,10 +60,6 @@ describe("CLI Links Commands", function () {
         },
       );
 
-      if (result.exitCode !== 0) {
-        console.log("STDERR:", result.stderr);
-        console.log("STDOUT:", result.stdout);
-      }
       expect(result.exitCode).to.equal(0);
       expect(result.stdout).to.include("Link set: /about → pages/about");
     });
@@ -151,10 +115,6 @@ describe("CLI Links Commands", function () {
         token: testToken,
       });
 
-      if (result.exitCode !== 0) {
-        console.log("LIST ERROR - STDERR:", result.stderr);
-        console.log("LIST ERROR - STDOUT:", result.stdout);
-      }
       expect(result.exitCode).to.equal(0);
       expect(result.stdout).to.include(`Links for pod '${testPodName}'`);
       expect(result.stdout).to.include("/ → homepage/index");
@@ -219,10 +179,6 @@ describe("CLI Links Commands", function () {
       const listResult = await cli.exec(["links", "list", testPodName], {
         token: testToken,
       });
-      if (listResult.stdout.includes("/about → pages/about")) {
-        console.log("ERROR: /about still present after remove!");
-        console.log("LIST OUTPUT:", listResult.stdout);
-      }
       expect(listResult.stdout).to.not.include("/about → pages/about");
       expect(listResult.stdout).to.include("/blog → blog/posts"); // Other links remain
     });

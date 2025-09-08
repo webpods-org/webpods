@@ -4,65 +4,32 @@
 
 import { DataContext } from "../data-context.js";
 import { Stream } from "../../types.js";
-import { PodDbRow, RecordDbRow } from "../../db-types.js";
+import { RecordDbRow, StreamDbRow } from "../../db-types.js";
 import { createLogger } from "../../logger.js";
 import { parsePermission } from "./parse-permission.js";
 import { checkPermissionStream } from "./check-permission-stream.js";
 
 const logger = createLogger("webpods:domain:permissions");
 
-export async function canRead(
+/**
+ * Check permissions for a specific stream (internal helper)
+ */
+async function checkStreamPermission(
   ctx: DataContext,
   stream: Stream,
   userId: string | null,
-): Promise<boolean> {
-  logger.info("canRead check", {
-    streamId: stream.name,
-    accessPermission: stream.accessPermission,
-    userId,
-    creatorId: stream.userId,
-  });
-
-  // First check pod ownership - pod owner always has full access
-  if (userId) {
-    const ownerRecord = await ctx.db.oneOrNone<RecordDbRow>(
-      `SELECT r.* FROM record r
-       WHERE r.pod_name = $(pod_name)
-         AND r.stream_name = '/.config/owner'
-         AND r.name = 'owner'
-       ORDER BY r.index DESC
-       LIMIT 1`,
-      { pod_name: stream.podName },
-    );
-
-    if (ownerRecord) {
-      try {
-        const content = JSON.parse(ownerRecord.content);
-        const podOwner = content.owner;
-
-        // If user is the pod owner, they have full access
-        if (podOwner === userId) {
-          return true;
-        }
-
-        // If user is NOT the pod owner but was the stream creator,
-        // they no longer have access after ownership transfer (unless public)
-        if (userId === stream.userId && podOwner !== userId) {
-          // Still allow if it's a public stream
-          if (stream.accessPermission === "public") {
-            return true;
-          }
-          return false;
-        }
-      } catch {
-        // If we can't parse owner record, fall through to normal checks
-      }
-    }
+  podOwner: string | null,
+): Promise<boolean | null> {
+  // If user is the pod owner, they have full access
+  if (podOwner && userId === podOwner) {
+    return true;
   }
 
   // Creator has access (only if they're still the pod owner or no owner is set)
   if (userId && userId === stream.userId) {
-    return true;
+    if (!podOwner || podOwner === userId) {
+      return true;
+    }
   }
 
   // Public read access - anyone can read
@@ -82,44 +49,132 @@ export async function canRead(
 
   // Parse permission
   const perm = parsePermission(stream.accessPermission);
-  logger.debug("Parsed permission", {
-    perm,
-    accessPermission: stream.accessPermission,
-  });
 
   if (perm.type === "stream" && perm.streamPath) {
-    logger.info("Checking stream-based permission", {
-      streamPath: perm.streamPath,
-      userId,
-      streamId: stream.name,
-    });
-    // Get pod for this stream
-    const pod = await ctx.db.oneOrNone<PodDbRow>(
-      `SELECT * FROM pod WHERE name = $(pod_name)`,
-      { pod_name: stream.podName },
-    );
-
-    if (!pod) {
-      logger.error("Pod not found for stream", { podName: stream.podName });
-      return false;
-    }
-
     // Check if user has read permission in the permission stream
     const result = await checkPermissionStream(
       ctx,
-      pod.name,
+      stream.podName,
       perm.streamPath,
       userId,
       "read",
     );
-    logger.info("Stream permission check result", {
-      allowed: result,
-      podName: pod.name,
-      streamPath: perm.streamPath,
-      userId,
-    });
     return result;
   }
 
+  // No explicit permission found for this stream
+  return null;
+}
+
+export async function canRead(
+  ctx: DataContext,
+  stream: Stream,
+  userId: string | null,
+): Promise<boolean> {
+  logger.info("canRead check", {
+    streamId: stream.name,
+    accessPermission: stream.accessPermission,
+    userId,
+    creatorId: stream.userId,
+  });
+
+  // First get pod owner using separate queries
+  let podOwner: string | null = null;
+
+  // Get .config stream
+  const configStream = await ctx.db.oneOrNone<StreamDbRow>(
+    `SELECT id FROM stream 
+     WHERE pod_name = $(pod_name) 
+       AND name = '.config' 
+       AND parent_id IS NULL`,
+    { pod_name: stream.podName },
+  );
+
+  if (configStream) {
+    // Get owner stream (child of .config)
+    const ownerStream = await ctx.db.oneOrNone<StreamDbRow>(
+      `SELECT id FROM stream 
+       WHERE parent_id = $(parent_id) 
+         AND name = 'owner'`,
+      { parent_id: configStream.id },
+    );
+
+    if (ownerStream) {
+      // Get owner record
+      const ownerRecord = await ctx.db.oneOrNone<RecordDbRow>(
+        `SELECT * FROM record 
+         WHERE stream_id = $(stream_id)
+           AND name = 'owner'
+         ORDER BY index DESC
+         LIMIT 1`,
+        { stream_id: ownerStream.id },
+      );
+
+      if (ownerRecord) {
+        try {
+          const content = JSON.parse(ownerRecord.content);
+          podOwner = content.userId || null;
+        } catch {
+          // If we can't parse owner record, podOwner remains null
+        }
+      }
+    }
+  }
+
+  // Check current stream permissions
+  const currentPermission = await checkStreamPermission(
+    ctx,
+    stream,
+    userId,
+    podOwner,
+  );
+  if (currentPermission !== null) {
+    return currentPermission;
+  }
+
+  // If no explicit permission on current stream, check parent streams
+  let currentStreamId = stream.parentId;
+  while (currentStreamId) {
+    const parentStream = await ctx.db.oneOrNone<StreamDbRow>(
+      `SELECT * FROM stream WHERE id = $(id)`,
+      { id: currentStreamId },
+    );
+
+    if (!parentStream) {
+      break;
+    }
+
+    // Map to Stream type
+    const parentStreamObj: Stream = {
+      id: parentStream.id,
+      podName: parentStream.pod_name,
+      name: parentStream.name,
+      parentId: parentStream.parent_id || null,
+      userId: parentStream.user_id,
+      accessPermission: parentStream.access_permission,
+      metadata: parentStream.metadata,
+      createdAt: parentStream.created_at,
+      updatedAt: parentStream.updated_at || parentStream.created_at,
+    };
+
+    const parentPermission = await checkStreamPermission(
+      ctx,
+      parentStreamObj,
+      userId,
+      podOwner,
+    );
+    if (parentPermission !== null) {
+      logger.info("Permission inherited from parent stream", {
+        streamId: stream.id,
+        parentId: currentStreamId,
+        permission: parentPermission,
+      });
+      return parentPermission;
+    }
+
+    currentStreamId = parentStream.parent_id || null;
+  }
+
+  // No permission found in hierarchy, default to deny
   return false;
 }

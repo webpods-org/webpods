@@ -81,19 +81,20 @@ describe("WebPods Record Deletion", () => {
         `SELECT * FROM pod WHERE name = $(podId)`,
         { podId: testPodId },
       );
+
+      // Find the stream using hierarchical structure
       const stream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId)`,
-        { pod_name: pod.name, streamId: "/documents" },
+        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamName) AND parent_id IS NULL`,
+        { pod_name: pod.name, streamName: "documents" },
       );
 
-      // Check for tombstone record
+      // Check for tombstone record using stream_id
       const tombstones = await db.manyOrNone(
         `SELECT * FROM record 
-         WHERE pod_name = $(pod_name)
-         AND stream_name = $(streamId) 
+         WHERE stream_id = $(streamId)
          AND name LIKE 'report.deleted.%'
          ORDER BY index DESC`,
-        { pod_name: pod.name, streamId: stream.name },
+        { streamId: stream.id },
       );
 
       expect(tombstones).to.have.lengthOf(1);
@@ -165,13 +166,13 @@ describe("WebPods Record Deletion", () => {
         `SELECT * FROM pod WHERE name = $(podId)`,
         { podId: testPodId },
       );
-      await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId)`,
-        { pod_name: pod.name, streamId: "/secrets" },
+      const stream = await db.oneOrNone(
+        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId) AND parent_id IS NULL`,
+        { pod_name: pod.name, streamId: "secrets" },
       );
       const record = await db.oneOrNone(
-        `SELECT * FROM record WHERE pod_name = $(pod_name) AND stream_name = $(streamId) AND name = $(name)`,
-        { pod_name: pod.name, streamId: "/secrets", name: "password" },
+        `SELECT * FROM record WHERE stream_id = $(stream_id) AND name = $(name)`,
+        { stream_id: stream.id, name: "password" },
       );
 
       expect(record).to.exist;
@@ -241,33 +242,23 @@ describe("WebPods Record Deletion", () => {
   });
 
   describe("Stream vs Record Deletion", () => {
-    it("should correctly distinguish between stream and record deletion", async () => {
+    it("should prevent creating both a stream and record with same name", async () => {
       client.setAuthToken(ownerToken);
 
-      // Create nested structure
-      // Create app/config stream with "main" record
-      await client.createStream("app/config");
-      await client.post("/app/config/main", "Main config");
-      // Create "config" record in app stream
+      // First create a record named "config" in /app stream
       await client.createStream("app");
-      await client.post("/app/config", "Config stream root");
+      await client.post("/app/config", "Config record in app stream");
 
-      // DELETE /app/config should check:
-      // 1. Is "app/config" a stream? Yes (created by first POST)
-      // 2. So it deletes the stream, not the record in app
-      const response = await client.delete("/app/config");
-      expect(response.status).to.equal(204);
+      // Try to create /app/config as a stream by posting to a child path
+      // This would require /app/config to be a stream, not a record
+      const response = await client.post("/app/config/test", "Test content");
+      expect(response.status).to.equal(409); // Conflict
+      expect(response.data.error.code).to.equal("NAME_CONFLICT");
 
-      // Verify stream is gone
-      const getStreamResponse = await client.get("/app/config/main");
-      expect(getStreamResponse.status).to.equal(404);
-      // After stream deletion, trying to access a record in it gives NOT_FOUND
-      expect(getStreamResponse.data.error.code).to.equal("NOT_FOUND");
-
-      // But the record in app stream should still exist
-      const getRecordResponse = await client.get("/app/config");
-      expect(getRecordResponse.status).to.equal(200);
-      expect(getRecordResponse.data).to.equal("Config stream root");
+      // Verify the record still exists and works
+      const getResponse = await client.get("/app/config");
+      expect(getResponse.status).to.equal(200);
+      expect(getResponse.data).to.equal("Config record in app stream");
     });
 
     it("should delete record when stream does not exist at full path", async () => {
@@ -306,10 +297,8 @@ describe("WebPods Record Deletion", () => {
 
       const response = await client.delete("/foo/bar/baz");
       expect(response.status).to.equal(404);
-      expect(response.data.error.message).to.include("no stream 'foo/bar/baz'");
-      expect(response.data.error.message).to.include(
-        "no stream 'foo/bar' with record 'baz'",
-      );
+      expect(response.data.error.code).to.equal("NOT_FOUND");
+      expect(response.data.error.message).to.include("Path not found");
     });
   });
 });

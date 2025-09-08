@@ -7,7 +7,6 @@ import { Result, success } from "../../utils/result.js";
 import { RateLimitDbRow } from "../../db-types.js";
 import { createLogger } from "../../logger.js";
 import { getConfig } from "../../config-loader.js";
-import { sql } from "../../db/index.js";
 import type { RateLimitType } from "./increment-rate-limit.js";
 
 const logger = createLogger("webpods:domain:ratelimit");
@@ -55,7 +54,7 @@ export async function checkRateLimit(
     );
 
     if (!rateLimitRecord) {
-      // Create new window with snake_case parameters
+      // Use UPSERT to handle concurrent inserts
       const params = {
         identifier: identifier,
         action: type,
@@ -65,7 +64,11 @@ export async function checkRateLimit(
       };
 
       rateLimitRecord = await ctx.db.one<RateLimitDbRow>(
-        `${sql.insert("rate_limit", params)} RETURNING *`,
+        `INSERT INTO rate_limit (identifier, action, count, window_start, window_end)
+         VALUES ($(identifier), $(action), $(count), $(window_start), $(window_end))
+         ON CONFLICT (identifier, action, window_start) 
+         DO UPDATE SET count = rate_limit.count
+         RETURNING *`,
         params,
       );
     }

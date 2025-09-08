@@ -5,31 +5,153 @@
 import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
 import { createError } from "../../utils/errors.js";
-import { StreamDbRow, PodDbRow } from "../../db-types.js";
-import { Stream } from "../../types.js";
+import { StreamDbRow, PodDbRow, RecordDbRow } from "../../db-types.js";
 import { createLogger } from "../../logger.js";
 
 const logger = createLogger("webpods:domain:pods");
 
+export interface StreamInfo {
+  // Core identification
+  path: string;
+  name: string;
+  id: number;
+
+  // Hierarchy info
+  parentPath: string | null;
+  depth: number;
+  hasChildren: boolean;
+  childCount: number;
+
+  // Creator info
+  userId: string;
+
+  // Access info
+  accessPermission: string;
+
+  // Timestamps
+  createdAt: Date;
+  updatedAt: Date;
+
+  // Metadata
+  metadata: Record<string, unknown>;
+
+  // Optional: Record counts
+  recordCount?: number;
+  lastRecordIndex?: number;
+  firstRecordAt?: Date | null;
+  lastRecordAt?: Date | null;
+
+  // Optional: Hash info
+  hashChainValid?: boolean;
+  lastHash?: string | null;
+}
+
+export interface ListStreamsOptions {
+  path?: string;
+  recursive?: boolean;
+  includeRecordCounts?: boolean;
+  includeHashes?: boolean;
+}
+
 /**
- * Map database row to domain type
+ * Build path map for efficient path construction
  */
-function mapStreamFromDb(row: StreamDbRow): Stream {
-  return {
-    podName: row.pod_name,
-    name: row.name,
-    userId: row.user_id,
-    accessPermission: row.access_permission,
-    metadata: row.metadata,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at || row.created_at,
-  };
+function buildPathMap(
+  streams: StreamDbRow[],
+): Map<number, { path: string; parentId: number | null }> {
+  const pathMap = new Map<number, { path: string; parentId: number | null }>();
+  const idToRow = new Map<number, StreamDbRow>();
+
+  // First pass: create id to row mapping
+  for (const stream of streams) {
+    idToRow.set(stream.id, stream);
+  }
+
+  // Second pass: build paths recursively
+  function buildPath(streamId: number): string {
+    if (pathMap.has(streamId)) {
+      return pathMap.get(streamId)!.path;
+    }
+
+    const stream = idToRow.get(streamId);
+    if (!stream) return "/";
+
+    let path: string;
+    if (!stream.parent_id) {
+      // Root stream
+      path = "/" + stream.name;
+    } else {
+      // Child stream
+      const parentPath = buildPath(stream.parent_id);
+      path =
+        parentPath === "/" ? "/" + stream.name : parentPath + "/" + stream.name;
+    }
+
+    pathMap.set(streamId, { path, parentId: stream.parent_id || null });
+    return path;
+  }
+
+  // Build all paths
+  for (const stream of streams) {
+    buildPath(stream.id);
+  }
+
+  return pathMap;
+}
+
+/**
+ * Calculate stream depth based on path
+ */
+function calculateDepth(path: string): number {
+  if (path === "/") return 0;
+  return path.split("/").filter((segment) => segment !== "").length;
+}
+
+/**
+ * Validate hash chain for a stream
+ */
+async function validateHashChain(
+  ctx: DataContext,
+  streamId: number,
+): Promise<boolean> {
+  try {
+    const records = await ctx.db.manyOrNone<RecordDbRow>(
+      `SELECT hash, previous_hash, index FROM record
+       WHERE stream_id = $(streamId)
+       ORDER BY index ASC`,
+      { streamId },
+    );
+
+    for (let i = 0; i < records.length; i++) {
+      const record = records[i];
+      if (!record) continue;
+
+      // First record should have no previous hash
+      if (i === 0 && record.previous_hash) {
+        return false;
+      }
+
+      // Subsequent records should reference previous record's hash
+      if (i > 0) {
+        const prevRecord = records[i - 1];
+        if (!prevRecord || record.previous_hash !== prevRecord.hash) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  } catch (error) {
+    logger.error("Failed to validate hash chain", { streamId, error });
+    return false;
+  }
 }
 
 export async function listPodStreams(
   ctx: DataContext,
   podName: string,
-): Promise<Result<Stream[]>> {
+  options: ListStreamsOptions = {},
+): Promise<Result<StreamInfo[]>> {
   try {
     const pod = await ctx.db.oneOrNone<PodDbRow>(
       `SELECT * FROM pod WHERE name = $(pod_name)`,
@@ -40,16 +162,169 @@ export async function listPodStreams(
       return failure(createError("POD_NOT_FOUND", "Pod not found"));
     }
 
-    const streams = await ctx.db.manyOrNone<StreamDbRow>(
+    // Get all streams for the pod
+    const allStreams = await ctx.db.manyOrNone<StreamDbRow>(
       `SELECT * FROM stream 
        WHERE pod_name = $(pod_name)
-       ORDER BY created_at ASC`,
+       ORDER BY parent_id ASC NULLS FIRST, name ASC`,
       { pod_name: pod.name },
     );
 
-    return success(streams.map(mapStreamFromDb));
+    // Build path map
+    const pathMap = buildPathMap(allStreams);
+
+    // Filter streams based on path and recursive options
+    let filteredStreams = allStreams;
+    let targetStreamId: number | null = null;
+
+    if (options.path) {
+      // Normalize path (ensure it starts with /)
+      const normalizedPath = options.path.startsWith("/")
+        ? options.path
+        : "/" + options.path;
+
+      // Find the target stream
+      const targetStream = allStreams.find((s) => {
+        const streamPath = pathMap.get(s.id)?.path;
+        return streamPath === normalizedPath;
+      });
+
+      if (!targetStream) {
+        // Return empty array if stream not found
+        return success([]);
+      }
+
+      targetStreamId = targetStream.id;
+
+      if (options.recursive) {
+        // Include target and all descendants
+        const descendantIds = new Set<number>();
+        descendantIds.add(targetStreamId);
+
+        // Find all descendants
+        function findDescendants(parentId: number) {
+          for (const stream of allStreams) {
+            if (stream.parent_id === parentId) {
+              descendantIds.add(stream.id);
+              findDescendants(stream.id);
+            }
+          }
+        }
+        findDescendants(targetStreamId);
+
+        filteredStreams = allStreams.filter((s) => descendantIds.has(s.id));
+      } else {
+        // Only include the target stream
+        filteredStreams = [targetStream];
+      }
+    }
+
+    // Build result with StreamInfo objects
+    const result: StreamInfo[] = [];
+
+    for (const stream of filteredStreams) {
+      const pathInfo = pathMap.get(stream.id)!;
+      const parentPath = stream.parent_id
+        ? pathMap.get(stream.parent_id)?.path || null
+        : null;
+
+      // Count children
+      const childCount = allStreams.filter(
+        (s) => s.parent_id === stream.id,
+      ).length;
+
+      const streamInfo: StreamInfo = {
+        // Core identification
+        path: pathInfo.path,
+        name: stream.name,
+        id: stream.id,
+
+        // Hierarchy info
+        parentPath,
+        depth: calculateDepth(pathInfo.path),
+        hasChildren: childCount > 0,
+        childCount,
+
+        // Creator info
+        userId: stream.user_id,
+
+        // Access info
+        accessPermission: stream.access_permission,
+
+        // Timestamps
+        createdAt: stream.created_at,
+        updatedAt: stream.updated_at || stream.created_at,
+
+        // Metadata
+        metadata: stream.metadata || {},
+      };
+
+      // Add record counts if requested
+      if (options.includeRecordCounts) {
+        const countResult = await ctx.db.one<{ count: string }>(
+          `SELECT COUNT(*) as count FROM record WHERE stream_id = $(streamId)`,
+          { streamId: stream.id },
+        );
+        streamInfo.recordCount = parseInt(countResult.count, 10);
+
+        if (streamInfo.recordCount > 0) {
+          // Get last record index
+          const lastRecord = await ctx.db.oneOrNone<{
+            index: number;
+            created_at: Date;
+          }>(
+            `SELECT index, created_at FROM record 
+             WHERE stream_id = $(streamId) 
+             ORDER BY index DESC LIMIT 1`,
+            { streamId: stream.id },
+          );
+
+          if (lastRecord) {
+            streamInfo.lastRecordIndex = lastRecord.index;
+            streamInfo.lastRecordAt = lastRecord.created_at;
+          } else {
+            streamInfo.lastRecordIndex = -1;
+            streamInfo.lastRecordAt = null;
+          }
+
+          // Get first record timestamp
+          const firstRecord = await ctx.db.oneOrNone<{ created_at: Date }>(
+            `SELECT created_at FROM record 
+             WHERE stream_id = $(streamId) 
+             ORDER BY index ASC LIMIT 1`,
+            { streamId: stream.id },
+          );
+
+          streamInfo.firstRecordAt = firstRecord?.created_at || null;
+        } else {
+          streamInfo.lastRecordIndex = -1;
+          streamInfo.firstRecordAt = null;
+          streamInfo.lastRecordAt = null;
+        }
+      }
+
+      // Add hash info if requested
+      if (options.includeHashes) {
+        const lastRecord = await ctx.db.oneOrNone<{ hash: string }>(
+          `SELECT hash FROM record 
+           WHERE stream_id = $(streamId) 
+           ORDER BY index DESC LIMIT 1`,
+          { streamId: stream.id },
+        );
+
+        streamInfo.lastHash = lastRecord?.hash || null;
+        streamInfo.hashChainValid = await validateHashChain(ctx, stream.id);
+      }
+
+      result.push(streamInfo);
+    }
+
+    // Sort by path
+    result.sort((a, b) => a.path.localeCompare(b.path));
+
+    return success(result);
   } catch (error: unknown) {
-    logger.error("Failed to list pod streams", { error, podName });
+    logger.error("Failed to list pod streams", { error, podName, options });
     return failure(createError("DATABASE_ERROR", "Failed to list streams"));
   }
 }

@@ -63,10 +63,6 @@ export async function authenticateHybrid(
     req.ipAddress = getIpAddress(req);
 
     // Determine token type and verify accordingly
-    logger.debug("Attempting to verify token", {
-      tokenPrefix: token.substring(0, 50),
-      pod: currentPod,
-    });
 
     // Check if it's a WebPods token
     if (isWebPodsToken(token)) {
@@ -92,10 +88,6 @@ export async function authenticateHybrid(
         id: webpodsResult.data.sub,
         type: "webpods",
       };
-
-      logger.debug("WebPods token authenticated", {
-        userId: webpodsResult.data.sub,
-      });
 
       next();
       return;
@@ -164,12 +156,6 @@ export async function authenticateHybrid(
       scope: payload.scope,
     } as HydraAuth;
     req.authType = "hydra";
-
-    logger.debug("Hydra token authenticated", {
-      userId: payload.sub,
-      clientId: payload.client_id,
-      pods: payload.ext?.pods,
-    });
 
     next();
   } catch (error) {

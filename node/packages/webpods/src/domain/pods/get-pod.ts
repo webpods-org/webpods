@@ -37,22 +37,44 @@ export async function getPod(
       return failure(new Error("Pod not found"));
     }
 
-    // Get owner from .config/owner stream
-    const ownerRecord = await ctx.db.oneOrNone<RecordDbRow>(
-      `SELECT r.* FROM record r
-       WHERE r.pod_name = $(pod_name)
-         AND r.stream_name = '/.config/owner'
-         AND r.name = 'owner'
-       ORDER BY r.index DESC
-       LIMIT 1`,
+    // Get owner using separate queries
+    // Get .config stream
+    const configStream = await ctx.db.oneOrNone<{ id: string }>(
+      `SELECT id FROM stream 
+       WHERE pod_name = $(pod_name) 
+         AND name = '.config' 
+         AND parent_id IS NULL`,
       { pod_name: pod.name },
     );
+
+    let ownerRecord: RecordDbRow | null = null;
+    if (configStream) {
+      // Get owner stream (child of .config)
+      const ownerStream = await ctx.db.oneOrNone<{ id: string }>(
+        `SELECT id FROM stream 
+         WHERE parent_id = $(parent_id) 
+           AND name = 'owner'`,
+        { parent_id: configStream.id },
+      );
+
+      if (ownerStream) {
+        // Get owner record
+        ownerRecord = await ctx.db.oneOrNone<RecordDbRow>(
+          `SELECT * FROM record 
+           WHERE stream_id = $(stream_id)
+             AND name = 'owner'
+           ORDER BY index DESC
+           LIMIT 1`,
+          { stream_id: ownerStream.id },
+        );
+      }
+    }
 
     const mappedPod = mapPodFromDb(pod);
     if (ownerRecord) {
       try {
         const content = JSON.parse(ownerRecord.content);
-        mappedPod.userId = content.owner || "";
+        mappedPod.userId = content.userId || "";
       } catch {
         logger.warn("Failed to parse owner record", { podName });
       }

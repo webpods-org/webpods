@@ -34,11 +34,6 @@ function createTestJWT(userId: string, email: string): string {
  * Setup before all tests
  */
 export async function setupCliTests(): Promise<void> {
-  const isDebug = process.env.DEBUG === "true" || process.env.DEBUG === "1";
-  if (isDebug) {
-    console.log("Setting up CLI test environment...");
-  }
-
   // Setup test database with a different name to avoid conflicts
   testDb = new TestDatabase({ dbName: "webpodsdb_cli_test" });
   await testDb.setup();
@@ -55,31 +50,18 @@ export async function setupCliTests(): Promise<void> {
   });
 
   testToken = createTestJWT(testUser.userId, testUser.email);
-
-  if (isDebug) {
-    console.log("CLI test environment ready");
-  }
 }
 
 /**
  * Cleanup after all tests
  */
 export async function cleanupCliTests(): Promise<void> {
-  const isDebug = process.env.DEBUG === "true" || process.env.DEBUG === "1";
-  if (isDebug) {
-    console.log("Cleaning up CLI test environment...");
-  }
-
   if (testServer) {
     await testServer.stop();
   }
 
   if (testDb) {
     await testDb.cleanup();
-  }
-
-  if (isDebug) {
-    console.log("CLI test environment cleaned up");
   }
 }
 

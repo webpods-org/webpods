@@ -1,5 +1,5 @@
 /**
- * Get a stream by pod name and stream ID
+ * Get a stream by its numeric ID
  */
 
 import { DataContext } from "../data-context.js";
@@ -8,7 +8,6 @@ import { createError } from "../../utils/errors.js";
 import { StreamDbRow } from "../../db-types.js";
 import { Stream } from "../../types.js";
 import { createLogger } from "../../logger.js";
-import { normalizeStreamName } from "../../utils/stream-utils.js";
 
 const logger = createLogger("webpods:domain:streams");
 
@@ -17,8 +16,10 @@ const logger = createLogger("webpods:domain:streams");
  */
 function mapStreamFromDb(row: StreamDbRow): Stream {
   return {
+    id: row.id,
     podName: row.pod_name,
     name: row.name,
+    parentId: row.parent_id || null,
     userId: row.user_id,
     accessPermission: row.access_permission,
     metadata: row.metadata,
@@ -27,29 +28,31 @@ function mapStreamFromDb(row: StreamDbRow): Stream {
   };
 }
 
-export async function getStream(
+/**
+ * Get a stream by its numeric ID
+ * @param ctx Data context
+ * @param streamId The numeric stream ID
+ */
+export async function getStreamById(
   ctx: DataContext,
-  podName: string,
-  streamId: string,
+  streamId: number,
 ): Promise<Result<Stream>> {
-  // Normalize stream name to ensure leading slash
-  const normalizedStreamId = normalizeStreamName(streamId);
-
   try {
     const stream = await ctx.db.oneOrNone<StreamDbRow>(
-      `SELECT * FROM stream
-       WHERE pod_name = $(pod_name)
-         AND name = $(name)`,
-      { pod_name: podName, name: normalizedStreamId },
+      `SELECT * FROM stream WHERE id = $(id)`,
+      { id: streamId },
     );
 
     if (!stream) {
-      return failure(createError("STREAM_NOT_FOUND", "Stream not found"));
+      logger.debug("Stream not found by ID", { streamId });
+      return failure(
+        createError("STREAM_NOT_FOUND", `Stream with ID ${streamId} not found`),
+      );
     }
 
     return success(mapStreamFromDb(stream));
   } catch (error: unknown) {
-    logger.error("Failed to get stream", { error, podName, streamId });
+    logger.error("Failed to get stream by ID", { error, streamId });
     return failure(createError("DATABASE_ERROR", "Failed to get stream"));
   }
 }

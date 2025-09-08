@@ -29,15 +29,39 @@ export async function updateCustomDomains(
         return failure(new Error("Pod not found"));
       }
 
-      // Verify ownership
-      const ownerRecord = await t.oneOrNone<RecordDbRow>(
-        `SELECT r.* FROM record r
-         WHERE r.pod_name = $(pod_name)
-           AND r.stream_name = '/.config/owner'
-           AND r.name = 'owner'
-         ORDER BY r.index DESC
-         LIMIT 1`,
+      // Verify ownership - first get .config stream
+      const configStream = await t.oneOrNone<StreamDbRow>(
+        `SELECT * FROM stream 
+         WHERE pod_name = $(pod_name) 
+           AND name = '.config' 
+           AND parent_id IS NULL`,
         { pod_name: podName },
+      );
+
+      if (!configStream) {
+        return failure(new Error("Config stream not found"));
+      }
+
+      // Get owner stream (child of .config)
+      const ownerStream = await t.oneOrNone<StreamDbRow>(
+        `SELECT * FROM stream 
+         WHERE parent_id = $(parent_id) 
+           AND name = 'owner'`,
+        { parent_id: configStream.id },
+      );
+
+      if (!ownerStream) {
+        return failure(new Error("Owner stream not found"));
+      }
+
+      // Get owner record
+      const ownerRecord = await t.oneOrNone<RecordDbRow>(
+        `SELECT * FROM record 
+         WHERE stream_id = $(stream_id)
+           AND name = 'owner'
+         ORDER BY index DESC
+         LIMIT 1`,
+        { stream_id: ownerStream.id },
       );
 
       if (!ownerRecord) {
@@ -46,7 +70,7 @@ export async function updateCustomDomains(
 
       try {
         const content = JSON.parse(ownerRecord.content);
-        if (content.owner !== userId) {
+        if (content.userId !== userId) {
           return failure(
             new Error("Only the pod owner can update custom domains"),
           );
@@ -55,19 +79,20 @@ export async function updateCustomDomains(
         return failure(new Error("Failed to verify ownership"));
       }
 
-      // Get or create .config/domains stream
+      // Get or create domains stream (child of .config)
       let domainsStream = await t.oneOrNone<StreamDbRow>(
         `SELECT * FROM stream
-         WHERE pod_name = $(pod_name)
-           AND name = '.config/domains'`,
-        { pod_name: podName },
+         WHERE parent_id = $(parent_id)
+           AND name = 'domains'`,
+        { parent_id: configStream.id },
       );
 
       if (!domainsStream) {
-        // Create the stream with snake_case parameters
+        // Create the stream with hierarchical structure
         const streamParams = {
           pod_name: podName,
-          name: ".config/domains",
+          name: "domains",
+          parent_id: configStream.id,
           user_id: userId,
           access_permission: "private",
           created_at: new Date(),
@@ -82,11 +107,10 @@ export async function updateCustomDomains(
       // Get the last record for hash chain
       const lastRecord = await t.oneOrNone<RecordDbRow>(
         `SELECT * FROM record
-         WHERE pod_name = $(pod_name)
-           AND stream_name = $(stream_name)
+         WHERE stream_id = $(stream_id)
          ORDER BY index DESC
          LIMIT 1`,
-        { pod_name: podName, stream_name: ".config/domains" },
+        { stream_id: domainsStream.id },
       );
 
       const index = (lastRecord?.index ?? -1) + 1;
@@ -104,8 +128,7 @@ export async function updateCustomDomains(
       );
 
       const params = {
-        pod_name: podName,
-        stream_name: ".config/domains",
+        stream_id: domainsStream.id,
         index: index,
         content: JSON.stringify(content),
         content_type: "application/json",

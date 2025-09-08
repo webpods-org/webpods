@@ -37,11 +37,7 @@ router.get("/login", async (req: Request, res: Response) => {
       loginChallenge,
     });
 
-    logger.info("Login request received", {
-      challenge: loginChallenge,
-      client: loginRequest.client?.client_id,
-      requestedScope: loginRequest.requested_scope,
-    });
+    logger.info("Login request received");
 
     // Extract pods from the original OAuth request if present
     let requestedPods: string[] = [];
@@ -54,14 +50,10 @@ router.get("/login", async (req: Request, res: Response) => {
           const stateData = JSON.parse(Buffer.from(state, "base64").toString());
           if (stateData.pods && Array.isArray(stateData.pods)) {
             requestedPods = stateData.pods;
-            logger.debug("Extracted pods from OAuth state", {
-              pods: requestedPods,
-            });
           }
         }
-      } catch (e) {
+      } catch {
         // Invalid state format, ignore
-        logger.debug("Could not parse pods from state", { error: e });
       }
     }
 
@@ -79,7 +71,7 @@ router.get("/login", async (req: Request, res: Response) => {
       }
 
       const testUserId = req.headers["x-test-user"] as string;
-      logger.info("Test mode: auto-accepting login", { testUserId });
+      logger.info("Test mode: auto-accepting login");
 
       const { data: acceptResponse } =
         await hydraAdmin.acceptOAuth2LoginRequest({
@@ -115,7 +107,7 @@ router.get("/login", async (req: Request, res: Response) => {
     if (session?.user) {
       // User has session
       webpodsUser = session.user;
-      logger.info("User has existing session", { userId: webpodsUser.id });
+      logger.info("User has existing session");
     } else {
       // JWT tokens removed - using Hydra OAuth only
     }
@@ -136,10 +128,7 @@ router.get("/login", async (req: Request, res: Response) => {
           },
         });
 
-      logger.info("Login accepted", {
-        userId: webpodsUser.id,
-        redirectTo: acceptResponse.redirect_to,
-      });
+      logger.info("Login accepted");
 
       // Redirect back to Hydra
       res.redirect(acceptResponse.redirect_to!);

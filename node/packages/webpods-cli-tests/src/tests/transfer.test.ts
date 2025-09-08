@@ -13,9 +13,8 @@ import {
   testToken,
   testUser,
   testDb,
-  calculateContentHash,
-  calculateRecordHash,
 } from "../test-setup.js";
+import { createOwnerConfig } from "../utils/test-data-helpers.js";
 
 describe("CLI Transfer Command", function () {
   this.timeout(30000);
@@ -48,42 +47,11 @@ describe("CLI Transfer Command", function () {
       });
 
     // Create .config/owner stream for pod ownership
-    await testDb
-      .getDb()
-      .none(
-        "INSERT INTO stream (pod_name, name, user_id) VALUES ($(podName), $(streamName), $(userId))",
-        {
-          podName: testPodName,
-          streamName: "/.config/owner",
-          userId: testUser.userId,
-        },
-      );
-
-    // Add owner record
-    const ownerContent = JSON.stringify({ owner: testUser.userId });
-    const ownerContentHash = calculateContentHash(ownerContent);
-    const ownerTimestamp = new Date().toISOString();
-    const ownerHash = calculateRecordHash(
-      null,
-      ownerContentHash,
+    await createOwnerConfig(
+      testDb.getDb(),
+      testPodName,
       testUser.userId,
-      ownerTimestamp,
-    );
-
-    await testDb.getDb().none(
-      `INSERT INTO record (pod_name, stream_name, name, content, content_type, content_hash, hash, user_id, index, created_at) 
-       VALUES ($(podName), $(streamName), $(name), $(content), $(contentType), $(contentHash), $(hash), $(userId), 0, $(timestamp))`,
-      {
-        podName: testPodName,
-        streamName: "/.config/owner",
-        name: "owner",
-        content: ownerContent,
-        contentType: "application/json",
-        contentHash: ownerContentHash,
-        hash: ownerHash,
-        userId: testUser.userId,
-        timestamp: ownerTimestamp,
-      },
+      testUser.userId,
     );
 
     // Create new owner user
@@ -137,17 +105,25 @@ describe("CLI Transfer Command", function () {
       expect(result.stdout).to.include("run the command again with --force");
 
       // Verify ownership was NOT transferred
+      // First get the .config/owner stream
+      const ownerStream = await testDb.getDb().one<{ id: number }>(
+        `SELECT s2.id FROM stream s1
+         JOIN stream s2 ON s2.parent_id = s1.id
+         WHERE s1.pod_name = $(podName) AND s1.name = '.config' AND s1.parent_id IS NULL
+         AND s2.name = 'owner'`,
+        { podName: testPodName },
+      );
+
       const ownerRecord = await testDb.getDb().oneOrNone(
         `SELECT * FROM record 
-         WHERE pod_name = $(podName) 
-         AND stream_name = '/.config/owner' 
+         WHERE stream_id = $(streamId) 
          AND name = 'owner'
          ORDER BY index DESC
          LIMIT 1`,
-        { podName: testPodName },
+        { streamId: ownerStream.id },
       );
       const ownerContent = JSON.parse(ownerRecord.content);
-      expect(ownerContent.owner).to.equal(testUser.userId); // Still original owner
+      expect(ownerContent.userId).to.equal(testUser.userId); // Still original owner
     });
 
     it("should transfer ownership with --force flag", async () => {
@@ -242,11 +218,6 @@ describe("CLI Transfer Command", function () {
       );
 
       // Should be denied access to existing stream
-      console.log("EXISTING STREAM WRITE ATTEMPT:", {
-        exitCode: existingStreamResult.exitCode,
-        stdout: existingStreamResult.stdout,
-        stderr: existingStreamResult.stderr,
-      });
       expect(existingStreamResult.exitCode).to.not.equal(0);
 
       // Try to write to a non-existent stream with old owner's token

@@ -5,16 +5,11 @@
 import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
 import { createError } from "../../utils/errors.js";
-import { RecordDbRow } from "../../db-types.js";
+import { RecordDbRow, StreamDbRow } from "../../db-types.js";
 import { StreamRecord } from "../../types.js";
-import {
-  calculateContentHash,
-  calculateRecordHash,
-  isValidName,
-} from "../../utils.js";
+import { calculateContentHash, calculateRecordHash } from "../../utils.js";
 import { createLogger } from "../../logger.js";
-import { sql } from "../../db/index.js";
-import { normalizeStreamName } from "../../utils/stream-utils.js";
+import { isValidRecordName } from "../../utils/stream-utils.js";
 
 const logger = createLogger("webpods:domain:records");
 
@@ -23,13 +18,12 @@ const logger = createLogger("webpods:domain:records");
  */
 function mapRecordFromDb(row: RecordDbRow): StreamRecord {
   return {
-    id: row.id ? parseInt(row.id) : 0,
-    podName: row.pod_name,
-    streamName: row.stream_name,
+    id: row.id || 0,
+    streamId: row.stream_id,
     index: row.index,
     content: row.content,
     contentType: row.content_type,
-    name: row.name || "",
+    name: row.name,
     contentHash: row.content_hash,
     hash: row.hash,
     previousHash: row.previous_hash || null,
@@ -44,36 +38,49 @@ function mapRecordFromDb(row: RecordDbRow): StreamRecord {
 
 export async function writeRecord(
   ctx: DataContext,
-  podName: string,
-  streamId: string,
+  streamId: number,
   content: unknown,
   contentType: string,
   userId: string,
   name: string,
 ): Promise<Result<StreamRecord>> {
-  // Normalize stream name to ensure leading slash
-  const normalizedStreamId = normalizeStreamName(streamId);
-
-  // Validate name (required)
-  if (!isValidName(name)) {
+  // Validate record name (no slashes allowed)
+  if (!isValidRecordName(name)) {
     return failure(
       createError(
         "INVALID_NAME",
-        "Name can only contain letters, numbers, hyphens, underscores, and periods. Cannot start or end with a period.",
+        "Record names cannot contain slashes and must follow naming rules",
       ),
     );
   }
 
   try {
     return await ctx.db.tx(async (t) => {
-      // Get the previous record for hash chain (using normalized stream name)
+      // Check if a child stream with the same name exists
+      const existingChildStream = await t.oneOrNone<StreamDbRow>(
+        `SELECT * FROM stream 
+         WHERE parent_id = $(streamId) 
+           AND name = $(name)
+         LIMIT 1`,
+        { streamId, name },
+      );
+
+      if (existingChildStream) {
+        return failure(
+          createError(
+            "NAME_CONFLICT",
+            `A stream named '${name}' already exists as a child of this stream`,
+          ),
+        );
+      }
+
+      // Get the previous record for hash chain
       const previousRecord = await t.oneOrNone<RecordDbRow>(
         `SELECT * FROM record 
-         WHERE pod_name = $(pod_name)
-           AND stream_name = $(stream_name)
+         WHERE stream_id = $(streamId)
          ORDER BY index DESC
          LIMIT 1`,
-        { pod_name: podName, stream_name: normalizedStreamId },
+        { streamId },
       );
 
       const index = (previousRecord?.index ?? -1) + 1;
@@ -97,29 +104,27 @@ export async function writeRecord(
         storedContent = JSON.stringify(content);
       }
 
-      // Insert new record with snake_case parameters (using normalized stream name)
-      const params = {
-        pod_name: podName,
-        stream_name: normalizedStreamId,
-        index: index,
-        content: storedContent,
-        content_type: contentType,
-        name: name,
-        content_hash: contentHash,
-        hash: hash,
-        previous_hash: previousHash,
-        user_id: userId,
-        created_at: timestamp,
-      };
-
+      // Insert new record
       const record = await t.one<RecordDbRow>(
-        `${sql.insert("record", params)} RETURNING *`,
-        params,
+        `INSERT INTO record (stream_id, index, content, content_type, name, content_hash, hash, previous_hash, user_id, created_at)
+         VALUES ($(streamId), $(index), $(content), $(contentType), $(name), $(contentHash), $(hash), $(previousHash), $(userId), $(createdAt))
+         RETURNING *`,
+        {
+          streamId,
+          index,
+          content: storedContent,
+          contentType,
+          name,
+          contentHash,
+          hash,
+          previousHash,
+          userId,
+          createdAt: timestamp,
+        },
       );
 
       logger.info("Record written", {
-        podName,
-        streamId: normalizedStreamId,
+        streamId,
         index,
         name,
         hash,
@@ -127,14 +132,14 @@ export async function writeRecord(
       return success(mapRecordFromDb(record));
     });
   } catch (error: unknown) {
-    logger.error("Failed to write record", { error, podName, streamId });
-    // Check if it's a unique constraint violation (duplicate name)
-    if (
-      (error as { code?: string }).code === "23505" &&
-      (error as { constraint?: string }).constraint === "record_stream_name_key"
-    ) {
+    logger.error("Failed to write record", { error, streamId });
+    // Check if it's a unique constraint violation
+    if ((error as { code?: string }).code === "23505") {
       return failure(
-        createError("NAME_EXISTS", "Record with this name already exists"),
+        createError(
+          "NAME_EXISTS",
+          "Record with this name already exists in this stream",
+        ),
       );
     }
     return failure(

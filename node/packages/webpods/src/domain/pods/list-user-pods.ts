@@ -20,39 +20,61 @@ export async function listUserPods(
   userId: string,
 ): Promise<Result<UserPod[]>> {
   try {
-    // Get all pods where the user is the owner
-    // Since ownership is in .config/owner stream, we need to query records
-    const pods = await ctx.db.manyOrNone<
-      PodDbRow & { owner_content: string | null }
-    >(
-      `SELECT DISTINCT p.*, 
-              r.content as owner_content,
-              p.created_at,
-              p.metadata
-       FROM pod p
-       LEFT JOIN stream s ON s.pod_name = p.name AND s.name = '/.config/owner'
-       LEFT JOIN record r ON r.pod_name = p.name 
-                          AND r.stream_name = '/.config/owner' 
-                          AND r.name = 'owner'
-       WHERE r.content IS NOT NULL
-       ORDER BY p.created_at DESC`,
+    // Get all pods first
+    const pods = await ctx.db.manyOrNone<PodDbRow>(
+      `SELECT * FROM pod ORDER BY created_at DESC`,
     );
 
-    // Filter pods by owner
-    const userPods = pods
-      .filter((pod) => {
+    // Check ownership for each pod using separate queries
+    const userPods: UserPod[] = [];
+
+    for (const pod of pods) {
+      // Get .config stream
+      const configStream = await ctx.db.oneOrNone<{ id: string }>(
+        `SELECT id FROM stream 
+         WHERE pod_name = $(pod_name) 
+           AND name = '.config' 
+           AND parent_id IS NULL`,
+        { pod_name: pod.name },
+      );
+
+      if (!configStream) continue;
+
+      // Get owner stream (child of .config)
+      const ownerStream = await ctx.db.oneOrNone<{ id: string }>(
+        `SELECT id FROM stream 
+         WHERE parent_id = $(parent_id) 
+           AND name = 'owner'`,
+        { parent_id: configStream.id },
+      );
+
+      if (!ownerStream) continue;
+
+      // Get owner record
+      const ownerRecord = await ctx.db.oneOrNone<{ content: string }>(
+        `SELECT content FROM record 
+         WHERE stream_id = $(stream_id)
+           AND name = 'owner'
+         ORDER BY index DESC
+         LIMIT 1`,
+        { stream_id: ownerStream.id },
+      );
+
+      if (ownerRecord) {
         try {
-          const content = JSON.parse(pod.owner_content || "{}");
-          return content.owner === userId;
+          const content = JSON.parse(ownerRecord.content);
+          if (content.userId === userId) {
+            userPods.push({
+              name: pod.name,
+              created_at: pod.created_at,
+              metadata: pod.metadata || {},
+            });
+          }
         } catch {
-          return false;
+          // Invalid JSON, skip
         }
-      })
-      .map((pod) => ({
-        name: pod.name,
-        created_at: pod.created_at,
-        metadata: pod.metadata || {},
-      }));
+      }
+    }
 
     logger.info("Listed pods for user", {
       userId,

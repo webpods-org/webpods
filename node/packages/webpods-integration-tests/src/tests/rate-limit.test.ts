@@ -72,12 +72,22 @@ describe("WebPods Rate Limiting", () => {
     ];
 
     for (const streamName of streamsToCreate) {
-      await db.none(
-        `INSERT INTO stream (pod_name, name, user_id, access_permission, created_at)
-         VALUES ($(podName), $(streamName), $(userId), 'public', NOW())
-         ON CONFLICT (pod_name, name) DO NOTHING`,
-        { podName: testPodId, streamName, userId },
+      // Check if stream already exists at root level
+      const existing = await db.oneOrNone(
+        `SELECT id FROM stream 
+         WHERE pod_name = $(podName) 
+           AND name = $(streamName) 
+           AND parent_id IS NULL`,
+        { podName: testPodId, streamName },
       );
+
+      if (!existing) {
+        await db.none(
+          `INSERT INTO stream (pod_name, name, parent_id, user_id, access_permission, created_at)
+           VALUES ($(podName), $(streamName), NULL, $(userId), 'public', NOW())`,
+          { podName: testPodId, streamName, userId },
+        );
+      }
     }
 
     // Get OAuth token
@@ -170,25 +180,39 @@ describe("WebPods Rate Limiting", () => {
       expect(pod2).to.exist;
 
       // Verify ownership via .config/owner stream
-      const owner1Record = await db.oneOrNone(
-        `SELECT r.content FROM record r
-         WHERE r.pod_name = $(pod_name) AND r.stream_name = '/.config/owner'
-         ORDER BY r.index DESC LIMIT 1`,
+      // Get .config stream for pod1
+      const configStream1 = await db.oneOrNone(
+        `SELECT id FROM stream WHERE pod_name = $(pod_name) AND name = '.config' AND parent_id IS NULL`,
         { pod_name: pod1.name },
       );
-      const owner2Record = await db.oneOrNone(
-        `SELECT r.content FROM record r
-         WHERE r.pod_name = $(pod_name) AND r.stream_name = '/.config/owner'
-         ORDER BY r.index DESC LIMIT 1`,
+      const ownerStream1 = await db.oneOrNone(
+        `SELECT id FROM stream WHERE parent_id = $(parent_id) AND name = 'owner'`,
+        { parent_id: configStream1.id },
+      );
+      const owner1Record = await db.oneOrNone(
+        `SELECT content FROM record WHERE stream_id = $(stream_id) AND name = 'owner' ORDER BY index DESC LIMIT 1`,
+        { stream_id: ownerStream1.id },
+      );
+      // Get .config stream for pod2
+      const configStream2 = await db.oneOrNone(
+        `SELECT id FROM stream WHERE pod_name = $(pod_name) AND name = '.config' AND parent_id IS NULL`,
         { pod_name: pod2.name },
+      );
+      const ownerStream2 = await db.oneOrNone(
+        `SELECT id FROM stream WHERE parent_id = $(parent_id) AND name = 'owner'`,
+        { parent_id: configStream2.id },
+      );
+      const owner2Record = await db.oneOrNone(
+        `SELECT content FROM record WHERE stream_id = $(stream_id) AND name = 'owner' ORDER BY index DESC LIMIT 1`,
+        { stream_id: ownerStream2.id },
       );
 
       expect(owner1Record).to.exist;
-      expect(JSON.parse(owner1Record.content).owner).to.equal(
+      expect(JSON.parse(owner1Record.content).userId).to.equal(
         podTestUser.userId,
       );
       expect(owner2Record).to.exist;
-      expect(JSON.parse(owner2Record.content).owner).to.equal(
+      expect(JSON.parse(owner2Record.content).userId).to.equal(
         podTestUser.userId,
       );
 
@@ -491,9 +515,8 @@ describe("WebPods Rate Limiting", () => {
 
       // Pre-create streams for user2's pod
       await db.none(
-        `INSERT INTO stream (pod_name, name, user_id, access_permission, created_at)
-         VALUES ($(podName), $(streamName), $(userId), 'public', NOW())
-         ON CONFLICT (pod_name, name) DO NOTHING`,
+        `INSERT INTO stream (pod_name, name, parent_id, user_id, access_permission, created_at)
+         VALUES ($(podName), $(streamName), NULL, $(userId), 'public', NOW())`,
         {
           podName: user2PodId,
           streamName: "user2-allowed",
@@ -593,12 +616,11 @@ describe("WebPods Rate Limiting", () => {
 
       // Pre-create ONLY the can-write stream (stream-99, stream-100, stream-101 need to be created during test)
       await db.none(
-        `INSERT INTO stream (pod_name, name, user_id, access_permission, created_at)
-         VALUES ($(podName), $(streamName), $(userId), 'public', NOW())
-         ON CONFLICT (pod_name, name) DO NOTHING`,
+        `INSERT INTO stream (pod_name, name, parent_id, user_id, access_permission, created_at)
+         VALUES ($(podName), $(streamName), NULL, $(userId), 'public', NOW())`,
         {
           podName: uniquePodId,
-          streamName: "/can-write",
+          streamName: "can-write",
           userId: uniqueUser.userId,
         },
       );

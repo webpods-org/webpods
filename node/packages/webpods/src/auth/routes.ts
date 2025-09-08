@@ -364,10 +364,7 @@ router.get("/authorize", async (req: Request, res: Response) => {
           : `${pod}.${publicConfig.hostname}:${publicConfig.port}`;
       const callbackUrl = `${publicConfig.protocol}://${podHost}/auth/callback?token=${encodeURIComponent(podToken)}&redirect=${encodeURIComponent(redirect)}`;
 
-      logger.info("SSO authorization successful", {
-        pod,
-        userId: reqWithSession.session.user.id,
-      });
+      logger.info("SSO authorization successful");
       res.redirect(callbackUrl);
     } catch (error) {
       logger.error("Failed to generate pod token", {
@@ -460,7 +457,7 @@ router.get("/:provider", async (req: Request, res: Response) => {
     // Get authorization URL
     const authUrl = await getAuthorizationUrl(provider, state, codeChallenge);
 
-    logger.info("OAuth flow initiated", { provider, state });
+    logger.info("OAuth flow initiated", { provider });
     res.redirect(authUrl);
   } catch (error) {
     logger.error("Failed to initiate OAuth", {
@@ -584,7 +581,7 @@ router.get("/:provider/callback", async (req: Request, res: Response) => {
           logger.error("Failed to save session", { error: err });
           reject(err);
         } else {
-          logger.info("Session saved", { userId: userResult.data.user.id });
+          logger.info("Session saved");
           resolve();
         }
       });
@@ -657,13 +654,7 @@ router.get("/:provider/callback", async (req: Request, res: Response) => {
         domain: cookieDomain,
       });
 
-      logger.info("User authenticated", {
-        userId: userResult.data.user.id,
-        provider,
-        redirect: stateData.redirect,
-        tokenGenerated: true,
-        sessionCreated: true,
-      });
+      logger.info("User authenticated successfully");
 
       // Redirect to success page with WebPods JWT
       const redirectUrl = stateData.redirect || "/";

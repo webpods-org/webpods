@@ -4,9 +4,6 @@
 
 import { Request, Response, NextFunction } from "express";
 import { verifyWebPodsToken } from "../auth/jwt-generator.js";
-import { createLogger } from "../logger.js";
-
-const logger = createLogger("webpods:middleware:jwt");
 
 // Extend Express Request to include user
 declare module "express-serve-static-core" {
@@ -29,10 +26,6 @@ export function requireWebPodsJWT(
   const authHeader = req.headers.authorization;
 
   if (!authHeader) {
-    logger.debug("No authorization header", {
-      path: req.path,
-      method: req.method,
-    });
     res.status(401).json({
       error: {
         code: "MISSING_TOKEN",
@@ -44,9 +37,6 @@ export function requireWebPodsJWT(
 
   const match = authHeader.match(/^Bearer (.+)$/);
   if (!match) {
-    logger.debug("Invalid authorization header format", {
-      path: req.path,
-    });
     res.status(401).json({
       error: {
         code: "INVALID_HEADER",
@@ -60,10 +50,6 @@ export function requireWebPodsJWT(
   const result = verifyWebPodsToken(token || "");
 
   if (!result.success) {
-    logger.debug("Token verification failed", {
-      error: result.error,
-      path: req.path,
-    });
     res.status(401).json({
       error: result.error,
     });
@@ -75,11 +61,6 @@ export function requireWebPodsJWT(
     id: result.data.sub,
     type: "webpods",
   };
-
-  logger.debug("WebPods JWT authenticated", {
-    userId: req.user.id,
-    path: req.path,
-  });
 
   next();
 }
@@ -113,10 +94,6 @@ export function optionalWebPodsJWT(
       id: result.data.sub,
       type: "webpods",
     };
-    logger.debug("Optional WebPods JWT found and validated", {
-      userId: req.user.id,
-      path: req.path,
-    });
   }
 
   next();

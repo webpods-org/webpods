@@ -25,7 +25,7 @@ export async function transfer(argv: Arguments) {
     // POST to /.config/owner endpoint
     const response = await client.post(
       `/.config/owner`,
-      JSON.stringify({ owner: newOwner }),
+      JSON.stringify({ userId: newOwner }),
       {
         headers: {
           "Content-Type": "application/json",

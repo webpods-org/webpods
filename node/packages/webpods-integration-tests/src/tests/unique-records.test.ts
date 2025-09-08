@@ -94,13 +94,10 @@ describe("Unique Records Listing", () => {
 
     it("should exclude deleted records when unique=true", async () => {
       // Create stream first
-      await podClient.put(
-        "/unique-test?access=public",
-        { name: "docs" },
-        {
-          headers: { Authorization: `Bearer ${authToken}` },
-        },
-      );
+      // Create stream with POST and empty body
+      await podClient.post("/docs", "", {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
 
       // Create records
       await podClient.post("/docs/page-1", "Page 1 content", {
@@ -137,13 +134,10 @@ describe("Unique Records Listing", () => {
 
     it("should handle purged records correctly", async () => {
       // Create stream first
-      await podClient.put(
-        "/unique-test?access=public",
-        { name: "items" },
-        {
-          headers: { Authorization: `Bearer ${authToken}` },
-        },
-      );
+      // Create stream with POST and empty body
+      await podClient.post("/items", "", {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
 
       // Create records
       await podClient.post("/items/item-1", "Item 1", {
@@ -171,13 +165,10 @@ describe("Unique Records Listing", () => {
 
     it("should work with pagination", async () => {
       // Create stream first
-      await podClient.put(
-        "/unique-test?access=public",
-        { name: "pages" },
-        {
-          headers: { Authorization: `Bearer ${authToken}` },
-        },
-      );
+      // Create stream with POST and empty body
+      await podClient.post("/pages", "", {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
 
       // Create many unique records
       for (let i = 1; i <= 10; i++) {
@@ -204,13 +195,10 @@ describe("Unique Records Listing", () => {
 
     it("should return correct results for unique filter", async () => {
       // Create stream first
-      await podClient.put(
-        "/unique-test?access=public",
-        { name: "data" },
-        {
-          headers: { Authorization: `Bearer ${authToken}` },
-        },
-      );
+      // Create stream with POST and empty body
+      await podClient.post("/data", "", {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
 
       // Create some named records
       await podClient.post("/data/item1", "Record 1", {
@@ -235,13 +223,10 @@ describe("Unique Records Listing", () => {
 
     it("should support negative 'after' parameter with unique=true", async () => {
       // Create stream first
-      await podClient.put(
-        "/unique-test?access=public",
-        { name: "negtest" },
-        {
-          headers: { Authorization: `Bearer ${authToken}` },
-        },
-      );
+      // Create stream with POST and empty body
+      await podClient.post("/negtest", "", {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
 
       // Create multiple named records
       await podClient.post("/negtest/item1", "First item", {
@@ -272,13 +257,10 @@ describe("Unique Records Listing", () => {
 
     it("should handle updates after deletion correctly", async () => {
       // Create stream first
-      await podClient.put(
-        "/unique-test?access=public",
-        { name: "content" },
-        {
-          headers: { Authorization: `Bearer ${authToken}` },
-        },
-      );
+      // Create stream with POST and empty body
+      await podClient.post("/content", "", {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
 
       // Create, delete, then recreate a record
       await podClient.post("/content/article", "Version 1", {

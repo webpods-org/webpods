@@ -152,3 +152,6 @@ test-results.txt
 .tests/
 test-pod-*-backup-*.json
 *-backup-*.json
+
+# Analysis working directory
+.analysis/

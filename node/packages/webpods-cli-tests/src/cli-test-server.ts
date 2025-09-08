@@ -20,6 +20,7 @@ export class CliTestServer {
 
   public async start(): Promise<void> {
     const serverPath = path.join(__dirname, "../../webpods/dist/index.js");
+    // When compiled, this file is in dist/, so we need to go up one level
     const configPath = path.join(__dirname, "../test-config.json");
 
     const env: any = {
@@ -36,7 +37,7 @@ export class CliTestServer {
       JWT_SECRET: "test-secret-key",
       SESSION_SECRET: "test-session-secret",
       PORT: String(this.port),
-      LOG_LEVEL: process.env.LOG_LEVEL || "info", // Need info level to see startup message
+      LOG_LEVEL: "info", // Need info level to see startup message
       DOMAIN: "localhost",
     };
 
@@ -50,10 +51,6 @@ export class CliTestServer {
 
       const checkStartup = (data: Buffer) => {
         const message = data.toString();
-        // Debug logging to see what we're getting
-        if (process.env.DEBUG_CLI_TEST) {
-          console.log("[CLI Test Server Output]:", message.trim());
-        }
         // Check for startup message (can appear with log prefix like [INFO] [webpods])
         if (
           !started &&

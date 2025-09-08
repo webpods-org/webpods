@@ -490,7 +490,7 @@ Returns all streams in the pod:
 Pod ownership tracking. Write to transfer ownership:
 
 ```json
-{ "owner": "new-user-id" }
+{ "userId": "new-user-id" }
 ```
 
 ### .config/routing
@@ -528,7 +528,7 @@ To grant access to other users, write permission records to any stream (there ar
 
 ```json
 {
-  "id": "user-id",
+  "userId": "user-id",
   "read": true,
   "write": false
 }

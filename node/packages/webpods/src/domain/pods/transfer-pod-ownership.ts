@@ -30,12 +30,25 @@ export async function transferPodOwnership(
         return failure(createError("USER_NOT_FOUND", "User not found"));
       }
 
-      // Get the .config/owner stream
-      const ownerStream = await t.oneOrNone<StreamDbRow>(
+      // Get .config stream
+      const configStream = await t.oneOrNone<StreamDbRow>(
         `SELECT * FROM stream
          WHERE pod_name = $(pod_name)
-           AND name = '/.config/owner'`,
+           AND name = '.config'
+           AND parent_id IS NULL`,
         { pod_name: podName },
+      );
+
+      if (!configStream) {
+        return failure(new Error("Config stream not found"));
+      }
+
+      // Get owner stream (child of .config)
+      const ownerStream = await t.oneOrNone<StreamDbRow>(
+        `SELECT * FROM stream
+         WHERE parent_id = $(parent_id)
+           AND name = 'owner'`,
+        { parent_id: configStream.id },
       );
 
       if (!ownerStream) {
@@ -45,12 +58,11 @@ export async function transferPodOwnership(
       // Verify current owner
       const currentOwnerRecord = await t.oneOrNone<RecordDbRow>(
         `SELECT * FROM record
-         WHERE pod_name = $(pod_name)
-           AND stream_name = '/.config/owner'
+         WHERE stream_id = $(stream_id)
            AND name = 'owner'
          ORDER BY index DESC
          LIMIT 1`,
-        { pod_name: podName },
+        { stream_id: ownerStream.id },
       );
 
       if (!currentOwnerRecord) {
@@ -59,7 +71,7 @@ export async function transferPodOwnership(
 
       try {
         const content = JSON.parse(currentOwnerRecord.content);
-        if (content.owner !== fromUserId) {
+        if (content.userId !== fromUserId) {
           return failure(
             createError(
               "FORBIDDEN",
@@ -74,11 +86,10 @@ export async function transferPodOwnership(
       // Get the previous record for hash chain
       const previousRecord = await t.oneOrNone<RecordDbRow>(
         `SELECT * FROM record
-         WHERE pod_name = $(pod_name)
-           AND stream_name = '/.config/owner'
+         WHERE stream_id = $(stream_id)
          ORDER BY index DESC
          LIMIT 1`,
-        { pod_name: podName },
+        { stream_id: ownerStream.id },
       );
 
       const index = (previousRecord?.index ?? -1) + 1;
@@ -86,7 +97,7 @@ export async function transferPodOwnership(
       const timestamp = new Date().toISOString();
 
       // Create new owner record
-      const newOwnerContent = { owner: toUserId };
+      const newOwnerContent = { userId: toUserId };
       const contentHash = calculateContentHash(newOwnerContent);
       const hash = calculateRecordHash(
         previousHash,
@@ -97,8 +108,7 @@ export async function transferPodOwnership(
 
       // Insert new owner record with snake_case parameters
       const params = {
-        pod_name: podName,
-        stream_name: "/.config/owner",
+        stream_id: ownerStream.id,
         index: index,
         content: JSON.stringify(newOwnerContent),
         content_type: "application/json",

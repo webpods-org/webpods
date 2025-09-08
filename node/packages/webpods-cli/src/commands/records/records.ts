@@ -398,18 +398,18 @@ export async function list(options: {
         response.records.forEach((record, index) => {
           if (index > 0) output.print("---");
           output.print(`index: ${record.index}`);
-          output.print(`name: ${record.name}`);
-          output.print(`content_type: ${record.content_type}`);
-          output.print(`hash: ${record.hash}`);
-          output.print(`timestamp: ${record.timestamp}`);
-          output.print(`userId: ${record.userId}`);
+          output.print(`name: ${record.name || ""}`);
+          output.print(`content_type: ${record.content_type || "text/plain"}`);
+          output.print(`hash: ${record.hash || ""}`);
+          output.print(`timestamp: ${record.timestamp || ""}`);
+          output.print(`userId: ${record.userId || ""}`);
         });
         break;
       case "csv":
         output.print("index,name,content_type,hash,timestamp,userId");
         response.records.forEach((record) => {
           output.print(
-            `${record.index},"${record.name}","${record.content_type}","${record.hash}","${record.timestamp}","${record.userId}"`,
+            `${record.index},"${record.name || ""}","${record.content_type || "text/plain"}","${record.hash || ""}","${record.timestamp || ""}","${record.userId || ""}"`,
           );
         });
         break;
@@ -424,7 +424,7 @@ export async function list(options: {
               : JSON.stringify(record.content).slice(0, 30) + "...";
 
           output.print(
-            `[${record.index.toString().padStart(3)}] ${record.name.padEnd(20)} ${record.content_type.padEnd(15)} ${contentPreview}`,
+            `[${record.index.toString().padStart(3)}] ${(record.name || "").padEnd(20)} ${(record.content_type || "text/plain").padEnd(15)} ${contentPreview}`,
           );
         });
         output.print("─".repeat(60));

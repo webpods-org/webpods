@@ -20,7 +20,7 @@ import oauthRouter from "./oauth/routes.js";
 import connectRouter from "./oauth/connect.js";
 import oauthClientsApi from "./api/oauth-clients.js";
 import podsApi from "./api/pods.js";
-import podsRouter from "./routes/pods.js";
+import podsRouter from "./routes/pods/index.js";
 
 const logger = createLogger("webpods");
 
@@ -49,25 +49,6 @@ export function createApp(): Express {
   // Session management for SSO (works on all domains but only used for auth)
   const sessionMiddleware = session(getSessionConfig());
   app.use(sessionMiddleware);
-
-  // Request logging
-  app.use((req, res, next) => {
-    const start = Date.now();
-    res.on("finish", () => {
-      const duration = Date.now() - start;
-      logger.info("Request completed", {
-        method: req.method,
-        url: req.url,
-        originalUrl: req.originalUrl,
-        path: req.path,
-        hostname: req.hostname,
-        status: res.statusCode,
-        duration,
-        ip: req.ip,
-      });
-    });
-    next();
-  });
 
   // Health check endpoint (main domain only)
   app.get("/health", async (req, res) => {
