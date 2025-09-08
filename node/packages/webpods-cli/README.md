@@ -287,7 +287,7 @@ pod record list my-blog posts
 pod create team-notes
 
 # Create permission stream
-pod write team-notes permissions/editors '{"id": "user123", "read": true, "write": true}'
+pod write team-notes permissions/editors '{"userId": "user123", "read": true, "write": true}'
 
 # Set stream to use permissions
 pod permissions team-notes notes set --mode /permissions/editors

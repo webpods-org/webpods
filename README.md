@@ -7,8 +7,8 @@ HTTP-based append-only logs using subdomains (pods) and paths (streams).
 WebPods organizes data into:
 
 - **Pods**: Subdomains that act as namespaces (e.g., `alice.webpods.org`)
-- **Streams**: Append-only logs within pods (e.g., `/blog`, `/data/2024`)
-- **Records**: Immutable entries with SHA-256 hash chains
+- **Streams**: Hierarchical append-only logs within pods (e.g., `/blog`, `/blog/posts`, `/blog/posts/2024`)
+- **Records**: Immutable entries within streams, with SHA-256 hash chains
 
 > **Important**: Throughout this documentation, `webpods.org` is used as an example domain. When you deploy WebPods, replace it with your actual server domain (e.g., `data.mycompany.com`, `pods.example.net`, or `localhost:3000` for local development). Each WebPods deployment is completely independent.
 
@@ -18,6 +18,8 @@ WebPods organizes data into:
 - [Authentication](#authentication)
   - [Token Types Explained](#token-types-explained)
 - [Pod Management](#pod-management)
+- [Understanding Streams and Records](#understanding-streams-and-records)
+  - [Hierarchical Structure](#hierarchical-structure)
 - [Working with Records](#working-with-records)
 - [Stream Operations](#stream-operations)
 - [Permissions](#permissions)
@@ -270,20 +272,33 @@ curl -X DELETE https://my-awesome-pod.webpods.org/ \
   -H "Authorization: Bearer $WEBPODS_TOKEN"
 ```
 
+## Understanding Streams and Records
+
+### Hierarchical Structure
+
+WebPods uses a hierarchical structure similar to a filesystem:
+- **Streams** are like directories that can contain records and child streams
+- **Records** are like files within streams
+- When you write to a path, the last segment becomes the record name, and all preceding segments form the stream hierarchy
+
+For example, writing to `/blog/posts/2024/my-first-post`:
+- Creates streams: `/blog`, `/blog/posts`, `/blog/posts/2024`
+- Creates record: `my-first-post` in the `/blog/posts/2024` stream
+
 ## Working with Records
 
-Records are immutable entries in streams. The last path segment is the record name.
+Records are immutable entries within streams. The last path segment is the record name.
 
-**Note**: Streams are created automatically when you write the first record, or can be created explicitly (see [Stream Operations](#stream-operations)).
+**Note**: Parent streams are created automatically when you write the first record, or can be created explicitly (see [Stream Operations](#stream-operations)).
 
 ### Create a Stream
 
-Streams are created automatically when you write the first record, or can be created explicitly.
+Streams form a hierarchy like directories. They are created automatically when you write the first record, or can be created explicitly.
 
 #### CLI
 
 ```bash
-# Create a public stream (default)
+# Create a public stream (creates /blog and /blog/posts if needed)
 pod stream create my-pod /blog/posts
 
 # Create a private stream
@@ -296,7 +311,7 @@ pod stream create my-pod /team-docs --access /team-permissions
 #### HTTP
 
 ```bash
-# Create a public stream explicitly
+# Create a public stream explicitly (creates parent streams if needed)
 curl -X POST https://my-pod.webpods.org/blog/posts \
   -H "Authorization: Bearer $WEBPODS_TOKEN"
 
@@ -552,7 +567,7 @@ curl https://my-pod.webpods.org/config?unique=true&limit=50&after=100
 
 ### Create a Stream
 
-Streams are created automatically when you write the first record, or can be created explicitly. Streams support nested paths using forward slashes.
+Streams form a hierarchy like directories and are created automatically when you write the first record, or can be created explicitly. When you create `/blog/posts/2024`, the system automatically creates parent streams `/blog` and `/blog/posts` if they don't exist.
 
 #### CLI
 
@@ -603,13 +618,26 @@ curl -X POST https://my-pod.webpods.org/members?access=/team-permissions \
 #### CLI
 
 ```bash
+# List all streams in a pod
 pod stream list my-pod
+
+# List streams at a specific path
+pod stream list my-pod --path /blog
 ```
 
 #### HTTP
 
 ```bash
+# List all streams
 curl https://my-pod.webpods.org/.config/api/streams \
+  -H "Authorization: Bearer $WEBPODS_TOKEN"
+
+# List streams at a specific path
+curl https://my-pod.webpods.org/.config/api/streams?path=/blog \
+  -H "Authorization: Bearer $WEBPODS_TOKEN"
+
+# List streams recursively with metadata
+curl "https://my-pod.webpods.org/.config/api/streams?path=/blog&recursive=true&includeRecordCounts=true" \
   -H "Authorization: Bearer $WEBPODS_TOKEN"
 ```
 
@@ -706,13 +734,13 @@ pod permissions my-pod /team-permissions
 curl -X POST https://my-pod.webpods.org/team-permissions/user-123 \
   -H "Authorization: Bearer $WEBPODS_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"id": "user-123", "read": true, "write": false}'
+  -d '{"userId": "user-123", "read": true, "write": false}'
 
 # Revoke access
 curl -X POST https://my-pod.webpods.org/team-permissions/user-789 \
   -H "Authorization: Bearer $WEBPODS_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"id": "user-789", "read": false, "write": false}'
+  -d '{"userId": "user-789", "read": false, "write": false}'
 ```
 
 ## Links and Custom Routing
@@ -1107,7 +1135,7 @@ pod transfer my-pod new-user-id --force
 curl -X POST https://my-pod.webpods.org/.config/owner \
   -H "Authorization: Bearer $WEBPODS_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"owner": "new-user-id"}'
+  -d '{"userId": "new-user-id"}'
 ```
 
 #### .config/api/streams
