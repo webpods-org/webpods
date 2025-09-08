@@ -63,7 +63,7 @@ export const deleteHandler = async (
   if (!resolutionResult.success) {
     res.status(404).json({
       error: {
-        code: (resolutionResult.error as any).code || "NOT_FOUND",
+        code: "code" in resolutionResult.error ? resolutionResult.error.code : "NOT_FOUND",
         message: resolutionResult.error.message,
       },
     });

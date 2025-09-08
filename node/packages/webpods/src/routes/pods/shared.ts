@@ -7,7 +7,12 @@ import type {
   Response,
   NextFunction,
 } from "express";
-import type { AuthRequest, StreamRecord } from "../../types.js";
+import type { AuthRequest as BaseAuthRequest, StreamRecord } from "../../types.js";
+
+// Extend AuthRequest with routing properties
+export interface AuthRequest extends BaseAuthRequest {
+  needsReroute?: boolean;
+}
 import type { CodedError } from "../../utils/errors.js";
 import { z } from "zod";
 import {
@@ -84,7 +89,6 @@ export type {
   ExpressRequest,
   Response,
   NextFunction,
-  AuthRequest,
   StreamRecord,
   CodedError,
 };

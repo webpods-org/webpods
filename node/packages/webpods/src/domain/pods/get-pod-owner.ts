@@ -6,6 +6,7 @@ import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
 import { RecordDbRow } from "../../db-types.js";
 import { createLogger } from "../../logger.js";
+import { createError } from "../../utils/errors.js";
 
 const logger = createLogger("webpods:domain:pods");
 
@@ -63,9 +64,6 @@ export async function getPodOwner(
     }
   } catch (error: unknown) {
     logger.error("Failed to get pod owner", { error, podName });
-    return failure({
-      code: "GET_OWNER_ERROR",
-      message: "Failed to get pod owner",
-    } as any);
+    return failure(createError("GET_OWNER_ERROR", "Failed to get pod owner"));
   }
 }

@@ -66,8 +66,8 @@ router.get(rootRoute.path, ...rootRoute.middleware, async (req, res, next) => {
   await rootRoute.handler(req, res, next);
 
   // Check if we need to re-route based on .config/routing
-  if ((req as any).needsReroute) {
-    delete (req as any).needsReroute;
+  if ("needsReroute" in req && req.needsReroute) {
+    delete req.needsReroute;
     // Re-run the router with the rewritten URL
     return router(req, res, next);
   }

@@ -87,7 +87,7 @@ export const rootHandler = async (
 
     // Instead of calling router directly, we'll need to handle this in index.ts
     // For now, mark that we need to re-route
-    (req as any).needsReroute = true;
+    req.needsReroute = true;
     return next();
   }
 

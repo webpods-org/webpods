@@ -63,7 +63,7 @@ export async function getStreamByPath(
              AND name = $(name)
              AND parent_id IS NULL`;
 
-      const params: any = parentId
+      const params: { podName: string; name: string; parentId?: number } = parentId
         ? { podName, name: segment, parentId }
         : { podName, name: segment };
 

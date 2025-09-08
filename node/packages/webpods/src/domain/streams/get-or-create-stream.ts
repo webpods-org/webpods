@@ -6,6 +6,7 @@ import { DataContext } from "../data-context.js";
 import { Result, success } from "../../utils/result.js";
 import { Stream } from "../../types.js";
 import { createLogger } from "../../logger.js";
+import { createError } from "../../utils/errors.js";
 import { getStreamByPath } from "./get-stream-by-path.js";
 import { createStreamHierarchy } from "./create-stream-hierarchy.js";
 import { updateStreamPermissions } from "./update-stream-permissions.js";
@@ -93,7 +94,7 @@ export async function getOrCreateStream(
     );
 
     if (!createResult.success) {
-      return createResult as any;
+      return createResult;
     }
 
     logger.info("Stream hierarchy created", {
@@ -114,7 +115,7 @@ export async function getOrCreateStream(
     });
     return {
       success: false,
-      error: new Error("Failed to get or create stream"),
-    } as any;
+      error: createError("UNKNOWN_ERROR", "Failed to get or create stream"),
+    };
   }
 }
