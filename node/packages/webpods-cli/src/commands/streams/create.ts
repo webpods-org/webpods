@@ -40,15 +40,19 @@ export async function createStream(options: {
     }
 
     // Validate access permission if provided
-    const validPermissions = ["public", "private"];
-    if (options.access && !validPermissions.includes(options.access)) {
+    const accessPermission = options.access || "public";
+    
+    // Check if it's a standard permission or a stream path
+    const standardPermissions = ["public", "private"];
+    const isStandardPermission = standardPermissions.includes(accessPermission);
+    
+    // If not a standard permission, it should be a stream path
+    if (!isStandardPermission && !accessPermission.startsWith("/") && !accessPermission.startsWith(".")) {
       output.error(
-        `Invalid access permission. Must be one of: ${validPermissions.join(", ")}`,
+        `Invalid access permission. Must be 'public', 'private', or a path to a permission stream (e.g., '/permissions/allowed-users')`,
       );
       process.exit(1);
     }
-
-    const accessPermission = options.access || "public";
 
     // Create stream using POST with empty body
     // Add access permission as query parameter if not public

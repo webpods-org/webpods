@@ -474,8 +474,37 @@ describe("CLI Record Commands", function () {
       expect(stream.access_permission).to.equal("private");
     });
 
-    it.skip("should create a permission stream", async () => {
-      // Permission streams are not supported via CLI - only public and private
+    it("should create a permission stream", async () => {
+      // First create a permission stream that will hold the allowed users
+      await createTestStream(testDb.getDb(), {
+        podName: testPodName,
+        streamPath: "permissions/editors",
+        userId: testUser.userId,
+        accessPermission: "private",
+      });
+
+      // Now create a stream with permission pointing to the permission stream
+      const result = await cli.exec(
+        ["stream", "create", testPodName, "perm-stream", "--access", "/permissions/editors"],
+        {
+          token: testToken,
+        },
+      );
+
+      expect(result.exitCode).to.equal(0);
+
+      // Verify in database
+      const stream = await testDb
+        .getDb()
+        .oneOrNone(
+          "SELECT * FROM stream WHERE pod_name = $(podName) AND name = $(name) AND parent_id IS NULL",
+          {
+            podName: testPodName,
+            name: "perm-stream",
+          },
+        );
+      expect(stream).to.not.be.null;
+      expect(stream.access_permission).to.equal("/permissions/editors");
     });
 
     it("should require authentication", async () => {

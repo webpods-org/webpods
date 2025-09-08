@@ -527,9 +527,8 @@ export async function main() {
                 })
                 .option("access", {
                   type: "string",
-                  describe: "Access permission (public or private)",
+                  describe: "Access permission (public, private, or path to permission stream)",
                   default: "public",
-                  choices: ["public", "private"],
                 })
                 .option("token", {
                   type: "string",
