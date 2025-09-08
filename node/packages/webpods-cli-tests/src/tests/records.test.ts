@@ -376,8 +376,7 @@ describe("CLI Record Commands", function () {
   });
 
   describe("streams command", () => {
-    it.skip("should list all streams in a pod", async () => {
-      // TODO: Fix API endpoint /.config/api/streams to work with hierarchical streams
+    it("should list all streams in a pod", async () => {
       // Create multiple test streams using helpers
       await createTestStream(testDb.getDb(), {
         podName: testPodName,
@@ -400,18 +399,26 @@ describe("CLI Record Commands", function () {
         accessPermission: "public",
       });
 
-      const result = await cli.exec(["streams", testPodName], {
+      // Use --quiet=false explicitly to ensure output
+      const result = await cli.exec(["streams", testPodName, "--quiet=false"], {
         token: testToken,
       });
 
       console.log("Streams stdout:", result.stdout);
       console.log("Streams stderr:", result.stderr);
       console.log("Streams exitCode:", result.exitCode);
+
+      // Check the output exists first
       expect(result.exitCode).to.equal(0);
-      expect(result.stdout).to.include("stream1");
-      expect(result.stdout).to.include("stream2");
-      expect(result.stdout).to.include("nested/stream3");
-      expect(result.stdout).to.include(".config/owner");
+      expect(result.stdout).to.not.be.empty;
+
+      // Now check for specific streams
+      expect(result.stdout).to.include("/stream1");
+      expect(result.stdout).to.include("/stream2");
+      expect(result.stdout).to.include("/nested");
+      expect(result.stdout).to.include("/nested/stream3");
+      expect(result.stdout).to.include("/.config");
+      expect(result.stdout).to.include("/.config/owner");
     });
   });
 
@@ -485,7 +492,14 @@ describe("CLI Record Commands", function () {
 
       // Now create a stream with permission pointing to the permission stream
       const result = await cli.exec(
-        ["stream", "create", testPodName, "perm-stream", "--access", "/permissions/editors"],
+        [
+          "stream",
+          "create",
+          testPodName,
+          "perm-stream",
+          "--access",
+          "/permissions/editors",
+        ],
         {
           token: testToken,
         },

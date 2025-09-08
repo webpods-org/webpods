@@ -30,7 +30,20 @@ export async function streams(options: {
     }
 
     const result = await podRequest<{
-      streams: Array<{ name: string; [key: string]: unknown }>;
+      pod: string;
+      streams: Array<{
+        path: string;
+        name: string;
+        parentPath: string | null;
+        depth: number;
+        hasChildren: boolean;
+        childCount: number;
+        userId: string;
+        accessPermission: string;
+        createdAt: string;
+        updatedAt: string;
+        [key: string]: unknown;
+      }>;
     }>(options.pod, "/.config/api/streams", {
       token: options.token,
       server: options.server,
@@ -46,13 +59,11 @@ export async function streams(options: {
     }
 
     const streamList = result.data.streams || [];
-    // Extract stream names from Stream objects, removing leading slash
-    const streamNames = streamList.map((s) =>
-      typeof s === "string" ? s : s.name.replace(/^\//, ""),
-    );
-    logger.debug("Retrieved streams", { count: streamNames.length });
+    // Extract stream paths from the API response
+    const streamPaths = streamList.map((s) => s.path);
+    logger.debug("Retrieved streams", { count: streamPaths.length });
 
-    if (streamNames.length === 0) {
+    if (streamPaths.length === 0) {
       output.print(`No streams found in pod '${options.pod}'.`);
       return;
     }
@@ -62,34 +73,35 @@ export async function streams(options: {
 
     switch (format) {
       case "json":
-        output.print(JSON.stringify(streamNames, null, 2));
+        // For JSON format, we can show the full stream info
+        output.print(JSON.stringify(streamList, null, 2));
         break;
       case "yaml":
-        streamNames.forEach((stream) => {
+        streamPaths.forEach((stream) => {
           output.print(`- ${stream}`);
         });
         break;
       case "csv":
         output.print("stream");
-        streamNames.forEach((stream) => {
+        streamPaths.forEach((stream) => {
           output.print(`"${stream}"`);
         });
         break;
       default: // table
         output.print(`Streams in pod '${options.pod}':`);
         output.print("─".repeat(30));
-        streamNames.forEach((stream) => {
+        streamPaths.forEach((stream) => {
           output.print(`${stream}`);
         });
         output.print("─".repeat(30));
         output.print(
-          `Total: ${streamNames.length} stream${streamNames.length === 1 ? "" : "s"}`,
+          `Total: ${streamPaths.length} stream${streamPaths.length === 1 ? "" : "s"}`,
         );
     }
 
     logger.info("Streams listed successfully", {
       pod: options.pod,
-      count: streamNames.length,
+      count: streamPaths.length,
       format,
     });
   } catch (error: unknown) {

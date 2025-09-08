@@ -425,7 +425,7 @@ describe("WebPods Stream Operations", () => {
       expect(response.data.pod).to.equal(testPodId);
       expect(response.data.streams).to.be.an("array");
 
-      expect(response.data.streams.map((s: any) => s.name)).to.include.members([
+      expect(response.data.streams.map((s: any) => s.path)).to.include.members([
         "/stream1",
         "/stream2",
         "/nested/stream3",

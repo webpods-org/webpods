@@ -171,7 +171,7 @@ describe("CLI Recursive Records", function () {
         { podName: testPodName },
       );
 
-      let previousHash: string | null = null;
+      const previousHash: string | null = null;
       for (let i = 2; i <= 5; i++) {
         const content = JSON.stringify({ data: `api root ${i}` });
         await createTestRecord(db, {

@@ -82,7 +82,7 @@ export class CliTestHelper {
       const env = {
         ...process.env,
         HOME: this.configDir, // Use test config directory
-        CLI_SILENT: "true", // Disable CLI logging during tests
+        // Don't set CLI_SILENT here - let tests control it via options.env if needed
         ...options.env,
       };
 

@@ -41,13 +41,17 @@ export async function createStream(options: {
 
     // Validate access permission if provided
     const accessPermission = options.access || "public";
-    
+
     // Check if it's a standard permission or a stream path
     const standardPermissions = ["public", "private"];
     const isStandardPermission = standardPermissions.includes(accessPermission);
-    
+
     // If not a standard permission, it should be a stream path
-    if (!isStandardPermission && !accessPermission.startsWith("/") && !accessPermission.startsWith(".")) {
+    if (
+      !isStandardPermission &&
+      !accessPermission.startsWith("/") &&
+      !accessPermission.startsWith(".")
+    ) {
       output.error(
         `Invalid access permission. Must be 'public', 'private', or a path to a permission stream (e.g., '/permissions/allowed-users')`,
       );

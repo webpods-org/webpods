@@ -297,11 +297,11 @@ describe("Stream Name Normalization", function () {
       const response = await client.get("/.config/api/streams");
       expect(response.status).to.equal(200);
 
-      const streamNames = response.data.streams.map((s: any) => s.name);
-      expect(streamNames).to.include("/list-test-1");
-      expect(streamNames).to.include("/list-test-2");
-      expect(streamNames).to.include("/nested/list-test-3");
-      expect(streamNames).to.include("/.config/owner");
+      const streamPaths = response.data.streams.map((s: any) => s.path);
+      expect(streamPaths).to.include("/list-test-1");
+      expect(streamPaths).to.include("/list-test-2");
+      expect(streamPaths).to.include("/nested/list-test-3");
+      expect(streamPaths).to.include("/.config/owner");
     });
   });
 

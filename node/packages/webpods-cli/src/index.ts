@@ -50,7 +50,6 @@ import {
 import { verify } from "./commands/verify/index.js";
 import { transfer } from "./commands/transfer/index.js";
 import { limits } from "./commands/limits/index.js";
-import { exportPod } from "./commands/backup/index.js";
 
 export * as config from "./config/index.js";
 export * as http from "./http/index.js";
@@ -477,6 +476,35 @@ export async function main() {
       },
     )
 
+    // Convenience alias for listing streams
+    .command(
+      "streams <pod>",
+      "List all streams in a pod",
+      (yargs) =>
+        yargs
+          .positional("pod", {
+            describe: "Pod name",
+            demandOption: true,
+            type: "string",
+          })
+          .option("token", {
+            type: "string",
+            describe: "Use specific token for this command",
+          })
+          .option("server", {
+            type: "string",
+            describe: "WebPods server URL",
+          })
+          .option("format", {
+            type: "string",
+            choices: ["json", "yaml", "table", "csv"] as const,
+            describe: "Output format",
+          }),
+      async (argv) => {
+        await streams(argv);
+      },
+    )
+
     // Stream Management
     .command(
       "stream",
@@ -527,7 +555,8 @@ export async function main() {
                 })
                 .option("access", {
                   type: "string",
-                  describe: "Access permission (public, private, or path to permission stream)",
+                  describe:
+                    "Access permission (public, private, or path to permission stream)",
                   default: "public",
                 })
                 .option("token", {
@@ -981,40 +1010,6 @@ export async function main() {
           }),
       async (argv) => {
         await limits(argv);
-      },
-    )
-
-    // Export Command
-    .command(
-      "export <pod>",
-      "Export pod data",
-      (yargs) =>
-        yargs
-          .positional("pod", {
-            describe: "Pod name to export",
-            demandOption: true,
-            type: "string",
-          })
-          .option("output", {
-            alias: "o",
-            type: "string",
-            describe: "Output file path",
-          })
-          .option("metadata", {
-            type: "boolean",
-            describe: "Include metadata streams",
-            default: true,
-          })
-          .option("token", {
-            type: "string",
-            describe: "Use specific token for this command",
-          })
-          .option("server", {
-            type: "string",
-            describe: "WebPods server URL",
-          }),
-      async (argv) => {
-        await exportPod(argv);
       },
     )
 
