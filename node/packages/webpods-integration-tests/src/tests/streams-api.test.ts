@@ -106,21 +106,6 @@ describe("Streams API", () => {
 
   describe("GET /.config/api/streams", () => {
     it("should list all streams by default", async () => {
-      // First, let's debug what streams actually exist in the database
-      const db = testDb.getDb();
-      const dbStreams = await db.manyOrNone(
-        `SELECT name, parent_id, id FROM stream WHERE pod_name = $(podName) ORDER BY name`,
-        { podName },
-      );
-      console.log(
-        "DB streams:",
-        dbStreams.map((s: any) => ({
-          name: s.name,
-          parent: s.parent_id,
-          id: s.id,
-        })),
-      );
-
       const response = await client.get("/.config/api/streams", {
         headers: {
           Authorization: `Bearer ${authToken}`,
@@ -136,8 +121,6 @@ describe("Streams API", () => {
 
       // Should include all streams including .config ones
       const paths = data.streams.map((s: any) => s.path);
-      console.log("API returned paths:", paths);
-      console.log("Stream details:", data.streams.slice(0, 3));
       expect(paths).to.include("/.config");
       expect(paths).to.include("/.config/owner");
       // .config/settings may not exist if not created explicitly
