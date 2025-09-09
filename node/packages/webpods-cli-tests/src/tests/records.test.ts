@@ -294,9 +294,6 @@ describe("CLI Record Commands", function () {
         },
       );
 
-      console.log("List stdout:", result.stdout);
-      console.log("List stderr:", result.stderr);
-      console.log("List exitCode:", result.exitCode);
       expect(result.exitCode).to.equal(0);
       const lines = result.stdout.trim().split("\n");
       expect(lines).to.have.length.greaterThan(0);
@@ -363,10 +360,6 @@ describe("CLI Record Commands", function () {
       expect(result.exitCode).to.equal(0);
       // Parse JSON output to check unique filter
       const output = JSON.parse(result.stdout);
-      console.log(
-        "Unique records:",
-        output.records.map((r: any) => ({ name: r.name, index: r.index })),
-      );
       // Should only show named records (3 records have names) - empty names are excluded
       expect(output.records).to.have.length(3);
       expect(output.records[0].name).to.equal("record0");
@@ -403,10 +396,6 @@ describe("CLI Record Commands", function () {
       const result = await cli.exec(["streams", testPodName, "--quiet=false"], {
         token: testToken,
       });
-
-      console.log("Streams stdout:", result.stdout);
-      console.log("Streams stderr:", result.stderr);
-      console.log("Streams exitCode:", result.exitCode);
 
       // Check the output exists first
       expect(result.exitCode).to.equal(0);

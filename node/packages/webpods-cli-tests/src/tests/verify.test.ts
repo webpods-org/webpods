@@ -153,9 +153,6 @@ describe("CLI Verify Command", function () {
         },
       );
 
-      console.log("Verify stdout:", result.stdout);
-      console.log("Verify stderr:", result.stderr);
-      console.log("Verify exitCode:", result.exitCode);
       expect(result.exitCode).to.equal(0);
       expect(result.stdout).to.include(
         "Verifying integrity of stream '/test-stream'",
