@@ -20,6 +20,7 @@ function mapStreamFromDb(row: StreamDbRow): Stream {
     id: row.id,
     podName: row.pod_name,
     name: row.name,
+    path: row.path,
     parentId: row.parent_id || null,
     userId: row.user_id,
     accessPermission: row.access_permission,

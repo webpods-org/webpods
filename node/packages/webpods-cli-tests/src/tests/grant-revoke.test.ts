@@ -10,6 +10,7 @@ import {
   resetCliTestDb,
   testToken,
   testDb,
+  testUser,
 } from "../test-setup.js";
 import { randomUUID } from "crypto";
 
@@ -44,11 +45,13 @@ describe("CLI Grant/Revoke Commands", function () {
 
     // Create the permissions stream (required for grant/revoke to work)
     await testDb.getDb().none(
-      `INSERT INTO stream (pod_name, name, access_permission, created_at) 
-         VALUES ($(podName), $(streamName), 'public', NOW())`,
+      `INSERT INTO stream (pod_name, name, path, parent_id, user_id, access_permission, created_at) 
+         VALUES ($(podName), $(streamName), $(path), NULL, $(userId), 'public', NOW())`,
       {
         podName: testPodName,
-        streamName: "/team-permissions",
+        streamName: "team-permissions",
+        path: "team-permissions",
+        userId: testUser.userId,
       },
     );
 

@@ -277,11 +277,13 @@ curl -X DELETE https://my-awesome-pod.webpods.org/ \
 ### Hierarchical Structure
 
 WebPods uses a hierarchical structure similar to a filesystem:
+
 - **Streams** are like directories that can contain records and child streams
 - **Records** are like files within streams
 - When you write to a path, the last segment becomes the record name, and all preceding segments form the stream hierarchy
 
 For example, writing to `/blog/posts/2024/my-first-post`:
+
 - Creates streams: `/blog`, `/blog/posts`, `/blog/posts/2024`
 - Creates record: `my-first-post` in the `/blog/posts/2024` stream
 

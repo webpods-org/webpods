@@ -20,6 +20,7 @@ export function mapStreamFromDb(row: StreamDbRow): Stream {
     id: row.id,
     podName: row.pod_name,
     name: row.name,
+    path: row.path,
     parentId: row.parent_id || null,
     userId: row.user_id,
     accessPermission: row.access_permission,
@@ -134,14 +135,34 @@ export async function createStream(
       }
     }
 
-    // Create new stream
+    // Compute the full path
+    let fullPath: string;
+    if (parentId) {
+      // Get parent path to build full path
+      const parentStream = await ctx.db.oneOrNone<StreamDbRow>(
+        `SELECT path FROM stream WHERE id = $(parentId)`,
+        { parentId },
+      );
+      if (!parentStream) {
+        return failure(
+          createError("PARENT_NOT_FOUND", "Parent stream not found"),
+        );
+      }
+      fullPath = `${parentStream.path}/${streamName}`;
+    } else {
+      // Root-level stream
+      fullPath = streamName;
+    }
+
+    // Create new stream with path
     const stream = await ctx.db.one<StreamDbRow>(
-      `INSERT INTO stream (pod_name, name, parent_id, user_id, access_permission)
-       VALUES ($(podName), $(name), $(parentId), $(userId), $(accessPermission))
+      `INSERT INTO stream (pod_name, name, path, parent_id, user_id, access_permission)
+       VALUES ($(podName), $(name), $(path), $(parentId), $(userId), $(accessPermission))
        RETURNING *`,
       {
         podName,
         name: streamName,
+        path: fullPath,
         parentId,
         userId,
         accessPermission,

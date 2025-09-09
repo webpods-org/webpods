@@ -14,6 +14,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with th
 
 **ONLY make changes AFTER the user explicitly approves.** When you identify issues or potential improvements, explain them clearly and wait for the user's decision. Do NOT assume what the user wants or make "helpful" changes without permission.
 
+## CRITICAL: NEVER USE MULTIEDIT
+
+**NEVER use the MultiEdit tool.** It has caused issues in multiple projects. Always use individual Edit operations instead, even if it means more edits. This ensures better control and prevents unintended changes.
+
 ## IMPORTANT: First Steps When Starting a Session
 
 When you begin working on this project, you MUST:

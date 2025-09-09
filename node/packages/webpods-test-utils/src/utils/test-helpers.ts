@@ -78,16 +78,16 @@ export async function createTestPod(
 
   // Create .config stream first (parent)
   const configStream = await db.one(
-    `INSERT INTO stream (pod_name, name, parent_id, user_id, access_permission, created_at, updated_at)
-     VALUES ($(podName), '.config', NULL, $(ownerId), 'private', NOW(), NOW())
+    `INSERT INTO stream (pod_name, name, path, parent_id, user_id, access_permission, created_at, updated_at)
+     VALUES ($(podName), '.config', '.config', NULL, $(ownerId), 'private', NOW(), NOW())
      RETURNING id`,
     { podName, ownerId },
   );
 
   // Create owner stream under .config
   const ownerStream = await db.one(
-    `INSERT INTO stream (pod_name, name, parent_id, user_id, access_permission, created_at, updated_at)
-     VALUES ($(podName), 'owner', $(parentId), $(ownerId), 'private', NOW(), NOW())
+    `INSERT INTO stream (pod_name, name, path, parent_id, user_id, access_permission, created_at, updated_at)
+     VALUES ($(podName), 'owner', '.config/owner', $(parentId), $(ownerId), 'private', NOW(), NOW())
      RETURNING id`,
     { podName, parentId: configStream.id, ownerId },
   );
@@ -110,8 +110,8 @@ export async function createTestPod(
     "sha256:" + crypto.createHash("sha256").update(hashData).digest("hex");
 
   await db.none(
-    `INSERT INTO record (stream_id, index, content, content_type, name, content_hash, hash, previous_hash, user_id, created_at)
-     VALUES ($(streamId), 0, $(content), 'application/json', 'owner', $(contentHash), $(hash), NULL, $(ownerId), $(timestamp))`,
+    `INSERT INTO record (stream_id, index, content, content_type, name, path, content_hash, hash, previous_hash, user_id, created_at)
+     VALUES ($(streamId), 0, $(content), 'application/json', 'owner', '.config/owner/owner', $(contentHash), $(hash), NULL, $(ownerId), $(timestamp))`,
     {
       streamId: ownerStream.id,
       content,

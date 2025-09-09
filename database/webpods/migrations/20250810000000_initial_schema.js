@@ -48,6 +48,7 @@ export async function up(knex) {
     table.bigIncrements('id').primary();
     table.string('pod_name', 63).references('name').inTable('pod').onDelete('CASCADE');
     table.string('name', 256).notNullable(); // Stream name (no slashes allowed)
+    table.string('path', 2048).notNullable(); // Full path for O(1) lookups
     table.bigint('parent_id').references('id').inTable('stream').onDelete('CASCADE'); // Parent stream
     table.uuid('user_id').references('id').inTable('user').onDelete('RESTRICT');
     table.string('access_permission', 500).defaultTo('public');
@@ -57,8 +58,12 @@ export async function up(knex) {
     
     // Can't have two streams with same name in same parent within a pod
     table.unique(['pod_name', 'parent_id', 'name']);
+    // Unique path within a pod for direct lookups
+    table.unique(['pod_name', 'path']);
     // Index for efficient child lookups
     table.index(['pod_name', 'parent_id']);
+    // Index for fast path-based lookups
+    table.index(['pod_name', 'path']);
     table.index('user_id');
   });
 
@@ -70,6 +75,7 @@ export async function up(knex) {
     table.text('content'); // Can be text or JSON
     table.string('content_type', 100).defaultTo('text/plain');
     table.string('name', 256).notNullable(); // Required name (no slashes - like a filename)
+    table.string('path', 2048).notNullable(); // Full path including record name for O(1) lookups
     table.string('content_hash', 100).notNullable(); // SHA-256 hash of content only
     table.string('hash', 100).notNullable(); // SHA-256 hash of (previous_hash + content_hash)
     table.string('previous_hash', 100); // NULL for first record
@@ -79,6 +85,7 @@ export async function up(knex) {
     table.unique(['stream_id', 'index']);
     table.index(['stream_id', 'index']);
     table.index(['stream_id', 'name']);
+    table.index(['stream_id', 'path']); // Index for fast path-based record lookups
     table.index('user_id');
     table.index('hash');
   });

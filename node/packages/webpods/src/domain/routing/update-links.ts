@@ -43,6 +43,7 @@ export async function updateLinks(
         const configParams = {
           pod_name: podName,
           name: ".config",
+          path: ".config",
           parent_id: null,
           user_id: userId,
           access_permission: "private",
@@ -68,6 +69,7 @@ export async function updateLinks(
         const routingParams = {
           pod_name: podName,
           name: "routing",
+          path: ".config/routing",
           parent_id: configStream.id,
           user_id: userId,
           access_permission: "private",
@@ -109,6 +111,7 @@ export async function updateLinks(
         content: JSON.stringify(links),
         content_type: "application/json",
         name: "routes",
+        path: ".config/routing/routes",
         content_hash: contentHash,
         hash: hash,
         previous_hash: previousHash,
