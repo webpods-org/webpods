@@ -24,6 +24,7 @@ function mapRecordFromDb(row: RecordDbRow): StreamRecord {
     content: row.content,
     contentType: row.content_type,
     name: row.name,
+    path: row.path,
     contentHash: row.content_hash,
     hash: row.hash,
     previousHash: row.previous_hash || null,
@@ -98,16 +99,24 @@ export async function writeRecord(
         timestamp,
       );
 
+      // Get stream path to compute record path
+      const stream = await t.one<StreamDbRow>(
+        `SELECT path FROM stream WHERE id = $(streamId)`,
+        { streamId },
+      );
+
+      const recordPath = `${stream.path}/${name}`;
+
       // Prepare content for storage
       let storedContent = content;
       if (typeof content === "object" && contentType === "application/json") {
         storedContent = JSON.stringify(content);
       }
 
-      // Insert new record
+      // Insert new record with path
       const record = await t.one<RecordDbRow>(
-        `INSERT INTO record (stream_id, index, content, content_type, name, content_hash, hash, previous_hash, user_id, created_at)
-         VALUES ($(streamId), $(index), $(content), $(contentType), $(name), $(contentHash), $(hash), $(previousHash), $(userId), $(createdAt))
+        `INSERT INTO record (stream_id, index, content, content_type, name, path, content_hash, hash, previous_hash, user_id, created_at)
+         VALUES ($(streamId), $(index), $(content), $(contentType), $(name), $(path), $(contentHash), $(hash), $(previousHash), $(userId), $(createdAt))
          RETURNING *`,
         {
           streamId,
@@ -115,6 +124,7 @@ export async function writeRecord(
           content: storedContent,
           contentType,
           name,
+          path: recordPath,
           contentHash,
           hash,
           previousHash,

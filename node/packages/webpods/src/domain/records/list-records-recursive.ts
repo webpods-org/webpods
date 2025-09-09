@@ -23,6 +23,7 @@ function mapRecordFromDb(row: RecordDbRow): StreamRecord {
     content: row.content,
     contentType: row.content_type,
     name: row.name,
+    path: row.path,
     contentHash: row.content_hash,
     hash: row.hash,
     previousHash: row.previous_hash || null,

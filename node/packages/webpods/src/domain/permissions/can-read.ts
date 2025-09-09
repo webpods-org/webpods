@@ -149,6 +149,7 @@ export async function canRead(
       id: parentStream.id,
       podName: parentStream.pod_name,
       name: parentStream.name,
+      path: parentStream.path,
       parentId: parentStream.parent_id || null,
       userId: parentStream.user_id,
       accessPermission: parentStream.access_permission,

@@ -113,6 +113,7 @@ export async function transferPodOwnership(
         content: JSON.stringify(newOwnerContent),
         content_type: "application/json",
         name: "owner",
+        path: `${ownerStream.path}/owner`,
         content_hash: contentHash,
         hash: hash,
         previous_hash: previousHash,

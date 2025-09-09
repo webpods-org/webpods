@@ -44,7 +44,11 @@ export async function createTestStream(
   let currentStreamId: number | null = null;
 
   // Create each level of the hierarchy
+  let currentPath = "";
   for (const segment of segments) {
+    // Build the path for this level
+    currentPath = currentPath ? `${currentPath}/${segment}` : segment;
+
     // Check if this stream already exists at this level
     const existing: { id: number } | null = await db.oneOrNone(
       `SELECT id FROM stream 
@@ -61,14 +65,15 @@ export async function createTestStream(
     if (existing) {
       currentStreamId = existing.id;
     } else {
-      // Create the stream
+      // Create the stream with path
       const result: { id: number } = await db.one(
-        `INSERT INTO stream (pod_name, name, parent_id, user_id, access_permission, created_at)
-         VALUES ($(podName), $(name), $(parentId), $(userId), $(accessPermission), $(timestamp))
+        `INSERT INTO stream (pod_name, name, path, parent_id, user_id, access_permission, created_at)
+         VALUES ($(podName), $(name), $(path), $(parentId), $(userId), $(accessPermission), $(timestamp))
          RETURNING id`,
         {
           podName,
           name: segment,
+          path: currentPath,
           parentId,
           userId,
           accessPermission,
@@ -107,6 +112,14 @@ export async function createTestRecord(
     .update(content)
     .digest("hex")}`;
 
+  // Get stream path to compute record path
+  const stream: { path: string } = await db.one(
+    `SELECT path FROM stream WHERE id = $(streamId)`,
+    { streamId },
+  );
+
+  const recordPath = name ? `${stream.path}/${name}` : stream.path;
+
   // Calculate record hash (simplified for testing)
   const hashInput = [
     previousHash || "",
@@ -119,11 +132,12 @@ export async function createTestRecord(
   const hash = `sha256:${createHash("sha256").update(hashInput).digest("hex")}`;
 
   await db.none(
-    `INSERT INTO record (stream_id, name, content, content_type, content_hash, hash, previous_hash, user_id, index, created_at)
-     VALUES ($(streamId), $(name), $(content), $(contentType), $(contentHash), $(hash), $(previousHash), $(userId), $(index), $(timestamp))`,
+    `INSERT INTO record (stream_id, name, path, content, content_type, content_hash, hash, previous_hash, user_id, index, created_at)
+     VALUES ($(streamId), $(name), $(path), $(content), $(contentType), $(contentHash), $(hash), $(previousHash), $(userId), $(index), $(timestamp))`,
     {
       streamId,
       name,
+      path: recordPath,
       content,
       contentType,
       contentHash,

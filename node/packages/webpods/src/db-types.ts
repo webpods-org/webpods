@@ -39,6 +39,7 @@ export type StreamDbRow = {
   id: number; // bigint serial primary key
   pod_name: string; // References pod.name
   name: string; // Stream name (no slashes - like directory name)
+  path: string; // Full path for O(1) lookups
   parent_id?: number | null; // References parent stream.id (bigint)
   user_id: string;
   access_permission: string;
@@ -55,6 +56,7 @@ export type RecordDbRow = {
   content: string;
   content_type: string;
   name: string; // Required name (no slashes - like filename)
+  path: string; // Full path including record name for O(1) lookups
   content_hash: string; // SHA-256 hash of content only
   hash: string; // SHA-256 hash of (previous_hash + content_hash)
   previous_hash?: string | null;

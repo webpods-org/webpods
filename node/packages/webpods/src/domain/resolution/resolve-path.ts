@@ -6,7 +6,6 @@
 import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
 import { createError } from "../../utils/errors.js";
-import { getStreamByPath } from "../streams/get-stream-by-path.js";
 import { createLogger } from "../../logger.js";
 import { StreamDbRow } from "../../db-types.js";
 
@@ -40,78 +39,81 @@ export async function resolvePath(
   hasIndexQuery: boolean = false,
 ): Promise<Result<PathResolution>> {
   try {
-    const pathParts = path.split("/").filter(Boolean);
+    // Normalize path (remove leading slash if present)
+    const normalizedPath = path.startsWith("/") ? path.substring(1) : path;
 
-    if (pathParts.length === 0) {
+    if (!normalizedPath) {
       return failure(createError("INVALID_PATH", "Empty path"));
     }
 
-    logger.debug("Resolving path", { podName, path, pathParts, hasIndexQuery });
+    logger.debug("Resolving path", {
+      podName,
+      path: normalizedPath,
+      hasIndexQuery,
+    });
 
     // If using index query, entire path must be a stream
     if (hasIndexQuery) {
-      const streamResult = await getStreamByPath(ctx, podName, path);
+      // Direct lookup using path column - O(1)
+      const stream = await ctx.db.oneOrNone<StreamDbRow>(
+        `SELECT * FROM stream WHERE pod_name = $(podName) AND path = $(path)`,
+        { podName, path: normalizedPath },
+      );
 
-      if (!streamResult.success) {
+      if (!stream) {
         return failure(
           createError("STREAM_NOT_FOUND", `Stream not found: ${path}`),
         );
       }
 
       return success({
-        streamId: streamResult.data.id,
-        streamPath: path,
+        streamId: stream.id,
+        streamPath: normalizedPath,
         isStream: true,
       });
     }
 
-    // For single-segment paths, it's always a stream
-    if (pathParts.length === 1) {
-      const streamResult = await getStreamByPath(ctx, podName, path);
+    // Try full path as stream first - O(1) lookup
+    const stream = await ctx.db.oneOrNone<StreamDbRow>(
+      `SELECT * FROM stream WHERE pod_name = $(podName) AND path = $(path)`,
+      { podName, path: normalizedPath },
+    );
 
-      if (!streamResult.success) {
-        return failure(
-          createError("STREAM_NOT_FOUND", `Stream not found: ${path}`),
-        );
-      }
-
-      return success({
-        streamId: streamResult.data.id,
-        streamPath: path,
-        isStream: true,
-      });
-    }
-
-    // For multi-segment paths, try full path as stream first
-    const fullStreamResult = await getStreamByPath(ctx, podName, path);
-
-    if (fullStreamResult.success) {
+    if (stream) {
       // Full path is a stream
       return success({
-        streamId: fullStreamResult.data.id,
-        streamPath: path,
+        streamId: stream.id,
+        streamPath: normalizedPath,
         isStream: true,
       });
     }
 
-    // Full path is not a stream, try as stream + record
-    const recordName = pathParts.pop();
-    const streamPath = pathParts.join("/");
+    // Not a stream, try as record - O(1) lookup
+    const record = await ctx.db.oneOrNone<{
+      stream_id: number;
+      name: string;
+      stream_path: string;
+    }>(
+      `SELECT r.stream_id, r.name, s.path as stream_path
+       FROM record r
+       JOIN stream s ON r.stream_id = s.id
+       WHERE s.pod_name = $(podName) AND r.path = $(path)
+       LIMIT 1`,
+      { podName, path: normalizedPath },
+    );
 
-    const streamResult = await getStreamByPath(ctx, podName, streamPath);
-
-    if (!streamResult.success) {
-      // Neither interpretation works
-      return failure(createError("NOT_FOUND", `Path not found: ${path}`));
+    if (record) {
+      // Found as record
+      return success({
+        streamId: record.stream_id,
+        streamPath: record.stream_path,
+        recordName: record.name,
+        isStream: false,
+      });
     }
 
-    // Found as stream + record
-    return success({
-      streamId: streamResult.data.id,
-      streamPath,
-      recordName,
-      isStream: false,
-    });
+    // Neither stream nor record found
+    return failure(createError("NOT_FOUND", `Path not found: ${path}`));
   } catch (error: unknown) {
     logger.error("Failed to resolve path", { error, podName, path });
     return failure(createError("RESOLUTION_ERROR", "Failed to resolve path"));
@@ -133,13 +135,15 @@ export async function resolvePathForWrite(
   path: string,
 ): Promise<Result<PathResolution & { recordName: string }>> {
   try {
-    const pathParts = path.split("/").filter(Boolean);
+    // Normalize path
+    const normalizedPath = path.startsWith("/") ? path.substring(1) : path;
+    const pathParts = normalizedPath.split("/").filter(Boolean);
 
     if (pathParts.length === 0) {
       return failure(createError("INVALID_PATH", "Empty path"));
     }
 
-    logger.debug("Resolving path for write", { podName, path, pathParts });
+    logger.debug("Resolving path for write", { podName, path: normalizedPath });
 
     // Last part is always the record name for writes
     const recordName = pathParts.pop()!;
@@ -151,9 +155,8 @@ export async function resolvePathForWrite(
       const rootStream = await ctx.db.oneOrNone<StreamDbRow>(
         `SELECT * FROM stream 
          WHERE pod_name = $(podName) 
-           AND name = $(name) 
-           AND parent_id IS NULL`,
-        { podName, name: "/" },
+           AND path = $(path)`,
+        { podName, path: "/" },
       );
 
       if (!rootStream) {
@@ -171,18 +174,21 @@ export async function resolvePathForWrite(
       });
     }
 
-    const streamResult = await getStreamByPath(ctx, podName, streamPath);
+    // Direct lookup for stream - O(1)
+    const stream = await ctx.db.oneOrNone<StreamDbRow>(
+      `SELECT * FROM stream WHERE pod_name = $(podName) AND path = $(path)`,
+      { podName, path: streamPath },
+    );
 
-    if (!streamResult.success) {
+    if (!stream) {
       // Stream doesn't exist - this is okay for writes as we might create it
-      // Return a special result indicating stream needs creation
       return failure(
         createError("STREAM_NOT_FOUND", `Stream not found: ${streamPath}`),
       );
     }
 
     return success({
-      streamId: streamResult.data.id,
+      streamId: stream.id,
       streamPath,
       recordName,
       isStream: false,

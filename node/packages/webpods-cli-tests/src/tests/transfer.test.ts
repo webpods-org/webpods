@@ -256,11 +256,12 @@ describe("CLI Transfer Command", function () {
 
       // Create a stream with new owner's user_id (should succeed)
       await testDb.getDb().none(
-        `INSERT INTO stream (pod_name, name, user_id, access_permission, created_at) 
-         VALUES ($(podName), $(streamName), $(userId), 'public', NOW())`,
+        `INSERT INTO stream (pod_name, name, path, parent_id, user_id, access_permission, created_at) 
+         VALUES ($(podName), $(streamName), $(path), NULL, $(userId), 'public', NOW())`,
         {
           podName: testPodName,
-          streamName: "/new-owner-stream",
+          streamName: "new-owner-stream",
+          path: "new-owner-stream",
           userId: newOwnerId,
         },
       );

@@ -83,8 +83,8 @@ describe("WebPods Rate Limiting", () => {
 
       if (!existing) {
         await db.none(
-          `INSERT INTO stream (pod_name, name, parent_id, user_id, access_permission, created_at)
-           VALUES ($(podName), $(streamName), NULL, $(userId), 'public', NOW())`,
+          `INSERT INTO stream (pod_name, name, path, parent_id, user_id, access_permission, created_at)
+           VALUES ($(podName), $(streamName), $(streamName), NULL, $(userId), 'public', NOW())`,
           { podName: testPodId, streamName, userId },
         );
       }
@@ -515,8 +515,8 @@ describe("WebPods Rate Limiting", () => {
 
       // Pre-create streams for user2's pod
       await db.none(
-        `INSERT INTO stream (pod_name, name, parent_id, user_id, access_permission, created_at)
-         VALUES ($(podName), $(streamName), NULL, $(userId), 'public', NOW())`,
+        `INSERT INTO stream (pod_name, name, path, parent_id, user_id, access_permission, created_at)
+         VALUES ($(podName), $(streamName), $(streamName), NULL, $(userId), 'public', NOW())`,
         {
           podName: user2PodId,
           streamName: "user2-allowed",
@@ -616,8 +616,8 @@ describe("WebPods Rate Limiting", () => {
 
       // Pre-create ONLY the can-write stream (stream-99, stream-100, stream-101 need to be created during test)
       await db.none(
-        `INSERT INTO stream (pod_name, name, parent_id, user_id, access_permission, created_at)
-         VALUES ($(podName), $(streamName), NULL, $(userId), 'public', NOW())`,
+        `INSERT INTO stream (pod_name, name, path, parent_id, user_id, access_permission, created_at)
+         VALUES ($(podName), $(streamName), $(streamName), NULL, $(userId), 'public', NOW())`,
         {
           podName: uniquePodId,
           streamName: "can-write",

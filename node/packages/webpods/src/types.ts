@@ -52,6 +52,7 @@ export interface Stream {
   id: number; // bigint primary key
   podName: string; // References pod.name
   name: string; // Stream name (no slashes - like directory name)
+  path: string; // Full path for O(1) lookups
   parentId: number | null; // References parent stream.id
   userId: string;
   accessPermission: string; // 'public', 'private', or '/streamname'
@@ -67,6 +68,7 @@ export interface StreamRecord {
   content: string | unknown; // Can be text or JSON
   contentType: string;
   name: string; // Required name (no slashes - like filename)
+  path: string; // Full path including record name for O(1) lookups
   contentHash: string; // SHA-256 hash of content only
   hash: string; // SHA-256 hash of (previous_hash + content_hash)
   previousHash: string | null;

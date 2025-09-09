@@ -72,6 +72,7 @@ export async function createPod(
       const configParams = {
         pod_name: pod.name,
         name: ".config",
+        path: ".config",
         parent_id: null,
         user_id: userId,
         access_permission: "private",
@@ -87,6 +88,7 @@ export async function createPod(
       const ownerParams = {
         pod_name: pod.name,
         name: "owner",
+        path: ".config/owner",
         parent_id: configStream.id,
         user_id: userId,
         access_permission: "private",
@@ -110,6 +112,7 @@ export async function createPod(
         content: JSON.stringify(ownerContent),
         content_type: "application/json",
         name: "owner",
+        path: ".config/owner/owner",
         content_hash: contentHash,
         hash: hash,
         previous_hash: null,
