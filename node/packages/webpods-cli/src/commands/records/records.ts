@@ -1,5 +1,5 @@
 /**
- * Record operations (read, write, list)
+ * Record operations (read, write, list, delete)
  */
 
 import { promises as fs } from "fs";
@@ -449,6 +449,114 @@ export async function list(options: {
     logger.error("List command failed", {
       pod: options.pod,
       stream: options.stream,
+      error: errorMessage,
+    });
+    output.error("Error: " + errorMessage);
+    process.exit(1);
+  }
+}
+
+/**
+ * Delete (soft delete) a record by writing a tombstone
+ */
+export async function deleteRecord(options: {
+  quiet?: boolean;
+  pod?: string;
+  stream?: string;
+  name?: string;
+  hard?: boolean;
+  token?: string;
+  server?: string;
+  profile?: string;
+  [key: string]: unknown;
+}): Promise<void> {
+  const output = createCliOutput(options.quiet);
+
+  try {
+    logger.debug("Deleting record", {
+      pod: options.pod,
+      stream: options.stream,
+      name: options.name,
+      hard: options.hard,
+    });
+
+    if (!options.pod || !options.stream || !options.name) {
+      output.error("Pod, stream, and name are required for deleting records.");
+      process.exit(1);
+    }
+
+    if (options.hard) {
+      // Hard delete (purge) - use DELETE method
+      const path = `/${options.stream}/${options.name}`;
+      const result = await podRequest(options.pod, path, {
+        method: "DELETE",
+        token: options.token,
+        server: options.server,
+        profile: options.profile,
+      });
+
+      logger.debug("Delete response", {
+        success: result.success,
+        error: result.success ? null : result.error,
+      });
+
+      if (result.success) {
+        output.success(
+          `Record '${options.name}' permanently deleted from ${options.pod}/${options.stream}`,
+        );
+      } else {
+        const errorMessage =
+          result.error.message ||
+          result.error.code ||
+          "Failed to delete record";
+        throw new Error(errorMessage);
+      }
+    } else {
+      // Soft delete - write tombstone record
+      const tombstoneContent = JSON.stringify({ deleted: true });
+      const path = `/${options.stream}/${options.name}`;
+
+      const result = await podRequest(options.pod, path, {
+        method: "POST",
+        body: tombstoneContent,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        token: options.token,
+        server: options.server,
+        profile: options.profile,
+      });
+
+      logger.debug("Delete (tombstone) response", {
+        success: result.success,
+        error: result.success ? null : result.error,
+      });
+
+      if (result.success) {
+        output.success(
+          `Record '${options.name}' marked as deleted in ${options.pod}/${options.stream}`,
+        );
+      } else {
+        const errorMessage =
+          result.error.message ||
+          result.error.code ||
+          "Failed to delete record";
+        throw new Error(errorMessage);
+      }
+    }
+
+    logger.info("Record deleted successfully", {
+      pod: options.pod,
+      stream: options.stream,
+      name: options.name,
+      hard: options.hard,
+    });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error("Delete command failed", {
+      pod: options.pod,
+      stream: options.stream,
+      name: options.name,
       error: errorMessage,
     });
     output.error("Error: " + errorMessage);

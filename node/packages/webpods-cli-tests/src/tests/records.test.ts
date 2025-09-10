@@ -69,6 +69,7 @@ describe("CLI Record Commands", function () {
 
       const result = await cli.exec(
         [
+          "record",
           "write",
           testPodName,
           "test-stream",
@@ -116,6 +117,7 @@ describe("CLI Record Commands", function () {
 
       const result = await cli.exec(
         [
+          "record",
           "write",
           testPodName,
           "test-stream",
@@ -149,6 +151,7 @@ describe("CLI Record Commands", function () {
       // Write with permission flag - this updates the stream permission to public
       const result = await cli.exec(
         [
+          "record",
           "write",
           testPodName,
           "test-stream",
@@ -208,7 +211,7 @@ describe("CLI Record Commands", function () {
 
     it("should read a specific record by name", async () => {
       const result = await cli.exec(
-        ["read", testPodName, "test-stream", "record1"],
+        ["record", "read", testPodName, "test-stream", "record1"],
         {
           token: testToken,
         },
@@ -222,9 +225,12 @@ describe("CLI Record Commands", function () {
 
     it("should read latest record without name", async () => {
       // Without a name, the CLI must specify an index
-      const result = await cli.exec(["read", testPodName, "test-stream"], {
-        token: testToken,
-      });
+      const result = await cli.exec(
+        ["record", "read", testPodName, "test-stream"],
+        {
+          token: testToken,
+        },
+      );
 
       // Should fail because neither index nor name is provided
       expect(result.exitCode).to.not.equal(0);
@@ -235,7 +241,7 @@ describe("CLI Record Commands", function () {
 
     it("should read by index", async () => {
       const result = await cli.exec(
-        ["read", testPodName, "test-stream", "--index", "0"],
+        ["record", "read", testPodName, "test-stream", "--index", "0"],
         {
           token: testToken,
         },
@@ -249,6 +255,7 @@ describe("CLI Record Commands", function () {
 
     it("should require authentication for private streams", async () => {
       const result = await cli.exec([
+        "record",
         "read",
         testPodName,
         "test-stream",
@@ -393,9 +400,12 @@ describe("CLI Record Commands", function () {
       });
 
       // Use --quiet=false explicitly to ensure output
-      const result = await cli.exec(["streams", testPodName, "--quiet=false"], {
-        token: testToken,
-      });
+      const result = await cli.exec(
+        ["stream", "list", testPodName, "--quiet=false"],
+        {
+          token: testToken,
+        },
+      );
 
       // Check the output exists first
       expect(result.exitCode).to.equal(0);

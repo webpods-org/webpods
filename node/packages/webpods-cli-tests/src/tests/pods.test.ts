@@ -42,7 +42,7 @@ describe("CLI Pod Commands", function () {
     it("should create a new pod", async () => {
       // Skip for now - pod creation in WebPods is implicit when writing
       // The CLI needs a different approach or the server needs an explicit API
-      const result = await cli.exec(["create", "test-pod"], {
+      const result = await cli.exec(["pod", "create", "test-pod"], {
         token: testToken,
       });
 
@@ -74,7 +74,7 @@ describe("CLI Pod Commands", function () {
     });
 
     it("should reject invalid pod names", async () => {
-      const result = await cli.exec(["create", "Test-Pod"], {
+      const result = await cli.exec(["pod", "create", "Test-Pod"], {
         token: testToken,
       });
 
@@ -84,10 +84,10 @@ describe("CLI Pod Commands", function () {
 
     it("should reject duplicate pod names", async () => {
       // Create first pod
-      await cli.exec(["create", "test-pod"], { token: testToken });
+      await cli.exec(["pod", "create", "test-pod"], { token: testToken });
 
       // Try to create duplicate
-      const result = await cli.exec(["create", "test-pod"], {
+      const result = await cli.exec(["pod", "create", "test-pod"], {
         token: testToken,
       });
 
@@ -96,7 +96,7 @@ describe("CLI Pod Commands", function () {
     });
 
     it("should require authentication", async () => {
-      const result = await cli.exec(["create", "test-pod"]);
+      const result = await cli.exec(["pod", "create", "test-pod"]);
 
       expect(result.exitCode).to.not.equal(0);
       expect(result.stderr).to.include("Authentication required");
@@ -125,7 +125,7 @@ describe("CLI Pod Commands", function () {
     });
 
     it("should list all user pods", async () => {
-      const result = await cli.exec(["list", "--format", "json"], {
+      const result = await cli.exec(["pod", "list", "--format", "json"], {
         token: testToken,
       });
 
@@ -139,7 +139,7 @@ describe("CLI Pod Commands", function () {
     it("should show message when no pods exist", async () => {
       await resetCliTestDb();
 
-      const result = await cli.exec(["list"], {
+      const result = await cli.exec(["pod", "list"], {
         token: testToken,
       });
 
@@ -150,14 +150,14 @@ describe("CLI Pod Commands", function () {
 
     it("should support different output formats", async () => {
       // CSV format
-      const csvResult = await cli.exec(["list", "--format", "csv"], {
+      const csvResult = await cli.exec(["pod", "list", "--format", "csv"], {
         token: testToken,
       });
       expect(csvResult.exitCode).to.equal(0);
       expect(csvResult.stdout).to.include("name,id,created_at");
 
       // YAML format
-      const yamlResult = await cli.exec(["list", "--format", "yaml"], {
+      const yamlResult = await cli.exec(["pod", "list", "--format", "yaml"], {
         token: testToken,
       });
       expect(yamlResult.exitCode).to.equal(0);
@@ -194,9 +194,12 @@ describe("CLI Pod Commands", function () {
         testUser.userId,
       );
 
-      const result = await cli.exec(["info", "test-pod", "--format", "json"], {
-        token: testToken,
-      });
+      const result = await cli.exec(
+        ["pod", "info", "test-pod", "--format", "json"],
+        {
+          token: testToken,
+        },
+      );
 
       expect(result.exitCode).to.equal(0);
       const info = cli.parseJson(result.stdout);
@@ -207,7 +210,7 @@ describe("CLI Pod Commands", function () {
     });
 
     it("should fail for non-existent pod", async () => {
-      const result = await cli.exec(["info", "no-such-pod"], {
+      const result = await cli.exec(["pod", "info", "no-such-pod"], {
         token: testToken,
       });
 
@@ -235,7 +238,7 @@ describe("CLI Pod Commands", function () {
     });
 
     it("should delete a pod with force flag", async () => {
-      const result = await cli.exec(["delete", "test-pod", "--force"], {
+      const result = await cli.exec(["pod", "delete", "test-pod", "--force"], {
         token: testToken,
       });
 
@@ -252,7 +255,7 @@ describe("CLI Pod Commands", function () {
     });
 
     it("should show warning without force flag", async () => {
-      const result = await cli.exec(["delete", "test-pod"], {
+      const result = await cli.exec(["pod", "delete", "test-pod"], {
         token: testToken,
       });
 
@@ -293,7 +296,7 @@ describe("CLI Pod Commands", function () {
         );
       const otherToken = cli.createTestToken(otherUserId, "other@example.com");
 
-      const result = await cli.exec(["delete", "test-pod", "--force"], {
+      const result = await cli.exec(["pod", "delete", "test-pod", "--force"], {
         token: otherToken,
       });
 

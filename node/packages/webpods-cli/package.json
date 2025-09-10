@@ -9,7 +9,7 @@
     "lint:fix": "eslint src --ext .ts --fix"
   },
   "bin": {
-    "pod": "dist/index.js"
+    "podctl": "dist/index.js"
   },
   "type": "module",
   "repository": {

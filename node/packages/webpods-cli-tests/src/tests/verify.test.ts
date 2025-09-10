@@ -90,9 +90,12 @@ describe("CLI Verify Command", function () {
 
   describe("verify command - summary", () => {
     it("should show stream summary by default", async () => {
-      const result = await cli.exec(["verify", testPodName, "/test-stream"], {
-        token: testToken,
-      });
+      const result = await cli.exec(
+        ["record", "verify", testPodName, "/test-stream"],
+        {
+          token: testToken,
+        },
+      );
 
       expect(result.exitCode).to.equal(0);
       expect(result.stdout).to.include("Stream '/test-stream' summary:");
@@ -111,9 +114,12 @@ describe("CLI Verify Command", function () {
         accessPermission: "private",
       });
 
-      const result = await cli.exec(["verify", testPodName, "/empty-stream"], {
-        token: testToken,
-      });
+      const result = await cli.exec(
+        ["record", "verify", testPodName, "/empty-stream"],
+        {
+          token: testToken,
+        },
+      );
 
       expect(result.exitCode).to.equal(0);
       expect(result.stdout).to.include("Stream '/empty-stream' is empty");
@@ -123,7 +129,7 @@ describe("CLI Verify Command", function () {
   describe("verify command - show chain", () => {
     it("should display full hash chain with --show-chain", async () => {
       const result = await cli.exec(
-        ["verify", testPodName, "/test-stream", "--show-chain"],
+        ["record", "verify", testPodName, "/test-stream", "--show-chain"],
         {
           token: testToken,
         },
@@ -147,7 +153,7 @@ describe("CLI Verify Command", function () {
   describe("verify command - check integrity", () => {
     it("should verify valid hash chain", async () => {
       const result = await cli.exec(
-        ["verify", testPodName, "/test-stream", "--check-integrity"],
+        ["record", "verify", testPodName, "/test-stream", "--check-integrity"],
         {
           token: testToken,
         },
@@ -179,7 +185,7 @@ describe("CLI Verify Command", function () {
         );
 
       const result = await cli.exec(
-        ["verify", testPodName, "/test-stream", "--check-integrity"],
+        ["record", "verify", testPodName, "/test-stream", "--check-integrity"],
         {
           token: testToken,
         },
@@ -208,7 +214,7 @@ describe("CLI Verify Command", function () {
         );
 
       const result = await cli.exec(
-        ["verify", testPodName, "/test-stream", "--check-integrity"],
+        ["record", "verify", testPodName, "/test-stream", "--check-integrity"],
         {
           token: testToken,
         },
@@ -223,7 +229,12 @@ describe("CLI Verify Command", function () {
 
   describe("verify command - permissions", () => {
     it("should require authentication for private streams", async () => {
-      const result = await cli.exec(["verify", testPodName, "/test-stream"]);
+      const result = await cli.exec([
+        "record",
+        "verify",
+        testPodName,
+        "/test-stream",
+      ]);
 
       expect(result.exitCode).to.not.equal(0);
       // The server returns an error when trying to fetch without auth
@@ -252,7 +263,12 @@ describe("CLI Verify Command", function () {
         index: 0,
       });
 
-      const result = await cli.exec(["verify", testPodName, "/public-stream"]);
+      const result = await cli.exec([
+        "record",
+        "verify",
+        testPodName,
+        "/public-stream",
+      ]);
 
       // Should work without authentication for public streams
       expect(result.stdout).to.include("Stream '/public-stream' summary:");

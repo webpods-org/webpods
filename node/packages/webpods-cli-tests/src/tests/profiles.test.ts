@@ -277,7 +277,12 @@ describe("CLI Profile Management", () => {
     });
 
     it("should error on non-existent profile", async () => {
-      const result = await cli.exec(["pods", "--profile", "nonexistent"]);
+      const result = await cli.exec([
+        "pod",
+        "list",
+        "--profile",
+        "nonexistent",
+      ]);
 
       expect(result.exitCode).to.not.equal(0);
       expect(result.stderr).to.include("Profile 'nonexistent' not found");
@@ -326,7 +331,7 @@ describe("CLI Profile Management", () => {
         "../../../webpods-cli/dist/index.js",
       );
 
-      const child = spawn("node", [cliPath, "login"], { env });
+      const child = spawn("node", [cliPath, "auth", "login"], { env });
 
       let stdout = "";
       child.stdout.on("data", (data: Buffer) => {
