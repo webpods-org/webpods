@@ -146,18 +146,33 @@ describe("CLI Recursive Records", function () {
       expect(recordData).to.not.include("api v2");
     });
 
-    it("should reject --recursive with --unique", async () => {
+    it("should support --recursive with --unique", async () => {
       const result = await cli.exec(
-        ["record", "list", testPodName, "api", "--recursive", "--unique"],
+        [
+          "record",
+          "list",
+          testPodName,
+          "api",
+          "--recursive",
+          "--unique",
+          "--format",
+          "json",
+        ],
         {
           token: testToken,
         },
       );
 
-      expect(result.exitCode).to.not.equal(0);
-      expect(result.stderr).to.include(
-        "Cannot use --recursive and --unique together",
-      );
+      expect(result.exitCode).to.equal(0);
+      const output = JSON.parse(result.stdout);
+
+      // Should have unique records from all nested streams
+      expect(output.records).to.be.an("array");
+
+      // Check that we got unique records (latest version of each named record)
+      const recordNames = output.records.map((r: any) => r.name);
+      const uniqueNames = [...new Set(recordNames)];
+      expect(recordNames.length).to.equal(uniqueNames.length); // All names should be unique
     });
 
     it("should work with pagination parameters", async () => {
