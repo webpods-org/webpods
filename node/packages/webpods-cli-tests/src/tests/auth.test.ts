@@ -34,7 +34,7 @@ describe("CLI Auth Commands", function () {
 
   describe("login command", () => {
     it("should display login instructions", async () => {
-      const result = await cli.exec(["login"]);
+      const result = await cli.exec(["auth", "login"]);
 
       if (result.exitCode !== 0) {
         console.error("CLI failed with exit code:", result.exitCode);
@@ -62,7 +62,7 @@ describe("CLI Auth Commands", function () {
 
   describe("whoami command", () => {
     it("should show user info when authenticated", async () => {
-      const result = await cli.exec(["whoami", "--format", "json"], {
+      const result = await cli.exec(["auth", "info", "--format", "json"], {
         token: testToken,
       });
 
@@ -73,7 +73,7 @@ describe("CLI Auth Commands", function () {
     });
 
     it("should fail when not authenticated", async () => {
-      const result = await cli.exec(["whoami", "--format", "json"]);
+      const result = await cli.exec(["auth", "info", "--format", "json"]);
 
       expect(result.exitCode).to.not.equal(0);
       expect(result.stderr).to.include("Not authenticated");
@@ -104,7 +104,7 @@ describe("CLI Auth Commands", function () {
   describe("logout command", () => {
     it("should clear stored token", async () => {
       await cli.setToken(testToken);
-      const result = await cli.exec(["logout"]);
+      const result = await cli.exec(["auth", "logout"]);
 
       expect(result.exitCode).to.equal(0);
       expect(result.stdout).to.include("Logged out successfully");

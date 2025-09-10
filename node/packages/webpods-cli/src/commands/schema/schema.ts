@@ -13,18 +13,9 @@ export async function schemaEnable(argv: Arguments) {
     const config = await getConfigWithAuth(argv);
     const client = getClient(config);
 
-    const streamPath = argv.stream as string;
+    const pod = argv.pod as string;
+    const stream = argv.stream as string;
     const schemaFile = argv.file as string;
-
-    // Parse pod and stream from the path
-    const parts = streamPath.split("/");
-    const pod = parts[0];
-    const stream = parts.slice(1).join("/");
-
-    if (!pod || !stream) {
-      output.error("Invalid stream path. Format: <pod>/<stream>");
-      process.exit(1);
-    }
 
     // Read and validate schema file
     let schemaContent: any;
@@ -60,7 +51,7 @@ export async function schemaEnable(argv: Arguments) {
     });
 
     if (response.ok) {
-      output.success(`Schema enabled for ${streamPath}`);
+      output.success(`Schema enabled for ${pod}/${stream}`);
       if (argv.verbose) {
         output.info(`Schema written to: ${pod}${schemaPath}`);
       }
@@ -90,17 +81,8 @@ export async function schemaDisable(argv: Arguments) {
     const config = await getConfigWithAuth(argv);
     const client = getClient(config);
 
-    const streamPath = argv.stream as string;
-
-    // Parse pod and stream from the path
-    const parts = streamPath.split("/");
-    const pod = parts[0];
-    const stream = parts.slice(1).join("/");
-
-    if (!pod || !stream) {
-      output.error("Invalid stream path. Format: <pod>/<stream>");
-      process.exit(1);
-    }
+    const pod = argv.pod as string;
+    const stream = argv.stream as string;
 
     // Prepare disabled schema definition
     const schemaDef = {
@@ -117,7 +99,7 @@ export async function schemaDisable(argv: Arguments) {
     });
 
     if (response.ok) {
-      output.success(`Schema disabled for ${streamPath}`);
+      output.success(`Schema disabled for ${pod}/${stream}`);
     } else {
       const errorText = await response.text();
       try {

@@ -373,6 +373,56 @@ For troubleshooting common issues, refer to:
 - Content type handling
 - Hash chain verification
 
+## CLI Command Structure
+
+The CLI follows a consistent `<resource> <action>` pattern for all commands:
+
+### Resource Groups
+
+- **auth**: Authentication management (`login`, `logout`, `info`)
+- **pod**: Pod management (`create`, `list`, `delete`, `info`, `transfer`)
+- **stream**: Stream management (`create`, `delete`, `list`)
+- **record**: Record operations (`write`, `read`, `delete`, `list`, `verify`)
+- **permission**: Permission management (`grant`, `revoke`, `list`)
+- **link**: Link management (`set`, `list`, `remove`)
+- **oauth**: OAuth client management (`register`, `list`, `info`, `delete`)
+- **limit**: Rate limit information (`info`)
+- **config**: Configuration management
+
+### Command Examples
+
+```bash
+# Authentication
+podctl auth login
+podctl auth info
+podctl auth logout
+
+# Pod operations
+podctl pod create my-pod
+podctl pod list
+podctl pod delete my-pod --force
+podctl pod transfer my-pod new-owner-id --force
+
+# Stream operations
+podctl stream create my-pod my-stream --access public
+podctl stream list my-pod
+podctl stream delete my-pod my-stream --force
+
+# Record operations
+podctl record write my-pod my-stream record-name "data"
+podctl record read my-pod my-stream record-name
+podctl record delete my-pod my-stream record-name --force
+podctl record list my-pod my-stream
+podctl record verify my-pod my-stream --check-integrity
+
+# Permission operations
+podctl permission grant my-pod my-stream user-id
+podctl permission revoke my-pod my-stream user-id
+podctl permission list my-pod my-stream
+```
+
+This structure ensures consistency and scalability across all CLI commands.
+
 ## Additional Resources
 
 - `/CODING-STANDARDS.md` - Detailed coding conventions

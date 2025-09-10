@@ -59,7 +59,7 @@ describe("CLI Schema Commands", () => {
 
       // Enable schema
       const result = await cli.exec(
-        ["schema", "enable", `${testPodName}/blog/posts`, schemaFile],
+        ["schema", "enable", testPodName, "blog/posts", schemaFile],
         {
           token: testToken,
         },
@@ -91,7 +91,8 @@ describe("CLI Schema Commands", () => {
         [
           "schema",
           "enable",
-          `${testPodName}/api/data`,
+          testPodName,
+          "api/data",
           schemaFile,
           "--mode",
           "permissive",
@@ -120,7 +121,7 @@ describe("CLI Schema Commands", () => {
       await fs.writeFile(invalidFile, "not valid json");
 
       const result = await cli.exec(
-        ["schema", "enable", `${testPodName}/test`, invalidFile],
+        ["schema", "enable", testPodName, "test", invalidFile],
         {
           token: testToken,
         },
@@ -132,7 +133,7 @@ describe("CLI Schema Commands", () => {
 
     it("should fail with non-existent schema file", async () => {
       const result = await cli.exec(
-        ["schema", "enable", `${testPodName}/test`, "/does/not/exist.json"],
+        ["schema", "enable", testPodName, "test", "/does/not/exist.json"],
         {
           token: testToken,
         },
@@ -147,7 +148,7 @@ describe("CLI Schema Commands", () => {
       await fs.writeFile(schemaFile, JSON.stringify({ type: "object" }));
 
       const result = await cli.exec(
-        ["schema", "enable", `${testPodName}/test`, schemaFile],
+        ["schema", "enable", testPodName, "test", schemaFile],
         {
           // No token provided
         },
@@ -170,13 +171,13 @@ describe("CLI Schema Commands", () => {
         }),
       );
 
-      await cli.exec(["schema", "enable", `${testPodName}/users`, schemaFile], {
+      await cli.exec(["schema", "enable", testPodName, "users", schemaFile], {
         token: testToken,
       });
 
       // Now disable it
       const result = await cli.exec(
-        ["schema", "disable", `${testPodName}/users`],
+        ["schema", "disable", testPodName, "users"],
         {
           token: testToken,
         },
@@ -202,7 +203,7 @@ describe("CLI Schema Commands", () => {
 
     it("should work even if no schema was previously set", async () => {
       const result = await cli.exec(
-        ["schema", "disable", `${testPodName}/newstream`],
+        ["schema", "disable", testPodName, "newstream"],
         {
           token: testToken,
         },
@@ -214,7 +215,7 @@ describe("CLI Schema Commands", () => {
 
     it("should require authentication", async () => {
       const result = await cli.exec(
-        ["schema", "disable", `${testPodName}/test`],
+        ["schema", "disable", testPodName, "test"],
         {
           // No token provided
         },
@@ -240,7 +241,7 @@ describe("CLI Schema Commands", () => {
       await fs.writeFile(schemaFile, JSON.stringify(schema));
 
       const enableResult = await cli.exec(
-        ["schema", "enable", `${testPodName}/people`, schemaFile],
+        ["schema", "enable", testPodName, "people", schemaFile],
         {
           token: testToken,
         },
@@ -250,6 +251,7 @@ describe("CLI Schema Commands", () => {
       // Valid data should succeed
       let result = await cli.exec(
         [
+          "record",
           "write",
           testPodName,
           "people",
@@ -265,6 +267,7 @@ describe("CLI Schema Commands", () => {
       // Invalid data should fail - write to the same stream with a different name
       result = await cli.exec(
         [
+          "record",
           "write",
           testPodName,
           "people",
@@ -293,19 +296,26 @@ describe("CLI Schema Commands", () => {
       );
 
       await cli.exec(
-        ["schema", "enable", `${testPodName}/flexible`, schemaFile],
+        ["schema", "enable", testPodName, "flexible", schemaFile],
         {
           token: testToken,
         },
       );
 
-      await cli.exec(["schema", "disable", `${testPodName}/flexible`], {
+      await cli.exec(["schema", "disable", testPodName, "flexible"], {
         token: testToken,
       });
 
       // Any data should now work
       const result = await cli.exec(
-        ["write", testPodName, "flexible", "test-record", "any random content"],
+        [
+          "record",
+          "write",
+          testPodName,
+          "flexible",
+          "test-record",
+          "any random content",
+        ],
         {
           token: testToken,
         },

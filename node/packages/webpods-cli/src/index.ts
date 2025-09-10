@@ -18,7 +18,7 @@ import {
   deletePod,
   infoPod,
 } from "./commands/pods/index.js";
-import { write, read, list } from "./commands/records/index.js";
+import { write, read, list, deleteRecord } from "./commands/records/index.js";
 import {
   streams,
   deleteStream,
@@ -31,7 +31,7 @@ import {
   oauthDelete,
   oauthInfo,
 } from "./commands/oauth/index.js";
-import { config, configSet, configServer } from "./commands/utils/index.js";
+import { config, configSet } from "./commands/utils/index.js";
 import {
   profileList,
   profileAdd,
@@ -67,44 +67,52 @@ const logger = createLogger("webpods:cli");
 
 export async function main() {
   await yargs(hideBin(process.argv))
-    // Authentication Commands
+    // Authentication Management
     .command(
-      "login",
-      "Show available OAuth providers for authentication",
-      {},
-      async (argv) => {
-        await login(argv);
-      },
-    )
-    .command(
-      "logout",
-      "Clear stored authentication token",
-      {},
-      async (argv) => {
-        await logout(argv);
-      },
-    )
-    .command(
-      "whoami",
-      "Show current authenticated user information",
+      "auth",
+      "Manage authentication",
       (yargs) =>
         yargs
-          .option("token", {
-            type: "string",
-            describe: "Use specific token for this command",
-          })
-          .option("server", {
-            type: "string",
-            describe: "WebPods server URL",
-          })
-          .option("format", {
-            type: "string",
-            choices: ["json", "yaml", "table", "csv"] as const,
-            describe: "Output format",
-          }),
-      async (argv) => {
-        await whoami(argv);
-      },
+          .command(
+            "login",
+            "Show available OAuth providers for authentication",
+            {},
+            async (argv) => {
+              await login(argv);
+            },
+          )
+          .command(
+            "logout",
+            "Clear stored authentication token",
+            {},
+            async (argv) => {
+              await logout(argv);
+            },
+          )
+          .command(
+            "info",
+            "Show current authenticated user information",
+            (yargs) =>
+              yargs
+                .option("token", {
+                  type: "string",
+                  describe: "Use specific token for this command",
+                })
+                .option("server", {
+                  type: "string",
+                  describe: "WebPods server URL",
+                })
+                .option("format", {
+                  type: "string",
+                  choices: ["json", "yaml", "table", "csv"] as const,
+                  describe: "Output format",
+                }),
+            async (argv) => {
+              await whoami(argv);
+            },
+          )
+          .demandCommand(1, "Please specify an auth command"),
+      () => {},
     )
     // Token subcommands
     .command(
@@ -206,128 +214,142 @@ export async function main() {
       () => {},
     )
 
-    // Pod Management - List command (replaces 'pods')
-    .command(
-      "list",
-      "List all your pods",
-      (yargs) =>
-        yargs
-          .option("token", {
-            type: "string",
-            describe: "Use specific token for this command",
-          })
-          .option("server", {
-            type: "string",
-            describe: "WebPods server URL",
-          })
-          .option("format", {
-            type: "string",
-            choices: ["json", "yaml", "table", "csv"] as const,
-            describe: "Output format",
-          }),
-      async (argv) => {
-        await listPods(argv);
-      },
-    )
-
     // Pod Management
     .command(
-      "create <name>",
-      "Create a new pod",
+      "pod",
+      "Manage pods",
       (yargs) =>
         yargs
-          .positional("name", {
-            describe: "Pod name (subdomain)",
-            demandOption: true,
-            type: "string",
-          })
-          .option("token", {
-            type: "string",
-            describe: "Use specific token for this command",
-          })
-          .option("server", {
-            type: "string",
-            describe: "WebPods server URL",
-          }),
-      async (argv) => {
-        await createPod(argv);
-      },
-    )
-    // Keep 'pods' as alias for backward compatibility
-    .command(
-      "pods",
-      "List all your pods (alias for 'list')",
-      (yargs) =>
-        yargs
-          .option("token", {
-            type: "string",
-            describe: "Use specific token for this command",
-          })
-          .option("server", {
-            type: "string",
-            describe: "WebPods server URL",
-          })
-          .option("format", {
-            type: "string",
-            choices: ["json", "yaml", "table", "csv"] as const,
-            describe: "Output format",
-          }),
-      async (argv) => {
-        await listPods(argv);
-      },
-    )
-    .command(
-      "delete <pod>",
-      "Delete a pod and all its data",
-      (yargs) =>
-        yargs
-          .positional("pod", {
-            describe: "Pod name to delete",
-            demandOption: true,
-            type: "string",
-          })
-          .option("token", {
-            type: "string",
-            describe: "Use specific token for this command",
-          })
-          .option("server", {
-            type: "string",
-            describe: "WebPods server URL",
-          })
-          .option("force", {
-            type: "boolean",
-            describe: "Skip confirmation prompt",
-          }),
-      async (argv) => {
-        await deletePod(argv);
-      },
-    )
-    .command(
-      "info <pod>",
-      "Show pod details and statistics",
-      (yargs) =>
-        yargs
-          .positional("pod", {
-            describe: "Pod name",
-            demandOption: true,
-            type: "string",
-          })
-          .option("token", {
-            type: "string",
-            describe: "Use specific token for this command",
-          })
-          .option("server", {
-            type: "string",
-            describe: "WebPods server URL",
-          })
-          .option("format", {
-            type: "string",
-            choices: ["json", "yaml", "table", "csv"] as const,
-            describe: "Output format",
-          }),
-      async (argv) => {
-        await infoPod(argv);
-      },
+          .command(
+            "create <name>",
+            "Create a new pod",
+            (yargs) =>
+              yargs
+                .positional("name", {
+                  describe: "Pod name (subdomain)",
+                  demandOption: true,
+                  type: "string",
+                })
+                .option("token", {
+                  type: "string",
+                  describe: "Use specific token for this command",
+                })
+                .option("server", {
+                  type: "string",
+                  describe: "WebPods server URL",
+                }),
+            async (argv) => {
+              await createPod(argv);
+            },
+          )
+          .command(
+            "list",
+            "List all your pods",
+            (yargs) =>
+              yargs
+                .option("token", {
+                  type: "string",
+                  describe: "Use specific token for this command",
+                })
+                .option("server", {
+                  type: "string",
+                  describe: "WebPods server URL",
+                })
+                .option("format", {
+                  type: "string",
+                  choices: ["json", "yaml", "table", "csv"] as const,
+                  describe: "Output format",
+                }),
+            async (argv) => {
+              await listPods(argv);
+            },
+          )
+          .command(
+            "delete <pod>",
+            "Delete a pod and all its data",
+            (yargs) =>
+              yargs
+                .positional("pod", {
+                  describe: "Pod to delete",
+                  demandOption: true,
+                  type: "string",
+                })
+                .option("token", {
+                  type: "string",
+                  describe: "Use specific token for this command",
+                })
+                .option("server", {
+                  type: "string",
+                  describe: "WebPods server URL",
+                })
+                .option("force", {
+                  type: "boolean",
+                  describe: "Skip confirmation prompt",
+                }),
+            async (argv) => {
+              await deletePod(argv);
+            },
+          )
+          .command(
+            "info <pod>",
+            "Show pod details and statistics",
+            (yargs) =>
+              yargs
+                .positional("pod", {
+                  describe: "Pod name",
+                  demandOption: true,
+                  type: "string",
+                })
+                .option("token", {
+                  type: "string",
+                  describe: "Use specific token for this command",
+                })
+                .option("server", {
+                  type: "string",
+                  describe: "WebPods server URL",
+                })
+                .option("format", {
+                  type: "string",
+                  choices: ["json", "yaml", "table"] as const,
+                  describe: "Output format",
+                }),
+            async (argv) => {
+              await infoPod(argv);
+            },
+          )
+          .command(
+            "transfer <pod> <user>",
+            "Transfer pod ownership",
+            (yargs) =>
+              yargs
+                .positional("pod", {
+                  describe: "Pod to transfer",
+                  demandOption: true,
+                  type: "string",
+                })
+                .positional("user", {
+                  describe: "New owner user ID",
+                  demandOption: true,
+                  type: "string",
+                })
+                .option("force", {
+                  type: "boolean",
+                  describe: "Skip confirmation prompt",
+                })
+                .option("token", {
+                  type: "string",
+                  describe: "Use specific token for this command",
+                })
+                .option("server", {
+                  type: "string",
+                  describe: "WebPods server URL",
+                }),
+            async (argv) => {
+              await transfer(argv);
+            },
+          )
+          .demandCommand(1, "Please specify a pod command"),
+      () => {},
     )
 
     // Record Management
@@ -385,125 +407,166 @@ export async function main() {
               await list(argv);
             },
           )
+          .command(
+            "write <pod> <stream> <name> [data]",
+            "Write data to a stream record",
+            (yargs) =>
+              yargs
+                .positional("pod", {
+                  describe: "Pod name",
+                  demandOption: true,
+                  type: "string",
+                })
+                .positional("stream", {
+                  describe: "Stream path",
+                  demandOption: true,
+                  type: "string",
+                })
+                .positional("name", {
+                  describe: "Record name",
+                  demandOption: true,
+                  type: "string",
+                })
+                .positional("data", {
+                  describe: "Data to write",
+                  type: "string",
+                })
+                .option("file", {
+                  alias: "f",
+                  type: "string",
+                  describe: "Read data from file",
+                })
+                .option("permission", {
+                  type: "string",
+                  describe: "Set access permission (public, private, /stream)",
+                })
+                .option("token", {
+                  type: "string",
+                  describe: "Use specific token for this command",
+                })
+                .option("server", {
+                  type: "string",
+                  describe: "WebPods server URL",
+                }),
+            async (argv) => {
+              await write(argv);
+            },
+          )
+          .command(
+            "read <pod> <stream> [name]",
+            "Read data from a stream record",
+            (yargs) =>
+              yargs
+                .positional("pod", {
+                  describe: "Pod name",
+                  demandOption: true,
+                  type: "string",
+                })
+                .positional("stream", {
+                  describe: "Stream path",
+                  demandOption: true,
+                  type: "string",
+                })
+                .positional("name", {
+                  describe: "Record name",
+                  type: "string",
+                })
+                .option("index", {
+                  alias: "i",
+                  type: "string",
+                  describe: "Read by index (-1 for latest, 0:10 for range)",
+                })
+                .option("output", {
+                  alias: "o",
+                  type: "string",
+                  describe: "Save to file",
+                })
+                .option("token", {
+                  type: "string",
+                  describe: "Use specific token for this command",
+                })
+                .option("server", {
+                  type: "string",
+                  describe: "WebPods server URL",
+                }),
+            async (argv) => {
+              await read(argv);
+            },
+          )
+          .command(
+            "delete <pod> <stream> <name>",
+            "Delete a record (soft delete by default)",
+            (yargs) =>
+              yargs
+                .positional("pod", {
+                  describe: "Pod name",
+                  demandOption: true,
+                  type: "string",
+                })
+                .positional("stream", {
+                  describe: "Stream path",
+                  demandOption: true,
+                  type: "string",
+                })
+                .positional("name", {
+                  describe: "Record name",
+                  demandOption: true,
+                  type: "string",
+                })
+                .option("hard", {
+                  type: "boolean",
+                  describe: "Permanently delete (purge) the record",
+                  default: false,
+                })
+                .option("token", {
+                  type: "string",
+                  describe: "Use specific token for this command",
+                })
+                .option("server", {
+                  type: "string",
+                  describe: "WebPods server URL",
+                }),
+            async (argv) => {
+              await deleteRecord(argv);
+            },
+          )
+          .command(
+            "verify <pod> <stream>",
+            "Verify hash chain integrity",
+            (yargs) =>
+              yargs
+                .positional("pod", {
+                  describe: "Pod name",
+                  demandOption: true,
+                  type: "string",
+                })
+                .positional("stream", {
+                  describe: "Stream to verify",
+                  demandOption: true,
+                  type: "string",
+                })
+                .option("show-chain", {
+                  type: "boolean",
+                  describe: "Display full hash chain",
+                })
+                .option("check-integrity", {
+                  type: "boolean",
+                  describe: "Verify hash chain integrity",
+                })
+                .option("token", {
+                  type: "string",
+                  describe: "Use specific token for this command",
+                })
+                .option("server", {
+                  type: "string",
+                  describe: "WebPods server URL",
+                }),
+            async (argv) => {
+              await verify(argv);
+            },
+          )
           .demandCommand(1, "Please specify a record command"),
       () => {},
-    )
-
-    // Write & Read Operations (top-level for convenience)
-    .command(
-      "write <pod> <stream> <name> [data]",
-      "Write data to a stream record (stream must exist)",
-      (yargs) =>
-        yargs
-          .positional("pod", {
-            describe: "Pod name",
-            demandOption: true,
-            type: "string",
-          })
-          .positional("stream", {
-            describe: "Stream path (must be created first)",
-            demandOption: true,
-            type: "string",
-          })
-          .positional("name", {
-            describe: "Record name",
-            demandOption: true,
-            type: "string",
-          })
-          .positional("data", {
-            describe: "Data to write",
-            type: "string",
-          })
-          .option("file", {
-            alias: "f",
-            type: "string",
-            describe: "Read data from file",
-          })
-          .option("permission", {
-            type: "string",
-            describe: "Set access permission (public, private, /stream)",
-          })
-          .option("token", {
-            type: "string",
-            describe: "Use specific token for this command",
-          })
-          .option("server", {
-            type: "string",
-            describe: "WebPods server URL",
-          }),
-      async (argv) => {
-        await write(argv);
-      },
-    )
-    .command(
-      "read <pod> <stream> [name]",
-      "Read data from a stream record",
-      (yargs) =>
-        yargs
-          .positional("pod", {
-            describe: "Pod name",
-            demandOption: true,
-            type: "string",
-          })
-          .positional("stream", {
-            describe: "Stream path",
-            demandOption: true,
-            type: "string",
-          })
-          .positional("name", {
-            describe: "Record name",
-            type: "string",
-          })
-          .option("index", {
-            alias: "i",
-            type: "string",
-            describe: "Read by index (-1 for latest, 0:10 for range)",
-          })
-          .option("output", {
-            alias: "o",
-            type: "string",
-            describe: "Save to file",
-          })
-          .option("token", {
-            type: "string",
-            describe: "Use specific token for this command",
-          })
-          .option("server", {
-            type: "string",
-            describe: "WebPods server URL",
-          }),
-      async (argv) => {
-        await read(argv);
-      },
-    )
-
-    // Convenience alias for listing streams
-    .command(
-      "streams <pod>",
-      "List all streams in a pod",
-      (yargs) =>
-        yargs
-          .positional("pod", {
-            describe: "Pod name",
-            demandOption: true,
-            type: "string",
-          })
-          .option("token", {
-            type: "string",
-            describe: "Use specific token for this command",
-          })
-          .option("server", {
-            type: "string",
-            describe: "WebPods server URL",
-          })
-          .option("format", {
-            type: "string",
-            choices: ["json", "yaml", "table", "csv"] as const,
-            describe: "Output format",
-          }),
-      async (argv) => {
-        await streams(argv);
-      },
     )
 
     // Stream Management
@@ -609,129 +672,125 @@ export async function main() {
 
     // Permission Management
     .command(
-      "permissions <pod> <stream> [action]",
-      "Manage stream permissions",
+      "permission",
+      "Manage permissions",
       (yargs) =>
         yargs
-          .positional("pod", {
-            describe: "Pod name",
-            demandOption: true,
-            type: "string",
-          })
-          .positional("stream", {
-            describe: "Stream path",
-            demandOption: true,
-            type: "string",
-          })
-          .positional("action", {
-            describe: "Action: view, set, grant, revoke, list",
-            type: "string",
-            choices: ["view", "set", "grant", "revoke", "list"],
-            default: "view",
-          })
-          .option("mode", {
-            type: "string",
-            describe: "Permission mode (public, private, /stream)",
-          })
-          .option("user", {
-            type: "string",
-            describe: "User ID for grant/revoke actions",
-          })
-          .option("token", {
-            type: "string",
-            describe: "Use specific token for this command",
-          })
-          .option("server", {
-            type: "string",
-            describe: "WebPods server URL",
-          })
-          .option("format", {
-            type: "string",
-            choices: ["json", "yaml", "table", "csv"] as const,
-            describe: "Output format",
-          }),
-      async (argv) => {
-        await permissions(argv);
-      },
+          .command(
+            "list <pod> <stream>",
+            "List permissions for a stream",
+            (yargs) =>
+              yargs
+                .positional("pod", {
+                  describe: "Pod name",
+                  demandOption: true,
+                  type: "string",
+                })
+                .positional("stream", {
+                  describe: "Permission stream path",
+                  demandOption: true,
+                  type: "string",
+                })
+                .option("user", {
+                  type: "string",
+                  describe: "Filter by user ID",
+                })
+                .option("token", {
+                  type: "string",
+                  describe: "Use specific token for this command",
+                })
+                .option("server", {
+                  type: "string",
+                  describe: "WebPods server URL",
+                })
+                .option("format", {
+                  type: "string",
+                  choices: ["json", "yaml", "table", "csv"] as const,
+                  describe: "Output format",
+                }),
+            async (argv) => {
+              await permissions(argv);
+            },
+          )
+          .command(
+            "grant <pod> <stream> <user>",
+            "Grant permissions to a user",
+            (yargs) =>
+              yargs
+                .positional("pod", {
+                  describe: "Pod name",
+                  demandOption: true,
+                  type: "string",
+                })
+                .positional("stream", {
+                  describe: "Permission stream path",
+                  demandOption: true,
+                  type: "string",
+                })
+                .positional("user", {
+                  describe: "User ID to grant permissions to",
+                  demandOption: true,
+                  type: "string",
+                })
+                .option("read", {
+                  type: "boolean",
+                  describe: "Grant read permission",
+                })
+                .option("write", {
+                  type: "boolean",
+                  describe: "Grant write permission",
+                })
+                .option("token", {
+                  type: "string",
+                  describe: "Use specific token for this command",
+                })
+                .option("server", {
+                  type: "string",
+                  describe: "WebPods server URL",
+                }),
+            async (argv) => {
+              await grant(argv);
+            },
+          )
+          .command(
+            "revoke <pod> <stream> <user>",
+            "Revoke permissions from a user",
+            (yargs) =>
+              yargs
+                .positional("pod", {
+                  describe: "Pod name",
+                  demandOption: true,
+                  type: "string",
+                })
+                .positional("stream", {
+                  describe: "Permission stream path",
+                  demandOption: true,
+                  type: "string",
+                })
+                .positional("user", {
+                  describe: "User ID to revoke permissions from",
+                  demandOption: true,
+                  type: "string",
+                })
+                .option("token", {
+                  type: "string",
+                  describe: "Use specific token for this command",
+                })
+                .option("server", {
+                  type: "string",
+                  describe: "WebPods server URL",
+                }),
+            async (argv) => {
+              await revoke(argv);
+            },
+          )
+          .demandCommand(1, "Please specify a permission command"),
+      () => {},
     )
 
-    // Grant and Revoke Commands
+    // Link Management
     .command(
-      "grant <pod> <stream> <user>",
-      "Grant permissions to a user",
-      (yargs) =>
-        yargs
-          .positional("pod", {
-            describe: "Pod name",
-            demandOption: true,
-            type: "string",
-          })
-          .positional("stream", {
-            describe: "Permission stream path",
-            demandOption: true,
-            type: "string",
-          })
-          .positional("user", {
-            describe: "User ID to grant permissions to",
-            demandOption: true,
-            type: "string",
-          })
-          .option("read", {
-            type: "boolean",
-            describe: "Grant read permission",
-          })
-          .option("write", {
-            type: "boolean",
-            describe: "Grant write permission",
-          })
-          .option("token", {
-            type: "string",
-            describe: "Use specific token for this command",
-          })
-          .option("server", {
-            type: "string",
-            describe: "WebPods server URL",
-          }),
-      async (argv) => {
-        await grant(argv);
-      },
-    )
-    .command(
-      "revoke <pod> <stream> <user>",
-      "Revoke permissions from a user",
-      (yargs) =>
-        yargs
-          .positional("pod", {
-            describe: "Pod name",
-            demandOption: true,
-            type: "string",
-          })
-          .positional("stream", {
-            describe: "Permission stream path",
-            demandOption: true,
-            type: "string",
-          })
-          .positional("user", {
-            describe: "User ID to revoke permissions from",
-            demandOption: true,
-            type: "string",
-          })
-          .option("token", {
-            type: "string",
-            describe: "Use specific token for this command",
-          })
-          .option("server", {
-            type: "string",
-            describe: "WebPods server URL",
-          }),
-      async (argv) => {
-        await revoke(argv);
-      },
-    )
-
-    // Links Management
-    .command(
-      "links",
+      "link",
       "Manage pod links and routing",
       (yargs) =>
         yargs
@@ -821,7 +880,7 @@ export async function main() {
               await linksRemove(argv);
             },
           )
-          .demandCommand(1, "Please specify a links command"),
+          .demandCommand(1, "Please specify a link command"),
       () => {},
     )
 
@@ -916,43 +975,6 @@ export async function main() {
       () => {},
     )
 
-    // Verification Command
-    .command(
-      "verify <pod> <stream>",
-      "Verify hash chain integrity",
-      (yargs) =>
-        yargs
-          .positional("pod", {
-            describe: "Pod name",
-            demandOption: true,
-            type: "string",
-          })
-          .positional("stream", {
-            describe: "Stream to verify",
-            demandOption: true,
-            type: "string",
-          })
-          .option("show-chain", {
-            type: "boolean",
-            describe: "Display full hash chain",
-          })
-          .option("check-integrity", {
-            type: "boolean",
-            describe: "Verify hash chain integrity",
-          })
-          .option("token", {
-            type: "string",
-            describe: "Use specific token for this command",
-          })
-          .option("server", {
-            type: "string",
-            describe: "WebPods server URL",
-          }),
-      async (argv) => {
-        await verify(argv);
-      },
-    )
-
     // Schema Management
     .command(
       "schema",
@@ -960,12 +982,17 @@ export async function main() {
       (yargs) =>
         yargs
           .command(
-            "enable <stream> <file>",
+            "enable <pod> <stream> <file>",
             "Enable schema validation for a stream",
             (yargs) =>
               yargs
+                .positional("pod", {
+                  describe: "Pod name",
+                  demandOption: true,
+                  type: "string",
+                })
                 .positional("stream", {
-                  describe: "Stream path (pod/stream)",
+                  describe: "Stream path",
                   demandOption: true,
                   type: "string",
                 })
@@ -1003,12 +1030,17 @@ export async function main() {
             },
           )
           .command(
-            "disable <stream>",
+            "disable <pod> <stream>",
             "Disable schema validation for a stream",
             (yargs) =>
               yargs
+                .positional("pod", {
+                  describe: "Pod name",
+                  demandOption: true,
+                  type: "string",
+                })
                 .positional("stream", {
-                  describe: "Stream path (pod/stream)",
+                  describe: "Stream path",
                   demandOption: true,
                   type: "string",
                 })
@@ -1028,173 +1060,157 @@ export async function main() {
       () => {},
     )
 
-    // Transfer Ownership
-    .command(
-      "transfer <pod> <user>",
-      "Transfer pod ownership",
-      (yargs) =>
-        yargs
-          .positional("pod", {
-            describe: "Pod name",
-            demandOption: true,
-            type: "string",
-          })
-          .positional("user", {
-            describe: "New owner user ID",
-            demandOption: true,
-            type: "string",
-          })
-          .option("force", {
-            type: "boolean",
-            describe: "Skip confirmation prompt",
-          })
-          .option("token", {
-            type: "string",
-            describe: "Use specific token for this command",
-          })
-          .option("server", {
-            type: "string",
-            describe: "WebPods server URL",
-          }),
-      async (argv) => {
-        await transfer(argv);
-      },
-    )
-
     // Rate Limits
+    // Rate Limit Management
     .command(
-      "limits",
-      "Check rate limit status",
+      "limit",
+      "Manage rate limits",
       (yargs) =>
         yargs
-          .option("action", {
-            type: "string",
-            describe: "Specific action to check (read, write, etc.)",
-          })
-          .option("format", {
-            type: "string",
-            choices: ["json", "yaml", "table", "csv"] as const,
-            describe: "Output format",
-          })
-          .option("token", {
-            type: "string",
-            describe: "Use specific token for this command",
-          })
-          .option("server", {
-            type: "string",
-            describe: "WebPods server URL",
-          }),
-      async (argv) => {
-        await limits(argv);
-      },
+          .command(
+            "info",
+            "Check rate limit status",
+            (yargs) =>
+              yargs
+                .option("action", {
+                  type: "string",
+                  describe: "Specific action to check (read, write, etc.)",
+                })
+                .option("format", {
+                  type: "string",
+                  choices: ["json", "yaml", "table", "csv"] as const,
+                  describe: "Output format",
+                })
+                .option("token", {
+                  type: "string",
+                  describe: "Use specific token for this command",
+                })
+                .option("server", {
+                  type: "string",
+                  describe: "WebPods server URL",
+                }),
+            async (argv) => {
+              await limits(argv);
+            },
+          )
+          .demandCommand(1, "Please specify a limit command"),
+      () => {},
     )
 
     // OAuth Client Management
     .command(
-      "oauth register",
-      "Register a new OAuth client",
+      "oauth",
+      "Manage OAuth clients",
       (yargs) =>
         yargs
-          .option("name", {
-            type: "string",
-            demandOption: true,
-            describe: "Application name",
-          })
-          .option("redirect", {
-            type: "string",
-            demandOption: true,
-            describe: "Redirect URI",
-          })
-          .option("pods", {
-            type: "string",
-            describe: "Comma-separated list of pods to request access to",
-          })
-          .option("token", {
-            type: "string",
-            describe: "Use specific token for this command",
-          })
-          .option("server", {
-            type: "string",
-            describe: "WebPods server URL",
-          }),
-      async (argv) => {
-        await oauthRegister(argv);
-      },
-    )
-    .command(
-      "oauth list",
-      "List your OAuth clients",
-      (yargs) =>
-        yargs
-          .option("token", {
-            type: "string",
-            describe: "Use specific token for this command",
-          })
-          .option("server", {
-            type: "string",
-            describe: "WebPods server URL",
-          })
-          .option("format", {
-            type: "string",
-            choices: ["json", "yaml", "table", "csv"] as const,
-            describe: "Output format",
-          }),
-      async (argv) => {
-        await oauthList(argv);
-      },
-    )
-    .command(
-      "oauth delete <clientId>",
-      "Delete an OAuth client",
-      (yargs) =>
-        yargs
-          .positional("clientId", {
-            describe: "Client ID to delete",
-            demandOption: true,
-            type: "string",
-          })
-          .option("token", {
-            type: "string",
-            describe: "Use specific token for this command",
-          })
-          .option("server", {
-            type: "string",
-            describe: "WebPods server URL",
-          })
-          .option("force", {
-            type: "boolean",
-            describe: "Skip confirmation prompt",
-          }),
-      async (argv) => {
-        await oauthDelete(argv);
-      },
-    )
-    .command(
-      "oauth info <clientId>",
-      "Show OAuth client details",
-      (yargs) =>
-        yargs
-          .positional("clientId", {
-            describe: "Client ID",
-            demandOption: true,
-            type: "string",
-          })
-          .option("token", {
-            type: "string",
-            describe: "Use specific token for this command",
-          })
-          .option("server", {
-            type: "string",
-            describe: "WebPods server URL",
-          })
-          .option("format", {
-            type: "string",
-            choices: ["json", "yaml", "table", "csv"] as const,
-            describe: "Output format",
-          }),
-      async (argv) => {
-        await oauthInfo(argv);
-      },
+          .command(
+            "register",
+            "Register a new OAuth client",
+            (yargs) =>
+              yargs
+                .option("name", {
+                  type: "string",
+                  demandOption: true,
+                  describe: "Application name",
+                })
+                .option("redirect", {
+                  type: "string",
+                  demandOption: true,
+                  describe: "Redirect URI",
+                })
+                .option("pods", {
+                  type: "string",
+                  describe: "Comma-separated list of pods to request access to",
+                })
+                .option("token", {
+                  type: "string",
+                  describe: "Use specific token for this command",
+                })
+                .option("server", {
+                  type: "string",
+                  describe: "WebPods server URL",
+                }),
+            async (argv) => {
+              await oauthRegister(argv);
+            },
+          )
+          .command(
+            "list",
+            "List your OAuth clients",
+            (yargs) =>
+              yargs
+                .option("token", {
+                  type: "string",
+                  describe: "Use specific token for this command",
+                })
+                .option("server", {
+                  type: "string",
+                  describe: "WebPods server URL",
+                })
+                .option("format", {
+                  type: "string",
+                  choices: ["json", "yaml", "table", "csv"] as const,
+                  describe: "Output format",
+                }),
+            async (argv) => {
+              await oauthList(argv);
+            },
+          )
+          .command(
+            "delete <clientId>",
+            "Delete an OAuth client",
+            (yargs) =>
+              yargs
+                .positional("clientId", {
+                  describe: "Client ID to delete",
+                  demandOption: true,
+                  type: "string",
+                })
+                .option("token", {
+                  type: "string",
+                  describe: "Use specific token for this command",
+                })
+                .option("server", {
+                  type: "string",
+                  describe: "WebPods server URL",
+                })
+                .option("force", {
+                  type: "boolean",
+                  describe: "Skip confirmation prompt",
+                }),
+            async (argv) => {
+              await oauthDelete(argv);
+            },
+          )
+          .command(
+            "info <clientId>",
+            "Show OAuth client details",
+            (yargs) =>
+              yargs
+                .positional("clientId", {
+                  describe: "Client ID",
+                  demandOption: true,
+                  type: "string",
+                })
+                .option("token", {
+                  type: "string",
+                  describe: "Use specific token for this command",
+                })
+                .option("server", {
+                  type: "string",
+                  describe: "WebPods server URL",
+                })
+                .option("format", {
+                  type: "string",
+                  choices: ["json", "yaml", "table", "csv"] as const,
+                  describe: "Output format",
+                }),
+            async (argv) => {
+              await oauthInfo(argv);
+            },
+          )
+          .demandCommand(1, "Please specify an oauth command"),
+      () => {},
     )
 
     // Utility Commands
@@ -1219,17 +1235,22 @@ export async function main() {
         }
       },
     )
+
+    // Top-level aliases for common commands
     .command(
-      "config server <url>",
-      "Set WebPods server URL",
-      (yargs) =>
-        yargs.positional("url", {
-          describe: "Server URL",
-          demandOption: true,
-          type: "string",
-        }),
+      "login",
+      "Authenticate with WebPods (alias for auth login)",
+      {},
       async (argv) => {
-        await configServer(argv);
+        await login(argv);
+      },
+    )
+    .command(
+      "logout",
+      "Clear authentication (alias for auth logout)",
+      {},
+      async (argv) => {
+        await logout(argv);
       },
     )
 
