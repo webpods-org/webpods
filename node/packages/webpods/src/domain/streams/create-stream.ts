@@ -25,6 +25,7 @@ export function mapStreamFromDb(row: StreamDbRow): Stream {
     userId: row.user_id,
     accessPermission: row.access_permission,
     metadata: row.metadata,
+    hasSchema: row.has_schema || false,
     createdAt: row.created_at,
     updatedAt: row.updated_at || row.created_at,
   };

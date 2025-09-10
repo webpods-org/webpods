@@ -57,6 +57,7 @@ export interface Stream {
   userId: string;
   accessPermission: string; // 'public', 'private', or '/streamname'
   metadata?: Record<string, unknown>;
+  hasSchema: boolean; // Whether this stream has validation schema
   createdAt: Date;
   updatedAt: Date;
 }

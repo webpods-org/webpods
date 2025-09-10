@@ -48,6 +48,7 @@ import {
   domainRemove,
 } from "./commands/domains/index.js";
 import { verify } from "./commands/verify/index.js";
+import { schemaEnable, schemaDisable } from "./commands/schema/index.js";
 import { transfer } from "./commands/transfer/index.js";
 import { limits } from "./commands/limits/index.js";
 
@@ -950,6 +951,81 @@ export async function main() {
       async (argv) => {
         await verify(argv);
       },
+    )
+
+    // Schema Management
+    .command(
+      "schema",
+      "Manage stream validation schemas",
+      (yargs) =>
+        yargs
+          .command(
+            "enable <stream> <file>",
+            "Enable schema validation for a stream",
+            (yargs) =>
+              yargs
+                .positional("stream", {
+                  describe: "Stream path (pod/stream)",
+                  demandOption: true,
+                  type: "string",
+                })
+                .positional("file", {
+                  describe: "JSON schema file",
+                  demandOption: true,
+                  type: "string",
+                })
+                .option("mode", {
+                  type: "string",
+                  choices: ["strict", "permissive"],
+                  default: "strict",
+                  describe: "Validation mode",
+                })
+                .option("applies-to", {
+                  type: "string",
+                  choices: ["content", "full-record"],
+                  default: "content",
+                  describe: "What to validate",
+                })
+                .option("verbose", {
+                  type: "boolean",
+                  describe: "Show detailed output",
+                })
+                .option("token", {
+                  type: "string",
+                  describe: "Use specific token for this command",
+                })
+                .option("server", {
+                  type: "string",
+                  describe: "WebPods server URL",
+                }),
+            async (argv) => {
+              await schemaEnable(argv);
+            },
+          )
+          .command(
+            "disable <stream>",
+            "Disable schema validation for a stream",
+            (yargs) =>
+              yargs
+                .positional("stream", {
+                  describe: "Stream path (pod/stream)",
+                  demandOption: true,
+                  type: "string",
+                })
+                .option("token", {
+                  type: "string",
+                  describe: "Use specific token for this command",
+                })
+                .option("server", {
+                  type: "string",
+                  describe: "WebPods server URL",
+                }),
+            async (argv) => {
+              await schemaDisable(argv);
+            },
+          )
+          .demandCommand(1, "Please specify a schema command"),
+      () => {},
     )
 
     // Transfer Ownership

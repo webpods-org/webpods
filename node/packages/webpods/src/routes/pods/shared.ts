@@ -55,7 +55,11 @@ export const deleteMiddleware = [
 export const configMiddleware = [extractPod, optionalAuth] as const;
 
 // Validation schemas
-export const writeSchema = z.union([z.string(), z.object({}).passthrough()]);
+export const writeSchema = z.union([
+  z.string(),
+  z.object({}).passthrough(),
+  z.array(z.any()),
+]);
 
 export const ownerSchema = z.object({
   userId: z.string(),
