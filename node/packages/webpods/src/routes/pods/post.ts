@@ -65,7 +65,9 @@ export const postHandler = async (
     // Check if this is a POST with empty body to create a stream
     const isEmptyBody =
       !req.body ||
-      (typeof req.body === "object" && Object.keys(req.body).length === 0);
+      (typeof req.body === "object" &&
+        !Array.isArray(req.body) &&
+        Object.keys(req.body).length === 0);
 
     // For empty body POSTs, we're creating a stream without a record
     if (isEmptyBody) {
@@ -443,6 +445,23 @@ export const postHandler = async (
       }
     }
 
+    // Validate against schema if present
+    const { validateAgainstSchema } = await import(
+      "../../domain/schema/validate-schema.js"
+    );
+    const validationResult = await validateAgainstSchema(
+      { db },
+      streamResult.data,
+      content,
+    );
+
+    if (!validationResult.success) {
+      res.status(400).json({
+        error: validationResult.error,
+      });
+      return;
+    }
+
     // Write record
     const recordResult = await writeRecord(
       { db },
@@ -468,6 +487,27 @@ export const postHandler = async (
         error: recordResult.error,
       });
       return;
+    }
+
+    // If we just wrote to a .config/schema stream, update the parent stream's has_schema flag
+    if (name === "schema" && resolvedStreamPath.endsWith("/.config")) {
+      const { updateSchemaFlag } = await import(
+        "../../domain/schema/validate-schema.js"
+      );
+      try {
+        const contentStr =
+          typeof content === "string" ? content : JSON.stringify(content);
+        const schemaDef = JSON.parse(contentStr);
+        await updateSchemaFlag(
+          { db },
+          resolvedStreamPath,
+          req.podName,
+          schemaDef,
+        );
+      } catch (err) {
+        // Log but don't fail the request - the record was already written
+        console.error("Failed to update schema flag:", err);
+      }
     }
 
     res

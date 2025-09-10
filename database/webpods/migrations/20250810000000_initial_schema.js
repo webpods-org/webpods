@@ -52,6 +52,7 @@ export async function up(knex) {
     table.bigint('parent_id').references('id').inTable('stream').onDelete('CASCADE'); // Parent stream
     table.uuid('user_id').references('id').inTable('user').onDelete('RESTRICT');
     table.string('access_permission', 500).defaultTo('public');
+    table.boolean('has_schema').defaultTo(false); // Whether this stream has validation schema
     table.jsonb('metadata').defaultTo('{}');
     table.timestamp('created_at').defaultTo(knex.fn.now());
     table.timestamp('updated_at').defaultTo(knex.fn.now());
@@ -65,6 +66,8 @@ export async function up(knex) {
     // Index for fast path-based lookups
     table.index(['pod_name', 'path']);
     table.index('user_id');
+    // Index for finding streams with schemas
+    table.index(['pod_name', 'has_schema']);
   });
 
   // Record table - append-only records with hash chain (like files)

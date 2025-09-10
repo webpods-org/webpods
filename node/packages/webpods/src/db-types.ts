@@ -43,6 +43,7 @@ export type StreamDbRow = {
   parent_id?: number | null; // References parent stream.id (bigint)
   user_id: string;
   access_permission: string;
+  has_schema?: boolean; // Whether this stream has validation schema
   metadata?: Record<string, unknown>; // JSONB
   created_at: Date;
   updated_at?: Date | null;

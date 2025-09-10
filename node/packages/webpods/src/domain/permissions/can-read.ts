@@ -154,6 +154,7 @@ export async function canRead(
       userId: parentStream.user_id,
       accessPermission: parentStream.access_permission,
       metadata: parentStream.metadata,
+      hasSchema: parentStream.has_schema || false,
       createdAt: parentStream.created_at,
       updatedAt: parentStream.updated_at || parentStream.created_at,
     };
