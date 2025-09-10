@@ -327,12 +327,6 @@ export async function list(options: {
     }
 
     // Check for incompatible options
-    if (options.recursive && options.unique) {
-      output.error("Cannot use --recursive and --unique together.");
-      logger.error("Incompatible options: recursive and unique");
-      process.exit(1);
-    }
-
     let path = `/${options.stream}`;
     const params = new URLSearchParams();
 

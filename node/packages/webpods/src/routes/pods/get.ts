@@ -22,6 +22,7 @@ import { getRecordRange } from "../../domain/records/get-record-range.js";
 import { listRecords } from "../../domain/records/list-records.js";
 import { listUniqueRecords } from "../../domain/records/list-unique-records.js";
 import { listRecordsRecursive } from "../../domain/records/list-records-recursive.js";
+import { listUniqueRecordsRecursive } from "../../domain/records/list-unique-records-recursive.js";
 import { recordToResponse } from "../../domain/records/record-to-response.js";
 import { hasTombstone } from "../../domain/records/check-tombstone.js";
 import { canRead } from "../../domain/permissions/can-read.js";
@@ -168,26 +169,25 @@ export const getHandler = async (
         : undefined;
       const unique = req.query.unique === "true";
 
-      if (unique) {
-        res.status(400).json({
-          error: {
-            code: "INVALID_PARAMETERS",
-            message: "Cannot use 'unique' and 'recursive' parameters together",
-          },
-        });
-        return;
-      }
-
       // For recursive listing when stream doesn't exist, we still use the path-based approach
       // This is a special case that needs to search for nested streams
-      const result = await listRecordsRecursive(
-        { db },
-        req.podName,
-        streamPath,
-        req.auth?.user_id || null,
-        limit,
-        after,
-      );
+      const result = unique
+        ? await listUniqueRecordsRecursive(
+            { db },
+            req.podName,
+            streamPath,
+            req.auth?.user_id || null,
+            limit,
+            after,
+          )
+        : await listRecordsRecursive(
+            { db },
+            req.podName,
+            streamPath,
+            req.auth?.user_id || null,
+            limit,
+            after,
+          );
 
       if (!result.success) {
         res.status(500).json({
@@ -474,17 +474,17 @@ export const getHandler = async (
 
     // Use appropriate listing function based on parameters
     let result;
-    if (recursive) {
-      // Recursive listing doesn't support unique mode yet
-      if (unique) {
-        res.status(400).json({
-          error: {
-            code: "INVALID_PARAMETERS",
-            message: "Cannot use 'unique' and 'recursive' parameters together",
-          },
-        });
-        return;
-      }
+    if (recursive && unique) {
+      // Use optimized path-based recursive unique listing
+      result = await listUniqueRecordsRecursive(
+        { db },
+        req.podName,
+        streamPath,
+        req.auth?.user_id || null,
+        limit,
+        after,
+      );
+    } else if (recursive) {
       result = await listRecordsRecursive(
         { db },
         req.podName,

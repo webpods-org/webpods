@@ -188,13 +188,33 @@ describe("Recursive Stream Queries", () => {
       expect(recordData).to.not.include("api_other record");
     });
 
-    it("should fail when combining recursive with unique parameter", async () => {
+    it("should support combining recursive with unique parameter", async () => {
+      // Add some duplicate named records across nested streams
+      await client.post("/test/config.json", { data: "test config v1" });
+      await client.post("/test/config.json", { data: "test config v2" });
+      await client.post("/test/nested/config.json", { data: "nested config" });
+      await client.post("/test/nested/other.txt", { data: "other file" });
+
       const response = await client.get("/test?recursive=true&unique=true");
-      expect(response.status).to.equal(400);
-      expect(response.data.error.code).to.equal("INVALID_PARAMETERS");
-      expect(response.data.error.message).to.include(
-        "Cannot use 'unique' and 'recursive' parameters together",
-      );
+      expect(response.status).to.equal(200);
+
+      // Should get unique records from all nested streams
+      const records = response.data.records;
+      expect(records).to.be.an("array");
+      expect(records.length).to.be.greaterThan(0);
+
+      // Check that we have unique named records
+      const recordNames = records.map((r: any) => r.name);
+      const uniqueNames = [...new Set(recordNames)];
+      expect(recordNames.length).to.equal(uniqueNames.length); // All names should be unique
+
+      // Should have records from nested streams
+      const configs = records.filter((r: any) => r.name === "config.json");
+      expect(configs.length).to.be.greaterThan(0);
+
+      // Should have other.txt from nested stream
+      const otherFile = records.find((r: any) => r.name === "other.txt");
+      expect(otherFile).to.exist;
     });
 
     it("should handle deep nesting correctly", async () => {
