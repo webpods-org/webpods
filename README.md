@@ -27,6 +27,7 @@ WebPods organizes data into:
 - [Custom Domains](#custom-domains)
 - [Building Third-Party Apps](#building-third-party-apps)
 - [Advanced Features](#advanced-features)
+  - [Schema Validation](#schema-validation)
 - [Configuration](#configuration)
 - [Development](#development)
 
@@ -39,7 +40,7 @@ WebPods organizes data into:
 npm install -g webpods-cli
 
 # Verify installation
-pod --version
+podctl --version
 ```
 
 #### Configure Your Server
@@ -47,14 +48,11 @@ pod --version
 The CLI needs to know which WebPods server to connect to. By default, it uses `http://localhost:3000`.
 
 ```bash
-# For a production server (replace with your actual server)
-pod config server https://your-webpods-server.com
-
 # For connecting to different servers, use profiles
-pod profile add prod --server https://webpods.org
-pod profile add work --server https://pods.mycompany.com
-pod profile add dev --server http://localhost:3000
-pod profile use prod  # Switch to production server
+podctl profile add prod --server https://webpods.org
+podctl profile add work --server https://pods.mycompany.com
+podctl profile add dev --server http://localhost:3000
+podctl profile use prod  # Switch to production server
 ```
 
 ### Server Installation
@@ -104,7 +102,7 @@ WebPods uses two different token systems:
 
 1. **WebPods JWT Tokens** - For direct API access and CLI usage
    - Used by: CLI, direct API calls, personal scripts
-   - Get via: `pod login` or `/auth/{provider}`
+   - Get via: `podctl login` or `/auth/{provider}`
    - Contains: `type: "webpods"` field
    - Purpose: Direct access to your own pods
 
@@ -124,19 +122,19 @@ WebPods uses two different token systems:
 
 ```bash
 # Login to your configured server (defaults to http://localhost:3000)
-pod login
+podctl login
 # This shows a URL like: http://localhost:3000/auth/github
 # Visit the URL, authenticate, then copy and set the token:
-pod token set "your-jwt-token-here"
+podctl token set "your-jwt-token-here"
 
 # Show all available OAuth providers for the current server
-pod login
+podctl login
 
 # View saved token
-pod token get
+podctl token get
 
 # Show current user info
-pod whoami
+podctl auth info
 ```
 
 #### HTTP
@@ -165,31 +163,31 @@ You can manage pods across multiple WebPods deployments using profiles:
 
 ```bash
 # Add profiles for different servers
-pod profile add production --server https://webpods.org
-pod profile add staging --server https://staging.example.com
-pod profile add local --server http://localhost:3000
+podctl profile add production --server https://webpods.org
+podctl profile add staging --server https://staging.example.com
+podctl profile add local --server http://localhost:3000
 
 # Login to each server (tokens are stored per-profile)
-pod profile use production
-pod login  # Authenticate with production server
-pod token set "production-token"
+podctl profile use production
+podctl login  # Authenticate with production server
+podctl token set "production-token"
 
-pod profile use staging
-pod login  # Authenticate with staging server
-pod token set "staging-token"
+podctl profile use staging
+podctl login  # Authenticate with staging server
+podctl token set "staging-token"
 
 # Switch between servers
-pod profile use production
-pod list  # Shows pods on production
+podctl profile use production
+podctl pod list  # Shows pods on production
 
-pod profile use staging
-pod list  # Shows pods on staging
+podctl profile use staging
+podctl pod list  # Shows pods on staging
 
 # List all profiles
-pod profile list
+podctl profile list
 
 # Use a different profile for a single command
-pod list --profile staging
+podctl pod list --profile staging
 ```
 
 ### Logout
@@ -197,7 +195,7 @@ pod list --profile staging
 #### CLI
 
 ```bash
-pod logout
+podctl logout
 ```
 
 #### HTTP
@@ -221,7 +219,7 @@ Pods are your personal namespaces. Pod names must be:
 #### CLI
 
 ```bash
-pod create my-awesome-pod
+podctl pod create my-awesome-pod
 ```
 
 #### HTTP
@@ -238,10 +236,10 @@ curl -X POST https://webpods.org/api/pods \
 #### CLI
 
 ```bash
-pod list
+podctl pod list
 
 # JSON output
-pod list --format json
+podctl pod list --format json
 ```
 
 #### HTTP
@@ -259,10 +257,10 @@ curl https://webpods.org/api/pods \
 
 ```bash
 # With confirmation prompt
-pod delete my-awesome-pod
+podctl pod delete my-awesome-pod
 
 # Skip confirmation
-pod delete my-awesome-pod --force
+podctl pod delete my-awesome-pod --force
 ```
 
 #### HTTP
@@ -301,13 +299,13 @@ Streams form a hierarchy like directories. They are created automatically when y
 
 ```bash
 # Create a public stream (creates /blog and /blog/posts if needed)
-pod stream create my-pod /blog/posts
+podctl stream create my-pod /blog/posts
 
 # Create a private stream
-pod stream create my-pod /private-notes --access private
+podctl stream create my-pod /private-notes --access private
 
 # Create a stream with custom permissions
-pod stream create my-pod /team-docs --access /team-permissions
+podctl stream create my-pod /team-docs --access /team-permissions
 ```
 
 #### HTTP
@@ -333,19 +331,19 @@ curl -X POST https://my-pod.webpods.org/auto-stream/first-record \
 
 ```bash
 # Write text content (stream auto-creates)
-pod write my-pod /blog/posts/first-post "This is my first blog post!"
+podctl record write my-pod /blog/posts first-post "This is my first blog post!"
 
 # Write from file (stream auto-creates)
-pod write my-pod /data/users/alice @user.json
+podctl record write my-pod /data/users alice @user.json
 
 # Write from stdin (stream auto-creates)
-echo "Hello, World!" | pod write my-pod /messages/greeting -
+echo "Hello, World!" | podctl record write my-pod /messages greeting -
 
 # Write with specific content type (stream auto-creates)
-pod write my-pod /styles/main.css @style.css --content-type text/css
+podctl record write my-pod /styles main.css @style.css --content-type text/css
 
 # Write to private stream (specify access on first write)
-pod write my-pod /private-notes/secret "My secret" --access private
+podctl record write my-pod /private-notes secret "My secret" --access private
 ```
 
 #### HTTP
@@ -374,20 +372,20 @@ curl -X POST https://my-pod.webpods.org/private-notes/secret?access=private \
 
 ```bash
 # Read by name
-pod read my-pod /blog/posts/first-post
+podctl record read my-pod /blog/posts first-post
 
 # Read by index
-pod read my-pod /blog/posts --index 0    # First record
-pod read my-pod /blog/posts --index -1   # Latest record
+podctl record read my-pod /blog/posts --index 0    # First record
+podctl record read my-pod /blog/posts --index -1   # Latest record
 
 # Save to file
-pod read my-pod /blog/posts/first-post -o post.txt
+podctl record read my-pod /blog/posts first-post -o post.txt
 
 # Show metadata
-pod read my-pod /blog/posts/first-post --metadata
+podctl record read my-pod /blog/posts first-post --metadata
 
 # Read without a name (gets latest)
-pod read my-pod /blog/posts
+podctl record read my-pod /blog/posts
 ```
 
 #### HTTP
@@ -416,10 +414,10 @@ WebPods supports two deletion modes:
 
 ```bash
 # Soft delete a record (creates tombstone)
-pod delete my-pod /blog/posts/old-post
+podctl record delete my-pod /blog/posts old-post
 
 # Hard delete/purge a record (overwrites content)
-pod delete my-pod /blog/posts/old-post --purge
+podctl record delete my-pod /blog/posts old-post --hard
 ```
 
 #### HTTP
@@ -447,27 +445,27 @@ curl -X DELETE https://my-pod.webpods.org/blog/posts/old-post?purge=true \
 
 ```bash
 # List all records
-pod record list my-pod blog/posts
+podctl record list my-pod blog/posts
 
 # With limit (capped at server maximum, typically 1000)
-pod record list my-pod blog/posts --limit 10
+podctl record list my-pod blog/posts --limit 10
 
 # Pagination with positive offset
-pod record list my-pod blog/posts --limit 10 --after 50
+podctl record list my-pod blog/posts --limit 10 --after 50
 
 # Negative indexing - get last N records
-pod record list my-pod blog/posts --after -20    # Last 20 records
-pod record list my-pod blog/posts --after -5     # Last 5 records
+podctl record list my-pod blog/posts --after -20    # Last 20 records
+podctl record list my-pod blog/posts --after -5     # Last 5 records
 
 # Get only unique named records (latest version of each)
-pod record list my-pod blog/posts --unique
+podctl record list my-pod blog/posts --unique
 
 # List records from nested streams recursively
-pod record list my-pod blog --recursive          # All records in blog/* streams
-pod record list my-pod / --recursive             # All records in all streams
+podctl record list my-pod blog --recursive          # All records in blog/* streams
+podctl record list my-pod / --recursive             # All records in all streams
 
 # JSON output
-pod record list my-pod blog/posts --format json
+podctl record list my-pod blog/posts --format json
 ```
 
 #### HTTP
@@ -501,13 +499,13 @@ Query records from all nested streams under a path:
 
 ```bash
 # List all records in blog/* streams (blog/posts, blog/drafts, etc.)
-pod record list my-pod blog --recursive
+podctl record list my-pod blog --recursive
 
 # Combine with pagination
-pod record list my-pod blog --recursive --limit 20 --after 10
+podctl record list my-pod blog --recursive --limit 20 --after 10
 
 # Get last 50 records across all nested streams
-pod record list my-pod blog --recursive --after -50
+podctl record list my-pod blog --recursive --after -50
 ```
 
 ##### HTTP
@@ -539,10 +537,10 @@ This effectively treats the stream as a key-value store.
 
 ```bash
 # Get latest version of each named record
-pod record list my-pod config --unique
+podctl record list my-pod config --unique
 
 # Combine with negative indexing
-pod record list my-pod config --unique --after -10  # Last 10 unique records
+podctl record list my-pod config --unique --after -10  # Last 10 unique records
 ```
 
 ##### HTTP
@@ -557,13 +555,13 @@ curl https://my-pod.webpods.org/config?unique=true&limit=50&after=100
 
 #### Query Parameter Combinations
 
-| Parameter   | Compatible With  | Not Compatible With                     |
-| ----------- | ---------------- | --------------------------------------- |
-| `limit`     | All parameters   | -                                       |
-| `after`     | All parameters   | -                                       |
-| `unique`    | `limit`, `after` | `recursive`, `i`                        |
-| `recursive` | `limit`, `after` | `unique`, `i`                           |
-| `i` (index) | -                | `unique`, `recursive`, `limit`, `after` |
+| Parameter   | Compatible With               | Not Compatible With                     |
+| ----------- | ----------------------------- | --------------------------------------- |
+| `limit`     | All parameters                | -                                       |
+| `after`     | All parameters                | -                                       |
+| `unique`    | `recursive`, `limit`, `after` | `i`                                     |
+| `recursive` | `unique`, `limit`, `after`    | `i`                                     |
+| `i` (index) | -                             | `unique`, `recursive`, `limit`, `after` |
 
 ## Stream Operations
 
@@ -575,17 +573,17 @@ Streams form a hierarchy like directories and are created automatically when you
 
 ```bash
 # Create a public stream (default)
-pod stream create my-pod /blog/posts
+podctl stream create my-pod /blog/posts
 
 # Create nested streams
-pod stream create my-pod /projects/webapp/logs
-pod stream create my-pod /teams/engineering/members
+podctl stream create my-pod /projects/webapp/logs
+podctl stream create my-pod /teams/engineering/members
 
 # Create a private stream
-pod stream create my-pod /private-notes --access private
+podctl stream create my-pod /private-notes --access private
 
 # Create a stream with custom permissions
-pod stream create my-pod /members --access /team-permissions
+podctl stream create my-pod /members --access /team-permissions
 ```
 
 #### HTTP
@@ -621,10 +619,10 @@ curl -X POST https://my-pod.webpods.org/members?access=/team-permissions \
 
 ```bash
 # List all streams in a pod
-pod stream list my-pod
+podctl stream list my-pod
 
 # List streams at a specific path
-pod stream list my-pod --path /blog
+podctl stream list my-pod --path /blog
 ```
 
 #### HTTP
@@ -650,7 +648,7 @@ curl "https://my-pod.webpods.org/.config/api/streams?path=/blog&recursive=true&i
 #### CLI
 
 ```bash
-pod stream delete my-pod /old-stream --force
+podctl stream delete my-pod /old-stream --force
 ```
 
 #### HTTP
@@ -690,13 +688,13 @@ Permissions are set when creating streams, not when writing records.
 
 ```bash
 # Create a public stream (default)
-pod stream create my-pod /public-blog
+podctl stream create my-pod /public-blog
 
 # Create a private stream
-pod stream create my-pod /private-notes --access private
+podctl stream create my-pod /private-notes --access private
 
 # Create a stream with custom permissions (users in permission stream)
-pod stream create my-pod /team-docs --access /team-permissions
+podctl stream create my-pod /team-docs --access /team-permissions
 ```
 
 #### HTTP
@@ -717,16 +715,16 @@ curl -X POST https://my-pod.webpods.org/team-docs?access=/team-permissions \
 
 ```bash
 # Grant read access
-pod grant my-pod /team-permissions user-123 --read
+podctl permission grant my-pod /team-permissions user-123 --read
 
 # Grant read and write access
-pod grant my-pod /team-permissions user-456 --read --write
+podctl permission grant my-pod /team-permissions user-456 --read --write
 
 # Revoke access
-pod revoke my-pod /team-permissions user-789
+podctl permission revoke my-pod /team-permissions user-789
 
 # List permissions
-pod permissions my-pod /team-permissions
+podctl permission list my-pod /team-permissions
 ```
 
 #### HTTP
@@ -763,19 +761,19 @@ When someone visits a path on your pod, WebPods:
 
 ```bash
 # Set homepage to show latest post
-pod links set my-pod / "blog/posts?i=-1"
+podctl link set my-pod / "blog/posts?i=-1"
 
 # Set /about to show a specific page
-pod links set my-pod /about "pages/about"
+podctl link set my-pod /about "pages/about"
 
 # Set /blog to show unique posts
-pod links set my-pod /blog "blog/posts?unique=true&limit=10"
+podctl link set my-pod /blog "blog/posts?unique=true&limit=10"
 
 # List all links
-pod links list my-pod
+podctl link list my-pod
 
 # Remove a link
-pod links remove my-pod /old-page
+podctl link remove my-pod /old-page
 ```
 
 #### HTTP
@@ -797,16 +795,16 @@ curl -X POST https://my-pod.webpods.org/.config/routing/routes \
 
 ```bash
 # 1. Create your homepage (stream auto-creates)
-pod write my-pod homepage/index "Welcome to my blog!" --content-type text/html
+podctl record write my-pod homepage index "Welcome to my blog!" --content-type text/html
 
 # 2. Create blog posts (stream auto-creates)
-pod write my-pod blog/posts/first "My first post"
-pod write my-pod blog/posts/second "Another post"
+podctl record write my-pod blog/posts first "My first post"
+podctl record write my-pod blog/posts second "Another post"
 
 # 3. Set up routing
-pod links set my-pod / "homepage/index"           # Homepage
-pod links set my-pod /posts "blog/posts?unique=true"  # All posts
-pod links set my-pod /latest "blog/posts?i=-1"        # Latest post
+podctl link set my-pod / "homepage/index"           # Homepage
+podctl link set my-pod /posts "blog/posts?unique=true"  # All posts
+podctl link set my-pod /latest "blog/posts?i=-1"        # Latest post
 
 # Now visitors can access:
 # https://my-pod.webpods.org/          -> Shows homepage
@@ -824,13 +822,13 @@ You can map custom domains to your pods.
 
 ```bash
 # Add a custom domain
-pod domain add my-pod blog.example.com
+podctl domain add my-pod blog.example.com
 
 # List domains for a pod
-pod domain list my-pod
+podctl domain list my-pod
 
 # Remove a custom domain
-pod domain remove my-pod blog.example.com
+podctl domain remove my-pod blog.example.com
 ```
 
 #### HTTP
@@ -874,8 +872,8 @@ First, you need a WebPods account and token:
 
 ```bash
 # Get your own WebPods token
-pod login
-DEVELOPER_TOKEN=$(pod token get)
+podctl login
+DEVELOPER_TOKEN=$(podctl token get)
 ```
 
 Register your OAuth client:
@@ -883,7 +881,7 @@ Register your OAuth client:
 #### CLI
 
 ```bash
-pod oauth register "My Awesome App" \
+podctl oauth register "My Awesome App" \
   --redirect-uri https://myapp.com/callback \
   --redirect-uri http://localhost:3000/callback \
   --pods alice,bob \
@@ -997,13 +995,13 @@ const writeResponse = await fetch("https://alice.webpods.org/app-data/record", {
 
 ```bash
 # List your OAuth clients
-pod oauth list
+podctl oauth list
 
 # Get details of a specific client
-# pod oauth get my-awesome-app-a1b2c3d4  # NOT YET IMPLEMENTED
+podctl oauth info my-awesome-app-a1b2c3d4
 
 # Delete a client
-# pod oauth delete my-awesome-app-a1b2c3d4  # NOT YET IMPLEMENTED
+podctl oauth delete my-awesome-app-a1b2c3d4
 ```
 
 #### HTTP
@@ -1023,7 +1021,7 @@ curl -X DELETE https://webpods.org/api/oauth/clients/my-awesome-app-a1b2c3d4 \
 For single-page applications that can't securely store secrets:
 
 ```bash
-pod oauth register "My SPA" \
+podctl oauth register "My SPA" \
   --redirect-uri https://spa.example.com/callback \
   --public \
   --scope "openid pod:read pod:write"
@@ -1039,13 +1037,13 @@ This creates a public client that uses PKCE for security.
 
 ```bash
 # Upload an image (stream auto-creates)
-pod write my-pod images/logo @logo.png --content-type image/png
+podctl record write my-pod images logo @logo.png --content-type image/png
 
 # Upload a PDF (stream auto-creates)
-pod write my-pod docs/manual @manual.pdf --content-type application/pdf
+podctl record write my-pod docs manual @manual.pdf --content-type application/pdf
 
 # Download binary content
-pod read my-pod images/logo -o downloaded-logo.png
+podctl record read my-pod images logo -o downloaded-logo.png
 ```
 
 #### HTTP
@@ -1068,23 +1066,94 @@ WebPods can serve as a static website host:
 
 ```bash
 # Upload HTML (stream auto-creates)
-pod write my-pod index.html @index.html --content-type text/html
+podctl record write my-pod / index.html @index.html --content-type text/html
 
 # Upload CSS (stream auto-creates)
-pod write my-pod css/styles.css @styles.css --content-type text/css
+podctl record write my-pod css styles.css @styles.css --content-type text/css
 
 # Upload JavaScript (stream auto-creates)
-pod write my-pod js/app.js @app.js --content-type application/javascript
+podctl record write my-pod js app.js @app.js --content-type application/javascript
 
 # Upload images (stream auto-creates)
-pod write my-pod img/hero.jpg @hero.jpg --content-type image/jpeg
+podctl record write my-pod img hero.jpg @hero.jpg --content-type image/jpeg
 
 # Set up routing
-pod links set my-pod / "index.html"
-pod links set my-pod /style.css "css/styles.css"
+podctl link set my-pod / "index.html"
+podctl link set my-pod /style.css "css/styles.css"
 
 # Your site is live at https://my-pod.webpods.org/
 ```
+
+### Schema Validation
+
+WebPods supports JSON Schema validation for stream records to ensure data quality and consistency.
+
+#### Enable Schema Validation
+
+##### CLI
+
+```bash
+# Create a JSON schema file
+echo '{
+  "type": "object",
+  "required": ["name", "email"],
+  "properties": {
+    "name": {"type": "string"},
+    "email": {"type": "string", "format": "email"}
+  }
+}' > user-schema.json
+
+# Enable schema validation for a stream
+podctl schema enable my-pod /users user-schema.json
+
+# Enable with specific validation mode
+podctl schema enable my-pod /products schema.json --mode permissive
+
+# Enable validation for full record (including metadata)
+podctl schema enable my-pod /logs schema.json --applies-to full-record
+
+# Disable schema validation
+podctl schema disable my-pod /users
+```
+
+##### HTTP
+
+```bash
+# Enable schema validation via API
+curl -X POST https://my-pod.webpods.org/users/.config/schema \
+  -H "Authorization: Bearer $WEBPODS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "schemaType": "json-schema",
+    "schema": {
+      "type": "object",
+      "required": ["name", "email"],
+      "properties": {
+        "name": {"type": "string"},
+        "email": {"type": "string", "format": "email"}
+      }
+    },
+    "validationMode": "strict",
+    "appliesTo": "content"
+  }'
+
+# Disable schema validation
+curl -X POST https://my-pod.webpods.org/users/.config/schema \
+  -H "Authorization: Bearer $WEBPODS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"schemaType": "none"}'
+```
+
+#### Validation Modes
+
+- **strict** (default): Reject records that don't match the schema
+- **permissive**: Allow records that don't match, but log validation errors
+
+#### Schema Storage
+
+- Schemas are stored in the stream's `.config/schema` record
+- The `has_schema` column provides fast lookup for validation requirements
+- Multiple schema versions can be stored with different record names
 
 ### Hash Chain Verification
 
@@ -1094,10 +1163,10 @@ Every record has a SHA-256 hash and links to the previous record:
 
 ```bash
 # View hash chain
-pod verify my-pod /stream-name --show-chain
+podctl record verify my-pod /stream-name --show-chain
 
 # Verify integrity
-pod verify my-pod /stream-name --check-integrity
+podctl record verify my-pod /stream-name --check-integrity
 ```
 
 #### HTTP
@@ -1126,12 +1195,12 @@ Pod ownership controls complete access to a pod. When ownership is transferred:
 
 ```bash
 # View ownership
-pod info my-pod --owner
+podctl pod info my-pod --owner
 
 # Transfer ownership (CLI)
 # WARNING: You will lose all access to this pod after transfer
 # Note: The new user ID must exist in the system
-pod transfer my-pod new-user-id --force
+podctl pod transfer my-pod new-user-id --force
 
 # Transfer ownership (HTTP)
 curl -X POST https://my-pod.webpods.org/.config/owner \
@@ -1144,7 +1213,7 @@ curl -X POST https://my-pod.webpods.org/.config/owner \
 
 ```bash
 # List all streams
-pod stream list my-pod
+podctl stream list my-pod
 
 # Via HTTP
 curl https://my-pod.webpods.org/.config/api/streams
@@ -1174,10 +1243,10 @@ Default limits per hour:
 
 ```bash
 # Check your current limits
-pod limits
+podctl limit info
 
 # Check specific action
-pod limits --action write
+podctl limit info --action write
 ```
 
 #### HTTP
@@ -1198,30 +1267,26 @@ curl -i https://my-pod.webpods.org/test \
 #### CLI
 
 ```bash
-# Export entire pod
-pod export my-pod -o my-pod-backup.json
-pod export my-pod --exclude-config  # Exclude .config/ streams
-
 # Verify stream integrity (check hash chain)
-pod verify my-pod /stream-name
-pod verify my-pod /stream-name --show-chain
-pod verify my-pod /stream-name --check-integrity
+podctl record verify my-pod /stream-name
+podctl record verify my-pod /stream-name --show-chain
+podctl record verify my-pod /stream-name --check-integrity
 
 # Grant/revoke permissions
-pod grant my-pod /permission-stream user-id --read
-pod grant my-pod /permission-stream user-id --write
-pod grant my-pod /permission-stream user-id --read --write
-pod revoke my-pod /permission-stream user-id
+podctl permission grant my-pod /permission-stream user-id --read
+podctl permission grant my-pod /permission-stream user-id --write
+podctl permission grant my-pod /permission-stream user-id --read --write
+podctl permission revoke my-pod /permission-stream user-id
 
 # Manage links (URL routing)
-pod links set my-pod /about /blog/about-page
-pod links list my-pod
-pod links remove my-pod /about
+podctl link set my-pod /about /blog/about-page
+podctl link list my-pod
+podctl link remove my-pod /about
 
 # Manage custom domains
-pod domain add my-pod example.com
-pod domain list my-pod
-pod domain remove my-pod example.com
+podctl domain add my-pod example.com
+podctl domain list my-pod
+podctl domain remove my-pod example.com
 ```
 
 ### Localhost Testing
@@ -1473,67 +1538,81 @@ docker-compose -f docker-compose.test.yml up
 
 ### Authentication
 
-- `pod login` - Show available OAuth providers
-- `pod logout` - Clear authentication
-- `pod whoami` - Show current user info
-- `pod token set <token>` - Set authentication token
-- `pod token show` - Display current token
+- `podctl login` - Show available OAuth providers (alias for `podctl auth login`)
+- `podctl logout` - Clear authentication (alias for `podctl auth logout`)
+- `podctl auth login` - Show available OAuth providers
+- `podctl auth logout` - Clear stored authentication token
+- `podctl auth info` - Show current user info
+- `podctl token set <token>` - Set authentication token
+- `podctl token show` - Display current token
 
 ### Pod Management
 
-- `pod create <name>` - Create a new pod
-- `pod list` - List your pods
-- `pod info <pod>` - Show pod details
-- `pod delete <pod> [--force]` - Delete a pod
-- `pod transfer <pod> <user-id> --force` - Transfer pod ownership
+- `podctl pod create <name>` - Create a new pod
+- `podctl pod list` - List your pods
+- `podctl pod info <pod>` - Show pod details
+- `podctl pod delete <pod> [--force]` - Delete a pod
+- `podctl pod transfer <pod> <user-id> --force` - Transfer pod ownership
 
 ### Records
 
-- `pod write <pod> <path> <data>` - Write a record
-- `pod read <pod> <path>` - Read a record
-- `pod record list <pod> <stream>` - List records in a stream
-- `pod delete <pod> <path> [--purge]` - Delete a record
+- `podctl record write <pod> <stream> <name> [data]` - Write a record
+- `podctl record read <pod> <stream> [name]` - Read a record
+- `podctl record list <pod> <stream>` - List records in a stream
+- `podctl record delete <pod> <stream> <name> [--hard]` - Delete a record
+- `podctl record verify <pod> <stream>` - Verify hash chain integrity
 
 ### Streams
 
-- `pod stream create <pod> <stream> [--access <mode>]` - Create a stream
-- `pod stream list <pod>` - List all streams
-- `pod stream delete <pod> <stream> --force` - Delete a stream
-- `pod verify <pod> <stream>` - Verify stream integrity
+- `podctl stream create <pod> <stream> [--access <mode>]` - Create a stream
+- `podctl stream list <pod>` - List all streams
+- `podctl stream delete <pod> <stream> --force` - Delete a stream
 
 ### Permissions
 
-- `pod grant <pod> <stream> <user> [--read] [--write]` - Grant permissions
-- `pod revoke <pod> <stream> <user>` - Revoke permissions
+- `podctl permission grant <pod> <stream> <user> [--read] [--write]` - Grant permissions
+- `podctl permission revoke <pod> <stream> <user>` - Revoke permissions
+- `podctl permission list <pod> <stream>` - List permissions for a stream
 
 ### Links & Domains
 
-- `pod links set <pod> <path> <stream/record>` - Set a link
-- `pod links list <pod>` - List all links
-- `pod links remove <pod> <path>` - Remove a link
-- `pod domain add <pod> <domain>` - Add custom domain
-- `pod domain list <pod>` - List domains
-- `pod domain remove <pod> <domain>` - Remove domain
+- `podctl link set <pod> <path> <stream/record>` - Set a link
+- `podctl link list <pod>` - List all links
+- `podctl link remove <pod> <path>` - Remove a link
+- `podctl domain add <pod> <domain>` - Add custom domain
+- `podctl domain list <pod>` - List domains
+- `podctl domain remove <pod> <domain>` - Remove domain
 
-### Backup & Export
+### Schema Validation
 
-- `pod export <pod> [-o file]` - Export pod data
-- `pod export <pod> --exclude-config` - Export without .config/ streams
+- `podctl schema enable <pod> <stream> <file>` - Enable schema validation
+- `podctl schema disable <pod> <stream>` - Disable schema validation
+
+### Rate Limits
+
+- `podctl limit info` - Check current rate limit status
+- `podctl limit info --action <action>` - Check specific action limits
+
+### OAuth Client Management
+
+- `podctl oauth register` - Register a new OAuth client
+- `podctl oauth list` - List your OAuth clients
+- `podctl oauth info <clientId>` - Show OAuth client details
+- `podctl oauth delete <clientId>` - Delete an OAuth client
 
 ### Profile Management
 
-- `pod profile add <name> --server <url>` - Add server profile
-- `pod profile list` - List profiles
-- `pod profile use <name>` - Switch profile
-- `pod profile delete <name> --force` - Delete profile
-- `pod profile current` - Show current profile
+- `podctl profile add <name> --server <url>` - Add server profile
+- `podctl profile list` - List profiles
+- `podctl profile use <name>` - Switch profile
+- `podctl profile delete <name> --force` - Delete profile
+- `podctl profile current` - Show current profile
 
 ### Configuration
 
-- `pod config set <key> <value>` - Set config value
-- `pod config get [key]` - Get config value
-- `pod --help` - Show help
-- `pod <command> --help` - Show command help
+- `podctl config [key] [value]` - Show or set configuration values
+- `podctl --help` - Show help
+- `podctl <command> --help` - Show command help
 
 ## Documentation
 
