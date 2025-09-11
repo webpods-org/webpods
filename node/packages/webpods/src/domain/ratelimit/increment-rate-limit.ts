@@ -6,6 +6,7 @@ import { DataContext } from "../data-context.js";
 import { RateLimitDbRow } from "../../db-types.js";
 import { createLogger } from "../../logger.js";
 import { sql } from "../../db/index.js";
+import { getConfig } from "../../config-loader.js";
 
 const logger = createLogger("webpods:domain:ratelimit");
 
@@ -16,7 +17,8 @@ export async function incrementRateLimit(
   identifier: string,
   type: RateLimitType,
 ): Promise<void> {
-  const windowMs = 60 * 60 * 1000; // 1 hour
+  const config = getConfig();
+  const windowMs = config.rateLimits.windowMs ?? 3600000; // 1 hour default
   const now = new Date();
   const windowEnd = new Date(Math.ceil(now.getTime() / windowMs) * windowMs);
   const actualWindowStart = new Date(windowEnd.getTime() - windowMs);

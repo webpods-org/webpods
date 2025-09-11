@@ -38,6 +38,11 @@ export interface OAuthProviderConfig {
 export interface OAuthConfig {
   providers: OAuthProviderConfig[];
   defaultProvider?: string;
+  pkceStateExpiryMinutes?: number;
+  rememberShortHours?: number;
+  rememberLongHours?: number;
+  jwtCacheMaxAgeMs?: number;
+  jwtCacheRequestsPerMinute?: number;
 }
 
 export interface PublicConfig {
@@ -70,6 +75,7 @@ export interface AuthConfig {
   jwtSecret: string;
   jwtExpiry: string;
   sessionSecret: string;
+  sessionPruneIntervalMs?: number;
 }
 
 export interface RateLimitsConfig {
@@ -78,6 +84,10 @@ export interface RateLimitsConfig {
   podCreate: number;
   streamCreate: number;
   maxRecordLimit: number; // Maximum records that can be fetched in a single request
+  windowMs?: number;
+  defaultQueryLimit?: number;
+  cliMaxOperationLimit?: number;
+  oauthClientDescriptionMaxLength?: number;
 }
 
 export interface HydraConfig {
@@ -155,7 +165,7 @@ function resolveEnvVars(obj: unknown, path: string[] = []): unknown {
       let defaultValue: unknown;
       switch (fullPath) {
         case "server.host":
-          defaultValue = "0.0.0.0";
+          defaultValue = "127.0.0.1";
           break;
         case "server.port":
           defaultValue = 3000;
@@ -199,6 +209,36 @@ function resolveEnvVars(obj: unknown, path: string[] = []): unknown {
         case "rateLimits.maxRecordLimit":
           defaultValue = 1000; // Default max records per request
           break;
+        case "rateLimits.windowMs":
+          defaultValue = 3600000; // 1 hour in milliseconds
+          break;
+        case "rateLimits.defaultQueryLimit":
+          defaultValue = 100;
+          break;
+        case "rateLimits.cliMaxOperationLimit":
+          defaultValue = 1000;
+          break;
+        case "rateLimits.oauthClientDescriptionMaxLength":
+          defaultValue = 50;
+          break;
+        case "oauth.pkceStateExpiryMinutes":
+          defaultValue = 10;
+          break;
+        case "oauth.rememberShortHours":
+          defaultValue = 1;
+          break;
+        case "oauth.rememberLongHours":
+          defaultValue = 24;
+          break;
+        case "oauth.jwtCacheMaxAgeMs":
+          defaultValue = 600000; // 10 minutes
+          break;
+        case "oauth.jwtCacheRequestsPerMinute":
+          defaultValue = 10;
+          break;
+        case "auth.sessionPruneIntervalMs":
+          defaultValue = 3600000; // 1 hour
+          break;
         case "hydra.adminUrl":
           defaultValue = "http://localhost:4445";
           break;
@@ -236,6 +276,7 @@ function applyDefaults(config: RawConfig): RawConfig {
   config.database = config.database || {};
   config.auth = config.auth || {};
   config.rateLimits = config.rateLimits || {};
+  config.oauth = config.oauth || { providers: [] };
   config.hydra = config.hydra || {};
 
   // Apply defaults for server (using env var references)

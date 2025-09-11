@@ -73,13 +73,15 @@ router.get("/login", async (req: Request, res: Response) => {
       const testUserId = req.headers["x-test-user"] as string;
       logger.info("Test mode: auto-accepting login");
 
+      const config = getConfig();
+      const rememberForSeconds = (config.oauth.rememberShortHours ?? 1) * 3600;
       const { data: acceptResponse } =
         await hydraAdmin.acceptOAuth2LoginRequest({
           loginChallenge,
           acceptOAuth2LoginRequest: {
             subject: testUserId,
             remember: true,
-            remember_for: 3600, // Remember for 1 hour
+            remember_for: rememberForSeconds,
           },
         });
 
@@ -114,13 +116,15 @@ router.get("/login", async (req: Request, res: Response) => {
 
     if (webpodsUser) {
       // User is authenticated, accept the login
+      const config = getConfig();
+      const rememberForSeconds = (config.oauth.rememberShortHours ?? 1) * 3600;
       const { data: acceptResponse } =
         await hydraAdmin.acceptOAuth2LoginRequest({
           loginChallenge,
           acceptOAuth2LoginRequest: {
             subject: webpodsUser.id,
             remember: true,
-            remember_for: 3600, // Remember for 1 hour
+            remember_for: rememberForSeconds,
             context: {
               email: webpodsUser.email,
               name: webpodsUser.name,

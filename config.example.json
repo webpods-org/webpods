@@ -60,32 +60,46 @@
         "callbackUrl": "https://custom-domain.com/auth/customauth/callback"
       }
     ],
-    "defaultProvider": "github"
+    "defaultProvider": "github",
+    "pkceStateExpiryMinutes": 10,
+    "rememberShortHours": 1,
+    "rememberLongHours": 24,
+    "jwtCacheMaxAgeMs": 600000,
+    "jwtCacheRequestsPerMinute": 10
   },
   "server": {
-    "host": "$HOST",
-    "port": "$PORT",
-    "publicUrl": "$PUBLIC_URL",
-    "corsOrigin": "$CORS_ORIGIN",
-    "maxPayloadSize": "$MAX_PAYLOAD_SIZE"
+    "host": "127.0.0.1",
+    "port": 3000,
+    "publicUrl": "http://localhost:3000",
+    "corsOrigin": "*",
+    "maxPayloadSize": "10mb"
   },
   "database": {
-    "host": "$WEBPODS_DB_HOST",
-    "port": "$WEBPODS_DB_PORT",
-    "database": "$WEBPODS_DB_NAME",
-    "user": "$WEBPODS_DB_USER",
+    "host": "localhost",
+    "port": 5432,
+    "database": "webpodsdb",
+    "user": "postgres",
     "password": "$WEBPODS_DB_PASSWORD"
   },
   "auth": {
     "jwtSecret": "$JWT_SECRET",
-    "jwtExpiry": "$JWT_EXPIRY",
-    "sessionSecret": "$SESSION_SECRET"
+    "jwtExpiry": "24h",
+    "sessionSecret": "$SESSION_SECRET",
+    "sessionPruneIntervalMs": 3600000
   },
   "rateLimits": {
-    "writes": "$RATE_LIMIT_WRITES",
-    "reads": "$RATE_LIMIT_READS",
-    "podCreate": "$RATE_LIMIT_POD_CREATE",
-    "streamCreate": "$RATE_LIMIT_STREAM_CREATE",
-    "maxRecordLimit": "$MAX_RECORD_LIMIT"
+    "writes": 1000,
+    "reads": 10000,
+    "podCreate": 10,
+    "streamCreate": 100,
+    "maxRecordLimit": 1000,
+    "windowMs": 3600000,
+    "defaultQueryLimit": 100,
+    "cliMaxOperationLimit": 1000,
+    "oauthClientDescriptionMaxLength": 50
+  },
+  "hydra": {
+    "adminUrl": "http://localhost:4445",
+    "publicUrl": "http://localhost:4444"
   }
 }
