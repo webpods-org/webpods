@@ -15,7 +15,7 @@ export async function up(knex) {
   await knex.schema.createTable('user', (table) => {
     table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
     table.timestamp('created_at').defaultTo(knex.fn.now());
-    table.timestamp('updated_at').defaultTo(knex.fn.now());
+    table.timestamp('updated_at').notNullable().defaultTo(knex.fn.now());
   });
 
   // Identity table - stores OAuth provider identities
@@ -28,7 +28,7 @@ export async function up(knex) {
     table.string('name', 255);
     table.jsonb('metadata').defaultTo('{}');
     table.timestamp('created_at').defaultTo(knex.fn.now());
-    table.timestamp('updated_at').defaultTo(knex.fn.now());
+    table.timestamp('updated_at').notNullable().defaultTo(knex.fn.now());
     
     table.unique(['provider', 'provider_id']);
     table.index('user_id');
@@ -40,7 +40,7 @@ export async function up(knex) {
     table.string('name', 63).primary(); // DNS subdomain limit - name is now the primary key
     table.jsonb('metadata').defaultTo('{}');
     table.timestamp('created_at').defaultTo(knex.fn.now());
-    table.timestamp('updated_at').defaultTo(knex.fn.now());
+    table.timestamp('updated_at').notNullable().defaultTo(knex.fn.now());
   });
 
   // Stream table - represents hierarchical streams within pods (like directories)
@@ -55,7 +55,7 @@ export async function up(knex) {
     table.boolean('has_schema').defaultTo(false); // Whether this stream has validation schema
     table.jsonb('metadata').defaultTo('{}');
     table.timestamp('created_at').defaultTo(knex.fn.now());
-    table.timestamp('updated_at').defaultTo(knex.fn.now());
+    table.timestamp('updated_at').notNullable().defaultTo(knex.fn.now());
     
     // Can't have two streams with same name in same parent within a pod
     table.unique(['pod_name', 'parent_id', 'name']);
@@ -75,7 +75,7 @@ export async function up(knex) {
     table.bigIncrements('id').primary();
     table.bigint('stream_id').references('id').inTable('stream').onDelete('CASCADE');
     table.integer('index').notNullable(); // Position in stream (0-based)
-    table.text('content'); // Can be text or JSON
+    table.text('content').notNullable().defaultTo(''); // Can be text or JSON
     table.string('content_type', 100).defaultTo('text/plain');
     table.bigint('size').notNullable(); // Content size in bytes
     table.string('name', 256).notNullable(); // Required name (no slashes - like a filename)
@@ -84,8 +84,8 @@ export async function up(knex) {
     table.string('hash', 100).notNullable(); // SHA-256 hash of (previous_hash + content_hash)
     table.string('previous_hash', 100); // NULL for first record
     table.uuid('user_id').references('id').inTable('user').onDelete('RESTRICT'); // User who created the record
-    table.boolean('deleted').defaultTo(false); // Soft delete flag
-    table.boolean('purged').defaultTo(false); // Hard delete flag
+    table.boolean('deleted').notNullable().defaultTo(false); // Soft delete flag
+    table.boolean('purged').notNullable().defaultTo(false); // Hard delete flag
     table.timestamp('created_at').defaultTo(knex.fn.now());
     
     table.unique(['stream_id', 'index']);
@@ -106,7 +106,7 @@ export async function up(knex) {
     table.boolean('verified').defaultTo(false); // CNAME verification status
     table.boolean('ssl_provisioned').defaultTo(false);
     table.timestamp('created_at').defaultTo(knex.fn.now());
-    table.timestamp('updated_at').defaultTo(knex.fn.now());
+    table.timestamp('updated_at').notNullable().defaultTo(knex.fn.now());
     
     table.index('domain');
     table.index('pod_name');
@@ -161,7 +161,7 @@ export async function up(knex) {
     table.string('scope', 500).defaultTo('openid offline pod:read pod:write');
     table.jsonb('metadata').defaultTo('{}'); // Additional client metadata
     table.timestamp('created_at').defaultTo(knex.fn.now());
-    table.timestamp('updated_at').defaultTo(knex.fn.now());
+    table.timestamp('updated_at').notNullable().defaultTo(knex.fn.now());
     
     table.index('user_id');
     table.index('client_id');
