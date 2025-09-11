@@ -46,17 +46,24 @@ export async function authenticateHybrid(
   res: Response,
   next: NextFunction,
 ): Promise<void> {
+  // Skip if response already sent (happens during re-routing)
+  if (res.headersSent) {
+    return next();
+  }
+
   try {
     const currentPod = req.podName || undefined;
     const token = extractToken(req, currentPod);
 
     if (!token) {
-      res.status(401).json({
-        error: {
-          code: "UNAUTHORIZED",
-          message: "Authentication required",
-        },
-      });
+      if (!res.headersSent) {
+        res.status(401).json({
+          error: {
+            code: "UNAUTHORIZED",
+            message: "Authentication required",
+          },
+        });
+      }
       return;
     }
 
@@ -70,7 +77,9 @@ export async function authenticateHybrid(
 
       if (!webpodsResult.success) {
         logger.warn("Invalid WebPods token", { error: webpodsResult.error });
-        res.status(401).json({ error: webpodsResult.error });
+        if (!res.headersSent) {
+          res.status(401).json({ error: webpodsResult.error });
+        }
         return;
       }
 
@@ -98,7 +107,9 @@ export async function authenticateHybrid(
 
     if (!hydraResult.success) {
       logger.warn("Invalid token", { error: hydraResult.error });
-      res.status(401).json({ error: hydraResult.error });
+      if (!res.headersSent) {
+        res.status(401).json({ error: hydraResult.error });
+      }
       return;
     }
 
@@ -135,12 +146,14 @@ export async function authenticateHybrid(
           audience,
           possibleAudiences,
         });
-        res.status(403).json({
-          error: {
-            code: "POD_FORBIDDEN",
-            message: `Token not authorized for pod '${currentPod}'`,
-          },
-        });
+        if (!res.headersSent) {
+          res.status(403).json({
+            error: {
+              code: "POD_FORBIDDEN",
+              message: `Token not authorized for pod '${currentPod}'`,
+            },
+          });
+        }
         return;
       }
     }
@@ -160,12 +173,14 @@ export async function authenticateHybrid(
     next();
   } catch (error) {
     logger.error("Authentication error", { error });
-    res.status(500).json({
-      error: {
-        code: "INTERNAL_ERROR",
-        message: "Internal server error",
-      },
-    });
+    if (!res.headersSent) {
+      res.status(500).json({
+        error: {
+          code: "INTERNAL_ERROR",
+          message: "Internal server error",
+        },
+      });
+    }
   }
 }
 
@@ -177,6 +192,11 @@ export async function optionalAuthHybrid(
   _res: Response,
   next: NextFunction,
 ): Promise<void> {
+  // Skip if response already sent (happens during re-routing)
+  if (_res.headersSent) {
+    return next();
+  }
+
   try {
     req.ipAddress = getIpAddress(req);
 

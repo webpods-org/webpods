@@ -61,43 +61,15 @@ router.delete(
 );
 
 // 4. Root path handler (must come before catch-all)
-router.get(rootRoute.path, ...rootRoute.middleware, async (req, res, next) => {
-  // Call the root handler
-  await rootRoute.handler(req, res, next);
-
-  // Check if we need to re-route based on .config/routing
-  if ("needsReroute" in req && req.needsReroute) {
-    delete req.needsReroute;
-    // Re-run the router with the rewritten URL
-    return router(req, res, next);
-  }
-});
+router.get(rootRoute.path, ...rootRoute.middleware, rootRoute.handler);
 
 // 5. Catch-all routes (must be last)
 // We need to register multiple patterns to catch all paths
 // First, handle single-segment paths like /about, /status
-router.get("/:segment", ...getRoute.middleware, async (req, res, next) => {
-  // Handle link resolution that requires re-routing
-  const originalUrl = req.url;
-  await getRoute.handler(req, res, next);
-
-  // If the URL was rewritten for link resolution, re-run the router
-  if (req.url !== originalUrl) {
-    return router(req, res, next);
-  }
-});
+router.get("/:segment", ...getRoute.middleware, getRoute.handler);
 
 // Then handle multi-segment paths like /api/v1/status
-router.get("/*", ...getRoute.middleware, async (req, res, next) => {
-  // Handle link resolution that requires re-routing
-  const originalUrl = req.url;
-  await getRoute.handler(req, res, next);
-
-  // If the URL was rewritten for link resolution, re-run the router
-  if (req.url !== originalUrl) {
-    return router(req, res, next);
-  }
-});
+router.get("/*", ...getRoute.middleware, getRoute.handler);
 
 router.post(postRoute.path, ...postRoute.middleware, postRoute.handler);
 router.delete(deleteRoute.path, ...deleteRoute.middleware, deleteRoute.handler);

@@ -7,7 +7,6 @@ import {
   NextFunction,
   AuthRequest,
   readMiddleware,
-  createRouteLogger,
   parseIndexQuery,
   isBinaryContentType,
 } from "./shared.js";
@@ -26,10 +25,7 @@ import { listUniqueRecordsRecursive } from "../../domain/records/list-unique-rec
 import { recordToResponse } from "../../domain/records/record-to-response.js";
 import { hasTombstone } from "../../domain/records/check-tombstone.js";
 import { canRead } from "../../domain/permissions/can-read.js";
-import { resolveLink } from "../../domain/routing/resolve-link.js";
 import type { StreamRecord, StreamInfo } from "../../types.js";
-
-const logger = createRouteLogger("get");
 
 /**
  * Main content retrieval handler
@@ -42,7 +38,7 @@ export const getHandler = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction,
-) => {
+): Promise<void> => {
   // If no pod_id was extracted, this is the main domain - skip to next handler
   if (!req.podName) {
     return next();
@@ -68,49 +64,23 @@ export const getHandler = async (
     }
 
     // Subdomain - pod not found
-    res.status(404).json({
-      error: {
-        code: "POD_NOT_FOUND",
-        message: "Pod not found",
-      },
-    });
+    if (!res.headersSent) {
+      if (!res.headersSent) {
+        res.status(404).json({
+          error: {
+            code: "POD_NOT_FOUND",
+            message: "Pod not found",
+          },
+        });
+      }
+    }
     return;
   }
 
   const pathParts = req.path.substring(1).split("/"); // Remove leading /
   const db = getDb();
 
-  // First check if this path is mapped in .config/routing
-  const linkResult = await resolveLink({ db }, req.podName, req.path);
-
-  if (linkResult.success && linkResult.data) {
-    // Redirect to the mapped stream/record
-    const { streamPath, target } = linkResult.data;
-
-    // Rewrite URL and forward to the stream handler
-    if (target && target.startsWith("?")) {
-      // Handle query parameters (e.g., "?i=-1")
-      req.url = `/${streamPath}${target}`;
-      req.query = Object.fromEntries(new URLSearchParams(target.substring(1)));
-    } else if (target) {
-      // Handle path targets (e.g., "/record-name")
-      req.url = `/${streamPath}${target}`;
-    } else {
-      // Just stream name
-      req.url = `/${streamPath}`;
-    }
-
-    // Let Express router handle the rewritten request
-    // Note: In the extracted version, we'll need to handle this differently
-    // For now, we'll just note this needs special handling in the index router
-    logger.debug("Link resolved, would redirect", {
-      from: req.path,
-      to: req.url,
-    });
-    // This needs to be handled by recursively calling the router
-    // which will be done in the index.ts file
-    return next();
-  }
+  // Link resolution is now handled by middleware, so we don't need to check here
 
   // Check for index query parameter
   const indexQuery = req.query.i as string | undefined;
@@ -191,23 +161,27 @@ export const getHandler = async (
           );
 
       if (!result.success) {
-        res.status(500).json({
-          error: result.error,
-        });
+        if (!res.headersSent) {
+          res.status(500).json({
+            error: result.error,
+          });
+        }
         return;
       }
 
       const data = result.data;
-      res.json({
-        records: data.records.map((r) => recordToResponse(r, streamPath)),
-        streams: [], // Recursive listing doesn't include child streams separately
-        total: data.total,
-        hasMore: data.hasMore,
-        nextIndex:
-          data.hasMore && data.records.length > 0
-            ? data.records[data.records.length - 1]?.index
-            : null,
-      });
+      if (!res.headersSent) {
+        res.json({
+          records: data.records.map((r) => recordToResponse(r, streamPath)),
+          streams: [], // Recursive listing doesn't include child streams separately
+          total: data.total,
+          hasMore: data.hasMore,
+          nextIndex:
+            data.hasMore && data.records.length > 0
+              ? data.records[data.records.length - 1]?.index
+              : null,
+        });
+      }
       return;
     }
 
@@ -215,20 +189,24 @@ export const getHandler = async (
     const fullPath = req.path.substring(1);
     if (name) {
       // We were looking for a record in a stream that doesn't exist
-      res.status(404).json({
-        error: {
-          code: "NOT_FOUND",
-          message: `Not found: no stream '${fullPath}' and no stream '${streamPath}' with record '${name}'`,
-        },
-      });
+      if (!res.headersSent) {
+        res.status(404).json({
+          error: {
+            code: "NOT_FOUND",
+            message: `Not found: no stream '${fullPath}' and no stream '${streamPath}' with record '${name}'`,
+          },
+        });
+      }
     } else {
       // We were looking for a stream
-      res.status(404).json({
-        error: {
-          code: "STREAM_NOT_FOUND",
-          message: `Stream '${streamPath}' not found`,
-        },
-      });
+      if (!res.headersSent) {
+        res.status(404).json({
+          error: {
+            code: "STREAM_NOT_FOUND",
+            message: `Stream '${streamPath}' not found`,
+          },
+        });
+      }
     }
     return;
   }
@@ -240,12 +218,14 @@ export const getHandler = async (
     req.auth?.user_id || null,
   );
   if (!canReadResult) {
-    res.status(403).json({
-      error: {
-        code: "FORBIDDEN",
-        message: "No read permission for this stream",
-      },
-    });
+    if (!res.headersSent) {
+      res.status(403).json({
+        error: {
+          code: "FORBIDDEN",
+          message: "No read permission for this stream",
+        },
+      });
+    }
     return;
   }
 
@@ -253,12 +233,14 @@ export const getHandler = async (
   if (indexQuery) {
     const parsed = parseIndexQuery(indexQuery);
     if (!parsed) {
-      res.status(400).json({
-        error: {
-          code: "INVALID_INDEX",
-          message: "Invalid index format. Use ?i=0, ?i=-1, or ?i=10:20",
-        },
-      });
+      if (!res.headersSent) {
+        res.status(400).json({
+          error: {
+            code: "INVALID_INDEX",
+            message: "Invalid index format. Use ?i=0, ?i=-1, or ?i=10:20",
+          },
+        });
+      }
       return;
     }
 
@@ -273,9 +255,11 @@ export const getHandler = async (
       );
 
       if (!result.success) {
-        res.status(404).json({
-          error: result.error,
-        });
+        if (!res.headersSent) {
+          res.status(404).json({
+            error: result.error,
+          });
+        }
         return;
       }
 
@@ -293,12 +277,14 @@ export const getHandler = async (
           content !== null &&
           content.deleted === true
         ) {
-          res.status(404).json({
-            error: {
-              code: "RECORD_DELETED",
-              message: "Record has been deleted",
-            },
-          });
+          if (!res.headersSent) {
+            res.status(404).json({
+              error: {
+                code: "RECORD_DELETED",
+                message: "Record has been deleted",
+              },
+            });
+          }
           return;
         }
       } catch {
@@ -306,37 +292,41 @@ export const getHandler = async (
       }
 
       // Return raw content for single records
-      // Set headers
-      res.setHeader("X-Content-Hash", record.contentHash);
-      res.setHeader("X-Hash", record.hash);
-      res.setHeader("X-Previous-Hash", record.previousHash || "");
-      res.setHeader("X-Author", record.userId);
-      res.setHeader("X-Timestamp", record.createdAt.toISOString());
+      // Set headers (only if not already sent)
+      if (!res.headersSent) {
+        res.setHeader("X-Content-Hash", record.contentHash);
+        res.setHeader("X-Hash", record.hash);
+        res.setHeader("X-Previous-Hash", record.previousHash || "");
+        res.setHeader("X-Author", record.userId);
+        res.setHeader("X-Timestamp", record.createdAt.toISOString());
+      }
 
-      // Set content type and send response
-      res.type(record.contentType);
+      // Set content type and send response (only if not already sent)
+      if (!res.headersSent) {
+        res.type(record.contentType);
 
-      // Handle different content types
-      if (isBinaryContentType(record.contentType)) {
-        // Decode base64 for binary content
-        const contentStr =
+        // Handle different content types
+        if (isBinaryContentType(record.contentType)) {
+          // Decode base64 for binary content
+          const contentStr =
+            typeof record.content === "string"
+              ? record.content
+              : String(record.content);
+          const buffer = Buffer.from(contentStr, "base64");
+          res.send(buffer);
+        } else if (
+          record.contentType === "application/json" &&
           typeof record.content === "string"
-            ? record.content
-            : String(record.content);
-        const buffer = Buffer.from(contentStr, "base64");
-        res.send(buffer);
-      } else if (
-        record.contentType === "application/json" &&
-        typeof record.content === "string"
-      ) {
-        // Parse JSON content if needed
-        try {
-          res.send(JSON.parse(record.content));
-        } catch {
+        ) {
+          // Parse JSON content if needed
+          try {
+            res.send(JSON.parse(record.content));
+          } catch {
+            res.send(record.content);
+          }
+        } else {
           res.send(record.content);
         }
-      } else {
-        res.send(record.content);
       }
     } else {
       // Range of records
@@ -349,17 +339,21 @@ export const getHandler = async (
       );
 
       if (!result.success) {
-        res.status(500).json({
-          error: result.error,
-        });
+        if (!res.headersSent) {
+          res.status(500).json({
+            error: result.error,
+          });
+        }
         return;
       }
 
-      res.json({
-        records: result.data.map((r) => recordToResponse(r, streamPath)),
-        range: { start: parsed.start, end: parsed.end },
-        total: result.data.length,
-      });
+      if (!res.headersSent) {
+        res.json({
+          records: result.data.map((r) => recordToResponse(r, streamPath)),
+          range: { start: parsed.start, end: parsed.end },
+          total: result.data.length,
+        });
+      }
     }
   } else if (name) {
     // Get by name (prefer name over index for path-based access)
@@ -388,12 +382,14 @@ export const getHandler = async (
 
     if (hasTombstoneRecord) {
       // Found a newer tombstone, so this record is considered deleted
-      res.status(404).json({
-        error: {
-          code: "RECORD_DELETED",
-          message: "Record has been deleted",
-        },
-      });
+      if (!res.headersSent) {
+        res.status(404).json({
+          error: {
+            code: "RECORD_DELETED",
+            message: "Record has been deleted",
+          },
+        });
+      }
       return;
     }
 
@@ -424,37 +420,41 @@ export const getHandler = async (
     }
 
     // Return raw content for single records
-    // Set headers
-    res.setHeader("X-Content-Hash", record.contentHash);
-    res.setHeader("X-Hash", record.hash);
-    res.setHeader("X-Previous-Hash", record.previousHash || "");
-    res.setHeader("X-Author", record.userId);
-    res.setHeader("X-Timestamp", record.createdAt.toISOString());
+    // Set headers (only if not already sent)
+    if (!res.headersSent) {
+      res.setHeader("X-Content-Hash", record.contentHash);
+      res.setHeader("X-Hash", record.hash);
+      res.setHeader("X-Previous-Hash", record.previousHash || "");
+      res.setHeader("X-Author", record.userId);
+      res.setHeader("X-Timestamp", record.createdAt.toISOString());
+    }
 
-    // Set content type and send response
-    res.type(record.contentType);
+    // Set content type and send response (only if not already sent)
+    if (!res.headersSent) {
+      res.type(record.contentType);
 
-    // Handle different content types
-    if (isBinaryContentType(record.contentType)) {
-      // Decode base64 for binary content
-      const contentStr =
+      // Handle different content types
+      if (isBinaryContentType(record.contentType)) {
+        // Decode base64 for binary content
+        const contentStr =
+          typeof record.content === "string"
+            ? record.content
+            : String(record.content);
+        const buffer = Buffer.from(contentStr, "base64");
+        res.send(buffer);
+      } else if (
+        record.contentType === "application/json" &&
         typeof record.content === "string"
-          ? record.content
-          : String(record.content);
-      const buffer = Buffer.from(contentStr, "base64");
-      res.send(buffer);
-    } else if (
-      record.contentType === "application/json" &&
-      typeof record.content === "string"
-    ) {
-      // Parse JSON content if needed
-      try {
-        res.send(JSON.parse(record.content));
-      } catch {
+      ) {
+        // Parse JSON content if needed
+        try {
+          res.send(JSON.parse(record.content));
+        } catch {
+          res.send(record.content);
+        }
+      } else {
         res.send(record.content);
       }
-    } else {
-      res.send(record.content);
     }
   } else {
     // List all records
@@ -550,16 +550,18 @@ export const getHandler = async (
       }
     }
 
-    res.json({
-      records: data.records.map((r) => recordToResponse(r, streamPath)),
-      streams: childStreams,
-      total: data.total,
-      hasMore: data.hasMore,
-      nextIndex:
-        data.hasMore && data.records.length > 0
-          ? data.records[data.records.length - 1]?.index
-          : null,
-    });
+    if (!res.headersSent) {
+      res.json({
+        records: data.records.map((r) => recordToResponse(r, streamPath)),
+        streams: childStreams,
+        total: data.total,
+        hasMore: data.hasMore,
+        nextIndex:
+          data.hasMore && data.records.length > 0
+            ? data.records[data.records.length - 1]?.index
+            : null,
+      });
+    }
   }
 };
 
