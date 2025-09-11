@@ -23,6 +23,8 @@ import {
   streams,
   deleteStream,
   createStream,
+  syncStream,
+  downloadStream,
 } from "./commands/streams/index.js";
 import { permissions } from "./commands/permissions/index.js";
 import {
@@ -664,6 +666,86 @@ export async function main() {
                 }),
             async (argv) => {
               await deleteStream(argv);
+            },
+          )
+          .command(
+            "sync <pod> <stream> <path>",
+            "Sync local directory to stream",
+            (yargs) =>
+              yargs
+                .positional("pod", {
+                  describe: "Pod name",
+                  demandOption: true,
+                  type: "string",
+                })
+                .positional("stream", {
+                  describe: "Stream path",
+                  demandOption: true,
+                  type: "string",
+                })
+                .positional("path", {
+                  describe: "Local directory path",
+                  demandOption: true,
+                  type: "string",
+                })
+                .option("token", {
+                  type: "string",
+                  describe: "Use specific token for this command",
+                })
+                .option("server", {
+                  type: "string",
+                  describe: "WebPods server URL",
+                })
+                .option("verbose", {
+                  type: "boolean",
+                  describe: "Show detailed sync progress",
+                })
+                .option("dry-run", {
+                  type: "boolean",
+                  describe: "Show what would be synced without making changes",
+                }),
+            async (argv) => {
+              await syncStream(argv.pod, argv.stream, argv.path, argv);
+            },
+          )
+          .command(
+            "download <pod> <stream> <path>",
+            "Download stream records to local directory",
+            (yargs) =>
+              yargs
+                .positional("pod", {
+                  describe: "Pod name",
+                  demandOption: true,
+                  type: "string",
+                })
+                .positional("stream", {
+                  describe: "Stream path",
+                  demandOption: true,
+                  type: "string",
+                })
+                .positional("path", {
+                  describe: "Local directory path",
+                  demandOption: true,
+                  type: "string",
+                })
+                .option("token", {
+                  type: "string",
+                  describe: "Use specific token for this command",
+                })
+                .option("server", {
+                  type: "string",
+                  describe: "WebPods server URL",
+                })
+                .option("verbose", {
+                  type: "boolean",
+                  describe: "Show detailed download progress",
+                })
+                .option("overwrite", {
+                  type: "boolean",
+                  describe: "Overwrite existing files",
+                }),
+            async (argv) => {
+              await downloadStream(argv.pod, argv.stream, argv.path, argv);
             },
           )
           .demandCommand(1, "Please specify a stream command"),

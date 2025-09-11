@@ -22,6 +22,7 @@ WebPods organizes data into:
   - [Hierarchical Structure](#hierarchical-structure)
 - [Working with Records](#working-with-records)
 - [Stream Operations](#stream-operations)
+- [File Synchronization](#file-synchronization)
 - [Permissions](#permissions)
 - [Links and Custom Routing](#links-and-custom-routing)
 - [Custom Domains](#custom-domains)
@@ -812,6 +813,79 @@ podctl link set my-pod /latest "blog/posts?i=-1"        # Latest post
 # https://my-pod.webpods.org/latest    -> Shows most recent post
 ```
 
+## File Synchronization
+
+WebPods provides powerful commands to synchronize files between your local filesystem and streams, making it easy to manage content at scale.
+
+### Sync Local Directory to Stream
+
+The `sync` command makes a stream equivalent to your local directory by uploading new/changed files and removing files that no longer exist locally.
+
+```bash
+# Sync a local website directory to a stream
+podctl stream sync my-pod website ./my-website
+
+# Sync with verbose output to see what's happening
+podctl stream sync my-pod docs ./documentation --verbose
+
+# Preview changes without making them (dry run)
+podctl stream sync my-pod content ./content --dry-run
+```
+
+**Features:**
+- **Automatic content-type detection** based on file extensions
+- **Incremental sync** - only uploads changed files (size-based comparison)
+- **File cleanup** - removes records for files that no longer exist locally
+- **Safe filename mapping** - converts filenames to valid record names
+- **Dry run mode** for previewing changes
+
+### Download Stream to Local Directory
+
+The `download` command retrieves all records from a stream and saves them as files locally.
+
+```bash
+# Download a stream to a local directory
+podctl stream download my-pod website ./downloaded-site
+
+# Download with verbose output
+podctl stream download my-pod docs ./local-docs --verbose
+
+# Overwrite existing files
+podctl stream download my-pod backup ./restore --overwrite
+```
+
+**Features:**
+- **Recursive download** - gets all records from the stream
+- **Directory creation** - automatically creates the target directory
+- **Filename sanitization** - ensures downloaded filenames are filesystem-safe
+- **Overwrite protection** - won't replace existing files unless `--overwrite` is used
+
+### Use Cases
+
+**Website Deployment:**
+```bash
+# Upload your static site
+podctl stream sync my-pod website ./dist
+
+# Set up routing to serve it
+podctl link set my-pod / "website?unique=true"
+```
+
+**Documentation Management:**
+```bash
+# Sync documentation files
+podctl stream sync my-pod docs ./markdown-docs
+
+# Download for local editing
+podctl stream download my-pod docs ./local-edit
+```
+
+**Content Backup:**
+```bash
+# Backup content locally
+podctl stream download my-pod content ./backup-$(date +%Y%m%d)
+```
+
 ## Custom Domains
 
 You can map custom domains to your pods.
@@ -1567,6 +1641,8 @@ docker-compose -f docker-compose.test.yml up
 - `podctl stream create <pod> <stream> [--access <mode>]` - Create a stream
 - `podctl stream list <pod>` - List all streams
 - `podctl stream delete <pod> <stream> --force` - Delete a stream
+- `podctl stream sync <pod> <stream> <local-path>` - Sync local directory to stream
+- `podctl stream download <pod> <stream> <local-path>` - Download stream records to local directory
 
 ### Permissions
 

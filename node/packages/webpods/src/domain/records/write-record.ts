@@ -23,6 +23,7 @@ function mapRecordFromDb(row: RecordDbRow): StreamRecord {
     index: row.index,
     content: row.content,
     contentType: row.content_type,
+    size: row.size,
     name: row.name,
     path: row.path,
     contentHash: row.content_hash,
@@ -113,16 +114,21 @@ export async function writeRecord(
         storedContent = JSON.stringify(content);
       }
 
-      // Insert new record with path
+      // Calculate content size in bytes
+      const contentString = storedContent as string;
+      const size = Buffer.byteLength(contentString, "utf8");
+
+      // Insert new record with path and size
       const record = await t.one<RecordDbRow>(
-        `INSERT INTO record (stream_id, index, content, content_type, name, path, content_hash, hash, previous_hash, user_id, created_at)
-         VALUES ($(streamId), $(index), $(content), $(contentType), $(name), $(path), $(contentHash), $(hash), $(previousHash), $(userId), $(createdAt))
+        `INSERT INTO record (stream_id, index, content, content_type, size, name, path, content_hash, hash, previous_hash, user_id, created_at)
+         VALUES ($(streamId), $(index), $(content), $(contentType), $(size), $(name), $(path), $(contentHash), $(hash), $(previousHash), $(userId), $(createdAt))
          RETURNING *`,
         {
           streamId,
           index,
           content: storedContent,
           contentType,
+          size,
           name,
           path: recordPath,
           contentHash,

@@ -1,6 +1,6 @@
 {
   "name": "webpods-cli",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "WebPods command line interface",
   "main": "dist/index.js",
   "scripts": {
@@ -29,8 +29,10 @@
   },
   "homepage": "https://github.com/webpods-org/webpods#readme",
   "dependencies": {
+    "@types/mime-types": "^3.0.1",
     "@types/node": "^22.10.10",
     "@types/yargs": "^17.0.33",
+    "mime-types": "^3.0.1",
     "yargs": "^17.7.2"
   },
   "devDependencies": {

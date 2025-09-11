@@ -56,6 +56,7 @@ export type RecordDbRow = {
   index: number;
   content: string;
   content_type: string;
+  size: number; // Content size in bytes
   name: string; // Required name (no slashes - like filename)
   path: string; // Full path including record name for O(1) lookups
   content_hash: string; // SHA-256 hash of content only
