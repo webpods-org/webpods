@@ -159,7 +159,8 @@ export const getHandler = async (
       const config = getConfig();
       const maxLimit = config.rateLimits.maxRecordLimit;
 
-      let limit = parseInt(req.query.limit as string) || 100;
+      const defaultLimit = config.rateLimits.defaultQueryLimit ?? 100;
+      let limit = parseInt(req.query.limit as string) || defaultLimit;
       if (limit > maxLimit) {
         limit = maxLimit;
       }
@@ -461,7 +462,8 @@ export const getHandler = async (
     const maxLimit = config.rateLimits.maxRecordLimit;
 
     // Parse and cap the limit to maxRecordLimit
-    let limit = parseInt(req.query.limit as string) || 100;
+    const defaultLimit = config.rateLimits.defaultQueryLimit ?? 100;
+    let limit = parseInt(req.query.limit as string) || defaultLimit;
     if (limit > maxLimit) {
       limit = maxLimit; // Silently cap to max without erroring
     }

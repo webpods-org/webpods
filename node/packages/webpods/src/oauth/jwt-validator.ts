@@ -7,17 +7,30 @@ import jwksClient from "jwks-rsa";
 import { getJwksUrl, getHydraPublicUrl } from "./hydra-client.js";
 import { createLogger } from "../logger.js";
 import { Result } from "../types.js";
+import { getConfig } from "../config-loader.js";
 
 const logger = createLogger("webpods:oauth:jwt");
 
-// Create JWKS client with caching
-const client = jwksClient({
-  jwksUri: getJwksUrl(),
-  cache: true,
-  cacheMaxAge: 600000, // 10 minutes
-  rateLimit: true,
-  jwksRequestsPerMinute: 10,
-});
+// Create JWKS client with caching - config is loaded dynamically
+function createJwksClient() {
+  const config = getConfig();
+  return jwksClient({
+    jwksUri: getJwksUrl(),
+    cache: true,
+    cacheMaxAge: config.oauth.jwtCacheMaxAgeMs ?? 600000, // 10 minutes default
+    rateLimit: true,
+    jwksRequestsPerMinute: config.oauth.jwtCacheRequestsPerMinute ?? 10,
+  });
+}
+
+// Lazy initialization to allow config to be loaded
+let client: jwksClient.JwksClient | null = null;
+function getClient() {
+  if (!client) {
+    client = createJwksClient();
+  }
+  return client;
+}
 
 // Promisify the getSigningKey function
 function getKey(
@@ -27,7 +40,7 @@ function getKey(
   if (!header.kid) {
     return callback(new Error("Missing kid in JWT header"));
   }
-  client.getSigningKey(header.kid, (err, key) => {
+  getClient().getSigningKey(header.kid, (err, key) => {
     if (err) {
       logger.error("Failed to get signing key", {
         error: err,

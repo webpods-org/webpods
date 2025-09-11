@@ -7,6 +7,7 @@ import { getHydraAdmin } from "./hydra-client.js";
 import { isTestModeAllowed } from "./test-mode-guard.js";
 import { getDb } from "../db/index.js";
 import { createLogger } from "../logger.js";
+import { getConfig } from "../config-loader.js";
 
 const logger = createLogger("webpods:oauth:consent");
 const router = Router();
@@ -183,6 +184,8 @@ router.get("/consent", async (req: Request, res: Response) => {
       // Generate audience URLs for each pod
       const audience = pods.map((pod) => `https://${pod}.webpods.com`);
 
+      const config = getConfig();
+      const rememberForSeconds = (config.oauth.rememberLongHours ?? 24) * 3600;
       const { data: acceptResponse } =
         await hydraAdmin.acceptOAuth2ConsentRequest({
           consentChallenge,
@@ -197,7 +200,7 @@ router.get("/consent", async (req: Request, res: Response) => {
               },
             },
             remember: true,
-            remember_for: 86400,
+            remember_for: rememberForSeconds,
           },
         });
 
@@ -462,6 +465,8 @@ router.post("/consent", async (req: Request, res: Response) => {
       const audience = pods.map((pod) => `https://${pod}.webpods.com`);
 
       // Accept consent
+      const config = getConfig();
+      const rememberForSeconds = (config.oauth.rememberLongHours ?? 24) * 3600;
       const { data: acceptResponse } =
         await hydraAdmin.acceptOAuth2ConsentRequest({
           consentChallenge: challenge,
@@ -481,7 +486,7 @@ router.post("/consent", async (req: Request, res: Response) => {
               },
             },
             remember: true,
-            remember_for: 86400, // Remember for 24 hours
+            remember_for: rememberForSeconds,
           },
         });
 

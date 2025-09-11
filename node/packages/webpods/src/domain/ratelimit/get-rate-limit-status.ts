@@ -38,7 +38,8 @@ export async function getRateLimitStatus(
 > {
   const limits = getRateLimits();
   const limit = limits[type];
-  const windowMs = 60 * 60 * 1000; // 1 hour
+  const config = getConfig();
+  const windowMs = config.rateLimits.windowMs ?? 3600000; // 1 hour default
   const now = new Date();
 
   try {

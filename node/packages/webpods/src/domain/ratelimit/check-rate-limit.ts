@@ -36,7 +36,8 @@ export async function checkRateLimit(
 ): Promise<Result<{ allowed: boolean; remaining: number; resetAt: Date }>> {
   const limits = getRateLimits();
   const limit = limits[type];
-  const windowMs = 60 * 60 * 1000; // 1 hour
+  const config = getConfig();
+  const windowMs = config.rateLimits.windowMs ?? 3600000; // 1 hour default
   const now = new Date();
   const windowStart = new Date(now.getTime() - windowMs);
 

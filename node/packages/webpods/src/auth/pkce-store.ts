@@ -5,11 +5,9 @@
 import { getDb } from "../db/index.js";
 import { createLogger } from "../logger.js";
 import { generators } from "openid-client";
+import { getConfig } from "../config-loader.js";
 
 const logger = createLogger("webpods:auth:pkce");
-
-// State expires after 10 minutes
-const STATE_TTL_MINUTES = 10;
 
 export interface PKCEState {
   state: string;
@@ -29,8 +27,10 @@ export async function storePKCEState(
 ): Promise<void> {
   const db = getDb();
 
+  const config = getConfig();
+  const ttlMinutes = config.oauth.pkceStateExpiryMinutes ?? 10;
   const expiresAt = new Date();
-  expiresAt.setMinutes(expiresAt.getMinutes() + STATE_TTL_MINUTES);
+  expiresAt.setMinutes(expiresAt.getMinutes() + ttlMinutes);
 
   await db.none(
     `INSERT INTO oauth_state (state, code_verifier, pod, redirect_uri, expires_at)
