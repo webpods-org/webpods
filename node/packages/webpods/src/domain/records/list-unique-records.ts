@@ -77,8 +77,21 @@ export async function listUniqueRecords(
       }
 
       if (isDeleted) {
-        // Remove this name from the map if it exists
-        latestByName.delete(record.name!);
+        // For deletion records, check if this is a tombstone or direct deletion
+        try {
+          const content = JSON.parse(record.content);
+          const originalName = content.originalName;
+          if (originalName) {
+            // This is a tombstone record - remove the original record name
+            latestByName.delete(originalName);
+          } else {
+            // This is a direct deletion of the record - remove from map
+            latestByName.delete(record.name!);
+          }
+        } catch {
+          // If we can't parse the content, fall back to removing current name
+          latestByName.delete(record.name!);
+        }
       } else {
         // Update with this record (latest wins)
         latestByName.set(record.name!, record);

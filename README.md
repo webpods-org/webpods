@@ -435,8 +435,16 @@ curl -X DELETE https://my-pod.webpods.org/blog/posts/old-post?purge=true \
 
 **Notes**:
 
-- Soft delete creates a new record named `{original-name}.deleted.{index}` with `{"deleted": true}`
-- Deleted records are excluded from `unique=true` queries
+- Soft delete creates a new record named `{original-name}.deleted.{timestamp}` with content:
+  ```json
+  {
+    "deleted": true,
+    "originalName": "original-record-name",
+    "deletedAt": "2024-01-01T00:00:00.000Z",
+    "deletedBy": "user-id"
+  }
+  ```
+- Deleted records are excluded from `unique=true` queries by matching the `originalName` field
 - Purged records have their content replaced with `{"purged": true, "by": "user-id", "at": "timestamp"}`
 - Both deletion types maintain the hash chain integrity
 
@@ -833,8 +841,9 @@ podctl stream sync my-pod content ./content --dry-run
 ```
 
 **Features:**
+
 - **Automatic content-type detection** based on file extensions
-- **Incremental sync** - only uploads changed files (size-based comparison)
+- **Incremental sync** - only uploads changed files (SHA-256 hash comparison)
 - **File cleanup** - removes records for files that no longer exist locally
 - **Safe filename mapping** - converts filenames to valid record names
 - **Dry run mode** for previewing changes
@@ -855,6 +864,7 @@ podctl stream download my-pod backup ./restore --overwrite
 ```
 
 **Features:**
+
 - **Recursive download** - gets all records from the stream
 - **Directory creation** - automatically creates the target directory
 - **Filename sanitization** - ensures downloaded filenames are filesystem-safe
@@ -863,6 +873,7 @@ podctl stream download my-pod backup ./restore --overwrite
 ### Use Cases
 
 **Website Deployment:**
+
 ```bash
 # Upload your static site
 podctl stream sync my-pod website ./dist
@@ -872,6 +883,7 @@ podctl link set my-pod / "website?unique=true"
 ```
 
 **Documentation Management:**
+
 ```bash
 # Sync documentation files
 podctl stream sync my-pod docs ./markdown-docs
@@ -881,6 +893,7 @@ podctl stream download my-pod docs ./local-edit
 ```
 
 **Content Backup:**
+
 ```bash
 # Backup content locally
 podctl stream download my-pod content ./backup-$(date +%Y%m%d)

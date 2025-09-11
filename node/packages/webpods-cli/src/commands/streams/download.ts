@@ -46,8 +46,10 @@ async function getStreamRecords(
   serverUrl: string,
   token: string,
   podName: string,
-  streamPath: string
-): Promise<Array<{ name: string; path: string; content: string; contentType: string }>> {
+  streamPath: string,
+): Promise<
+  Array<{ name: string; path: string; content: string; contentType: string }>
+> {
   try {
     const response = await podRequest<{
       records: Array<{ name: string; path: string; contentType: string }>;
@@ -61,11 +63,13 @@ async function getStreamRecords(
       if (response.error.code === "NOT_FOUND") {
         throw new Error(`Stream not found: ${streamPath}`);
       }
-      throw new Error(`Failed to get stream records: ${response.error.message}`);
+      throw new Error(
+        `Failed to get stream records: ${response.error.message}`,
+      );
     }
 
     const records = response.data.records || [];
-    
+
     // Fetch content for each record
     const recordsWithContent = [];
     for (const record of records) {
@@ -80,14 +84,18 @@ async function getStreamRecords(
           name: record.name,
           path: record.path,
           content: contentResponse.data,
-          contentType: record.contentType || "text/plain"
+          contentType: record.contentType || "text/plain",
         });
       }
     }
 
     return recordsWithContent;
   } catch (error) {
-    logger.error("Failed to get stream records", { error, podName, streamPath });
+    logger.error("Failed to get stream records", {
+      error,
+      podName,
+      streamPath,
+    });
     throw error;
   }
 }
@@ -98,7 +106,7 @@ async function getStreamRecords(
 async function writeRecordToFile(
   filePath: string,
   content: string,
-  overwrite: boolean
+  overwrite: boolean,
 ): Promise<boolean> {
   try {
     // Check if file exists
@@ -131,18 +139,21 @@ export async function downloadStream(
   podName: string,
   streamPath: string,
   localPath: string,
-  options: DownloadOptions = {}
+  options: DownloadOptions = {},
 ): Promise<void> {
   try {
     // Get configuration
-    const profile = options.profile 
-      ? await getProfile(options.profile) 
+    const profile = options.profile
+      ? await getProfile(options.profile)
       : await getCurrentProfile();
-    const serverUrl: string = options.server || profile?.server || "http://localhost:3000";
+    const serverUrl: string =
+      options.server || profile?.server || "http://localhost:3000";
     const token = options.token || profile?.token;
 
     if (!token) {
-      output.error("No authentication token found. Run \"podctl login\" first or use --token option.");
+      output.error(
+        'No authentication token found. Run "podctl login" first or use --token option.',
+      );
       process.exit(1);
     }
 
@@ -154,12 +165,19 @@ export async function downloadStream(
       process.exit(1);
     }
 
-    output.info(`Downloading stream "${streamPath}" from pod "${podName}" to "${localPath}"`);
-    
+    output.info(
+      `Downloading stream "${streamPath}" from pod "${podName}" to "${localPath}"`,
+    );
+
     // Get stream records
     output.info("Fetching stream records...");
-    const streamRecords = await getStreamRecords(serverUrl, token!, podName, streamPath);
-    
+    const streamRecords = await getStreamRecords(
+      serverUrl,
+      token!,
+      podName,
+      streamPath,
+    );
+
     if (options.verbose) {
       output.info(`Found ${streamRecords.length} records to download`);
     }
@@ -176,19 +194,31 @@ export async function downloadStream(
     for (const record of streamRecords) {
       const fileName = recordNameToFileName(record.name);
       const filePath = path.join(localPath, fileName);
-      
+
       if (options.verbose) {
         output.info(`Downloading: ${record.name} -> ${fileName}`);
       }
 
-      const written = await writeRecordToFile(filePath, record.content, options.overwrite || false);
-      
+      // Ensure content is a string
+      const contentString =
+        typeof record.content === "string"
+          ? record.content
+          : JSON.stringify(record.content);
+
+      const written = await writeRecordToFile(
+        filePath,
+        contentString,
+        options.overwrite || false,
+      );
+
       if (written) {
         downloadedCount++;
       } else {
         skippedCount++;
         if (options.verbose) {
-          output.info(`Skipped existing file: ${fileName} (use --overwrite to replace)`);
+          output.info(
+            `Skipped existing file: ${fileName} (use --overwrite to replace)`,
+          );
         }
       }
     }
@@ -196,9 +226,10 @@ export async function downloadStream(
     // Summary
     output.success(`Download completed! ${downloadedCount} files downloaded`);
     if (skippedCount > 0) {
-      output.info(`${skippedCount} files skipped (already exist - use --overwrite to replace)`);
+      output.info(
+        `${skippedCount} files skipped (already exist - use --overwrite to replace)`,
+      );
     }
-    
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     output.error(`Download failed: ${errorMessage}`);

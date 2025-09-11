@@ -105,13 +105,16 @@ export async function transferPodOwnership(
         fromUserId,
         timestamp,
       );
+      const contentString = JSON.stringify(newOwnerContent);
+      const size = Buffer.byteLength(contentString, "utf8");
 
       // Insert new owner record with snake_case parameters
       const params = {
         stream_id: ownerStream.id,
         index: index,
-        content: JSON.stringify(newOwnerContent),
+        content: contentString,
         content_type: "application/json",
+        size: size,
         name: "owner",
         path: `${ownerStream.path}/owner`,
         content_hash: contentHash,

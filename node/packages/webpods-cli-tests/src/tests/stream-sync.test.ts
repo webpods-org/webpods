@@ -30,19 +30,20 @@ describe("CLI Stream Sync and Download Commands", function () {
   before(async () => {
     await setupCliTests();
     cli = new CliTestHelper();
-    testPodName = `test-sync-${Date.now()}`;
-    
+    await cli.setup();
+
     // Create temporary directories for testing
     testDir = path.join(process.cwd(), ".tests", "sync-test-files");
     downloadDir = path.join(process.cwd(), ".tests", "download-test-files");
-    
+
     await fs.mkdir(path.dirname(testDir), { recursive: true });
     await fs.mkdir(path.dirname(downloadDir), { recursive: true });
   });
 
   after(async () => {
+    await cli.cleanup();
     await cleanupCliTests();
-    
+
     // Clean up test directories
     try {
       await fs.rm(testDir, { recursive: true, force: true });
@@ -54,7 +55,10 @@ describe("CLI Stream Sync and Download Commands", function () {
 
   beforeEach(async () => {
     await resetCliTestDb();
-    
+
+    // Create test pod name for this test
+    testPodName = `test-sync-${Date.now()}`;
+
     // Clean up and recreate test directories
     try {
       await fs.rm(testDir, { recursive: true, force: true });
@@ -62,7 +66,7 @@ describe("CLI Stream Sync and Download Commands", function () {
     } catch {
       // Ignore if directories don't exist
     }
-    
+
     await fs.mkdir(testDir, { recursive: true });
     await fs.mkdir(downloadDir, { recursive: true });
 
@@ -72,9 +76,14 @@ describe("CLI Stream Sync and Download Commands", function () {
       .none("INSERT INTO pod (name, created_at) VALUES ($(name), NOW())", {
         name: testPodName,
       });
-    
+
     // Set up owner config
-    await createOwnerConfig(testDb.getDb(), testPodName, testUser.userId, testUser.userId);
+    await createOwnerConfig(
+      testDb.getDb(),
+      testPodName,
+      testUser.userId,
+      testUser.userId,
+    );
   });
 
   describe("Stream Sync Command", () => {
@@ -82,11 +91,17 @@ describe("CLI Stream Sync and Download Commands", function () {
       // Create test files
       await fs.writeFile(path.join(testDir, "index.html"), "<h1>Homepage</h1>");
       await fs.writeFile(path.join(testDir, "about.md"), "# About Page");
-      await fs.writeFile(path.join(testDir, "style.css"), "body { margin: 0; }");
+      await fs.writeFile(
+        path.join(testDir, "style.css"),
+        "body { margin: 0; }",
+      );
 
       // Create nested directory
       await fs.mkdir(path.join(testDir, "assets"), { recursive: true });
-      await fs.writeFile(path.join(testDir, "assets", "script.js"), "console.log('hello');");
+      await fs.writeFile(
+        path.join(testDir, "assets", "script.js"),
+        "console.log('hello');",
+      );
 
       // Create the stream first using helper
       await createTestStream(testDb.getDb(), {
@@ -97,11 +112,12 @@ describe("CLI Stream Sync and Download Commands", function () {
       });
 
       // Sync directory to stream
-      const result = await cli.exec([
-        "stream", "sync", testPodName, "website", testDir
-      ], {
-        token: testToken,
-      });
+      const result = await cli.exec(
+        ["stream", "sync", testPodName, "website", testDir],
+        {
+          token: testToken,
+        },
+      );
 
       if (result.exitCode !== 0) {
         console.error("Sync failed:");
@@ -112,11 +128,12 @@ describe("CLI Stream Sync and Download Commands", function () {
       expect(result.stdout).to.include("Sync completed successfully");
 
       // Verify records were created
-      const listResult = await cli.exec([
-        "record", "list", testPodName, "website", "--recursive"
-      ], {
-        token: testToken,
-      });
+      const listResult = await cli.exec(
+        ["record", "list", testPodName, "website", "--recursive"],
+        {
+          token: testToken,
+        },
+      );
 
       expect(listResult.exitCode).to.equal(0);
       expect(listResult.stdout).to.include("index");
@@ -129,23 +146,33 @@ describe("CLI Stream Sync and Download Commands", function () {
       // Create test files
       await fs.writeFile(path.join(testDir, "test.txt"), "Test content");
 
-      // Run dry run
-      const result = await cli.exec([
-        "stream", "sync", testPodName, "test-stream", testDir, "--dry-run"
-      ], {
-        token: testToken,
+      // Create the stream first using helper
+      await createTestStream(testDb.getDb(), {
+        podName: testPodName,
+        streamPath: "test-stream",
+        userId: testUser.userId,
+        accessPermission: "public",
       });
+
+      // Run dry run
+      const result = await cli.exec(
+        ["stream", "sync", testPodName, "test-stream", testDir, "--dry-run"],
+        {
+          token: testToken,
+        },
+      );
 
       expect(result.exitCode).to.equal(0);
       expect(result.stdout).to.include("Files to upload:");
       expect(result.stdout).to.include("test.txt");
 
       // Verify no records were actually created
-      const listResult = await cli.exec([
-        "record", "list", testPodName, "test-stream"
-      ], {
-        token: testToken,
-      });
+      const listResult = await cli.exec(
+        ["record", "list", testPodName, "test-stream"],
+        {
+          token: testToken,
+        },
+      );
 
       expect(listResult.exitCode).to.equal(0);
       expect(listResult.stdout).to.include("No records found");
@@ -156,27 +183,44 @@ describe("CLI Stream Sync and Download Commands", function () {
       await fs.writeFile(path.join(testDir, "file1.txt"), "Original content");
       await fs.writeFile(path.join(testDir, "file2.txt"), "Another file");
 
-      const initialResult = await cli.exec([
-        "stream", "sync", testPodName, "content", testDir, "--verbose"
-      ], {
-        token: testToken,
+      // Create the stream first using helper
+      await createTestStream(testDb.getDb(), {
+        podName: testPodName,
+        streamPath: "content",
+        userId: testUser.userId,
+        accessPermission: "public",
       });
+
+      const initialResult = await cli.exec(
+        ["stream", "sync", testPodName, "content", testDir, "--verbose"],
+        {
+          token: testToken,
+        },
+      );
 
       expect(initialResult.exitCode).to.equal(0);
-      expect(initialResult.stdout).to.include("2 to upload, 0 to delete");
+      expect(initialResult.stdout).to.include(
+        "Sync plan: 2 to upload, 0 to delete",
+      );
 
       // Modify one file and add another
-      await fs.writeFile(path.join(testDir, "file1.txt"), "Modified content - much longer");
+      await fs.writeFile(
+        path.join(testDir, "file1.txt"),
+        "Modified content - much longer",
+      );
       await fs.writeFile(path.join(testDir, "file3.txt"), "New file");
 
-      const secondResult = await cli.exec([
-        "stream", "sync", testPodName, "content", testDir, "--verbose"
-      ], {
-        token: testToken,
-      });
+      const secondResult = await cli.exec(
+        ["stream", "sync", testPodName, "content", testDir, "--verbose"],
+        {
+          token: testToken,
+        },
+      );
 
       expect(secondResult.exitCode).to.equal(0);
-      expect(secondResult.stdout).to.include("2 to upload, 0 to delete");
+      expect(secondResult.stdout).to.include(
+        "Sync plan: 2 to upload, 0 to delete",
+      );
       expect(secondResult.stdout).to.include("Uploading: file1.txt");
       expect(secondResult.stdout).to.include("Uploading: file3.txt");
     });
@@ -186,33 +230,46 @@ describe("CLI Stream Sync and Download Commands", function () {
       await fs.writeFile(path.join(testDir, "keep.txt"), "Keep this file");
       await fs.writeFile(path.join(testDir, "delete.txt"), "Delete this file");
 
-      const initialResult = await cli.exec([
-        "stream", "sync", testPodName, "cleanup", testDir
-      ], {
-        token: testToken,
+      // Create the stream first using helper
+      await createTestStream(testDb.getDb(), {
+        podName: testPodName,
+        streamPath: "cleanup",
+        userId: testUser.userId,
+        accessPermission: "public",
       });
+
+      const initialResult = await cli.exec(
+        ["stream", "sync", testPodName, "cleanup", testDir],
+        {
+          token: testToken,
+        },
+      );
 
       expect(initialResult.exitCode).to.equal(0);
 
       // Remove one file locally
       await fs.unlink(path.join(testDir, "delete.txt"));
 
-      const cleanupResult = await cli.exec([
-        "stream", "sync", testPodName, "cleanup", testDir, "--verbose"
-      ], {
-        token: testToken,
-      });
+      const cleanupResult = await cli.exec(
+        ["stream", "sync", testPodName, "cleanup", testDir, "--verbose"],
+        {
+          token: testToken,
+        },
+      );
 
       expect(cleanupResult.exitCode).to.equal(0);
-      expect(cleanupResult.stdout).to.include("0 to upload, 1 to delete");
+      expect(cleanupResult.stdout).to.include(
+        "Sync plan: 0 to upload, 1 to delete",
+      );
       expect(cleanupResult.stdout).to.include("Deleting:");
 
       // Verify the record was deleted
-      const listResult = await cli.exec([
-        "record", "list", testPodName, "cleanup"
-      ], {
-        token: testToken,
-      });
+      const listResult = await cli.exec(
+        ["record", "list", testPodName, "cleanup", "--unique"],
+        {
+          token: testToken,
+        },
+      );
 
       expect(listResult.exitCode).to.equal(0);
       expect(listResult.stdout).to.include("keep");
@@ -225,20 +282,30 @@ describe("CLI Stream Sync and Download Commands", function () {
       await fs.writeFile(path.join(testDir, ".hidden"), "Hidden file");
       await fs.writeFile(path.join(testDir, ".gitignore"), "*.log");
 
-      const result = await cli.exec([
-        "stream", "sync", testPodName, "files", testDir, "--verbose"
-      ], {
-        token: testToken,
+      // Create the stream first using helper
+      await createTestStream(testDb.getDb(), {
+        podName: testPodName,
+        streamPath: "files",
+        userId: testUser.userId,
+        accessPermission: "public",
       });
+
+      const result = await cli.exec(
+        ["stream", "sync", testPodName, "files", testDir, "--verbose"],
+        {
+          token: testToken,
+        },
+      );
 
       expect(result.exitCode).to.equal(0);
-      expect(result.stdout).to.include("1 to upload");
+      expect(result.stdout).to.include("Sync plan: 1 to upload");
 
-      const listResult = await cli.exec([
-        "record", "list", testPodName, "files"
-      ], {
-        token: testToken,
-      });
+      const listResult = await cli.exec(
+        ["record", "list", testPodName, "files"],
+        {
+          token: testToken,
+        },
+      );
 
       expect(listResult.exitCode).to.equal(0);
       expect(listResult.stdout).to.include("visible");
@@ -256,27 +323,45 @@ describe("CLI Stream Sync and Download Commands", function () {
         userId: testUser.userId,
         accessPermission: "public",
       });
-      
+
       // Add some test records manually
-      await cli.exec([
-        "record", "write", testPodName, "downloads", "home", "Welcome to my site"
-      ], { token: testToken });
+      await cli.exec(
+        [
+          "record",
+          "write",
+          testPodName,
+          "downloads",
+          "home",
+          "Welcome to my site",
+        ],
+        { token: testToken },
+      );
 
-      await cli.exec([
-        "record", "write", testPodName, "downloads", "about", "About us page"
-      ], { token: testToken });
+      await cli.exec(
+        ["record", "write", testPodName, "downloads", "about", "About us page"],
+        { token: testToken },
+      );
 
-      await cli.exec([
-        "record", "write", testPodName, "downloads", "contact", "Contact information"
-      ], { token: testToken });
+      await cli.exec(
+        [
+          "record",
+          "write",
+          testPodName,
+          "downloads",
+          "contact",
+          "Contact information",
+        ],
+        { token: testToken },
+      );
     });
 
     it("should download all records from stream to local directory", async () => {
-      const result = await cli.exec([
-        "stream", "download", testPodName, "downloads", downloadDir
-      ], {
-        token: testToken,
-      });
+      const result = await cli.exec(
+        ["stream", "download", testPodName, "downloads", downloadDir],
+        {
+          token: testToken,
+        },
+      );
 
       expect(result.exitCode).to.equal(0);
       expect(result.stdout).to.include("Download completed!");
@@ -289,16 +374,27 @@ describe("CLI Stream Sync and Download Commands", function () {
       expect(files).to.include("contact");
 
       // Verify file contents
-      const homeContent = await fs.readFile(path.join(downloadDir, "home"), "utf8");
+      const homeContent = await fs.readFile(
+        path.join(downloadDir, "home"),
+        "utf8",
+      );
       expect(homeContent).to.equal("Welcome to my site");
     });
 
     it("should handle verbose output", async () => {
-      const result = await cli.exec([
-        "stream", "download", testPodName, "downloads", downloadDir, "--verbose"
-      ], {
-        token: testToken,
-      });
+      const result = await cli.exec(
+        [
+          "stream",
+          "download",
+          testPodName,
+          "downloads",
+          downloadDir,
+          "--verbose",
+        ],
+        {
+          token: testToken,
+        },
+      );
 
       expect(result.exitCode).to.equal(0);
       expect(result.stdout).to.include("Found 3 records to download");
@@ -311,11 +407,19 @@ describe("CLI Stream Sync and Download Commands", function () {
       // Create a file that already exists
       await fs.writeFile(path.join(downloadDir, "home"), "Existing content");
 
-      const result = await cli.exec([
-        "stream", "download", testPodName, "downloads", downloadDir, "--verbose"
-      ], {
-        token: testToken,
-      });
+      const result = await cli.exec(
+        [
+          "stream",
+          "download",
+          testPodName,
+          "downloads",
+          downloadDir,
+          "--verbose",
+        ],
+        {
+          token: testToken,
+        },
+      );
 
       expect(result.exitCode).to.equal(0);
       expect(result.stdout).to.include("2 files downloaded");
@@ -331,11 +435,20 @@ describe("CLI Stream Sync and Download Commands", function () {
       // Create a file that already exists
       await fs.writeFile(path.join(downloadDir, "home"), "Existing content");
 
-      const result = await cli.exec([
-        "stream", "download", testPodName, "downloads", downloadDir, "--overwrite", "--verbose"
-      ], {
-        token: testToken,
-      });
+      const result = await cli.exec(
+        [
+          "stream",
+          "download",
+          testPodName,
+          "downloads",
+          downloadDir,
+          "--overwrite",
+          "--verbose",
+        ],
+        {
+          token: testToken,
+        },
+      );
 
       expect(result.exitCode).to.equal(0);
       expect(result.stdout).to.include("3 files downloaded");
@@ -354,11 +467,12 @@ describe("CLI Stream Sync and Download Commands", function () {
         accessPermission: "public",
       });
 
-      const result = await cli.exec([
-        "stream", "download", testPodName, "empty-stream", downloadDir
-      ], {
-        token: testToken,
-      });
+      const result = await cli.exec(
+        ["stream", "download", testPodName, "empty-stream", downloadDir],
+        {
+          token: testToken,
+        },
+      );
 
       expect(result.exitCode).to.equal(0);
       expect(result.stdout).to.include("No records found in stream");
@@ -377,7 +491,7 @@ describe("CLI Stream Sync and Download Commands", function () {
         "style.css": "body { font-family: Arial; color: #333; }",
         "script.js": "function hello() { console.log('Hello World!'); }",
         "data.json": JSON.stringify({ users: [{ name: "John", age: 30 }] }),
-        "readme.md": "# Project Title\n\nThis is a test project."
+        "readme.md": "# Project Title\n\nThis is a test project.",
       };
 
       // Create original files
@@ -385,21 +499,38 @@ describe("CLI Stream Sync and Download Commands", function () {
         await fs.writeFile(path.join(testDir, filename), content);
       }
 
-      // Sync to stream
-      const syncResult = await cli.exec([
-        "stream", "sync", testPodName, "roundtrip", testDir
-      ], {
-        token: testToken,
+      // Create the stream first using helper
+      await createTestStream(testDb.getDb(), {
+        podName: testPodName,
+        streamPath: "roundtrip",
+        userId: testUser.userId,
+        accessPermission: "public",
       });
+
+      // Sync to stream
+      const syncResult = await cli.exec(
+        ["stream", "sync", testPodName, "roundtrip", testDir],
+        {
+          token: testToken,
+        },
+      );
 
       expect(syncResult.exitCode).to.equal(0);
 
       // Download back to different directory
-      const downloadResult = await cli.exec([
-        "stream", "download", testPodName, "roundtrip", downloadDir, "--overwrite"
-      ], {
-        token: testToken,
-      });
+      const downloadResult = await cli.exec(
+        [
+          "stream",
+          "download",
+          testPodName,
+          "roundtrip",
+          downloadDir,
+          "--overwrite",
+        ],
+        {
+          token: testToken,
+        },
+      );
 
       expect(downloadResult.exitCode).to.equal(0);
 
@@ -407,7 +538,7 @@ describe("CLI Stream Sync and Download Commands", function () {
       for (const [filename, expectedContent] of Object.entries(testFiles)) {
         const downloadedContent = await fs.readFile(
           path.join(downloadDir, path.parse(filename).name), // Record names don't include extensions
-          "utf8"
+          "utf8",
         );
         expect(downloadedContent).to.equal(expectedContent);
       }

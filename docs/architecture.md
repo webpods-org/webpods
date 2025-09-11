@@ -110,15 +110,19 @@ WebPods implements two distinct OAuth flows:
 
 #### record
 
-- `id` (UUID): Primary key
+- `id` (BIGINT): Primary key
 - `stream_id` → stream: Parent stream
 - `index`: Position (0-based)
 - `content`: Record data
 - `content_type`: MIME type
-- `hash`: SHA-256 hash
-- `previous_hash`: Chain link
+- `size`: Content size in bytes
+- `name`: Record identifier (required, no slashes)
+- `path`: Full path including record name for O(1) lookups
+- `content_hash`: SHA-256 hash of content only
+- `hash`: SHA-256 hash of (previous_hash + content_hash + user_id + timestamp)
+- `previous_hash`: Chain link to previous record
 - `user_id` → user: Writer
-- `name`: Optional identifier
+- `created_at`: Timestamp
 
 #### oauth_client
 

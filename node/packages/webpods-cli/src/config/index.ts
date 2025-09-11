@@ -24,7 +24,9 @@ const DEFAULT_CONFIG: WebPodsConfig = {
  * Get the configuration directory path
  */
 export function getConfigDir(): string {
-  return path.resolve(homedir(), CONFIG_DIR);
+  // Use HOME environment variable if set (for tests), otherwise use OS homedir
+  const homeDir = process.env.HOME || homedir();
+  return path.resolve(homeDir, CONFIG_DIR);
 }
 
 /**
@@ -59,7 +61,7 @@ export async function loadConfig(): Promise<WebPodsConfig> {
       ...DEFAULT_CONFIG,
       ...config,
     };
-  } catch {
+  } catch (error) {
     return DEFAULT_CONFIG;
   }
 }

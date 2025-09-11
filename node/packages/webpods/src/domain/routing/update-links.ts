@@ -103,13 +103,16 @@ export async function updateLinks(
         userId,
         timestamp,
       );
+      const contentString = JSON.stringify(links);
+      const size = Buffer.byteLength(contentString, "utf8");
 
       // Write new links record with all links in one record
       const params = {
         stream_id: routingStream.id,
         index: index,
-        content: JSON.stringify(links),
+        content: contentString,
         content_type: "application/json",
+        size: size,
         name: "routes",
         path: ".config/routing/routes",
         content_hash: contentHash,

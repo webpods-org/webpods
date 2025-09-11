@@ -92,6 +92,7 @@ export async function updateCustomDomains(
         const streamParams = {
           pod_name: podName,
           name: "domains",
+          path: ".config/domains",
           parent_id: configStream.id,
           user_id: userId,
           access_permission: "private",
@@ -126,13 +127,17 @@ export async function updateCustomDomains(
         userId,
         timestamp,
       );
+      const contentString = JSON.stringify(content);
+      const size = Buffer.byteLength(contentString, "utf8");
 
       const params = {
         stream_id: domainsStream.id,
         index: index,
-        content: JSON.stringify(content),
+        content: contentString,
         content_type: "application/json",
+        size: size,
         name: `domains`,
+        path: `.config/domains/domains`,
         content_hash: contentHash,
         hash: hash,
         previous_hash: previousHash,
