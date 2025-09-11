@@ -33,6 +33,24 @@ Only after reading these documents should you proceed with any implementation or
 
 **IMPORTANT**: After every conversation compact/summary, you MUST re-read this CLAUDE.md file again as your first action. The conversation context gets compressed and critical project-specific instructions may be lost. Always start by reading CLAUDE.md after a compact.
 
+## Project Context: Greenfield Development
+
+**IMPORTANT**: WebPods is a greenfield project with no legacy constraints. When working on this codebase:
+
+- **No backward compatibility concerns** - There are no existing deployments or users to migrate
+- **No legacy code patterns** - All code should follow current best practices without compromise
+- **No migration paths needed** - Database schemas, APIs, and data structures can be designed optimally from the start
+- **Write code as if starting fresh** - Every implementation should be clean and modern
+- **No change tracking in comments** - Avoid comments like "changed from X to Y" or "previously this was..." since there is no "previous" state
+- **No deprecation warnings** - Nothing is deprecated because nothing is legacy
+
+This means you should:
+
+- Focus on clean, optimal implementations without worrying about existing systems
+- Design data structures and APIs for the ideal case, not for compatibility
+- Write code and comments as if everything is being written for the first time
+- Make architectural decisions based purely on technical merit
+
 ## Documentation Principles
 
 **IMPORTANT**: When writing or updating documentation:
@@ -102,11 +120,31 @@ The codebase follows a functional programming approach with these key directorie
 
 ## Git Workflow
 
+### Git Safety Rules
+
+**CRITICAL GIT SAFETY RULES**:
+
+1. **NEVER use `git push --force` or `git push -f`** - Force pushing destroys history and can lose work permanently
+2. **ALL git push commands require EXPLICIT user authorization** - Never push to remote without the user explicitly asking
+3. **Use revert commits instead of force push** - To undo changes, create revert commits that preserve history
+4. **If you need to overwrite remote**, explain the consequences and get explicit confirmation first
+
+**IMPORTANT**: NEVER commit or push changes without explicit user instruction
+
+- Only run `git add`, `git commit`, or `git push` when the user explicitly asks
+- Common explicit instructions include: "commit", "push", "commit and push", "save to git"
+- If unsure, ask the user if they want to commit the changes
+- Always wait for user approval before making any git operations
+- **DO NOT** automatically commit or push after making changes
+- **DO NOT** commit/push even if you think the task is complete
+- The user will explicitly tell you when they want to commit/push
+
 When the user asks you to commit and push:
 
 1. Run `./format-all.sh` to format all files with Prettier
 2. Run `./lint-all.sh` to ensure code passes linting
 3. Follow the git commit guidelines in the main Claude system prompt
+4. Get explicit user confirmation before any `git push`
 
 ## Essential Commands
 
@@ -131,6 +169,11 @@ When the user asks you to commit and push:
 # Format code with Prettier (MUST run before committing)
 ./format-all.sh         # Format all files
 ./format-all.sh --check # Check formatting without changing files
+
+# Docker commands (if applicable)
+./docker-build.sh       # Build Docker image
+./docker-test.sh        # Test Docker image
+./docker-push.sh latest ghcr.io/webpods-org  # Push to registry
 ```
 
 ### Database Commands
@@ -147,6 +190,12 @@ npm run migrate:make migration_name
 # Run migrations (ONLY when explicitly asked)
 npm run migrate:latest
 npm run migrate:rollback
+
+# Create seed file (safe to run)
+npm run seed:make seed_name
+
+# Run seeds (ONLY when explicitly asked)
+npm run seed:run
 ```
 
 ## Core Architecture
