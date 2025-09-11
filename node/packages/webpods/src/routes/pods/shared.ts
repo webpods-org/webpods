@@ -24,6 +24,7 @@ import {
 } from "../../middleware/hybrid-auth.js";
 import { extractPod } from "../../middleware/pod.js";
 import { rateLimit } from "../../middleware/ratelimit.js";
+import { resolveLinks } from "../../middleware/resolve-links.js";
 import { createLogger } from "../../logger.js";
 import { getConfig } from "../../config-loader.js";
 import {
@@ -37,18 +38,22 @@ import {
 } from "../../utils.js";
 
 // Re-export middleware chains for common use
+// Order is important: extract pod -> resolve links -> auth -> rate limit
 export const readMiddleware = [
   extractPod,
+  resolveLinks, // Resolve links BEFORE rate limiting
   optionalAuth,
   rateLimit("read"),
 ] as const;
 export const writeMiddleware = [
   extractPod,
+  resolveLinks, // Resolve links BEFORE rate limiting
   authenticate,
   rateLimit("write"),
 ] as const;
 export const deleteMiddleware = [
   extractPod,
+  resolveLinks, // Resolve links BEFORE rate limiting
   authenticate,
   rateLimit("write"),
 ] as const;

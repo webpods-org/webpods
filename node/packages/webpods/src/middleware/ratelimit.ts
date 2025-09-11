@@ -22,6 +22,11 @@ export function rateLimit(
     res: Response,
     next: NextFunction,
   ): Promise<void> => {
+    // Skip if response already sent (happens during re-routing)
+    if (res.headersSent) {
+      return next();
+    }
+
     try {
       const db = getDb();
 
@@ -33,12 +38,15 @@ export function rateLimit(
 
       if (!result.success) {
         logger.error("Rate limit check failed", { error: result.error });
-        res.status(500).json({
-          error: {
-            code: "INTERNAL_ERROR",
-            message: "Rate limit check failed",
-          },
-        });
+        // Only send error response if headers haven't been sent
+        if (!res.headersSent) {
+          res.status(500).json({
+            error: {
+              code: "INTERNAL_ERROR",
+              message: "Rate limit check failed",
+            },
+          });
+        }
         return;
       }
 
@@ -46,19 +54,38 @@ export function rateLimit(
       const statusResult = await getRateLimitStatus({ db }, key, action);
       const limit = statusResult.success ? statusResult.data.limit : 1000;
 
-      // Set rate limit headers (lowercase for consistency with HTTP/2 and fetch)
-      res.setHeader("x-ratelimit-limit", limit.toString());
-      res.setHeader("x-ratelimit-remaining", result.data.remaining.toString());
-      res.setHeader("x-ratelimit-reset", result.data.resetAt.toISOString());
+      // Set rate limit headers only if response hasn't been sent
+      // This prevents ERR_HTTP_HEADERS_SENT when middleware runs again after re-routing
+      if (!res.headersSent) {
+        try {
+          // Set rate limit headers (lowercase for consistency with HTTP/2 and fetch)
+          res.setHeader("x-ratelimit-limit", limit.toString());
+          res.setHeader(
+            "x-ratelimit-remaining",
+            result.data.remaining.toString(),
+          );
+          res.setHeader("x-ratelimit-reset", result.data.resetAt.toISOString());
+        } catch (headerError) {
+          // Silently ignore header setting errors - this can happen during re-routing
+          // when response is being sent between the headersSent check and setHeader call
+          logger.debug("Could not set rate limit headers", {
+            error: headerError,
+            headersSent: res.headersSent,
+          });
+        }
+      }
 
       if (!result.data.allowed) {
         logger.warn("Rate limit exceeded", { key, action });
-        res.status(429).json({
-          error: {
-            code: "RATE_LIMIT_EXCEEDED",
-            message: "Too many requests",
-          },
-        });
+        // Only send rate limit error if headers haven't been sent
+        if (!res.headersSent) {
+          res.status(429).json({
+            error: {
+              code: "RATE_LIMIT_EXCEEDED",
+              message: "Too many requests",
+            },
+          });
+        }
         return;
       }
 

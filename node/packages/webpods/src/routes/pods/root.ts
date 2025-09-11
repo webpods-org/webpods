@@ -8,13 +8,8 @@ import {
   AuthRequest,
   extractPod,
   optionalAuth,
-  createRouteLogger,
 } from "./shared.js";
-import { getDb } from "../../db/index.js";
 import { getConfig } from "../../config-loader.js";
-import { resolveLink } from "../../domain/routing/resolve-link.js";
-
-const logger = createRouteLogger("root");
 
 /**
  * Root path handler with .config/routing support
@@ -50,59 +45,42 @@ export const rootHandler = async (
     }
 
     // Subdomain - pod not found
-    res.status(404).json({
-      error: {
-        code: "POD_NOT_FOUND",
-        message: "Pod not found",
-      },
-    });
+    if (!res.headersSent) {
+      res.status(404).json({
+        error: {
+          code: "POD_NOT_FOUND",
+          message: "Pod not found",
+        },
+      });
+    }
     return;
   }
 
-  const db = getDb();
-
-  // Check if path "/" is mapped in .config/routing
-  const linkResult = await resolveLink({ db }, req.podName, "/");
-
-  if (linkResult.success && linkResult.data) {
-    // Redirect to the mapped stream/record
-    const { streamPath, target } = linkResult.data;
-
-    // Rewrite URL and forward to the stream handler
-    if (target && target.startsWith("?")) {
-      // Handle query parameters (e.g., "?i=-1")
-      req.url = `/${streamPath}${target}`;
-      req.query = Object.fromEntries(new URLSearchParams(target.substring(1)));
-    } else if (target) {
-      // Handle path targets (e.g., "/record-name")
-      req.url = `/${streamPath}${target}`;
-    } else {
-      // Just stream name
-      req.url = `/${streamPath}`;
-    }
-
-    // Let the router handle the rewritten request
-    // This needs special handling in the index router
-    logger.debug("Root path resolved to", { streamPath, target });
-
-    // Instead of calling router directly, we'll need to handle this in index.ts
-    // For now, mark that we need to re-route
-    req.needsReroute = true;
-    return next();
+  // Check if the path was rewritten by the link resolution middleware
+  if ((req as any).wasRewritten && req.path !== "/") {
+    // Path was rewritten, forward to the GET handler
+    const { getHandler } = await import("./get.js");
+    return getHandler(req, res, next);
   }
 
+  // If we get here and the path is still "/", it means no link was found
   // No mapping, return 404
-  res.status(404).json({
-    error: {
-      code: "NOT_FOUND",
-      message:
-        "No content configured for root path. Use .config/routing to configure.",
-    },
-  });
+  if (!res.headersSent) {
+    res.status(404).json({
+      error: {
+        code: "NOT_FOUND",
+        message:
+          "No content configured for root path. Use .config/routing to configure.",
+      },
+    });
+  }
 };
+
+// Import resolveLinks
+import { resolveLinks } from "../../middleware/resolve-links.js";
 
 export const rootRoute = {
   path: "/",
-  middleware: [extractPod, optionalAuth] as const,
+  middleware: [extractPod, resolveLinks, optionalAuth] as const,
   handler: rootHandler,
 };

@@ -29,6 +29,11 @@ export async function extractPod(
   res: Response,
   next: NextFunction,
 ): Promise<void> {
+  // Skip if response already sent (happens during re-routing)
+  if (res.headersSent) {
+    return next();
+  }
+
   try {
     // If pod_name is already set (e.g., by rootPod handler), skip extraction
     if (req.podName) {
@@ -97,12 +102,14 @@ export async function extractPod(
     next();
   } catch (error) {
     logger.error("Pod extraction error", { error });
-    res.status(500).json({
-      error: {
-        code: "INTERNAL_ERROR",
-        message: "Failed to extract pod",
-      },
-    });
+    if (!res.headersSent) {
+      res.status(500).json({
+        error: {
+          code: "INTERNAL_ERROR",
+          message: "Failed to extract pod",
+        },
+      });
+    }
   }
 }
 
