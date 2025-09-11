@@ -105,12 +105,15 @@ export async function createPod(
       const timestamp = new Date().toISOString();
       const contentHash = calculateContentHash(ownerContent);
       const hash = calculateRecordHash(null, contentHash, userId, timestamp);
+      const contentString = JSON.stringify(ownerContent);
+      const size = Buffer.byteLength(contentString, "utf8");
 
       const recordParams = {
         stream_id: ownerStream.id,
         index: 0,
-        content: JSON.stringify(ownerContent),
+        content: contentString,
         content_type: "application/json",
+        size: size,
         name: "owner",
         path: ".config/owner/owner",
         content_hash: contentHash,

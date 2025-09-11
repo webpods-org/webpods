@@ -22,6 +22,7 @@ function mapRecordFromDb(row: RecordDbRow): StreamRecord {
     index: row.index,
     content: row.content,
     contentType: row.content_type,
+    size: row.size,
     name: row.name,
     path: row.path,
     contentHash: row.content_hash,
@@ -86,7 +87,7 @@ export async function deleteRecord(
 
       const tombstonePath = `${stream.path}/${tombstoneName}`;
 
-      // Calculate hashes
+      // Calculate hashes and size
       const contentHash = calculateContentHash(content);
       const hash = calculateRecordHash(
         previousHash,
@@ -94,17 +95,19 @@ export async function deleteRecord(
         userId,
         timestamp,
       );
+      const size = Buffer.byteLength(content, "utf8");
 
       // Insert tombstone record with path
       const tombstone = await t.one<RecordDbRow>(
-        `INSERT INTO record (stream_id, index, content, content_type, name, path, content_hash, hash, previous_hash, user_id, created_at)
-         VALUES ($(streamId), $(index), $(content), $(contentType), $(name), $(path), $(contentHash), $(hash), $(previousHash), $(userId), $(createdAt))
+        `INSERT INTO record (stream_id, index, content, content_type, size, name, path, content_hash, hash, previous_hash, user_id, created_at)
+         VALUES ($(streamId), $(index), $(content), $(contentType), $(size), $(name), $(path), $(contentHash), $(hash), $(previousHash), $(userId), $(createdAt))
          RETURNING *`,
         {
           streamId,
           index,
           content,
           contentType: "application/json",
+          size,
           name: tombstoneName,
           path: tombstonePath,
           contentHash,

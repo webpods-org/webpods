@@ -68,6 +68,7 @@ export interface StreamRecord {
   index: number; // Position in stream (0-based)
   content: string | unknown; // Can be text or JSON
   contentType: string;
+  size: number; // Content size in bytes
   name: string; // Required name (no slashes - like filename)
   path: string; // Full path including record name for O(1) lookups
   contentHash: string; // SHA-256 hash of content only
@@ -103,6 +104,7 @@ export interface StreamRecordResponse {
   index: number; // Position in stream (0-based)
   content: unknown;
   contentType: string;
+  size: number; // Content size in bytes
   contentHash: string; // SHA-256 hash of content only
   hash: string; // SHA-256 hash of (previous_hash + content_hash)
   previousHash: string | null;

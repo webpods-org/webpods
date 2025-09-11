@@ -305,7 +305,10 @@ Response (201 Created):
   "index": 0,
   "content": "...",
   "content_type": "text/plain",
+  "size": 1024,
   "name": "my-name",
+  "path": "/stream/path/my-name",
+  "content_hash": "sha256:...",
   "hash": "sha256:...",
   "previous_hash": null,
   "author": "user-uuid",
@@ -324,11 +327,14 @@ GET {pod}.webpods.org/{stream}/{name}
 Returns raw content with metadata in headers:
 
 - `Content-Type` - Content MIME type
+- `Content-Length` - Content size in bytes
 - `X-Hash` - Record SHA-256 hash
+- `X-Content-Hash` - Content-only SHA-256 hash
 - `X-Previous-Hash` - Previous record hash
 - `X-Author` - Author ID
 - `X-Timestamp` - Creation timestamp
 - `X-Index` - Record index
+- `X-Path` - Full record path
 
 #### By Index
 

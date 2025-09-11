@@ -107,10 +107,11 @@ export async function createTestRecord(
     previousHash = null,
   } = data;
 
-  // Calculate content hash
+  // Calculate content hash and size
   const contentHash = `sha256:${createHash("sha256")
     .update(content)
     .digest("hex")}`;
+  const size = Buffer.byteLength(content, "utf8");
 
   // Get stream path to compute record path
   const stream: { path: string } = await db.one(
@@ -132,8 +133,8 @@ export async function createTestRecord(
   const hash = `sha256:${createHash("sha256").update(hashInput).digest("hex")}`;
 
   await db.none(
-    `INSERT INTO record (stream_id, name, path, content, content_type, content_hash, hash, previous_hash, user_id, index, created_at)
-     VALUES ($(streamId), $(name), $(path), $(content), $(contentType), $(contentHash), $(hash), $(previousHash), $(userId), $(index), $(timestamp))`,
+    `INSERT INTO record (stream_id, name, path, content, content_type, content_hash, hash, previous_hash, user_id, index, size, deleted, purged, created_at)
+     VALUES ($(streamId), $(name), $(path), $(content), $(contentType), $(contentHash), $(hash), $(previousHash), $(userId), $(index), $(size), $(deleted), $(purged), $(timestamp))`,
     {
       streamId,
       name,
@@ -145,6 +146,9 @@ export async function createTestRecord(
       previousHash,
       userId,
       index,
+      size,
+      deleted: false,
+      purged: false,
       timestamp: new Date(),
     },
   );

@@ -109,12 +109,15 @@ export async function createTestPod(
   const hash =
     "sha256:" + crypto.createHash("sha256").update(hashData).digest("hex");
 
+  const size = Buffer.byteLength(content, "utf8");
+
   await db.none(
-    `INSERT INTO record (stream_id, index, content, content_type, name, path, content_hash, hash, previous_hash, user_id, created_at)
-     VALUES ($(streamId), 0, $(content), 'application/json', 'owner', '.config/owner/owner', $(contentHash), $(hash), NULL, $(ownerId), $(timestamp))`,
+    `INSERT INTO record (stream_id, index, content, content_type, size, name, path, content_hash, hash, previous_hash, user_id, created_at)
+     VALUES ($(streamId), 0, $(content), 'application/json', $(size), 'owner', '.config/owner/owner', $(contentHash), $(hash), NULL, $(ownerId), $(timestamp))`,
     {
       streamId: ownerStream.id,
       content,
+      size,
       contentHash,
       hash,
       ownerId,

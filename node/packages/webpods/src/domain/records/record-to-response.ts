@@ -31,6 +31,7 @@ export function recordToResponse(
     index: record.index,
     content: content,
     contentType: record.contentType,
+    size: record.size,
     name: record.name,
     path: fullPath,
     contentHash: record.contentHash,

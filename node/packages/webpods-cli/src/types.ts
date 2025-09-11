@@ -76,6 +76,8 @@ export interface StreamRecord {
   content_type: string;
   contentType?: string; // API returns camelCase
   name: string;
+  path: string;
+  size: number;
   contentHash: string;
   hash: string;
   previous_hash: string | null;

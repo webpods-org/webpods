@@ -8,7 +8,6 @@ import { createError } from "../../utils/errors.js";
 import { StreamDbRow } from "../../db-types.js";
 import { Stream } from "../../types.js";
 import { createLogger } from "../../logger.js";
-import { getStreamByPath } from "./get-stream-by-path.js";
 
 const logger = createLogger("webpods:domain:streams");
 
@@ -41,35 +40,21 @@ export async function getStreamsWithPrefix(
   streamPath: string,
 ): Promise<Result<Stream[]>> {
   try {
-    // Get the parent stream
-    const parentResult = await getStreamByPath(ctx, podName, streamPath);
-    if (!parentResult.success) {
-      // If parent doesn't exist, return empty array (no children)
-      return success([]);
-    }
+    // Use efficient path-based query to get all matching streams in one query
+    // This matches the exact path and all nested paths
+    const pathPattern = streamPath.endsWith("/")
+      ? `${streamPath}%`
+      : `${streamPath}/%`;
 
-    const parentStream = parentResult.data;
-    const allStreams: Stream[] = [parentStream];
+    const streams = await ctx.db.manyOrNone<StreamDbRow>(
+      `SELECT * FROM stream 
+       WHERE pod_name = $(podName) 
+         AND (path = $(streamPath) OR path LIKE $(pathPattern))
+       ORDER BY path ASC`,
+      { podName, streamPath, pathPattern },
+    );
 
-    // Recursive function to get all descendants
-    async function getDescendants(parentId: number): Promise<void> {
-      const children = await ctx.db.manyOrNone<StreamDbRow>(
-        `SELECT * FROM stream 
-         WHERE pod_name = $(podName) 
-           AND parent_id = $(parentId)`,
-        { podName, parentId },
-      );
-
-      for (const child of children) {
-        const childStream = mapStreamFromDb(child);
-        allStreams.push(childStream);
-        // Recursively get children of this child
-        await getDescendants(child.id);
-      }
-    }
-
-    // Get all descendants
-    await getDescendants(parentStream.id);
+    const allStreams = streams.map(mapStreamFromDb);
 
     logger.debug("Found streams with prefix", {
       podName,

@@ -30,12 +30,12 @@ export function createLogger(name: string): Logger {
   return {
     debug: (message: string, meta?: Record<string, unknown>) => {
       if (shouldLog("debug")) {
-        console.info(formatMessage("debug", message, meta));
+        console.error(formatMessage("debug", message, meta));
       }
     },
     info: (message: string, meta?: Record<string, unknown>) => {
       if (shouldLog("info")) {
-        console.info(formatMessage("info", message, meta));
+        console.error(formatMessage("info", message, meta));
       }
     },
     warn: (message: string, meta?: Record<string, unknown>) => {

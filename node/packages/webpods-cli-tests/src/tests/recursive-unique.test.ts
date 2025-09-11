@@ -77,55 +77,65 @@ describe("CLI Recursive Unique Listing", () => {
 
       // Add records with duplicate names across streams
       // documents/report.md (v1, v2)
+      const content1 = JSON.stringify({ version: 1 });
       await db.none(
-        `INSERT INTO record (stream_id, index, content, content_type, name, path, content_hash, hash, previous_hash, user_id, created_at)
-         VALUES ($(streamId), 0, $(content), 'application/json', 'report.md', 'documents/report.md', 'hash1', 'hash1', NULL, $(userId), NOW())`,
+        `INSERT INTO record (stream_id, index, content, content_type, size, name, path, content_hash, hash, previous_hash, user_id, created_at)
+         VALUES ($(streamId), 0, $(content), 'application/json', $(size), 'report.md', 'documents/report.md', 'hash1', 'hash1', NULL, $(userId), NOW())`,
         {
           streamId: documentsStream.id,
-          content: JSON.stringify({ version: 1 }),
+          content: content1,
+          size: Buffer.byteLength(content1, "utf8"),
           userId: testUser.userId,
         },
       );
 
+      const content2 = JSON.stringify({ version: 2 });
       await db.none(
-        `INSERT INTO record (stream_id, index, content, content_type, name, path, content_hash, hash, previous_hash, user_id, created_at)
-         VALUES ($(streamId), 1, $(content), 'application/json', 'report.md', 'documents/report.md', 'hash2', 'hash2', 'hash1', $(userId), NOW())`,
+        `INSERT INTO record (stream_id, index, content, content_type, size, name, path, content_hash, hash, previous_hash, user_id, created_at)
+         VALUES ($(streamId), 1, $(content), 'application/json', $(size), 'report.md', 'documents/report.md', 'hash2', 'hash2', 'hash1', $(userId), NOW())`,
         {
           streamId: documentsStream.id,
-          content: JSON.stringify({ version: 2 }),
+          content: content2,
+          size: Buffer.byteLength(content2, "utf8"),
           userId: testUser.userId,
         },
       );
 
       // documents/reports/summary.md
+      const content3 = JSON.stringify({ title: "Summary" });
       await db.none(
-        `INSERT INTO record (stream_id, index, content, content_type, name, path, content_hash, hash, previous_hash, user_id, created_at)
-         VALUES ($(streamId), 0, $(content), 'application/json', 'summary.md', 'documents/reports/summary.md', 'hash3', 'hash3', NULL, $(userId), NOW())`,
+        `INSERT INTO record (stream_id, index, content, content_type, size, name, path, content_hash, hash, previous_hash, user_id, created_at)
+         VALUES ($(streamId), 0, $(content), 'application/json', $(size), 'summary.md', 'documents/reports/summary.md', 'hash3', 'hash3', NULL, $(userId), NOW())`,
         {
           streamId: reportsStream.id,
-          content: JSON.stringify({ title: "Summary" }),
+          content: content3,
+          size: Buffer.byteLength(content3, "utf8"),
           userId: testUser.userId,
         },
       );
 
       // documents/drafts/draft.md
+      const content4 = JSON.stringify({ draft: true });
       await db.none(
-        `INSERT INTO record (stream_id, index, content, content_type, name, path, content_hash, hash, previous_hash, user_id, created_at)
-         VALUES ($(streamId), 0, $(content), 'application/json', 'draft.md', 'documents/drafts/draft.md', 'hash4', 'hash4', NULL, $(userId), NOW())`,
+        `INSERT INTO record (stream_id, index, content, content_type, size, name, path, content_hash, hash, previous_hash, user_id, created_at)
+         VALUES ($(streamId), 0, $(content), 'application/json', $(size), 'draft.md', 'documents/drafts/draft.md', 'hash4', 'hash4', NULL, $(userId), NOW())`,
         {
           streamId: draftsStream.id,
-          content: JSON.stringify({ draft: true }),
+          content: content4,
+          size: Buffer.byteLength(content4, "utf8"),
           userId: testUser.userId,
         },
       );
 
       // documents/drafts/report.md (different from documents/report.md)
+      const content5 = JSON.stringify({ draft: "report" });
       await db.none(
-        `INSERT INTO record (stream_id, index, content, content_type, name, path, content_hash, hash, previous_hash, user_id, created_at)
-         VALUES ($(streamId), 1, $(content), 'application/json', 'report.md', 'documents/drafts/report.md', 'hash5', 'hash5', NULL, $(userId), NOW())`,
+        `INSERT INTO record (stream_id, index, content, content_type, size, name, path, content_hash, hash, previous_hash, user_id, created_at)
+         VALUES ($(streamId), 1, $(content), 'application/json', $(size), 'report.md', 'documents/drafts/report.md', 'hash5', 'hash5', NULL, $(userId), NOW())`,
         {
           streamId: draftsStream.id,
-          content: JSON.stringify({ draft: "report" }),
+          content: content5,
+          size: Buffer.byteLength(content5, "utf8"),
           userId: testUser.userId,
         },
       );
@@ -251,12 +261,14 @@ describe("CLI Recursive Unique Listing", () => {
         id: number;
       }>(`SELECT id FROM stream WHERE pod_name = $(podName) AND path = 'documents/drafts'`, { podName: testPodName });
 
+      const content6 = JSON.stringify({ deleted: true });
       await testDb.getDb().none(
-        `INSERT INTO record (stream_id, index, content, content_type, name, path, content_hash, hash, previous_hash, user_id, created_at)
-         VALUES ($(streamId), 2, $(content), 'application/json', 'draft.md', 'documents/drafts/draft.md', 'hash6', 'hash6', 'hash4', $(userId), NOW())`,
+        `INSERT INTO record (stream_id, index, content, content_type, size, name, path, content_hash, hash, previous_hash, user_id, created_at)
+         VALUES ($(streamId), 2, $(content), 'application/json', $(size), 'draft.md', 'documents/drafts/draft.md', 'hash6', 'hash6', 'hash4', $(userId), NOW())`,
         {
           streamId: draftsStream.id,
-          content: JSON.stringify({ deleted: true }),
+          content: content6,
+          size: Buffer.byteLength(content6, "utf8"),
           userId: testUser.userId,
         },
       );
