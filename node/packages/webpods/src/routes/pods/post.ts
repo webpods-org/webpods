@@ -462,6 +462,9 @@ export const postHandler = async (
       return;
     }
 
+    // Check if this is a file-type record that should use optimized storage
+    const useExternalStorage = req.headers["x-record-type"] === "file";
+
     // Write record
     const recordResult = await writeRecord(
       { db },
@@ -470,6 +473,7 @@ export const postHandler = async (
       contentType,
       req.auth.user_id,
       name,
+      useExternalStorage,
     );
 
     if (!recordResult.success) {

@@ -587,6 +587,64 @@ if (hasMore) {
 }
 ```
 
+### 13. Adapter Patterns
+
+When implementing adapters for external systems, use functional interfaces instead of classes:
+
+```typescript
+// ✅ Good - Functional adapter pattern
+// types.ts
+export type ConnectFunction = (
+  config: ConnectionConfig,
+) => Promise<Result<Connection>>;
+
+export type SendFunction = (
+  connection: Connection,
+  data: any,
+) => Promise<Result<void>>;
+
+export type CloseFunction = (connection: Connection) => Promise<Result<void>>;
+
+export type Adapter = {
+  connect: ConnectFunction;
+  send: SendFunction;
+  close: CloseFunction;
+};
+
+// implementation.ts
+export const connect: ConnectFunction = async (config) => {
+  // Implementation
+};
+
+export const send: SendFunction = async (connection, data) => {
+  // Implementation
+};
+
+export const close: CloseFunction = async (connection) => {
+  // Implementation
+};
+
+// Export the adapter
+export const adapter: Adapter = {
+  connect,
+  send,
+  close,
+};
+
+// ❌ Bad - Class-based adapter
+export class ServiceAdapter implements Adapter {
+  constructor(private config: Config) {}
+
+  async connect(): Promise<Result<Connection>> {
+    // Implementation
+  }
+
+  async send(data: any): Promise<Result<void>> {
+    // Implementation
+  }
+}
+```
+
 ## Code Review Checklist
 
 Before submitting a PR, ensure:

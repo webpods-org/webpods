@@ -1147,6 +1147,60 @@ curl -X POST https://my-pod.webpods.org/images/logo \
 curl https://my-pod.webpods.org/images/logo > logo.png
 ```
 
+#### External Storage for Large Media Files
+
+WebPods supports storing large media files externally to optimize database performance and reduce storage costs. When external storage is enabled and configured, files exceeding a size threshold can be stored on the filesystem or cloud storage instead of the database.
+
+##### Enabling External Storage
+
+To store a file externally, include the `X-Record-Type: file` header when uploading:
+
+```bash
+# Upload a large image to external storage
+IMAGE_BASE64=$(base64 -w 0 < large-photo.jpg)
+curl -X POST https://my-pod.webpods.org/photos/vacation \
+  -H "Authorization: Bearer $WEBPODS_TOKEN" \
+  -H "X-Content-Type: image/jpeg" \
+  -H "X-Record-Type: file" \
+  -d "$IMAGE_BASE64"
+```
+
+##### How External Storage Works
+
+- Files are stored externally only when both conditions are met:
+  1. The `X-Record-Type: file` header is present
+  2. The file size exceeds the configured minimum threshold (default: 1KB)
+- Externally stored files are served via HTTP 302 redirects to the configured storage URL
+- The database stores only metadata and a reference to the external location
+- Files are stored in two locations for efficient serving:
+  - A hash-based path for deduplication (`.storage/[hash].[ext]`)
+  - A name-based path for direct serving (`[recordName].[ext]`)
+
+##### Configuration
+
+External storage is configured in `config.json`:
+
+```json
+{
+  "media": {
+    "externalStorage": {
+      "enabled": true,
+      "minSize": "10kb",
+      "adapter": "filesystem",
+      "filesystem": {
+        "basePath": "/var/webpods/media",
+        "baseUrl": "https://static.example.com"
+      }
+    }
+  }
+}
+```
+
+##### Deletion Behavior
+
+- **Soft delete** (default): Removes only the name-based file, keeping the hash-based file for deduplication
+- **Hard delete** (purge): Removes both name-based and hash-based files completely
+
 ### Serving Web Content
 
 WebPods can serve as a static website host:
@@ -1462,6 +1516,17 @@ Create `config.json`:
     "customDomains": true,
     "binaryContent": true,
     "publicRegistration": true
+  },
+  "media": {
+    "externalStorage": {
+      "enabled": false,
+      "minSize": "10kb",
+      "adapter": "filesystem",
+      "filesystem": {
+        "basePath": "/var/webpods/media",
+        "baseUrl": "https://static.example.com"
+      }
+    }
   }
 }
 ```

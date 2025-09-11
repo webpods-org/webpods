@@ -63,6 +63,7 @@ export type RecordDbRow = {
   hash: string; // SHA-256 hash of (previous_hash + content_hash)
   previous_hash?: string | null;
   user_id: string; // References user.id
+  storage?: string | null; // External storage location (adapter-specific format)
   created_at: Date | string; // Can be string when inserting
 };
 
