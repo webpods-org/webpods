@@ -84,6 +84,8 @@ export async function up(knex) {
     table.string('hash', 100).notNullable(); // SHA-256 hash of (previous_hash + content_hash)
     table.string('previous_hash', 100); // NULL for first record
     table.uuid('user_id').references('id').inTable('user').onDelete('RESTRICT'); // User who created the record
+    table.boolean('deleted').defaultTo(false); // Soft delete flag
+    table.boolean('purged').defaultTo(false); // Hard delete flag
     table.timestamp('created_at').defaultTo(knex.fn.now());
     
     table.unique(['stream_id', 'index']);
@@ -92,6 +94,8 @@ export async function up(knex) {
     table.index(['stream_id', 'path']); // Index for fast path-based record lookups
     table.index('user_id');
     table.index('hash');
+    table.index(['stream_id', 'deleted']); // Index for efficient deletion filtering
+    table.index(['stream_id', 'purged']); // Index for efficient purge filtering
   });
 
   // Custom domain mapping

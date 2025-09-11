@@ -61,7 +61,7 @@ export async function loadConfig(): Promise<WebPodsConfig> {
       ...DEFAULT_CONFIG,
       ...config,
     };
-  } catch (error) {
+  } catch {
     return DEFAULT_CONFIG;
   }
 }

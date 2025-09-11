@@ -84,69 +84,58 @@ export async function listRecordsRecursive(
       });
     }
 
-    // Step 3: Fetch records from each readable stream
-    const allRecords: RecordDbRow[] = [];
-    let totalCount = 0;
+    // Step 3: Get readable stream IDs for efficient query
+    const readableStreamIds = readableStreams.map((stream) => stream.id);
 
-    for (const stream of readableStreams) {
-      // Get records from this stream
-      const records = await ctx.db.manyOrNone<RecordDbRow>(
-        `SELECT * FROM record 
-         WHERE stream_id = $(streamId) 
-         ORDER BY index ASC`,
-        { streamId: stream.id },
-      );
+    // Step 4: Get total count with a single efficient query
+    const countResult = await ctx.db.one<{ count: string }>(
+      `SELECT COUNT(*) as count 
+       FROM record 
+       WHERE stream_id = ANY($(streamIds)::bigint[])
+         AND deleted = false
+         AND purged = false`,
+      { streamIds: readableStreamIds },
+    );
 
-      allRecords.push(...records);
-
-      // Get count for this stream
-      const countResult = await ctx.db.one<{ count: string }>(
-        `SELECT COUNT(*) as count FROM record 
-         WHERE stream_id = $(streamId)`,
-        { streamId: stream.id },
-      );
-
-      totalCount += parseInt(countResult.count);
-    }
-
-    // Step 4: Sort all records by creation time
-    allRecords.sort((a, b) => {
-      const dateA =
-        typeof a.created_at === "string"
-          ? new Date(a.created_at).getTime()
-          : a.created_at.getTime();
-      const dateB =
-        typeof b.created_at === "string"
-          ? new Date(b.created_at).getTime()
-          : b.created_at.getTime();
-      return dateA - dateB;
-    });
-
-    // Step 5: Apply pagination
-    let paginatedRecords = allRecords;
-    let hasMore = false;
+    const totalCount = parseInt(countResult.count);
 
     // Handle negative 'after' parameter
     let actualAfter = after;
     if (after !== undefined && after < 0) {
       // after=-3 means "get the last 3 records"
-      actualAfter = totalCount + after - 1;
+      actualAfter = totalCount + after;
       if (actualAfter < 0) {
-        actualAfter = -1; // Get all from start
+        actualAfter = 0; // Get all from start
       }
     }
 
-    // Apply 'after' filter
+    // Step 5: Use single efficient query with proper ordering and pagination
+    let query = `
+      SELECT r.* 
+      FROM record r
+      WHERE r.stream_id = ANY($(streamIds)::bigint[])
+        AND r.deleted = false
+        AND r.purged = false
+      ORDER BY r.created_at ASC`;
+
+    // Add pagination parameters
+    const params: Record<string, unknown> = {
+      streamIds: readableStreamIds,
+      limit: limit + 1, // Get one extra to check hasMore
+    };
+
     if (actualAfter !== undefined && actualAfter >= 0) {
-      // Skip records up to 'after' index
-      paginatedRecords = paginatedRecords.slice(actualAfter + 1);
+      query += ` OFFSET $(offset)`;
+      params.offset = actualAfter;
     }
 
-    // Apply limit
-    if (paginatedRecords.length > limit) {
-      hasMore = true;
-      paginatedRecords = paginatedRecords.slice(0, limit);
-    }
+    query += ` LIMIT $(limit)`;
+
+    const records = await ctx.db.manyOrNone<RecordDbRow>(query, params);
+
+    // Check if there are more records
+    const hasMore = records.length > limit;
+    const paginatedRecords = hasMore ? records.slice(0, limit) : records;
 
     logger.debug("Listed records recursively", {
       podName,

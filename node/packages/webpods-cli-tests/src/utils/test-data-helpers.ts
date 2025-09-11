@@ -133,8 +133,8 @@ export async function createTestRecord(
   const hash = `sha256:${createHash("sha256").update(hashInput).digest("hex")}`;
 
   await db.none(
-    `INSERT INTO record (stream_id, name, path, content, content_type, content_hash, hash, previous_hash, user_id, index, size, created_at)
-     VALUES ($(streamId), $(name), $(path), $(content), $(contentType), $(contentHash), $(hash), $(previousHash), $(userId), $(index), $(size), $(timestamp))`,
+    `INSERT INTO record (stream_id, name, path, content, content_type, content_hash, hash, previous_hash, user_id, index, size, deleted, purged, created_at)
+     VALUES ($(streamId), $(name), $(path), $(content), $(contentType), $(contentHash), $(hash), $(previousHash), $(userId), $(index), $(size), $(deleted), $(purged), $(timestamp))`,
     {
       streamId,
       name,
@@ -147,6 +147,8 @@ export async function createTestRecord(
       userId,
       index,
       size,
+      deleted: false,
+      purged: false,
       timestamp: new Date(),
     },
   );

@@ -24,6 +24,7 @@ export interface DownloadOptions {
  */
 function recordNameToFileName(recordName: string): string {
   // Replace invalid filesystem characters
+  // eslint-disable-next-line no-control-regex
   return recordName.replace(/[<>:"/\\|?*\x00-\x1f]/g, "_");
 }
 

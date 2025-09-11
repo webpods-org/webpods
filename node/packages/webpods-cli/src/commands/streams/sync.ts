@@ -268,7 +268,7 @@ export async function syncStream(
         output.error(`Local path is not a directory: ${localPath}`);
         process.exit(1);
       }
-    } catch (error) {
+    } catch {
       output.error(`Local directory does not exist: ${localPath}`);
       process.exit(1);
     }
