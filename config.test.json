@@ -1,0 +1,31 @@
+{
+  "oauth": {
+    "providers": [
+      {
+        "id": "google",
+        "clientId": "test-client-id",
+        "clientSecret": "test-secret",
+        "issuer": "https://accounts.google.com",
+        "scope": "openid email profile",
+        "userIdField": "sub",
+        "emailField": "email",
+        "nameField": "name"
+      }
+    ]
+  },
+  "hydra": {
+    "adminUrl": "$HYDRA_ADMIN_URL",
+    "publicUrl": "$HYDRA_PUBLIC_URL"
+  },
+  "media": {
+    "externalStorage": {
+      "enabled": true,
+      "minSize": "1kb",
+      "adapter": "filesystem",
+      "filesystem": {
+        "basePath": ".tests/media",
+        "baseUrl": "https://static.example.com"
+      }
+    }
+  }
+}

@@ -95,6 +95,18 @@ export interface HydraConfig {
   publicUrl: string;
 }
 
+export interface MediaConfig {
+  externalStorage: {
+    enabled: boolean;
+    minSize: string; // e.g., "1mb", "0" for always external
+    adapter: string; // "filesystem" for now
+    filesystem?: {
+      basePath: string; // e.g., "/var/webpods/media"
+      baseUrl: string; // e.g., "https://static.example.com"
+    };
+  };
+}
+
 export interface AppConfig {
   oauth: OAuthConfig;
   server: ServerConfig;
@@ -102,7 +114,29 @@ export interface AppConfig {
   auth: AuthConfig;
   rateLimits: RateLimitsConfig;
   hydra: HydraConfig;
+  media?: MediaConfig; // Optional media configuration
   rootPod?: string; // Optional pod to serve on main domain
+}
+
+// Load media config from environment for testing
+function loadMediaConfig(): MediaConfig | undefined {
+  if (process.env.MEDIA_EXTERNAL_STORAGE_ENABLED === "true") {
+    return {
+      externalStorage: {
+        enabled: true,
+        minSize: process.env.MEDIA_MIN_SIZE || "1kb",
+        adapter: process.env.MEDIA_ADAPTER || "filesystem",
+        filesystem: {
+          basePath:
+            process.env.MEDIA_FILESYSTEM_BASE_PATH || "/tmp/webpods-media",
+          baseUrl:
+            process.env.MEDIA_FILESYSTEM_BASE_URL ||
+            "https://static.example.com",
+        },
+      },
+    };
+  }
+  return undefined;
 }
 
 /**
@@ -369,6 +403,11 @@ export function loadConfig(configPath?: string): AppConfig {
       } catch {
         throw new Error(`Invalid publicUrl: ${config.server.publicUrl}`);
       }
+    }
+
+    // Load media config from environment if not in config file
+    if (!config.media) {
+      config.media = loadMediaConfig();
     }
 
     // Validate required fields

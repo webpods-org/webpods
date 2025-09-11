@@ -9,6 +9,8 @@ import { RecordDbRow } from "../../db-types.js";
 import { StreamRecord } from "../../types.js";
 import { calculateContentHash, calculateRecordHash } from "../../utils.js";
 import { createLogger } from "../../logger.js";
+import { getStorageAdapter } from "../../storage-adapters/index.js";
+import { extname } from "path";
 
 const logger = createLogger("webpods:domain:records");
 
@@ -29,6 +31,7 @@ function mapRecordFromDb(row: RecordDbRow): StreamRecord {
     hash: row.hash,
     previousHash: row.previous_hash || null,
     userId: row.user_id,
+    storage: row.storage || null,
     metadata: undefined,
     createdAt:
       typeof row.created_at === "string"
@@ -55,6 +58,49 @@ export async function deleteRecord(
 ): Promise<Result<StreamRecord>> {
   try {
     return await ctx.db.tx(async (t) => {
+      // First check if the record exists and has external storage
+      const recordToDelete = await t.oneOrNone<RecordDbRow>(
+        `SELECT * FROM record
+         WHERE stream_id = $(streamId)
+           AND name = $(recordName)
+         ORDER BY index DESC
+         LIMIT 1`,
+        { streamId, recordName },
+      );
+
+      // If record has external storage, soft delete the name-based file
+      if (recordToDelete?.storage) {
+        const adapter = getStorageAdapter();
+        if (adapter) {
+          // Get pod and stream info for deletion
+          const streamInfo = await t.one<{ pod_name: string; path: string }>(
+            `SELECT pod_name, path FROM stream WHERE id = $(streamId)`,
+            { streamId },
+          );
+
+          // Extract file extension from name only - don't add one if name has none
+          const ext = extname(recordName).replace(".", "");
+
+          // Soft delete - only remove name-based file, keep hash file
+          const deleteResult = await adapter.deleteFile(
+            streamInfo.pod_name,
+            streamInfo.path,
+            recordName,
+            recordToDelete.content_hash,
+            ext,
+            false, // soft delete - don't purge hash file
+          );
+
+          if (!deleteResult.success) {
+            logger.warn("Failed to delete external file during soft delete", {
+              error: deleteResult.error,
+              recordName,
+              storage: recordToDelete.storage,
+            });
+          }
+        }
+      }
+
       // Get the last record to calculate the next index and hash chain
       const lastRecord = await t.oneOrNone<RecordDbRow>(
         `SELECT * FROM record

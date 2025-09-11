@@ -12,6 +12,7 @@ import {
 } from "./shared.js";
 import { getDb } from "../../db/index.js";
 import { getConfig } from "../../config-loader.js";
+import { getStorageAdapter } from "../../storage-adapters/index.js";
 import { getStreamById } from "../../domain/streams/get-stream-by-id.js";
 import { listChildStreams } from "../../domain/streams/list-child-streams.js";
 import { getStreamPath } from "../../domain/streams/get-stream-by-path.js";
@@ -291,7 +292,28 @@ export const getHandler = async (
         // Not JSON or can't parse, continue normally
       }
 
-      // Return raw content for single records
+      // Check if content is stored externally
+      const recordRow = result.data as StreamRecord & {
+        storage?: string | null;
+      }; // Access the record with storage field
+      if (recordRow.storage) {
+        // Content is stored externally, return 302 redirect
+        const adapter = getStorageAdapter();
+        if (adapter) {
+          const redirectUrl = adapter.getFileUrl(recordRow.storage);
+
+          if (!res.headersSent) {
+            // Set cache headers based on content hash
+            res.setHeader("Cache-Control", "private, max-age=3600");
+            res.setHeader("ETag", `"${record.contentHash}"`);
+            res.setHeader("X-Record-Type", "file");
+            res.redirect(302, redirectUrl);
+          }
+          return;
+        }
+      }
+
+      // Return raw content for single records (not external)
       // Set headers (only if not already sent)
       if (!res.headersSent) {
         res.setHeader("X-Content-Hash", record.contentHash);
@@ -419,7 +441,26 @@ export const getHandler = async (
       // Not JSON or can't parse, continue normally
     }
 
-    // Return raw content for single records
+    // Check if content is stored externally
+    const recordRow = result.data as StreamRecord & { storage?: string | null };
+    if (recordRow.storage) {
+      // Content is stored externally, return 302 redirect
+      const adapter = getStorageAdapter();
+      if (adapter) {
+        const redirectUrl = adapter.getFileUrl(recordRow.storage);
+
+        if (!res.headersSent) {
+          // Set cache headers based on content hash
+          res.setHeader("Cache-Control", "private, max-age=3600");
+          res.setHeader("ETag", `"${record.contentHash}"`);
+          res.setHeader("X-Record-Type", "file");
+          res.redirect(302, redirectUrl);
+        }
+        return;
+      }
+    }
+
+    // Return raw content for single records (not external)
     // Set headers (only if not already sent)
     if (!res.headersSent) {
       res.setHeader("X-Content-Hash", record.contentHash);

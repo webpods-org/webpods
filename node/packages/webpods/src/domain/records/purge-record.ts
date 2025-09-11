@@ -6,6 +6,9 @@ import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
 import { createError } from "../../utils/errors.js";
 import { createLogger } from "../../logger.js";
+import { getStorageAdapter } from "../../storage-adapters/index.js";
+import { extname } from "path";
+import { RecordDbRow } from "../../db-types.js";
 
 const logger = createLogger("webpods:domain:records");
 
@@ -26,11 +29,65 @@ export async function purgeRecord(
   userId: string,
 ): Promise<Result<{ rowsAffected: number }>> {
   try {
+    // First check if the record has external storage
+    const recordToPurge = await ctx.db.oneOrNone<RecordDbRow>(
+      `SELECT * FROM record
+       WHERE stream_id = $(streamId)
+         AND name = $(recordName)
+       ORDER BY index DESC
+       LIMIT 1`,
+      { streamId, recordName },
+    );
+
+    if (!recordToPurge) {
+      return failure(
+        createError(
+          "RECORD_NOT_FOUND",
+          `Record '${recordName}' not found in stream`,
+        ),
+      );
+    }
+
+    // If record has external storage, purge both hash and name files
+    if (recordToPurge.storage) {
+      const adapter = getStorageAdapter();
+      if (adapter) {
+        // Get pod and stream info for deletion
+        const streamInfo = await ctx.db.one<{ pod_name: string; path: string }>(
+          `SELECT pod_name, path FROM stream WHERE id = $(streamId)`,
+          { streamId },
+        );
+
+        // Extract file extension from name only - don't add one if name has none
+        const ext = extname(recordName).replace(".", "");
+
+        // Purge - delete both name-based and hash files
+        const deleteResult = await adapter.deleteFile(
+          streamInfo.pod_name,
+          streamInfo.path,
+          recordName,
+          recordToPurge.content_hash,
+          ext,
+          true, // purge - delete both files
+        );
+
+        if (!deleteResult.success) {
+          logger.warn("Failed to purge external files", {
+            error: deleteResult.error,
+            recordName,
+            storage: recordToPurge.storage,
+          });
+        }
+      }
+    }
+
+    // Update the record in the database
     const result = await ctx.db.result(
       `UPDATE record
        SET content = $(content),
            content_type = $(contentType),
-           content_hash = $(contentHash)
+           content_hash = $(contentHash),
+           storage = NULL
        WHERE stream_id = $(streamId)
          AND name = $(recordName)`,
       {
@@ -47,15 +104,6 @@ export async function purgeRecord(
       },
       (r) => r.rowCount,
     );
-
-    if (result === 0) {
-      return failure(
-        createError(
-          "RECORD_NOT_FOUND",
-          `Record '${recordName}' not found in stream`,
-        ),
-      );
-    }
 
     logger.info("Record purged", {
       streamId,

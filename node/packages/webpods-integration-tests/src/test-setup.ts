@@ -2,6 +2,7 @@
 import { TestDatabase, TestServer, testLogger } from "webpods-test-utils";
 import * as path from "path";
 import { fileURLToPath } from "url";
+import { promises as fs } from "fs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -27,6 +28,12 @@ export const testServer = new TestServer({
 // Setup before all tests
 before(async function () {
   this.timeout(60000); // 60 seconds for setup
+
+  // Clear test media directory
+  const testMediaDir = path.join(process.cwd(), ".tests", "media");
+  await fs.rm(testMediaDir, { recursive: true, force: true }).catch(() => {});
+  await fs.mkdir(testMediaDir, { recursive: true });
+  testLogger.info("Cleared test media directory", { path: testMediaDir });
 
   // Setup database
   await testDb.setup();

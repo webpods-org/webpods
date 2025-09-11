@@ -101,5 +101,16 @@
   "hydra": {
     "adminUrl": "http://localhost:4445",
     "publicUrl": "http://localhost:4444"
+  },
+  "media": {
+    "externalStorage": {
+      "enabled": false,
+      "minSize": "10kb",
+      "adapter": "filesystem",
+      "filesystem": {
+        "basePath": "/var/webpods/media",
+        "baseUrl": "https://static.example.com"
+      }
+    }
   }
 }

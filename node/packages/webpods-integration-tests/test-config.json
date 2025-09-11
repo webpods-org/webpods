@@ -58,5 +58,16 @@
     "adminUrl": "http://localhost:4445",
     "publicUrl": "http://localhost:4444"
   },
-  "rootPod": "testroot"
+  "rootPod": "testroot",
+  "media": {
+    "externalStorage": {
+      "enabled": true,
+      "minSize": "1kb",
+      "adapter": "filesystem",
+      "filesystem": {
+        "basePath": ".tests/media",
+        "baseUrl": "https://static.example.com"
+      }
+    }
+  }
 }

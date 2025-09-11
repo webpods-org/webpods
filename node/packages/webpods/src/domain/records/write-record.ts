@@ -10,6 +10,12 @@ import { StreamRecord } from "../../types.js";
 import { calculateContentHash, calculateRecordHash } from "../../utils.js";
 import { createLogger } from "../../logger.js";
 import { isValidRecordName } from "../../utils/stream-utils.js";
+import {
+  getStorageAdapter,
+  isExternalStorageEnabled,
+  getMinExternalSize,
+} from "../../storage-adapters/index.js";
+import { extname } from "path";
 
 const logger = createLogger("webpods:domain:records");
 
@@ -30,6 +36,7 @@ function mapRecordFromDb(row: RecordDbRow): StreamRecord {
     hash: row.hash,
     previousHash: row.previous_hash || null,
     userId: row.user_id,
+    storage: row.storage || null,
     metadata: undefined,
     createdAt:
       typeof row.created_at === "string"
@@ -45,6 +52,7 @@ export async function writeRecord(
   contentType: string,
   userId: string,
   name: string,
+  useExternalStorage?: boolean,
 ): Promise<Result<StreamRecord>> {
   // Validate record name (no slashes allowed)
   if (!isValidRecordName(name)) {
@@ -118,15 +126,84 @@ export async function writeRecord(
       const contentString = storedContent as string;
       const size = Buffer.byteLength(contentString, "utf8");
 
+      // Check if we should store externally
+      let storageLocation: string | null = null;
+      let dbContent = storedContent;
+
+      if (useExternalStorage && isExternalStorageEnabled()) {
+        const minSize = getMinExternalSize();
+
+        // Check if content should be stored externally based on size
+        if (size >= minSize) {
+          const adapter = getStorageAdapter();
+
+          if (adapter) {
+            // Get pod name from stream
+            const podInfo = await t.one<{ pod_name: string }>(
+              `SELECT pod_name FROM stream WHERE id = $(streamId)`,
+              { streamId },
+            );
+
+            // Extract file extension from name only - don't add one if name has none
+            const ext = extname(name).replace(".", "");
+
+            // Decode base64 if content is base64 encoded (for binary data)
+            let buffer: Buffer;
+            if (
+              contentType.startsWith("image/") ||
+              contentType.startsWith("video/") ||
+              contentType.startsWith("audio/") ||
+              contentType === "application/pdf" ||
+              contentType === "application/zip" ||
+              contentType === "application/octet-stream"
+            ) {
+              // Assume base64 for binary content types
+              buffer = Buffer.from(contentString, "base64");
+            } else {
+              // Text content
+              buffer = Buffer.from(contentString, "utf8");
+            }
+
+            // Store externally
+            const storeResult = await adapter.storeFile(
+              podInfo.pod_name,
+              stream.path,
+              name,
+              contentHash,
+              buffer,
+              ext,
+            );
+
+            if (storeResult.success) {
+              storageLocation = storeResult.data;
+              dbContent = ""; // Don't store content in DB
+              logger.info("Content stored externally", {
+                streamId,
+                name,
+                size,
+                storage: storageLocation,
+              });
+            } else {
+              logger.warn(
+                "Failed to store externally, falling back to database",
+                {
+                  error: storeResult.error,
+                },
+              );
+            }
+          }
+        }
+      }
+
       // Insert new record with path and size
       const record = await t.one<RecordDbRow>(
-        `INSERT INTO record (stream_id, index, content, content_type, size, name, path, content_hash, hash, previous_hash, user_id, created_at)
-         VALUES ($(streamId), $(index), $(content), $(contentType), $(size), $(name), $(path), $(contentHash), $(hash), $(previousHash), $(userId), $(createdAt))
+        `INSERT INTO record (stream_id, index, content, content_type, size, name, path, content_hash, hash, previous_hash, user_id, storage, created_at)
+         VALUES ($(streamId), $(index), $(content), $(contentType), $(size), $(name), $(path), $(contentHash), $(hash), $(previousHash), $(userId), $(storage), $(createdAt))
          RETURNING *`,
         {
           streamId,
           index,
-          content: storedContent,
+          content: dbContent,
           contentType,
           size,
           name,
@@ -135,6 +212,7 @@ export async function writeRecord(
           hash,
           previousHash,
           userId,
+          storage: storageLocation,
           createdAt: timestamp,
         },
       );
