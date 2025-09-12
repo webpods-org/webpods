@@ -114,6 +114,7 @@ export interface StreamRecordResponse {
   userId: string;
   headers?: Record<string, string>; // User-provided headers
   timestamp: string;
+  contentUrl?: string; // URL for externally stored content
 }
 
 export interface StreamInfo {
