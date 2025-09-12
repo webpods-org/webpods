@@ -5,9 +5,9 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "build": "./build.sh",
-    "clean": "./clean.sh",
-    "start": "./start.sh",
+    "build": "./scripts/build.sh",
+    "clean": "./scripts/clean.sh",
+    "start": "./scripts/start.sh",
     "test": "npm run test:integration && npm run test:cli",
     "test:integration": "cd node/packages/webpods-integration-tests && npm test",
     "test:cli": "cd node/packages/podctl-tests && npm test",
@@ -20,7 +20,7 @@
     "migrate:webpods:status": "knex migrate:status --knexfile database/webpods/knexfile.js",
     "db:dump-schema": "./scripts/dump-db-schema.sh",
     "test:grep": "cd node/packages/webpods-integration-tests && npm run test:grep",
-    "lint": "./lint-all.sh",
+    "lint": "./scripts/lint-all.sh",
     "docker:build": "./scripts/docker-build.sh",
     "docker:test": "./scripts/docker-test.sh",
     "docker:push": "./scripts/docker-push.sh"

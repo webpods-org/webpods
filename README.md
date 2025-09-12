@@ -35,26 +35,33 @@ curl https://alice.webpods.org/blog/posts/first
 ## Core Concepts
 
 ### 🌐 Pods
+
 Subdomains as namespaces. Each pod like `alice.webpods.org` is owned by a user and contains streams of data.
 
 ### 📝 Streams
+
 Hierarchical append-only logs. Organize data with paths like `/blog/posts/2024` that maintain immutable records.
 
 ### 🔗 Records
+
 Immutable entries with SHA-256 hash chains. Each record links to the previous one, ensuring data integrity.
 
 ### 🔐 Permissions
+
 Flexible access control. Streams can be public, private, or use custom permission lists.
 
 ### 🔑 OAuth
+
 Multiple authentication providers. Support for GitHub, Google, GitLab, Microsoft, and custom OAuth.
 
 ### 🚀 CLI & API
+
 Full-featured CLI tool and REST API. Manage pods, streams, and records programmatically.
 
 ## How It Works
 
 ### Step 1: Authenticate
+
 Login with your preferred OAuth provider (GitHub, Google, etc.) to get a JWT token for API access.
 
 ```bash
@@ -69,6 +76,7 @@ podctl auth info
 ```
 
 ### Step 2: Create a Pod
+
 Claim your unique subdomain namespace. Pod names must be lowercase with hyphens only.
 
 ```bash
@@ -80,6 +88,7 @@ podctl pod create my-pod
 ```
 
 ### Step 3: Write Records
+
 Add data to streams. Streams and parent paths are created automatically when you write.
 
 ```bash
@@ -93,6 +102,7 @@ podctl record write my-pod /notes today \
 ```
 
 ### Step 4: Read Data
+
 Access your data via HTTP or CLI. Public streams don't require authentication to read.
 
 ```bash
@@ -109,6 +119,7 @@ podctl record list my-pod /api/users
 ## Key Features
 
 ### Hierarchical Streams
+
 Organize data with nested paths like filesystems. Parent streams are created automatically.
 
 ```
@@ -120,6 +131,7 @@ Organize data with nested paths like filesystems. Parent streams are created aut
 ```
 
 ### Hash Chain Integrity
+
 Every record contains a SHA-256 hash linking to the previous record, creating an immutable chain.
 
 ```json
@@ -132,22 +144,23 @@ Every record contains a SHA-256 hash linking to the previous record, creating an
 ```
 
 ### Flexible Queries
+
 Multiple ways to access your data with powerful query parameters:
 
 - List records: `GET /stream`
 - Pagination: `?after=10&limit=20`
-- Unique records: `?unique=true` 
+- Unique records: `?unique=true`
 - Range queries: `?after=5&before=15`
 - Negative indexing: `?after=-10` (last 10 records)
 
 ## Table of Contents
 
-- [Installation](quickstart.md#installation)
-- [Authentication](quickstart.md#authentication)
-- [Pod Management](quickstart.md#pod-management)
-- [API Reference](api.md)
-- [Examples](examples.md)
-- [Deployment](deployment.md)
+- [Installation](docs/quickstart.md#installation)
+- [Authentication](docs/quickstart.md#authentication)
+- [Pod Management](docs/quickstart.md#pod-management)
+- [API Reference](docs/api.md)
+- [Examples](docs/examples.md)
+- [Deployment](docs/deployment.md)
 
 ## Installation
 
@@ -203,9 +216,9 @@ cp config.example.json config.json
 # Edit config.json with your OAuth providers
 
 # Build and run
-./build.sh
+./scripts/build.sh
 npm run migrate:latest
-./start.sh
+./scripts/start.sh
 ```
 
 ## Authentication

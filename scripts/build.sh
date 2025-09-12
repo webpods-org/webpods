@@ -9,6 +9,9 @@
 # -------------------------------------------------------------------
 set -euo pipefail
 
+# Change to the project root directory
+cd "$(dirname "$0")/.."
+
 echo "=== Building WebPods ==="
 
 # Define the build order
@@ -21,7 +24,7 @@ PACKAGES=(
 )
 
 # 1 ▸ clean first
-./clean.sh
+./scripts/clean.sh
 
 # 2 ▸ install root deps (once)
 if [[ ! -d node_modules || "$*" == *--install* ]]; then
@@ -60,7 +63,7 @@ done
 # 5 ▸ run prettier formatting (unless --no-format is passed)
 if [[ "$*" != *--no-format* ]]; then
   echo "Running prettier formatting…"
-  ./format-all.sh
+  ./scripts/format-all.sh
 else
   echo "Skipping prettier formatting (--no-format flag)"
 fi
@@ -72,4 +75,4 @@ if [[ "$*" == *--migrate* ]]; then
 fi
 
 echo "=== Build completed successfully ==="
-echo "To start the application, run: ./start.sh"
+echo "To start the application, run: ./scripts/start.sh"

@@ -4,6 +4,9 @@
 # -------------------------------------------------------------------
 set -euo pipefail
 
+# Change to the project root directory
+cd "$(dirname "$0")/.."
+
 echo "=== Cleaning WebPods build artifacts ==="
 
 # Clean dist directories in all packages

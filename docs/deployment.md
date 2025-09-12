@@ -5,6 +5,7 @@ Complete guide for deploying WebPods in production.
 ## Overview
 
 WebPods can be deployed in several ways:
+
 - **Docker** (recommended for most deployments)
 - **Docker Compose** (for full stack with database)
 - **From source** (for development and customization)
@@ -14,7 +15,7 @@ WebPods can be deployed in several ways:
 
 - PostgreSQL 12 or higher
 - Node.js 18+ (if building from source)
-- Domain with wildcard DNS support (*.yourdomain.com)
+- Domain with wildcard DNS support (\*.yourdomain.com)
 - SSL certificate for your domain
 
 ## Docker Deployment
@@ -46,7 +47,7 @@ docker run -d \
 Create `docker-compose.yml`:
 
 ```yaml
-version: '3.8'
+version: "3.8"
 
 services:
   webpods:
@@ -171,7 +172,7 @@ Create `config.json`:
       "scope": ["user:email"]
     },
     "google": {
-      "clientId": "your-google-client-id", 
+      "clientId": "your-google-client-id",
       "clientSecret": "your-google-client-secret",
       "scope": ["profile", "email"]
     },
@@ -204,10 +205,10 @@ WebPods requires wildcard subdomain support. Configure Nginx:
 server {
     listen 443 ssl http2;
     server_name webpods.yourdomain.com;
-    
+
     ssl_certificate /etc/ssl/certs/webpods.crt;
     ssl_certificate_key /etc/ssl/private/webpods.key;
-    
+
     location / {
         proxy_pass http://localhost:3000;
         proxy_set_header Host $host;
@@ -223,10 +224,10 @@ server {
 server {
     listen 443 ssl http2;
     server_name *.webpods.yourdomain.com;
-    
+
     ssl_certificate /etc/ssl/certs/webpods.crt;
     ssl_certificate_key /etc/ssl/private/webpods.key;
-    
+
     location / {
         proxy_pass http://localhost:3000;
         proxy_set_header Host $host;
@@ -250,7 +251,7 @@ server {
 
 ```yaml
 # docker-compose.yml
-version: '3.8'
+version: "3.8"
 
 services:
   traefik:
@@ -453,6 +454,7 @@ find $BACKUP_DIR -name "*.tar.gz" -mtime +30 -delete
 ```
 
 Add to crontab:
+
 ```bash
 0 2 * * * /path/to/backup-script.sh
 ```
@@ -460,22 +462,26 @@ Add to crontab:
 ## Security Considerations
 
 ### Environment Variables
+
 - Use strong, random secrets for JWT_SECRET and SESSION_SECRET
 - Keep OAuth client secrets secure
 - Use environment variables instead of config file for production secrets
 
 ### Network Security
+
 - Run behind reverse proxy (Nginx/Traefik)
 - Use HTTPS only
 - Configure proper CORS headers
 - Implement rate limiting
 
 ### Database Security
+
 - Use dedicated database user with minimal privileges
 - Enable SSL connections to database
 - Regular security updates
 
 ### Updates
+
 ```bash
 # Update Docker image
 docker pull ghcr.io/webpods-org/webpods:latest
@@ -483,9 +489,9 @@ docker-compose up -d webpods
 
 # Update from source
 git pull
-./build.sh
+./scripts/build.sh
 npm run migrate:latest
-./start.sh
+./scripts/start.sh
 ```
 
 ## Troubleshooting
@@ -521,6 +527,7 @@ docker-compose logs -f webpods
 ### Support
 
 For deployment issues:
+
 - Check the [GitHub Issues](https://github.com/webpods-org/webpods/issues)
 - Join the [Discussions](https://github.com/webpods-org/webpods/discussions)
 - Review logs for error messages

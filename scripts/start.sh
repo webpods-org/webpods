@@ -4,6 +4,9 @@
 # -------------------------------------------------------------------
 set -euo pipefail
 
+# Change to the project root directory
+cd "$(dirname "$0")/.."
+
 echo "=== Starting WebPods server ==="
 
 # Load environment variables from .env if it exists
@@ -17,7 +20,7 @@ fi
 # Check if dist directory exists
 if [[ ! -d "node/packages/webpods/dist" ]]; then
   echo "Build not found. Running build first..."
-  ./build.sh
+  ./scripts/build.sh
 fi
 
 # Check for config file in the root directory
