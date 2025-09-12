@@ -92,6 +92,18 @@ The codebase follows a functional programming approach with these key directorie
 
 ## Key Technical Decisions
 
+### Security: Never Use npx
+
+**CRITICAL SECURITY REQUIREMENT**: NEVER use `npx` for any commands. This poses grave security risks by executing arbitrary code.
+
+- **ALWAYS use exact dependency versions** in package.json
+- **ALWAYS use local node_modules binaries** (e.g., `prettier`, `mocha`, `http-server`)
+- **NEVER use `npx prettier`** - use `prettier` from local dependencies
+- **NEVER use `npx mocha`** - use `mocha` from local dependencies  
+- **NEVER use `npx http-server`** - add `http-server` as dependency and use directly
+
+**Exception**: The only acceptable `npx` usage is for one-time project initialization (e.g., `npx create-react-app`) when explicitly setting up new projects, but NEVER for ongoing development commands.
+
 ### Functional Programming First
 
 - **PREFER FUNCTIONS OVER CLASSES** - Export functions from modules when possible
@@ -182,9 +194,9 @@ When the user asks you to commit and push:
 ./scripts/format-all.sh --check # Check formatting without changing files
 
 # Docker commands (if applicable)
-./docker-build.sh       # Build Docker image
-./docker-test.sh        # Test Docker image
-./docker-push.sh latest ghcr.io/webpods-org  # Push to registry
+./scripts/docker-build.sh       # Build Docker image
+./scripts/docker-test.sh        # Test Docker image
+./scripts/docker-push.sh latest ghcr.io/webpods-org  # Push to registry
 ```
 
 ### Database Commands
