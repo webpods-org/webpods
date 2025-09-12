@@ -57,7 +57,10 @@ export const rootHandler = async (
   }
 
   // Check if the path was rewritten by the link resolution middleware
-  if ((req as Request & { wasRewritten?: boolean }).wasRewritten && req.path !== "/") {
+  if (
+    (req as unknown as { wasRewritten?: boolean }).wasRewritten &&
+    req.path !== "/"
+  ) {
     // Path was rewritten, forward to the GET handler
     const { getHandler } = await import("./get.js");
     return getHandler(req, res, next);
