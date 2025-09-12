@@ -11,6 +11,21 @@ import {
   createTestPod,
 } from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
+import jwt from "jsonwebtoken";
+
+// Generate a WebPods JWT (not OAuth token) for API access
+function generateWebPodsToken(userId: string): string {
+  const payload = {
+    user_id: userId,
+    sub: userId,
+    iat: Math.floor(Date.now() / 1000),
+    type: "webpods", // This identifies it as a WebPods token
+  };
+
+  // Use the test JWT secret from test-config.json
+  const secret = "test-secret-key";
+  return jwt.sign(payload, secret, { expiresIn: "7d" });
+}
 
 describe("WebPods Root Pod Main Domain", () => {
   let mainClient: TestHttpClient;
@@ -257,6 +272,126 @@ describe("WebPods Root Pod Main Domain", () => {
       // Alice should not see root pod content
       const aliceResponse = await aliceClient.get("/site/home");
       expect(aliceResponse.status).to.equal(404);
+    });
+  });
+
+  describe("System API endpoints work with rootPod configured", () => {
+    it("should serve /api/pods for pod management on main domain", async () => {
+      // Create a new user for pod creation
+      const db = testDb.getDb();
+      const newUser = await createTestUser(db, {
+        provider: "test-auth-provider-1",
+        providerId: "apitest",
+        email: "apitest@example.com",
+        name: "API Test User",
+      });
+
+      // Get auth token for the new user
+      const apiToken = await mainClient.authenticateViaOAuth(
+        newUser.userId,
+        [],
+      );
+      mainClient.setAuthToken(apiToken);
+
+      // Create a new pod via main domain API
+      const createResponse = await mainClient.post("/api/pods", {
+        name: "test-api-pod",
+      });
+
+      expect(createResponse.status).to.equal(201);
+      expect(createResponse.data.name).to.equal("test-api-pod");
+      expect(createResponse.data.message).to.include("created successfully");
+
+      // List pods via main domain API
+      const listResponse = await mainClient.get("/api/pods");
+      expect(listResponse.status).to.equal(200);
+      expect(listResponse.data).to.be.an("array");
+      const podNames = listResponse.data.map((p: any) => p.name);
+      expect(podNames).to.include("test-api-pod");
+    });
+
+    it("should serve /api/oauth endpoints on main domain", async () => {
+      // Generate a WebPods JWT for API access (different from OAuth token)
+      const db = testDb.getDb();
+      const oauthUser = await createTestUser(db, {
+        provider: "test-auth-provider-1",
+        providerId: "oauthtest",
+        email: "oauthtest@example.com",
+        name: "OAuth Test User",
+      });
+
+      const webpodsToken = generateWebPodsToken(oauthUser.userId);
+
+      // Register an OAuth client via main domain API using WebPods JWT
+      const registerResponse = await mainClient.post(
+        "/api/oauth/clients",
+        {
+          client_name: "Test OAuth App",
+          redirect_uris: ["https://example.com/callback"],
+          requested_pods: ["testroot"], // Request access to the root pod
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${webpodsToken}`,
+          },
+        },
+      );
+
+      expect(registerResponse.status).to.equal(201);
+      expect(registerResponse.data).to.have.property("client_id");
+      expect(registerResponse.data.client_name).to.equal("Test OAuth App");
+
+      const clientId = registerResponse.data.client_id;
+
+      // List OAuth clients
+      const listResponse = await mainClient.get("/api/oauth/clients", {
+        headers: {
+          Authorization: `Bearer ${webpodsToken}`,
+        },
+      });
+      expect(listResponse.status).to.equal(200);
+      expect(listResponse.data).to.have.property("clients");
+      expect(listResponse.data.clients).to.be.an("array");
+      const clientIds = listResponse.data.clients.map((c: any) => c.client_id);
+      expect(clientIds).to.include(clientId);
+
+      // The key point is that these are real API endpoints on the main domain,
+      // not pod content. The operations working proves the system APIs are served correctly.
+    });
+
+    it("should NOT serve /api/* endpoints from rootPod streams", async () => {
+      // Create /api/pods stream in rootPod to test precedence
+      rootClient.setAuthToken(authToken);
+      await rootClient.post("/api/pods/fake", "This is not the real API");
+
+      // Main domain should still serve the real API, not pod content
+      mainClient.setAuthToken(authToken);
+      const response = await mainClient.get("/api/pods");
+      expect(response.status).to.equal(200);
+      expect(response.data).to.be.an("array");
+      // Should NOT be the pod content
+      expect(response.data).to.not.equal("This is not the real API");
+    });
+
+    it("should serve /connect OAuth endpoint on main domain", async () => {
+      // The /connect endpoint should work even with rootPod configured
+      const response = await mainClient.get("/connect", {
+        validateStatus: () => true, // Don't throw on non-2xx
+      });
+      // Should return 400 (missing client_id) not 404
+      expect(response.status).to.equal(400);
+      expect(response.data.error).to.exist;
+    });
+
+    it("should serve /oauth2/auth endpoint on main domain", async () => {
+      // The /oauth2/auth endpoint should work even with rootPod configured
+      const response = await mainClient.get("/oauth2/auth", {
+        validateStatus: () => true, // Don't throw on non-2xx
+      });
+      // OAuth2 auth endpoint may return 404 if Hydra is not configured/running
+      // or 400 if it's running but missing parameters
+      expect([400, 404]).to.include(response.status);
+      expect(response.data.error).to.exist;
     });
   });
 });

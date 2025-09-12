@@ -22,7 +22,7 @@ import { listRecords } from "../../domain/records/list-records.js";
 import { listUniqueRecords } from "../../domain/records/list-unique-records.js";
 import { listRecordsRecursive } from "../../domain/records/list-records-recursive.js";
 import { listUniqueRecordsRecursive } from "../../domain/records/list-unique-records-recursive.js";
-import { recordToResponse } from "../../domain/records/record-to-response.js";
+import { recordToFilteredResponse } from "../../domain/records/record-to-response.js";
 import { hasTombstone } from "../../domain/records/check-tombstone.js";
 import { canRead } from "../../domain/permissions/can-read.js";
 import type { StreamRecord, StreamInfo } from "../../types.js";
@@ -140,6 +140,18 @@ export const getHandler = async (
         : undefined;
       const unique = req.query.unique === "true";
 
+      // Parse field selection and content size parameters
+      const fieldsParam = req.query.fields as string | undefined;
+      const fields = fieldsParam
+        ? fieldsParam.split(",").map((f) => f.trim())
+        : undefined;
+      const maxContentSizeParam = req.query.maxContentSize as
+        | string
+        | undefined;
+      const maxContentSize = maxContentSizeParam
+        ? parseInt(maxContentSizeParam)
+        : undefined;
+
       // For recursive listing when stream doesn't exist, we still use the path-based approach
       // This is a special case that needs to search for nested streams
       const result = unique
@@ -172,7 +184,9 @@ export const getHandler = async (
       const data = result.data;
       if (!res.headersSent) {
         res.json({
-          records: data.records.map((r) => recordToResponse(r, streamPath)),
+          records: data.records.map((r) =>
+            recordToFilteredResponse(r, streamPath, { fields, maxContentSize }),
+          ),
           streams: [], // Recursive listing doesn't include child streams separately
           total: data.total,
           hasMore: data.hasMore,
@@ -232,6 +246,17 @@ export const getHandler = async (
   // Handle index query parameter
   if (indexQuery) {
     const parsed = parseIndexQuery(indexQuery);
+
+    // Parse field selection and content size parameters for index queries
+    const fieldsParam = req.query.fields as string | undefined;
+    const fields = fieldsParam
+      ? fieldsParam.split(",").map((f) => f.trim())
+      : undefined;
+    const maxContentSizeParam = req.query.maxContentSize as string | undefined;
+    const maxContentSize = maxContentSizeParam
+      ? parseInt(maxContentSizeParam)
+      : undefined;
+
     if (!parsed) {
       if (!res.headersSent) {
         res.status(400).json({
@@ -377,7 +402,9 @@ export const getHandler = async (
 
       if (!res.headersSent) {
         res.json({
-          records: result.data.map((r) => recordToResponse(r, streamPath)),
+          records: result.data.map((r) =>
+            recordToFilteredResponse(r, streamPath, { fields, maxContentSize }),
+          ),
           range: { start: parsed.start, end: parsed.end },
           total: result.data.length,
         });
@@ -528,6 +555,17 @@ export const getHandler = async (
     const unique = req.query.unique === "true";
     // recursive was already defined earlier
 
+    // Parse new query parameters for field selection and content size
+    const fieldsParam = req.query.fields as string | undefined;
+    const fields = fieldsParam
+      ? fieldsParam.split(",").map((f) => f.trim())
+      : undefined;
+
+    const maxContentSizeParam = req.query.maxContentSize as string | undefined;
+    const maxContentSize = maxContentSizeParam
+      ? parseInt(maxContentSizeParam)
+      : undefined;
+
     // Use appropriate listing function based on parameters
     let result;
     if (recursive && unique) {
@@ -606,7 +644,9 @@ export const getHandler = async (
 
     if (!res.headersSent) {
       res.json({
-        records: data.records.map((r) => recordToResponse(r, streamPath)),
+        records: data.records.map((r) =>
+          recordToFilteredResponse(r, streamPath, { fields, maxContentSize }),
+        ),
         streams: childStreams,
         total: data.total,
         hasMore: data.hasMore,

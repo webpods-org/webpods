@@ -448,5 +448,60 @@ describe("WebPods External Storage", () => {
       const names = listResponse.data.records.map((r: any) => r.name);
       expect(names).to.include.members(["internal", "external"]);
     });
+
+    it("should include contentUrl field for externally stored content", async () => {
+      await client.createStream("url-test");
+
+      // Upload external content
+      const largePngDataUrl = `data:image/png;base64,${largePngBase64}`;
+      await client.post("/url-test/external-file.png", largePngDataUrl, {
+        headers: {
+          "X-Record-Type": "file",
+        },
+      });
+
+      // Upload internal content (small)
+      await client.post("/url-test/internal-text", "Small text content", {
+        headers: {
+          "Content-Type": "text/plain",
+        },
+      });
+
+      // List records and check contentUrl field
+      const listResponse = await client.get("/url-test");
+      expect(listResponse.status).to.equal(200);
+      expect(listResponse.data.records).to.have.lengthOf(2);
+
+      const externalRecord = listResponse.data.records.find(
+        (r: any) => r.name === "external-file.png",
+      );
+      const internalRecord = listResponse.data.records.find(
+        (r: any) => r.name === "internal-text",
+      );
+
+      // External record should have contentUrl
+      expect(externalRecord).to.exist;
+      expect(externalRecord.contentUrl).to.exist;
+      expect(externalRecord.contentUrl).to.be.a("string");
+      expect(externalRecord.contentUrl).to.include("static.example.com");
+      expect(externalRecord.contentUrl).to.include("external-file");
+      expect(externalRecord.content).to.equal(""); // Content should be empty for external storage
+
+      // Internal record should not have contentUrl
+      expect(internalRecord).to.exist;
+      expect(internalRecord.contentUrl).to.be.undefined;
+      expect(internalRecord.content).to.equal("Small text content");
+
+      // Also test with field selection
+      const fieldsResponse = await client.get(
+        "/url-test?fields=name,contentUrl,content",
+      );
+      expect(fieldsResponse.status).to.equal(200);
+      const externalWithFields = fieldsResponse.data.records.find(
+        (r: any) => r.name === "external-file.png",
+      );
+      expect(externalWithFields.contentUrl).to.exist;
+      expect(externalWithFields.contentUrl).to.include("static.example.com");
+    });
   });
 });

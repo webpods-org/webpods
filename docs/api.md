@@ -245,6 +245,20 @@ List records in a stream.
 - `limit` - Maximum records to return (default 100, max 1000)
 - `unique` - Only return the latest record for each unique name
 - `format` - Response format: `json` (default) or `html`
+- `fields` - Comma-separated list of fields to return (e.g., `name,index,timestamp`)
+- `maxContentSize` - Maximum content size in bytes (truncates larger content)
+
+**Field Selection:**
+
+The `fields` parameter allows you to request only specific fields in the response, reducing bandwidth usage. Available fields:
+
+- `index`, `name`, `hash`, `previousHash`, `contentHash`, `timestamp`, `userId`, `content`, `contentType`, `headers`, `size`
+
+Note: When requesting `content`, the `size` field is automatically included.
+
+**Content Truncation:**
+
+The `maxContentSize` parameter limits the content field to the specified number of bytes. The original `size` field is preserved, allowing you to detect truncation.
 
 **Examples:**
 
@@ -263,6 +277,15 @@ GET /blog/posts?unique=true
 
 # Range query
 GET /blog/posts?after=5&before=15
+
+# Get only name and timestamp fields
+GET /blog/posts?fields=name,timestamp
+
+# Limit content to 1000 bytes
+GET /blog/posts?maxContentSize=1000
+
+# Combine field selection with content truncation
+GET /blog/posts?fields=name,content&maxContentSize=500
 ```
 
 **Response:**

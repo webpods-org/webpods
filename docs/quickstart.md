@@ -214,6 +214,15 @@ podctl record list my-first-pod /blog/posts/2024 --unique
 
 # Get last 5 records (negative indexing)
 curl "https://my-first-pod.webpods.org/blog/posts/2024?after=-5"
+
+# Select specific fields only (reduce bandwidth)
+podctl record list my-first-pod /blog/posts/2024 --fields name,timestamp,index
+
+# Limit content size to 500 bytes (for safety with large records)
+podctl record list my-first-pod /blog/posts/2024 --max-content-size 500
+
+# Combine field selection with content truncation
+podctl record list my-first-pod /blog/posts/2024 --fields name,content --max-content-size 200
 ```
 
 ## Working with Different Data Types
