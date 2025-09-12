@@ -1,7 +1,7 @@
 {
-  "name": "webpods-cli",
+  "name": "@webpods/podctl",
   "version": "0.0.3",
-  "description": "WebPods command line interface",
+  "description": "WebPods command line interface (podctl)",
   "main": "dist/index.js",
   "scripts": {
     "build": "rm -rf dist && npx tsc",

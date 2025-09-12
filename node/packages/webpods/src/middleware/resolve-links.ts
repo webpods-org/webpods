@@ -29,7 +29,7 @@ export async function resolveLinks(
 ): Promise<void> {
   try {
     // Skip if no pod context
-    const podName = (req as any).podName;
+    const podName = (req as Request & { podName?: string }).podName;
     if (!podName) {
       return next();
     }

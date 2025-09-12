@@ -24,11 +24,11 @@ export class CliTestHelper {
 
   constructor(server = "http://localhost:3456") {
     // Path to the CLI entry point
-    this.cliPath = path.resolve(__dirname, "../../webpods-cli/dist/index.js");
+    this.cliPath = path.resolve(__dirname, "../../podctl/dist/index.js");
     this.server = server;
 
     // Create a temporary config directory for tests
-    this.configDir = path.join(os.tmpdir(), `webpods-cli-test-${Date.now()}`);
+    this.configDir = path.join(os.tmpdir(), `podctl-test-${Date.now()}`);
   }
 
   async setup(): Promise<void> {

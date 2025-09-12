@@ -17,9 +17,9 @@ fi
 PACKAGES=(
   "webpods-test-utils"
   "webpods"
-  "webpods-cli"
+  "podctl"
   "webpods-integration-tests"
-  "webpods-cli-tests"
+  "podctl-tests"
 )
 
 # Track overall success

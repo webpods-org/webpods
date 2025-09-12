@@ -8,7 +8,6 @@ import {
 import { testDb } from "../test-setup.js";
 import { promises as fs } from "fs";
 import { join } from "path";
-import { tmpdir } from "os";
 
 describe("WebPods External Storage", () => {
   let client: TestHttpClient;
@@ -279,9 +278,7 @@ describe("WebPods External Storage", () => {
 
       // Then purge (this would be an admin operation in real usage)
       // For testing, we'll directly call the purge endpoint if it exists
-      const purgeResponse = await client.delete(
-        "/delete-test/to-delete?purge=true",
-      );
+      await client.delete("/delete-test/to-delete?purge=true");
 
       // After purge, both files should be gone
       const hashDirExists = await fs

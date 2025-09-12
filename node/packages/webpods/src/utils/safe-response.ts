@@ -7,7 +7,7 @@ import { Response } from "express";
 /**
  * Safely send a JSON response only if headers haven't been sent
  */
-export function safeJson(res: Response, status: number, data: any): void {
+export function safeJson(res: Response, status: number, data: unknown): void {
   if (!res.headersSent) {
     res.status(status).json(data);
   }
@@ -37,7 +37,7 @@ export function safeError(
  */
 export function safeSuccess(
   res: Response,
-  data: any = { success: true },
+  data: unknown = { success: true },
 ): void {
   if (!res.headersSent) {
     res.json(data);
@@ -64,7 +64,7 @@ export function safeSetHeader(
 /**
  * Safely send raw content
  */
-export function safeSend(res: Response, content: any): void {
+export function safeSend(res: Response, content: unknown): void {
   if (!res.headersSent) {
     res.send(content);
   }

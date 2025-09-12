@@ -1,4 +1,4 @@
-# WebPods CLI
+# podctl
 
 Command-line interface for managing WebPods - distributed, user-owned data stores with append-only logs.
 
@@ -6,10 +6,10 @@ Command-line interface for managing WebPods - distributed, user-owned data store
 
 ```bash
 # Install globally
-npm install -g webpods-cli
+npm install -g @webpods/podctl
 
 # Or run with npx
-npx webpods-cli
+npx @webpods/podctl
 ```
 
 ## Quick Start
@@ -398,7 +398,7 @@ podctl record verify my-pod important-data --check-integrity
 ```bash
 # Clone the repository
 git clone https://github.com/webpods-org/webpods.git
-cd webpods/node/packages/webpods-cli
+cd webpods/node/packages/podctl
 
 # Install dependencies
 npm install
@@ -410,7 +410,7 @@ npm run build
 node dist/index.js <command>
 
 # Run tests
-cd ../webpods-cli-tests
+cd ../podctl-tests
 npm test
 ```
 

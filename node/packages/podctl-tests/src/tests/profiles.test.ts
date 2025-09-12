@@ -326,10 +326,7 @@ describe("CLI Profile Management", () => {
       };
 
       // Run login command directly without test helper to avoid automatic profile creation
-      const cliPath = path.resolve(
-        __dirname,
-        "../../../webpods-cli/dist/index.js",
-      );
+      const cliPath = path.resolve(__dirname, "../../../podctl/dist/index.js");
 
       const child = spawn("node", [cliPath, "auth", "login"], { env });
 

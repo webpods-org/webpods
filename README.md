@@ -38,7 +38,7 @@ WebPods organizes data into:
 
 ```bash
 # Install the WebPods CLI globally
-npm install -g webpods-cli
+npm install -g @webpods/podctl
 
 # Verify installation
 podctl --version
@@ -1568,7 +1568,7 @@ npm test
 npm run test:grep -- "authentication"
 
 # Run CLI tests only
-cd node/packages/webpods-cli-tests && npm test
+cd node/packages/podctl-tests && npm test
 
 # Run integration tests only
 cd node/packages/webpods-integration-tests && npm test
@@ -1771,7 +1771,7 @@ docker-compose -f docker-compose.test.yml up
 ## Documentation
 
 - [API Reference](docs/api.md) - Complete API documentation
-- [CLI Reference](node/packages/webpods-cli/README.md) - Detailed CLI commands
+- [CLI Reference](node/packages/podctl/README.md) - Detailed CLI commands
 - [Configuration Guide](docs/configuration.md) - OAuth and server setup
 - [Architecture](docs/architecture.md) - System design and data model
 - [Deployment Guide](docs/deployment.md) - Production deployment
