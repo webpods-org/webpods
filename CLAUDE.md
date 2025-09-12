@@ -99,7 +99,7 @@ The codebase follows a functional programming approach with these key directorie
 - **ALWAYS use exact dependency versions** in package.json
 - **ALWAYS use local node_modules binaries** (e.g., `prettier`, `mocha`, `http-server`)
 - **NEVER use `npx prettier`** - use `prettier` from local dependencies
-- **NEVER use `npx mocha`** - use `mocha` from local dependencies  
+- **NEVER use `npx mocha`** - use `mocha` from local dependencies
 - **NEVER use `npx http-server`** - add `http-server` as dependency and use directly
 
 **Exception**: The only acceptable `npx` usage is for one-time project initialization (e.g., `npx create-react-app`) when explicitly setting up new projects, but NEVER for ongoing development commands.
@@ -308,6 +308,26 @@ for (const record of records) {
 ```
 
 ## Testing
+
+### Test Database Management
+
+**IMPORTANT**: The test database is automatically recreated for each test run. You do NOT need to:
+
+- Run migrations manually for tests
+- Create or setup the test database
+- Worry about schema changes for tests
+
+The test infrastructure handles all of this automatically:
+
+1. **Before all tests**: The test database is completely recreated with the latest schema
+2. **After each test**: All tables are truncated to ensure test isolation
+3. **Schema changes**: Any changes to migrations are automatically applied when tests run
+
+This means:
+
+- When you add a new column (like `headers`), it will be included in the test database automatically
+- Each test starts with a clean database state
+- No manual database setup is required for testing
 
 ### Test Output Strategy for Full Test Suites
 

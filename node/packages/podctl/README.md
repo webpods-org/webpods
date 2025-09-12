@@ -137,7 +137,17 @@ podctl record write <pod> <stream> <record-name> --file data.json
 
 # Set permissions (public, private, or /permission-stream)
 podctl record write <pod> <stream> <record-name> '{"data": "value"}' --permission public
+
+# Add custom headers to the record
+podctl record write <pod> <stream> <record-name> '{"data": "value"}' -H "cache-control:no-cache"
+
+# Multiple headers can be specified
+podctl record write <pod> <stream> <record-name> '{"data": "value"}' \
+  -H "cache-control:private" \
+  -H "hello-world:greeting"
 ```
+
+**Note:** Headers must be configured as allowed in the server configuration. The header format is `key:value` and multiple headers can be specified with multiple `-H` or `--header` flags.
 
 #### Read Data
 

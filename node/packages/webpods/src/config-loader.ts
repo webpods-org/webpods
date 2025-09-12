@@ -60,6 +60,7 @@ export interface ServerConfig {
   publicUrl: string;
   corsOrigin: string;
   maxPayloadSize: string; // e.g., "10mb", "50mb"
+  allowedRecordHeaders?: string[]; // List of allowed custom headers for records
   public?: PublicConfig; // Parsed from publicUrl
 }
 

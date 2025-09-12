@@ -28,6 +28,8 @@ function mapRecordFromDb(row: RecordDbRow): StreamRecord {
     hash: row.hash,
     previousHash: row.previous_hash || null,
     userId: row.user_id,
+    storage: row.storage || null,
+    headers: row.headers,
     metadata: undefined,
     createdAt:
       typeof row.created_at === "string"

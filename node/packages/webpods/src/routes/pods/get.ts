@@ -320,6 +320,13 @@ export const getHandler = async (
         res.setHeader("X-Previous-Hash", record.previousHash || "");
         res.setHeader("X-Author", record.userId);
         res.setHeader("X-Timestamp", record.createdAt.toISOString());
+
+        // Add custom headers if present
+        if (record.headers) {
+          for (const [key, value] of Object.entries(record.headers)) {
+            res.setHeader(key, value);
+          }
+        }
       }
 
       // Set content type and send response (only if not already sent)
@@ -467,6 +474,13 @@ export const getHandler = async (
       res.setHeader("X-Previous-Hash", record.previousHash || "");
       res.setHeader("X-Author", record.userId);
       res.setHeader("X-Timestamp", record.createdAt.toISOString());
+
+      // Add custom headers if present
+      if (record.headers) {
+        for (const [key, value] of Object.entries(record.headers)) {
+          res.setHeader(key, value);
+        }
+      }
     }
 
     // Set content type and send response (only if not already sent)

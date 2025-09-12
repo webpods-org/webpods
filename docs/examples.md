@@ -94,6 +94,26 @@ async function loadPost(postId) {
 
 Use WebPods streams as a backend for your application.
 
+### API with Custom Headers
+
+```bash
+# Create API pod with versioned endpoints
+podctl pod create my-api
+
+# Write API responses with proper cache headers
+podctl record write my-api /api/v1/config "settings" '{
+  "version": "1.0.0",
+  "features": ["auth", "upload", "search"]
+}' -H "cache-control:public, max-age=3600"
+
+# Write user data with private cache control
+podctl record write my-api /api/v1/users "user-123" '{
+  "id": "123",
+  "name": "Alice",
+  "email": "alice@example.com"
+}' -H "cache-control:private, no-store"
+```
+
 ### User Management API
 
 ```bash
@@ -184,10 +204,16 @@ podctl record write my-site /public "index.html" "$(cat index.html)"
 podctl record write my-site /public "about.html" "$(cat about.html)"
 podctl record write my-site /public "contact.html" "$(cat contact.html)"
 
-# Upload CSS and assets
-podctl record write my-site /public/css "styles.css" "$(cat styles.css)"
-podctl record write my-site /public/js "app.js" "$(cat app.js)"
-podctl record write my-site /public/images "logo.png" --file logo.png
+# Upload CSS and assets with cache control headers
+podctl record write my-site /public/css "styles.css" "$(cat styles.css)" \
+  -H "cache-control:public, max-age=31536000"
+
+podctl record write my-site /public/js "app.js" "$(cat app.js)" \
+  -H "cache-control:public, max-age=31536000"
+
+# Upload images with proper caching
+podctl record write my-site /public/images "logo.png" --file logo.png \
+  -H "cache-control:public, max-age=604800"
 ```
 
 ### Custom Routing

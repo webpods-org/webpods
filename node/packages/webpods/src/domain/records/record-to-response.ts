@@ -42,6 +42,7 @@ export function recordToResponse(
     hash: record.hash,
     previousHash: record.previousHash,
     userId: record.userId,
+    headers: record.headers,
     timestamp: record.createdAt.toISOString(),
   };
 }

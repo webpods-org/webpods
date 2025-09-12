@@ -184,6 +184,16 @@ Write a record to a stream.
 
 - `Authorization: Bearer {jwt_token}` (if stream is private)
 - `Content-Type: application/json` or `text/plain`
+- `x-record-header-{key}: {value}` - Custom headers to store with the record (optional)
+
+**Custom Headers:**
+
+You can attach custom headers to records that will be stored and returned when reading the record. Headers must be configured as allowed in the server configuration.
+
+Example headers:
+
+- `x-record-header-cache-control: no-cache` - Sets cache-control header
+- `x-record-header-hello-world: greeting` - Custom application header
 
 **Body:** Any content (JSON, text, binary)
 
@@ -199,7 +209,11 @@ Write a record to a stream.
     "previous_hash": "sha256:def456...",
     "timestamp": "2024-01-15T10:30:00Z",
     "content_type": "application/json",
-    "content_length": 156
+    "content_length": 156,
+    "headers": {
+      "cache-control": "no-cache",
+      "hello-world": "greeting"
+    }
   }
 }
 ```
@@ -218,6 +232,7 @@ Read a specific record.
 - `X-Record-Index`: Record index number
 - `X-Record-Hash`: Record hash
 - `X-Record-Timestamp`: Creation timestamp
+- Custom headers stored with the record (e.g., `cache-control`, `hello-world`)
 
 ### `GET https://{pod}.webpods.org/{stream}`
 
@@ -263,7 +278,10 @@ GET /blog/posts?after=5&before=15
       "previous_hash": null,
       "timestamp": "2024-01-15T10:30:00Z",
       "content_type": "text/plain",
-      "content": "My first blog post!"
+      "content": "My first blog post!",
+      "headers": {
+        "cache-control": "public, max-age=3600"
+      }
     }
   ],
   "pagination": {

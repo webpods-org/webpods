@@ -72,6 +72,7 @@ web_modules/
 
 # Configuration files
 config.json
+config.headers-test.json
 !config.example.json
 
 # parcel-bundler cache (https://parceljs.org/)
