@@ -15,9 +15,9 @@ echo "=== Building WebPods ==="
 PACKAGES=(
   "webpods-test-utils"
   "webpods"
-  "webpods-cli"
+  "podctl"
   "webpods-integration-tests"
-  "webpods-cli-tests"
+  "podctl-tests"
 )
 
 # 1 ▸ clean first

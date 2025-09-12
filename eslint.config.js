@@ -82,7 +82,7 @@ export default [
     },
   },
   {
-    files: ["**/webpods-cli-tests/**/*.ts"],
+    files: ["**/podctl-tests/**/*.ts"],
     languageOptions: {
       parser: typescriptParser,
       parserOptions: {
@@ -142,7 +142,7 @@ export default [
     },
   },
   {
-    files: ["**/webpods-cli/**/*.ts"],
+    files: ["**/podctl/**/*.ts"],
     languageOptions: {
       parser: typescriptParser,
       parserOptions: {

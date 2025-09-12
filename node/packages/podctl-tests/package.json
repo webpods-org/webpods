@@ -1,7 +1,7 @@
 {
-  "name": "webpods-cli-tests",
+  "name": "podctl-tests",
   "version": "0.0.2",
-  "description": "Integration tests for WebPods CLI",
+  "description": "Integration tests for podctl (WebPods CLI)",
   "type": "module",
   "scripts": {
     "test": "LOG_LEVEL=error mocha",
