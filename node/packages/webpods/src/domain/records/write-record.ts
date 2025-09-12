@@ -37,6 +37,7 @@ function mapRecordFromDb(row: RecordDbRow): StreamRecord {
     previousHash: row.previous_hash || null,
     userId: row.user_id,
     storage: row.storage || null,
+    headers: row.headers,
     metadata: undefined,
     createdAt:
       typeof row.created_at === "string"
@@ -53,6 +54,7 @@ export async function writeRecord(
   userId: string,
   name: string,
   useExternalStorage?: boolean,
+  headers?: Record<string, string>,
 ): Promise<Result<StreamRecord>> {
   // Validate record name (no slashes allowed)
   if (!isValidRecordName(name)) {
@@ -203,8 +205,8 @@ export async function writeRecord(
 
       // Insert new record with path and size
       const record = await t.one<RecordDbRow>(
-        `INSERT INTO record (stream_id, index, content, content_type, is_binary, size, name, path, content_hash, hash, previous_hash, user_id, storage, created_at)
-         VALUES ($(streamId), $(index), $(content), $(contentType), $(isBinary), $(size), $(name), $(path), $(contentHash), $(hash), $(previousHash), $(userId), $(storage), $(createdAt))
+        `INSERT INTO record (stream_id, index, content, content_type, is_binary, size, name, path, content_hash, hash, previous_hash, user_id, storage, headers, created_at)
+         VALUES ($(streamId), $(index), $(content), $(contentType), $(isBinary), $(size), $(name), $(path), $(contentHash), $(hash), $(previousHash), $(userId), $(storage), $(headers), $(createdAt))
          RETURNING *`,
         {
           streamId,
@@ -220,6 +222,7 @@ export async function writeRecord(
           previousHash,
           userId,
           storage: storageLocation,
+          headers: headers || {},
           createdAt: timestamp,
         },
       );

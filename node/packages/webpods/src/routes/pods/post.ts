@@ -388,6 +388,22 @@ export const postHandler = async (
     // Check if this is a file-type record that should use optimized storage
     const useExternalStorage = req.headers["x-record-type"] === "file";
 
+    // Extract custom headers with x-record-header- prefix
+    const { getConfig } = await import("../../config-loader.js");
+    const config = getConfig();
+    const allowedHeaders = config.server.allowedRecordHeaders || [];
+
+    const customHeaders: Record<string, string> = {};
+    for (const [key, value] of Object.entries(req.headers)) {
+      if (key.startsWith("x-record-header-") && typeof value === "string") {
+        const headerName = key.substring("x-record-header-".length);
+        // Check if this header is allowed
+        if (allowedHeaders.includes(headerName)) {
+          customHeaders[headerName] = value;
+        }
+      }
+    }
+
     // Write record
     const recordResult = await writeRecord(
       { db },
@@ -397,6 +413,7 @@ export const postHandler = async (
       req.auth.user_id,
       name,
       useExternalStorage,
+      customHeaders,
     );
 
     if (!recordResult.success) {

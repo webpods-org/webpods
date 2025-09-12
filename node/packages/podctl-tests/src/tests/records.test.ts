@@ -175,6 +175,159 @@ describe("CLI Record Commands", function () {
         });
       expect(stream.access_permission).to.equal("public");
     });
+
+    it("should write record with custom headers", async () => {
+      // Create the stream first
+      await createTestStream(testDb.getDb(), {
+        podName: testPodName,
+        streamPath: "test-stream",
+        userId: testUser.userId,
+        accessPermission: "public",
+      });
+
+      // Write a record with custom headers
+      const result = await cli.exec(
+        [
+          "record",
+          "write",
+          testPodName,
+          "test-stream",
+          "record-with-headers",
+          '{"message": "test with headers"}',
+          "-H",
+          "cache-control:no-cache",
+          "-H",
+          "hello-world:test-value",
+        ],
+        {
+          token: testToken,
+        },
+      );
+
+      expect(result.exitCode).to.equal(0);
+      expect(result.stdout).to.include(
+        `Written to ${testPodName}/test-stream/record-with-headers`,
+      );
+
+      // Verify record was created with headers
+      const record = await testDb.getDb().oneOrNone(
+        `SELECT r.* FROM record r 
+         JOIN stream s ON r.stream_id = s.id
+         WHERE s.pod_name = $(podName) AND s.name = $(streamName) 
+         AND s.parent_id IS NULL AND r.name = $(recordName)`,
+        {
+          podName: testPodName,
+          streamName: "test-stream",
+          recordName: "record-with-headers",
+        },
+      );
+
+      expect(record).to.not.be.null;
+      expect(record.headers).to.deep.equal({
+        "cache-control": "no-cache",
+        "hello-world": "test-value",
+      });
+    });
+
+    it("should write record with headers containing colons in values", async () => {
+      // Create the stream first
+      await createTestStream(testDb.getDb(), {
+        podName: testPodName,
+        streamPath: "test-stream",
+        userId: testUser.userId,
+        accessPermission: "public",
+      });
+
+      // Write a record with header values containing colons
+      const result = await cli.exec(
+        [
+          "record",
+          "write",
+          testPodName,
+          "test-stream",
+          "record-with-colons",
+          "text content",
+          "--header",
+          "cache-control:max-age=3600, must-revalidate",
+        ],
+        {
+          token: testToken,
+        },
+      );
+
+      expect(result.exitCode).to.equal(0);
+
+      // Verify the header was stored correctly
+      const record = await testDb.getDb().oneOrNone(
+        `SELECT r.* FROM record r 
+         JOIN stream s ON r.stream_id = s.id
+         WHERE s.pod_name = $(podName) AND s.name = $(streamName) 
+         AND s.parent_id IS NULL AND r.name = $(recordName)`,
+        {
+          podName: testPodName,
+          streamName: "test-stream",
+          recordName: "record-with-colons",
+        },
+      );
+
+      expect(record).to.not.be.null;
+      expect(record.headers).to.deep.equal({
+        "cache-control": "max-age=3600, must-revalidate",
+      });
+    });
+
+    it("should handle multiple headers in a single record", async () => {
+      // Create the stream first
+      await createTestStream(testDb.getDb(), {
+        podName: testPodName,
+        streamPath: "test-stream",
+        userId: testUser.userId,
+        accessPermission: "public",
+      });
+
+      // Write a record with multiple headers
+      const result = await cli.exec(
+        [
+          "record",
+          "write",
+          testPodName,
+          "test-stream",
+          "multi-header-record",
+          '{"data": "multiple headers"}',
+          "--header",
+          "cache-control:private",
+          "--header",
+          "hello-world:greeting",
+          "--header",
+          "x-custom:custom-value",
+        ],
+        {
+          token: testToken,
+        },
+      );
+
+      expect(result.exitCode).to.equal(0);
+
+      // Verify all headers were stored
+      const record = await testDb.getDb().oneOrNone(
+        `SELECT r.* FROM record r 
+         JOIN stream s ON r.stream_id = s.id
+         WHERE s.pod_name = $(podName) AND s.name = $(streamName) 
+         AND s.parent_id IS NULL AND r.name = $(recordName)`,
+        {
+          podName: testPodName,
+          streamName: "test-stream",
+          recordName: "multi-header-record",
+        },
+      );
+
+      expect(record).to.not.be.null;
+      expect(record.headers).to.deep.equal({
+        "cache-control": "private",
+        "hello-world": "greeting",
+        "x-custom": "custom-value",
+      });
+    });
   });
 
   describe("read command", () => {

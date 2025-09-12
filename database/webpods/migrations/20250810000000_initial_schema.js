@@ -86,6 +86,7 @@ export async function up(knex) {
     table.string('previous_hash', 100); // NULL for first record
     table.uuid('user_id').references('id').inTable('user').onDelete('RESTRICT'); // User who created the record
     table.text('storage'); // External storage location (adapter-specific format)
+    table.jsonb('headers').defaultTo('{}'); // User-provided headers
     table.boolean('deleted').notNullable().defaultTo(false); // Soft delete flag
     table.boolean('purged').notNullable().defaultTo(false); // Hard delete flag
     table.timestamp('created_at').defaultTo(knex.fn.now());

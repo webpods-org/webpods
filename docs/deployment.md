@@ -155,7 +155,8 @@ Create `config.json`:
   "server": {
     "host": "0.0.0.0",
     "port": 3000,
-    "publicUrl": "https://webpods.yourdomain.com"
+    "publicUrl": "https://webpods.yourdomain.com",
+    "allowedRecordHeaders": ["cache-control", "content-encoding", "x-custom"]
   },
   "database": {
     "url": "postgresql://user:password@localhost:5432/webpodsdb"
@@ -193,6 +194,20 @@ Create `config.json`:
   }
 }
 ```
+
+### Custom Record Headers
+
+The `allowedRecordHeaders` configuration allows you to specify which custom headers can be stored with records. When users write records, they can include headers with the `x-record-header-` prefix, and these will be:
+
+- Stored with the record in the database
+- Returned as HTTP headers when fetching individual records
+- Included in the JSON response when listing records
+
+Common use cases:
+
+- `cache-control`: Control browser and CDN caching behavior
+- `content-encoding`: Specify compression or encoding
+- Custom application headers for metadata
 
 ## Reverse Proxy Setup
 

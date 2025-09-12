@@ -20,6 +20,7 @@ export async function write(options: {
   data?: string;
   file?: string;
   permission?: string;
+  header?: string | string[];
   token?: string;
   server?: string;
   profile?: string;
@@ -102,11 +103,34 @@ export async function write(options: {
       path += `?access=${encodeURIComponent(options.permission)}`;
     }
 
+    // Parse custom headers
+    const headers: Record<string, string> = {
+      "Content-Type": contentType,
+    };
+
+    if (options.header) {
+      const headerArray = Array.isArray(options.header)
+        ? options.header
+        : [options.header];
+
+      for (const header of headerArray) {
+        const colonIndex = header.indexOf(":");
+        if (colonIndex > 0) {
+          const key = header.substring(0, colonIndex).trim();
+          const value = header.substring(colonIndex + 1).trim();
+          // Add x-record-header- prefix for custom headers
+          headers[`x-record-header-${key}`] = value;
+        } else {
+          output.warning(
+            `Invalid header format: ${header}. Use 'key:value' format.`,
+          );
+        }
+      }
+    }
+
     const result = await podRequest<StreamRecord>(options.pod, path, {
       method: "POST",
-      headers: {
-        "Content-Type": contentType,
-      },
+      headers,
       body: content,
       token: options.token,
       server: options.server,

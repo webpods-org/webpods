@@ -77,6 +77,7 @@ export interface StreamRecord {
   previousHash: string | null;
   userId: string; // User ID who created the record
   storage?: string | null; // External storage location (adapter-specific format)
+  headers?: Record<string, string>; // User-provided headers
   metadata?: Record<string, unknown>;
   createdAt: Date;
 }
@@ -111,6 +112,7 @@ export interface StreamRecordResponse {
   hash: string; // SHA-256 hash of (previous_hash + content_hash)
   previousHash: string | null;
   userId: string;
+  headers?: Record<string, string>; // User-provided headers
   timestamp: string;
 }
 

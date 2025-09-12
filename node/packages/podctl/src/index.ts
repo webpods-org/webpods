@@ -442,6 +442,12 @@ export async function main() {
                   type: "string",
                   describe: "Set access permission (public, private, /stream)",
                 })
+                .option("header", {
+                  alias: "H",
+                  type: "array",
+                  string: true,
+                  describe: "Custom headers (format: key:value)",
+                })
                 .option("token", {
                   type: "string",
                   describe: "Use specific token for this command",

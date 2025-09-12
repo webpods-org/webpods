@@ -33,7 +33,13 @@
     "host": "localhost",
     "port": 3000,
     "publicUrl": "http://localhost:3000",
-    "corsOrigin": "*"
+    "corsOrigin": "*",
+    "allowedRecordHeaders": [
+      "cache-control",
+      "hello-world",
+      "content-encoding",
+      "x-custom"
+    ]
   },
   "database": {
     "host": "localhost",
