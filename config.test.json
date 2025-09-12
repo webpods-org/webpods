@@ -20,7 +20,6 @@
   "media": {
     "externalStorage": {
       "enabled": true,
-      "minSize": "1kb",
       "adapter": "filesystem",
       "filesystem": {
         "basePath": ".tests/media",

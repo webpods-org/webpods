@@ -214,13 +214,7 @@ export function parsePermission(permission: string): {
 export function detectContentType(
   headers: Record<string, string | string[] | undefined>,
 ): string {
-  // 1. Check X-Content-Type header (highest priority)
-  const xContentType = headers["x-content-type"];
-  if (xContentType) {
-    return Array.isArray(xContentType) ? xContentType[0]! : xContentType;
-  }
-
-  // 2. Check standard Content-Type header
+  // Check standard Content-Type header
   const contentType = headers["content-type"];
   if (contentType) {
     const ct = Array.isArray(contentType) ? contentType[0]! : contentType;
@@ -228,7 +222,7 @@ export function detectContentType(
     return ct.split(";")[0]!.trim();
   }
 
-  // 3. Default to text/plain
+  // Default to text/plain
   return "text/plain";
 }
 
@@ -286,61 +280,8 @@ export const SERVABLE_CONTENT_TYPES = [
 ];
 
 /**
- * Binary content types that need base64 encoding
- */
-export const BINARY_CONTENT_TYPES = [
-  "image/png",
-  "image/jpeg",
-  "image/jpg",
-  "image/gif",
-  "image/webp",
-  "image/x-icon",
-  "image/ico",
-];
-
-/**
  * Check if content type is servable
  */
 export function isServableContentType(contentType: string): boolean {
   return SERVABLE_CONTENT_TYPES.includes(contentType.toLowerCase());
-}
-
-/**
- * Check if content type is binary
- */
-export function isBinaryContentType(contentType: string): boolean {
-  return BINARY_CONTENT_TYPES.includes(contentType.toLowerCase());
-}
-
-/**
- * Validate base64 string
- */
-export function isValidBase64(str: string): boolean {
-  if (!str || str.length === 0) return false;
-
-  // Check if it's a data URL
-  if (str.startsWith("data:")) {
-    const matches = str.match(/^data:([^;]+);base64,(.+)$/);
-    if (!matches) return false;
-    str = matches[2]!;
-  }
-
-  // Basic base64 validation
-  const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
-  return base64Regex.test(str) && str.length % 4 === 0;
-}
-
-/**
- * Extract base64 data and content type from data URL
- */
-export function parseDataUrl(
-  dataUrl: string,
-): { contentType: string; data: string } | null {
-  const matches = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
-  if (!matches) return null;
-
-  return {
-    contentType: matches[1]!,
-    data: matches[2]!,
-  };
 }

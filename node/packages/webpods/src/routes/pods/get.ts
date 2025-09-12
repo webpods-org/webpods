@@ -8,7 +8,6 @@ import {
   AuthRequest,
   readMiddleware,
   parseIndexQuery,
-  isBinaryContentType,
 } from "./shared.js";
 import { getDb } from "../../db/index.js";
 import { getConfig } from "../../config-loader.js";
@@ -328,7 +327,7 @@ export const getHandler = async (
         res.type(record.contentType);
 
         // Handle different content types
-        if (isBinaryContentType(record.contentType)) {
+        if (record.isBinary) {
           // Decode base64 for binary content
           const contentStr =
             typeof record.content === "string"
@@ -475,7 +474,7 @@ export const getHandler = async (
       res.type(record.contentType);
 
       // Handle different content types
-      if (isBinaryContentType(record.contentType)) {
+      if (record.isBinary) {
         // Decode base64 for binary content
         const contentStr =
           typeof record.content === "string"

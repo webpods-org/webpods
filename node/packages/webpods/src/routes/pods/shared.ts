@@ -31,9 +31,6 @@ import {
   parseIndexQuery,
   detectContentType,
   isSystemStream,
-  isBinaryContentType,
-  isValidBase64,
-  parseDataUrl,
   isValidName,
 } from "../../utils.js";
 
@@ -64,6 +61,7 @@ export const writeSchema = z.union([
   z.string(),
   z.object({}).passthrough(),
   z.array(z.any()),
+  z.instanceof(Buffer),
 ]);
 
 export const ownerSchema = z.object({
@@ -91,9 +89,6 @@ export {
   parseIndexQuery,
   detectContentType,
   isSystemStream,
-  isBinaryContentType,
-  isValidBase64,
-  parseDataUrl,
   isValidName,
 };
 

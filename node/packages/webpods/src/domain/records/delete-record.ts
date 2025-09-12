@@ -24,6 +24,7 @@ function mapRecordFromDb(row: RecordDbRow): StreamRecord {
     index: row.index,
     content: row.content,
     contentType: row.content_type,
+    isBinary: row.is_binary,
     size: row.size,
     name: row.name,
     path: row.path,

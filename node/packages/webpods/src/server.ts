@@ -13,6 +13,7 @@ import { getSessionConfig } from "./auth/session-store.js";
 import { getConfig } from "./config-loader.js";
 import { getVersion } from "./version.js";
 import { isMainDomain, isSubdomainOf } from "./utils.js";
+import { isBinaryContentType } from "./utils/content-type-detection.js";
 import { getDb } from "./db/index.js";
 import authRouter from "./auth/routes.js";
 import loginRouter from "./auth/login-page.js";
@@ -41,7 +42,18 @@ export function createApp(): Express {
   // Request parsing with configurable payload size
   const payloadLimit = config.server.maxPayloadSize || "10mb";
   app.use(express.json({ limit: payloadLimit }));
-  app.use(express.text({ limit: payloadLimit }));
+  app.use(
+    express.raw({
+      limit: payloadLimit,
+      type: (req) => isBinaryContentType(req.headers["content-type"] || ""),
+    }),
+  );
+  app.use(
+    express.text({
+      limit: payloadLimit,
+      type: "*/*", // Everything else is text (including SVG, XML, HTML, etc.)
+    }),
+  );
   app.use(express.urlencoded({ extended: true, limit: payloadLimit }));
   app.use(compression());
   app.use(cookieParser());

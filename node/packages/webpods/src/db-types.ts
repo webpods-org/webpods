@@ -56,6 +56,7 @@ export type RecordDbRow = {
   index: number;
   content: string;
   content_type: string;
+  is_binary: boolean; // Whether content is base64-encoded binary
   size: number; // Content size in bytes
   name: string; // Required name (no slashes - like filename)
   path: string; // Full path including record name for O(1) lookups

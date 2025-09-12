@@ -174,9 +174,9 @@ describe("WebPods Stream Operations", () => {
       expect(response.data.contentType).to.equal("application/json");
     });
 
-    it("should respect X-Content-Type header", async () => {
+    it("should respect Content-Type header", async () => {
       const response = await client.post("/test-stream/html", "<h1>HTML</h1>", {
-        headers: { "X-Content-Type": "text/html" },
+        headers: { "Content-Type": "text/html" },
       });
 
       expect(response.status).to.equal(201);
@@ -437,7 +437,7 @@ describe("WebPods Stream Operations", () => {
       // Create stream first
       await client.createStream("homepage");
       await client.post("/homepage/index", "<h1>Welcome</h1>", {
-        headers: { "X-Content-Type": "text/html" },
+        headers: { "Content-Type": "text/html" },
       });
 
       const links = {
@@ -531,7 +531,7 @@ describe("WebPods Stream Operations", () => {
       await client.createStream("page");
       const html = "<html><body><h1>Hello</h1></body></html>";
       await client.post("/page/index", html, {
-        headers: { "X-Content-Type": "text/html" },
+        headers: { "Content-Type": "text/html" },
       });
 
       const response = await client.get("/page/index");
@@ -544,7 +544,7 @@ describe("WebPods Stream Operations", () => {
       await client.createStream("assets/styles");
       const css = "body { margin: 0; }";
       await client.post("/assets/styles/main.css", css, {
-        headers: { "X-Content-Type": "text/css" },
+        headers: { "Content-Type": "text/css" },
       });
 
       const response = await client.get("/assets/styles/main.css");

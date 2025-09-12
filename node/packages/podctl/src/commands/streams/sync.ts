@@ -192,8 +192,7 @@ async function uploadFile(
       token,
       server: serverUrl,
       headers: {
-        "Content-Type": "text/plain",
-        "X-Content-Type": file.contentType,
+        "Content-Type": file.contentType,
       },
       body: content,
     });

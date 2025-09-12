@@ -10,8 +10,12 @@ export function recordToResponse(
 ): StreamRecordResponse {
   let content = record.content;
 
-  // Parse JSON content if needed
-  if (
+  // Decode base64 if content is binary
+  if (record.isBinary && typeof content === "string") {
+    // For API responses, we return base64 for binary content
+    // The GET handler will decode it when serving raw content
+    // Keep as base64 for JSON responses (no change needed)
+  } else if (
     record.contentType === "application/json" &&
     typeof content === "string"
   ) {

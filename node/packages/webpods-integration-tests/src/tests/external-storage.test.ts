@@ -67,20 +67,17 @@ describe("WebPods External Storage", () => {
   });
 
   describe("External Storage Upload", () => {
-    it("should store small files in database when below threshold", async () => {
+    it("should store text/strings in database", async () => {
       // Create stream first
       await client.createStream("images/small");
 
-      // Small image without X-Record-Type header - should go to DB
-      const response = await client.post("/images/small/tiny", testPngBase64, {
-        headers: {
-          "X-Content-Type": "image/png",
-        },
-      });
+      // Data URLs are text strings - always stored in DB (unless X-Record-Type: file)
+      const testPngDataUrl = `data:image/png;base64,${testPngBase64}`;
+      const response = await client.post("/images/small/tiny", testPngDataUrl);
 
       expect(response.status).to.equal(201);
       expect(response.data).to.have.property("name", "tiny");
-      expect(response.data).to.have.property("contentType", "image/png");
+      expect(response.data).to.have.property("contentType", "text/plain");
 
       // Verify it's served from database (no redirect)
       const getResponse = await client.get("/images/small/tiny");
@@ -93,9 +90,10 @@ describe("WebPods External Storage", () => {
       await client.createStream("images/large");
 
       // Large image with X-Record-Type: file header
-      const response = await client.post("/images/large/big", largePngBase64, {
+      // Use data URL for image
+      const largePngDataUrl = `data:image/png;base64,${largePngBase64}`;
+      const response = await client.post("/images/large/big", largePngDataUrl, {
         headers: {
-          "X-Content-Type": "image/png",
           "X-Record-Type": "file",
         },
       });
@@ -121,37 +119,37 @@ describe("WebPods External Storage", () => {
       expect(nameFile).to.exist;
     });
 
-    it("should not store externally without X-Record-Type header", async () => {
+    it("should store binary content externally even without X-Record-Type header", async () => {
       await client.createStream("images/control");
 
-      // Large image without X-Record-Type header
+      // Binary content without X-Record-Type header
       const response = await client.post(
         "/images/control/test",
         largePngBase64,
         {
           headers: {
-            "X-Content-Type": "image/png",
+            "Content-Type": "image/png",
           },
         },
       );
 
       expect(response.status).to.equal(201);
 
-      // Verify no files were created in storage
+      // Verify files WERE created in storage (binary auto-external)
       const storageExists = await fs
         .access(join(tempStorageDir, testPodId, "images/control"))
         .then(() => true)
         .catch(() => false);
-      expect(storageExists).to.be.false;
+      expect(storageExists).to.be.true;
     });
 
     it("should handle different file types", async () => {
       await client.createStream("media");
 
       // Upload JPEG
-      const jpegResponse = await client.post("/media/photo", testJpegBase64, {
+      const jpegDataUrl = `data:image/jpeg;base64,${testJpegBase64}`;
+      const jpegResponse = await client.post("/media/photo", jpegDataUrl, {
         headers: {
-          "X-Content-Type": "image/jpeg",
           "X-Record-Type": "file",
         },
       });
@@ -163,7 +161,7 @@ describe("WebPods External Storage", () => {
         "JVBERi0xLjQKJeLjz9MKNCAwIG9iago8PC9MZW5ndGggMzA+PnN0cmVhbQp4nGNgYGBgZGBgYmBkYAYADwAWCmVuZHN0cmVhbQplbmRvYmoKCnN0YXJ0eHJlZgoxMTYKJSVFT0YK";
       const pdfResponse = await client.post("/media/document", pdfBase64, {
         headers: {
-          "X-Content-Type": "application/pdf",
+          "Content-Type": "application/pdf",
           "X-Record-Type": "file",
         },
       });
@@ -177,9 +175,9 @@ describe("WebPods External Storage", () => {
       // Create stream and upload external content
       await client.createStream("serve-test");
 
-      await client.post("/serve-test/external-image", largePngBase64, {
+      const largePngDataUrl = `data:image/png;base64,${largePngBase64}`;
+      await client.post("/serve-test/external-image", largePngDataUrl, {
         headers: {
-          "X-Content-Type": "image/png",
           "X-Record-Type": "file",
         },
       });
@@ -238,9 +236,9 @@ describe("WebPods External Storage", () => {
       await client.createStream("delete-test");
 
       // Upload file to external storage
-      await client.post("/delete-test/to-delete", largePngBase64, {
+      const largePngDataUrl = `data:image/png;base64,${largePngBase64}`;
+      await client.post("/delete-test/to-delete", largePngDataUrl, {
         headers: {
-          "X-Content-Type": "image/png",
           "X-Record-Type": "file",
         },
       });
@@ -304,7 +302,7 @@ describe("WebPods External Storage", () => {
         largePngBase64,
         {
           headers: {
-            "X-Content-Type": "image/png",
+            "Content-Type": "image/png",
             "X-Record-Type": "file",
           },
         },
@@ -341,7 +339,7 @@ describe("WebPods External Storage", () => {
         largePngBase64,
         {
           headers: {
-            "X-Content-Type": "image/png",
+            "Content-Type": "image/png",
             "X-Record-Type": "file",
           },
         },
@@ -352,30 +350,30 @@ describe("WebPods External Storage", () => {
       expect(response.status).to.be.oneOf([201, 500]);
     });
 
-    it("should respect minSize configuration", async () => {
-      // The threshold is configured as 1kb in test-config.json
-      await client.createStream("threshold-test");
+    it("should always store binary content externally", async () => {
+      // Binary content always goes external (no size threshold)
+      await client.createStream("binary-test");
 
-      // Our small test image is below 1kb threshold
+      // Send actual binary content (will be parsed as Buffer)
       const response = await client.post(
-        "/threshold-test/small-for-threshold",
-        testPngBase64, // Use small image that's below 1kb
+        "/binary-test/auto-external",
+        testPngBase64,
         {
           headers: {
-            "X-Content-Type": "image/png",
-            "X-Record-Type": "file",
+            "Content-Type": "image/png",
+            // No X-Record-Type header - binary auto-detects external
           },
         },
       );
 
       expect(response.status).to.equal(201);
 
-      // Should be stored in database (not externally) since it's below threshold
+      // Should be stored externally since it's binary
       const storageExists = await fs
-        .access(join(tempStorageDir, testPodId, "threshold-test"))
+        .access(join(tempStorageDir, testPodId, "binary-test"))
         .then(() => true)
         .catch(() => false);
-      expect(storageExists).to.be.false;
+      expect(storageExists).to.be.true;
     });
   });
 
@@ -388,7 +386,7 @@ describe("WebPods External Storage", () => {
         largePngBase64,
         {
           headers: {
-            "X-Content-Type": "image/png",
+            "Content-Type": "image/png",
             "X-Record-Type": "file",
           },
         },
@@ -406,16 +404,20 @@ describe("WebPods External Storage", () => {
       await client.createStream("chain-test");
 
       // Upload multiple files
-      const response1 = await client.post("/chain-test/file1", largePngBase64, {
-        headers: {
-          "X-Content-Type": "image/png",
-          "X-Record-Type": "file",
+      const largePngDataUrl = `data:image/png;base64,${largePngBase64}`;
+      const response1 = await client.post(
+        "/chain-test/file1",
+        largePngDataUrl,
+        {
+          headers: {
+            "X-Record-Type": "file",
+          },
         },
-      });
+      );
 
-      const response2 = await client.post("/chain-test/file2", testJpegBase64, {
+      const jpegDataUrl = `data:image/jpeg;base64,${testJpegBase64}`;
+      const response2 = await client.post("/chain-test/file2", jpegDataUrl, {
         headers: {
-          "X-Content-Type": "image/jpeg",
           "X-Record-Type": "file",
         },
       });
@@ -428,13 +430,12 @@ describe("WebPods External Storage", () => {
       await client.createStream("list-test");
 
       // Upload mix of external and database storage
-      await client.post("/list-test/internal", testPngBase64, {
-        headers: { "X-Content-Type": "image/png" },
-      });
+      const testPngDataUrl = `data:image/png;base64,${testPngBase64}`;
+      await client.post("/list-test/internal", testPngDataUrl);
 
-      await client.post("/list-test/external", largePngBase64, {
+      const largePngDataUrl = `data:image/png;base64,${largePngBase64}`;
+      await client.post("/list-test/external", largePngDataUrl, {
         headers: {
-          "X-Content-Type": "image/png",
           "X-Record-Type": "file",
         },
       });

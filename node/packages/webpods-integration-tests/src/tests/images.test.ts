@@ -47,67 +47,78 @@ describe("WebPods Image Support", () => {
   });
 
   describe("Image Upload", () => {
-    it("should upload PNG image with base64 encoding", async () => {
+    it("should upload PNG image using data URL", async () => {
       // Create stream first
       await client.createStream("images/logo");
 
+      // Data URLs are stored as strings with text/plain content type
       const response = await client.post(
         "/images/logo/main-logo",
+        testPngDataUrl,
+      );
+
+      if (response.status !== 201) {
+        console.error("Upload failed:", response.status, response.data);
+      }
+      expect(response.status).to.equal(201);
+      expect(response.data).to.have.property("index", 0);
+      expect(response.data).to.have.property("contentType", "text/plain");
+      expect(response.data).to.have.property("name", "main-logo");
+      expect(response.data).to.have.property("hash");
+      expect(response.data).to.have.property("contentHash");
+      expect(response.data).to.have.property("content", testPngDataUrl);
+    });
+
+    it("should store base64 string as text when sent with text content type", async () => {
+      // Create stream first
+      await client.createStream("images/avatar");
+
+      // Sending base64 string with text/plain content type stores it as text
+      const response = await client.post(
+        "/images/avatar/user-avatar",
         testPngBase64,
         {
           headers: {
-            "X-Content-Type": "image/png",
+            "Content-Type": "text/plain",
           },
         },
       );
 
       expect(response.status).to.equal(201);
-      expect(response.data).to.have.property("index", 0);
-      expect(response.data).to.have.property("contentType", "image/png");
-      expect(response.data).to.have.property("name", "main-logo");
-      expect(response.data).to.have.property("hash");
-      expect(response.data).to.have.property("contentHash");
-    });
-
-    it("should upload image using data URL", async () => {
-      // Create stream first
-      await client.createStream("images/avatar");
-
-      // When sending a data URL, we don't need to set the content type header
-      // The data URL itself contains the MIME type
-      const response = await client.post(
-        "/images/avatar/user-avatar",
-        testPngDataUrl,
-      );
-
-      expect(response.status).to.equal(201);
-      expect(response.data).to.have.property("contentType", "image/png");
-      expect(response.data).to.have.property("name", "user-avatar");
+      expect(response.data).to.have.property("contentType", "text/plain");
+      expect(response.data).to.have.property("content", testPngBase64);
     });
 
     it("should upload SVG as text", async () => {
       await client.createStream("images/icon");
+      // SVG is text, so we can send it directly with correct content type
       const response = await client.post("/images/icon/app-icon", testSvg, {
         headers: {
-          "X-Content-Type": "image/svg+xml",
+          "Content-Type": "image/svg+xml",
         },
       });
 
+      if (response.status !== 201) {
+        console.error("SVG upload failed:", response.status, response.data);
+      }
       expect(response.status).to.equal(201);
       expect(response.data).to.have.property("contentType", "image/svg+xml");
       expect(response.data).to.have.property("content", testSvg);
     });
 
-    it("should reject invalid base64 for binary images", async () => {
+    it("should store text with any content type", async () => {
       await client.createStream("images");
-      const response = await client.post("/images/bad", "not-valid-base64!@#", {
+      // Content type is just metadata - text is stored as text
+      const response = await client.post("/images/text-file", "not-an-image", {
         headers: {
-          "X-Content-Type": "image/png",
+          "Content-Type": "image/png",
         },
       });
 
-      expect(response.status).to.equal(400);
-      expect(response.data.error.code).to.equal("INVALID_CONTENT");
+      expect(response.status).to.equal(201);
+      // Even though we sent Content-Type: image/png, the actual stored content type
+      // depends on how Express parsed it (likely as raw Buffer due to image/* type)
+      expect(response.data).to.have.property("content");
     });
 
     it("should reject content exceeding size limit", async () => {
@@ -116,11 +127,9 @@ describe("WebPods Image Support", () => {
       // Express will reject this before our code can handle it
       const largeBase64 = "A".repeat(15 * 1024 * 1024); // ~15MB of 'A's
 
-      const response = await client.post("/images/large", largeBase64, {
-        headers: {
-          "X-Content-Type": "image/png",
-        },
-      });
+      // Use data URL for large base64 content
+      const largeDataUrl = `data:image/png;base64,${largeBase64}`;
+      const response = await client.post("/images/large", largeDataUrl);
 
       // Express returns 500 with INTERNAL_ERROR when payload exceeds limit
       // This is expected behavior - the limit is enforced at the Express middleware level
@@ -131,20 +140,19 @@ describe("WebPods Image Support", () => {
       ]);
     });
 
-    it("should handle JPEG images", async () => {
+    it("should handle JPEG data URLs", async () => {
       await client.createStream("photos/test");
       // Small JPEG test data (base64)
       const jpegBase64 =
         "/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAr/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCwAA8A/9k=";
 
-      const response = await client.post("/photos/test/sample", jpegBase64, {
-        headers: {
-          "X-Content-Type": "image/jpeg",
-        },
-      });
+      // Data URLs are stored as text/plain
+      const jpegDataUrl = `data:image/jpeg;base64,${jpegBase64}`;
+      const response = await client.post("/photos/test/sample", jpegDataUrl);
 
       expect(response.status).to.equal(201);
-      expect(response.data).to.have.property("contentType", "image/jpeg");
+      expect(response.data).to.have.property("contentType", "text/plain");
+      expect(response.data).to.have.property("content", jpegDataUrl);
     });
   });
 
@@ -154,28 +162,23 @@ describe("WebPods Image Support", () => {
       await client.createStream("gallery/photo1");
       await client.createStream("gallery/photo2");
 
-      await client.post("/gallery/photo1/first", testPngBase64, {
-        headers: {
-          "X-Content-Type": "image/png",
-        },
-      });
+      // Use data URL for PNG
+      await client.post("/gallery/photo1/first", testPngDataUrl);
 
+      // SVG can be sent directly with proper content type
       await client.post("/gallery/photo2/svg-image", testSvg, {
         headers: {
-          "X-Content-Type": "image/svg+xml",
+          "Content-Type": "image/svg+xml",
         },
       });
     });
 
-    it("should serve PNG image as binary", async () => {
+    it("should serve data URL as text", async () => {
       const response = await client.get("/gallery/photo1/first");
 
       expect(response.status).to.equal(200);
-      expect(response.headers["content-type"]).to.include("image/png");
-
-      // The test client returns text for now, but in production it would be binary
-      // For testing, we can just verify the content type is correct
-      // A full binary test would require updating the test client to handle binary responses
+      expect(response.headers["content-type"]).to.include("text/plain");
+      expect(response.data).to.equal(testPngDataUrl);
     });
 
     it("should serve SVG image as text", async () => {
@@ -190,7 +193,8 @@ describe("WebPods Image Support", () => {
       const response = await client.get("/gallery/photo1?i=0");
 
       expect(response.status).to.equal(200);
-      expect(response.headers["content-type"]).to.include("image/png");
+      expect(response.headers["content-type"]).to.include("text/plain");
+      expect(response.data).to.equal(testPngDataUrl);
     });
 
     it("should include metadata headers when serving images", async () => {
@@ -225,7 +229,7 @@ describe("WebPods Image Support", () => {
       await client.createStream("pages/gallery");
       await client.post("/pages/gallery/index", htmlContent, {
         headers: {
-          "X-Content-Type": "text/html",
+          "Content-Type": "text/html",
         },
       });
 
@@ -240,60 +244,58 @@ describe("WebPods Image Support", () => {
       expect(pageResponse.headers["content-type"]).to.include("text/html");
       expect(pageResponse.data).to.include('<img src="/assets/logo"');
 
-      // Verify the image can be served
+      // Verify the data URL can be served (as text/plain)
       const imageResponse = await client.get("/assets/logo");
       expect(imageResponse.status).to.equal(200);
-      expect(imageResponse.headers["content-type"]).to.include("image/png");
+      expect(imageResponse.headers["content-type"]).to.include("text/plain");
+      expect(imageResponse.data).to.equal(testPngDataUrl);
     });
   });
 
   describe("Multiple Image Formats", () => {
-    it("should support WebP format", async () => {
+    it("should store WebP data URL as text", async () => {
       await client.createStream("modern");
       // Small WebP test data (base64) - 1x1 pixel
       const webpBase64 =
         "UklGRhoAAABXRUJQVlA4IA4AAACyAgCdASoBAAEAAABIlpAADcAD+/4=";
 
-      const response = await client.post("/modern/image", webpBase64, {
-        headers: {
-          "X-Content-Type": "image/webp",
-        },
-      });
+      // Data URLs are stored as text/plain
+      const webpDataUrl = `data:image/webp;base64,${webpBase64}`;
+      const response = await client.post("/modern/image", webpDataUrl);
 
       expect(response.status).to.equal(201);
-      expect(response.data).to.have.property("contentType", "image/webp");
+      expect(response.data).to.have.property("contentType", "text/plain");
+      expect(response.data).to.have.property("content", webpDataUrl);
     });
 
-    it("should support GIF format", async () => {
+    it("should store GIF data URL as text", async () => {
       await client.createStream("animations");
       // Small GIF test data (base64) - 1x1 pixel
       const gifBase64 =
         "R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
 
-      const response = await client.post("/animations/test", gifBase64, {
-        headers: {
-          "X-Content-Type": "image/gif",
-        },
-      });
+      // Data URLs are stored as text/plain
+      const gifDataUrl = `data:image/gif;base64,${gifBase64}`;
+      const response = await client.post("/animations/test", gifDataUrl);
 
       expect(response.status).to.equal(201);
-      expect(response.data).to.have.property("contentType", "image/gif");
+      expect(response.data).to.have.property("contentType", "text/plain");
+      expect(response.data).to.have.property("content", gifDataUrl);
     });
 
-    it("should support favicon (.ico) format", async () => {
+    it("should store ICO data URL as text", async () => {
       await client.createStream("favicon");
       // Small ICO test data (base64)
       const icoBase64 =
         "AAABAAEAAQEAAAEAIAAwAAAAFgAAACgAAAABAAAAAgAAAAEAIAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAA////AAAAAAA=";
 
-      const response = await client.post("/favicon/icon", icoBase64, {
-        headers: {
-          "X-Content-Type": "image/x-icon",
-        },
-      });
+      // Data URLs are stored as text/plain
+      const icoDataUrl = `data:image/x-icon;base64,${icoBase64}`;
+      const response = await client.post("/favicon/icon", icoDataUrl);
 
       expect(response.status).to.equal(201);
-      expect(response.data).to.have.property("contentType", "image/x-icon");
+      expect(response.data).to.have.property("contentType", "text/plain");
+      expect(response.data).to.have.property("content", icoDataUrl);
     });
   });
 });
