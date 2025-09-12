@@ -9,16 +9,11 @@ import {
   AuthRequest,
   writeMiddleware,
   createRouteLogger,
-  writeSchema,
   detectContentType,
   isValidName,
-  isBinaryContentType,
-  isValidBase64,
-  parseDataUrl,
   CodedError,
 } from "./shared.js";
 import { getDb } from "../../db/index.js";
-import { getConfig } from "../../config-loader.js";
 import { getStreamById } from "../../domain/streams/get-stream-by-id.js";
 import { getStreamByPath } from "../../domain/streams/get-stream-by-path.js";
 import { createStreamHierarchy } from "../../domain/streams/create-stream-hierarchy.js";
@@ -218,81 +213,9 @@ export const postHandler = async (
 
     const streamPath = pathParts.length > 0 ? pathParts.join("/") : "/"; // Use '/' for root stream
     logger.debug("Stream ID for writing", { pathParts, streamPath, fullPath });
-    let content = writeSchema.parse(req.body);
-    let contentType = detectContentType(req.headers);
+    const content = req.body; // Already parsed by Express middleware
+    const contentType = detectContentType(req.headers);
     const accessPermission = req.query.access as string | undefined;
-
-    // Check if content is a data URL first (before checking content type)
-    if (typeof content === "string" && content.startsWith("data:")) {
-      const parsed = parseDataUrl(content);
-      if (!parsed) {
-        res.status(400).json({
-          error: {
-            code: "INVALID_CONTENT",
-            message: "Invalid data URL format",
-          },
-        });
-        return;
-      }
-      // Use the content type from data URL if not explicitly set
-      if (!req.headers["x-content-type"]) {
-        contentType = parsed.contentType;
-      }
-      content = parsed.data;
-    }
-
-    // Handle binary content (images)
-    if (isBinaryContentType(contentType)) {
-      // For binary content, expect base64 encoded string
-      if (typeof content !== "string") {
-        res.status(400).json({
-          error: {
-            code: "INVALID_CONTENT",
-            message: "Binary content must be provided as base64 encoded string",
-          },
-        });
-        return;
-      }
-
-      // Validate base64
-      if (!isValidBase64(content)) {
-        res.status(400).json({
-          error: {
-            code: "INVALID_CONTENT",
-            message: "Invalid base64 encoding",
-          },
-        });
-        return;
-      }
-
-      // Check size limit (base64 is ~33% larger than binary)
-      // Get max payload size from config (e.g., "10mb" -> 10 * 1024 * 1024)
-      const config = getConfig();
-      const maxSizeStr = config.server.maxPayloadSize || "10mb";
-      const maxSizeMatch = maxSizeStr.match(/^(\d+)(mb|kb|gb)?$/i);
-      const maxSizeNum = maxSizeMatch ? parseInt(maxSizeMatch[1]!) : 10;
-      const unit = maxSizeMatch?.[2]?.toLowerCase() || "mb";
-      const multiplier =
-        unit === "kb"
-          ? 1024
-          : unit === "mb"
-            ? 1024 * 1024
-            : unit === "gb"
-              ? 1024 * 1024 * 1024
-              : 1024 * 1024;
-      const maxBinarySize = maxSizeNum * multiplier;
-
-      const estimatedBinarySize = (content.length * 3) / 4;
-      if (estimatedBinarySize > maxBinarySize) {
-        res.status(413).json({
-          error: {
-            code: "CONTENT_TOO_LARGE",
-            message: `Content exceeds maximum size of ${maxSizeStr}`,
-          },
-        });
-        return;
-      }
-    }
 
     // Check if pod exists - require explicit creation via POST /api/pods
     if (!req.pod) {

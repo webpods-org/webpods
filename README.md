@@ -1136,40 +1136,52 @@ podctl record read my-pod images logo -o downloaded-logo.png
 #### HTTP
 
 ```bash
-# Upload an image (must be base64 encoded)
-IMAGE_BASE64=$(base64 -w 0 < image.png)
-curl -X POST https://my-pod.webpods.org/images/logo \
+# Upload binary content directly
+curl -X POST https://my-pod.webpods.org/images/logo.png \
   -H "Authorization: Bearer $WEBPODS_TOKEN" \
-  -H "X-Content-Type: image/png" \
-  -d "$IMAGE_BASE64"
+  -H "Content-Type: image/png" \
+  --data-binary @image.png
 
-# Images are automatically decoded when served
-curl https://my-pod.webpods.org/images/logo > logo.png
+# Data URLs are treated as text strings (not recommended for images)
+# If you send: data:image/png;base64,iVBORw0KG...
+# It will be stored as that text string, not decoded
+
+# Binary content is automatically served correctly
+curl https://my-pod.webpods.org/images/logo.png > downloaded.png
 ```
 
-#### External Storage for Large Media Files
+#### External Storage for Media Files
 
-WebPods supports storing large media files externally to optimize database performance and reduce storage costs. When external storage is enabled and configured, files exceeding a size threshold can be stored on the filesystem or cloud storage instead of the database.
-
-##### Enabling External Storage
-
-To store a file externally, include the `X-Record-Type: file` header when uploading:
-
-```bash
-# Upload a large image to external storage
-IMAGE_BASE64=$(base64 -w 0 < large-photo.jpg)
-curl -X POST https://my-pod.webpods.org/photos/vacation \
-  -H "Authorization: Bearer $WEBPODS_TOKEN" \
-  -H "X-Content-Type: image/jpeg" \
-  -H "X-Record-Type: file" \
-  -d "$IMAGE_BASE64"
-```
+WebPods supports storing media files externally to optimize database performance and reduce storage costs. When external storage is enabled, binary content is automatically stored on the filesystem or cloud storage instead of the database.
 
 ##### How External Storage Works
 
-- Files are stored externally only when both conditions are met:
-  1. The `X-Record-Type: file` header is present
-  2. The file size exceeds the configured minimum threshold (default: 1KB)
+WebPods automatically determines storage location based on content type:
+
+- **Binary content** (images, videos, PDFs, etc.) → Always stored externally
+- **Text content** (HTML, JSON, plain text, etc.) → Always stored in database
+- **Forced external** → Use `X-Record-Type: file` header to force any content to external storage
+
+##### Uploading Binary Content
+
+```bash
+# Upload an image - automatically goes to external storage
+curl -X POST https://my-pod.webpods.org/photos/vacation.jpg \
+  -H "Authorization: Bearer $WEBPODS_TOKEN" \
+  -H "Content-Type: image/jpeg" \
+  --data-binary @large-photo.jpg
+
+# Force text content to external storage (rarely needed)
+curl -X POST https://my-pod.webpods.org/documents/report.txt \
+  -H "Authorization: Bearer $WEBPODS_TOKEN" \
+  -H "Content-Type: text/plain" \
+  -H "X-Record-Type: file" \
+  -d "Large text content..."
+```
+
+##### Storage Behavior
+
+- Binary content is automatically detected and stored externally (no size threshold)
 - Externally stored files are served via HTTP 302 redirects to the configured storage URL
 - The database stores only metadata and a reference to the external location
 - Files are stored in two locations for efficient serving:
@@ -1185,7 +1197,6 @@ External storage is configured in `config.json`:
   "media": {
     "externalStorage": {
       "enabled": true,
-      "minSize": "10kb",
       "adapter": "filesystem",
       "filesystem": {
         "basePath": "/var/webpods/media",
@@ -1200,6 +1211,20 @@ External storage is configured in `config.json`:
 
 - **Soft delete** (default): Removes only the name-based file, keeping the hash-based file for deduplication
 - **Hard delete** (purge): Removes both name-based and hash-based files completely
+
+#### Content Type Detection
+
+WebPods automatically detects content type based on the HTTP Content-Type header:
+
+- **Binary types** (`image/*`, `video/*`, `audio/*`, `application/pdf`, etc.) → Parsed as binary Buffer
+- **Text types** (`text/*`, `application/json`, `*/*xml`, etc.) → Parsed as text String
+- **Detection is automatic** - The system uses `Buffer.isBuffer()` to determine storage encoding
+
+Important notes:
+
+- SVG images (`image/svg+xml`) are treated as text since they're XML-based
+- Data URLs (e.g., `data:image/png;base64,...`) are plain text strings and not decoded
+- The Content-Type header determines how Express parses the body, which determines storage format
 
 ### Serving Web Content
 
@@ -1520,7 +1545,6 @@ Create `config.json`:
   "media": {
     "externalStorage": {
       "enabled": false,
-      "minSize": "10kb",
       "adapter": "filesystem",
       "filesystem": {
         "basePath": "/var/webpods/media",

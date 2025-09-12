@@ -289,8 +289,7 @@ Query parameters:
 
 Headers:
 
-- `X-Content-Type` - Explicit content type (highest priority)
-- `Content-Type` - Standard content type
+- `Content-Type` - Content type of the data being uploaded
 
 Name restrictions:
 
@@ -604,7 +603,7 @@ Images and binary files are stored as base64:
 IMAGE_BASE64=$(base64 -w 0 < image.png)
 curl -X POST alice.webpods.org/images/logo \
   -H "Authorization: Bearer $TOKEN" \
-  -H "X-Content-Type: image/png" \
+  -H "Content-Type: image/png" \
   -d "$IMAGE_BASE64"
 
 # Serve image (automatically decoded)

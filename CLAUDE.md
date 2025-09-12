@@ -14,6 +14,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with th
 
 **ONLY make changes AFTER the user explicitly approves.** When you identify issues or potential improvements, explain them clearly and wait for the user's decision. Do NOT assume what the user wants or make "helpful" changes without permission.
 
+## CRITICAL: FINISH DISCUSSIONS BEFORE WRITING CODE
+
+**IMPORTANT**: When the user asks a question or you're in the middle of a discussion, DO NOT jump to writing code. Always:
+
+1. **Complete the discussion first** - Understand the problem fully
+2. **Analyze and explain** - Work through the issue verbally
+3. **Get confirmation** - Ensure the user agrees with the approach
+4. **Only then write code** - After the user explicitly asks you to implement
+
+Do not write code while discussing or analyzing a problem unless the user specifically asks you to.
+
 ## CRITICAL: NEVER USE MULTIEDIT
 
 **NEVER use the MultiEdit tool.** It has caused issues in multiple projects. Always use individual Edit operations instead, even if it means more edits. This ensures better control and prevents unintended changes.
@@ -410,7 +421,7 @@ See `.env.example` for complete list of configuration options. Key variables:
 1. **Pod resolution issues**: Check wildcard DNS configuration
 2. **Permission denied**: Trace through in-memory permission processing
 3. **Negative indexing**: Verify record count calculations
-4. **Content serving**: Check Content-Type and X-Content-Type headers
+4. **Content serving**: Check Content-Type headers
 5. **OAuth issues**: Verify callback URLs match provider configuration
 
 ## Common Issues

@@ -68,6 +68,7 @@ export interface StreamRecord {
   index: number; // Position in stream (0-based)
   content: string | unknown; // Can be text or JSON
   contentType: string;
+  isBinary: boolean; // Whether content is base64-encoded binary
   size: number; // Content size in bytes
   name: string; // Required name (no slashes - like filename)
   path: string; // Full path including record name for O(1) lookups

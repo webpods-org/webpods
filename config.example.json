@@ -105,7 +105,6 @@
   "media": {
     "externalStorage": {
       "enabled": false,
-      "minSize": "10kb",
       "adapter": "filesystem",
       "filesystem": {
         "basePath": "/var/webpods/media",

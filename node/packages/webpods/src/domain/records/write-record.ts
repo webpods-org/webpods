@@ -13,7 +13,6 @@ import { isValidRecordName } from "../../utils/stream-utils.js";
 import {
   getStorageAdapter,
   isExternalStorageEnabled,
-  getMinExternalSize,
 } from "../../storage-adapters/index.js";
 import { extname } from "path";
 
@@ -29,6 +28,7 @@ function mapRecordFromDb(row: RecordDbRow): StreamRecord {
     index: row.index,
     content: row.content,
     contentType: row.content_type,
+    isBinary: row.is_binary,
     size: row.size,
     name: row.name,
     path: row.path,
@@ -97,8 +97,33 @@ export async function writeRecord(
       const previousHash = previousRecord?.hash || null;
       const timestamp = new Date().toISOString();
 
-      // Calculate content hash first
-      const contentHash = calculateContentHash(content);
+      // Detect if content is binary (Buffer) or text (String)
+      const isBinary = Buffer.isBuffer(content);
+
+      // Prepare content for storage
+      let storedContent: string;
+      let size: number;
+
+      if (isBinary) {
+        // Binary content: convert to base64 for DB storage
+        const buffer = content as Buffer;
+        storedContent = buffer.toString("base64");
+        size = buffer.byteLength;
+      } else if (
+        typeof content === "object" &&
+        contentType === "application/json"
+      ) {
+        // JSON object: stringify it
+        storedContent = JSON.stringify(content);
+        size = Buffer.byteLength(storedContent, "utf8");
+      } else {
+        // Text content: store as-is (including base64 strings from data URLs)
+        storedContent = content as string;
+        size = Buffer.byteLength(storedContent, "utf8");
+      }
+
+      // Calculate content hash using the prepared content
+      const contentHash = calculateContentHash(storedContent);
 
       // Calculate record hash with all parameters
       const hash = calculateRecordHash(
@@ -116,95 +141,77 @@ export async function writeRecord(
 
       const recordPath = `${stream.path}/${name}`;
 
-      // Prepare content for storage
-      let storedContent = content;
-      if (typeof content === "object" && contentType === "application/json") {
-        storedContent = JSON.stringify(content);
-      }
-
-      // Calculate content size in bytes
-      const contentString = storedContent as string;
-      const size = Buffer.byteLength(contentString, "utf8");
-
       // Check if we should store externally
       let storageLocation: string | null = null;
       let dbContent = storedContent;
 
-      if (useExternalStorage && isExternalStorageEnabled()) {
-        const minSize = getMinExternalSize();
+      // Store externally if:
+      // 1. X-Record-Type: file is set (forced external), OR
+      // 2. Content is binary (automatic external for all binary)
+      if ((useExternalStorage || isBinary) && isExternalStorageEnabled()) {
+        const adapter = getStorageAdapter();
 
-        // Check if content should be stored externally based on size
-        if (size >= minSize) {
-          const adapter = getStorageAdapter();
+        if (adapter) {
+          // Get pod name from stream
+          const podInfo = await t.one<{ pod_name: string }>(
+            `SELECT pod_name FROM stream WHERE id = $(streamId)`,
+            { streamId },
+          );
 
-          if (adapter) {
-            // Get pod name from stream
-            const podInfo = await t.one<{ pod_name: string }>(
-              `SELECT pod_name FROM stream WHERE id = $(streamId)`,
-              { streamId },
-            );
+          // Extract file extension from name only - don't add one if name has none
+          const ext = extname(name).replace(".", "");
 
-            // Extract file extension from name only - don't add one if name has none
-            const ext = extname(name).replace(".", "");
+          // Convert to Buffer for external storage
+          let buffer: Buffer;
+          if (isBinary) {
+            // Already have the original buffer
+            buffer = content as Buffer;
+          } else {
+            // Text content: convert to UTF-8 buffer
+            buffer = Buffer.from(storedContent, "utf8");
+          }
 
-            // Decode base64 if content is base64 encoded (for binary data)
-            let buffer: Buffer;
-            if (
-              contentType.startsWith("image/") ||
-              contentType.startsWith("video/") ||
-              contentType.startsWith("audio/") ||
-              contentType === "application/pdf" ||
-              contentType === "application/zip" ||
-              contentType === "application/octet-stream"
-            ) {
-              // Assume base64 for binary content types
-              buffer = Buffer.from(contentString, "base64");
-            } else {
-              // Text content
-              buffer = Buffer.from(contentString, "utf8");
-            }
+          // Store externally
+          const storeResult = await adapter.storeFile(
+            podInfo.pod_name,
+            stream.path,
+            name,
+            contentHash,
+            buffer,
+            ext,
+          );
 
-            // Store externally
-            const storeResult = await adapter.storeFile(
-              podInfo.pod_name,
-              stream.path,
+          if (storeResult.success) {
+            storageLocation = storeResult.data;
+            dbContent = ""; // Don't store content in DB
+            logger.info("Content stored externally", {
+              streamId,
               name,
-              contentHash,
-              buffer,
-              ext,
+              size,
+              storage: storageLocation,
+            });
+          } else {
+            logger.warn(
+              "Failed to store externally, falling back to database",
+              {
+                error: storeResult.error,
+              },
             );
-
-            if (storeResult.success) {
-              storageLocation = storeResult.data;
-              dbContent = ""; // Don't store content in DB
-              logger.info("Content stored externally", {
-                streamId,
-                name,
-                size,
-                storage: storageLocation,
-              });
-            } else {
-              logger.warn(
-                "Failed to store externally, falling back to database",
-                {
-                  error: storeResult.error,
-                },
-              );
-            }
           }
         }
       }
 
       // Insert new record with path and size
       const record = await t.one<RecordDbRow>(
-        `INSERT INTO record (stream_id, index, content, content_type, size, name, path, content_hash, hash, previous_hash, user_id, storage, created_at)
-         VALUES ($(streamId), $(index), $(content), $(contentType), $(size), $(name), $(path), $(contentHash), $(hash), $(previousHash), $(userId), $(storage), $(createdAt))
+        `INSERT INTO record (stream_id, index, content, content_type, is_binary, size, name, path, content_hash, hash, previous_hash, user_id, storage, created_at)
+         VALUES ($(streamId), $(index), $(content), $(contentType), $(isBinary), $(size), $(name), $(path), $(contentHash), $(hash), $(previousHash), $(userId), $(storage), $(createdAt))
          RETURNING *`,
         {
           streamId,
           index,
           content: dbContent,
           contentType,
+          isBinary,
           size,
           name,
           path: recordPath,
