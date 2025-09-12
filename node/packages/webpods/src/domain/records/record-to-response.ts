@@ -4,9 +4,15 @@
 
 import { StreamRecord, StreamRecordResponse } from "../../types.js";
 
+export interface RecordResponseOptions {
+  fields?: string[];
+  maxContentSize?: number;
+}
+
 export function recordToResponse(
   record: StreamRecord,
   streamPath: string,
+  options?: RecordResponseOptions,
 ): StreamRecordResponse {
   let content = record.content;
 
@@ -26,12 +32,25 @@ export function recordToResponse(
     }
   }
 
+  // Apply content size limit if specified
+  if (
+    options?.maxContentSize &&
+    options.maxContentSize > 0 &&
+    typeof content === "string"
+  ) {
+    if (content.length > options.maxContentSize) {
+      // Truncate content to maxContentSize
+      content = content.substring(0, options.maxContentSize);
+    }
+  }
+
   // Combine stream path with record name for full path
   const fullPath = streamPath.endsWith("/")
     ? `${streamPath}${record.name}`
     : `${streamPath}/${record.name}`;
 
-  return {
+  // Build full response
+  const fullResponse: StreamRecordResponse = {
     index: record.index,
     content: content,
     contentType: record.contentType,
@@ -45,4 +64,28 @@ export function recordToResponse(
     headers: record.headers,
     timestamp: record.createdAt.toISOString(),
   };
+
+  // If fields are specified, filter the response
+  if (options?.fields && options.fields.length > 0) {
+    const filteredResponse: Record<string, unknown> = {};
+
+    for (const field of options.fields) {
+      const key = field as keyof StreamRecordResponse;
+      if (key in fullResponse) {
+        filteredResponse[field] = fullResponse[key];
+      }
+    }
+
+    // Always include size when content is requested (for truncation detection)
+    if (
+      options.fields.includes("content") &&
+      !options.fields.includes("size")
+    ) {
+      filteredResponse.size = fullResponse.size;
+    }
+
+    return filteredResponse as unknown as StreamRecordResponse;
+  }
+
+  return fullResponse;
 }

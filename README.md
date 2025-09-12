@@ -152,6 +152,8 @@ Multiple ways to access your data with powerful query parameters:
 - Unique records: `?unique=true`
 - Range queries: `?after=5&before=15`
 - Negative indexing: `?after=-10` (last 10 records)
+- Field selection: `?fields=name,timestamp` (reduce bandwidth)
+- Content truncation: `?maxContentSize=1000` (safety for large records)
 
 ## Table of Contents
 

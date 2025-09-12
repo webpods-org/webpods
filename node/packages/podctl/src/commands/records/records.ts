@@ -327,6 +327,8 @@ export async function list(options: {
   after?: number;
   unique?: boolean;
   recursive?: boolean;
+  fields?: string;
+  maxContentSize?: number;
   token?: string;
   server?: string;
   profile?: string;
@@ -343,6 +345,8 @@ export async function list(options: {
       after: options.after,
       unique: options.unique,
       recursive: options.recursive,
+      fields: options.fields,
+      maxContentSize: options.maxContentSize,
     });
 
     if (!options.pod || !options.stream) {
@@ -368,6 +372,14 @@ export async function list(options: {
 
     if (options.recursive) {
       params.set("recursive", "true");
+    }
+
+    if (options.fields) {
+      params.set("fields", options.fields);
+    }
+
+    if (options.maxContentSize !== undefined) {
+      params.set("maxContentSize", String(options.maxContentSize));
     }
 
     if (params.toString()) {
@@ -435,11 +447,14 @@ export async function list(options: {
         output.print(`Records in ${options.pod}/${options.stream}:`);
         output.print("─".repeat(60));
         response.records.forEach((record) => {
-          const contentPreview =
-            typeof record.content === "string"
-              ? record.content.slice(0, 30) +
-                (record.content.length > 30 ? "..." : "")
-              : JSON.stringify(record.content).slice(0, 30) + "...";
+          let contentPreview = "";
+          if (record.content !== undefined) {
+            contentPreview =
+              typeof record.content === "string"
+                ? record.content.slice(0, 30) +
+                  (record.content.length > 30 ? "..." : "")
+                : JSON.stringify(record.content).slice(0, 30) + "...";
+          }
 
           output.print(
             `[${record.index.toString().padStart(3)}] ${(record.name || "").padEnd(20)} ${(record.content_type || "text/plain").padEnd(15)} ${contentPreview}`,

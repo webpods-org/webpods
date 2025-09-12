@@ -528,6 +528,17 @@ export const getHandler = async (
     const unique = req.query.unique === "true";
     // recursive was already defined earlier
 
+    // Parse new query parameters for field selection and content size
+    const fieldsParam = req.query.fields as string | undefined;
+    const fields = fieldsParam
+      ? fieldsParam.split(",").map((f) => f.trim())
+      : undefined;
+
+    const maxContentSizeParam = req.query.maxContentSize as string | undefined;
+    const maxContentSize = maxContentSizeParam
+      ? parseInt(maxContentSizeParam)
+      : undefined;
+
     // Use appropriate listing function based on parameters
     let result;
     if (recursive && unique) {
@@ -606,7 +617,9 @@ export const getHandler = async (
 
     if (!res.headersSent) {
       res.json({
-        records: data.records.map((r) => recordToResponse(r, streamPath)),
+        records: data.records.map((r) =>
+          recordToResponse(r, streamPath, { fields, maxContentSize }),
+        ),
         streams: childStreams,
         total: data.total,
         hasMore: data.hasMore,

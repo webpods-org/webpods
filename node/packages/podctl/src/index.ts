@@ -392,6 +392,15 @@ export async function main() {
                   type: "boolean",
                   describe: "Include records from nested streams",
                 })
+                .option("fields", {
+                  type: "string",
+                  describe: "Comma-separated list of fields to return",
+                })
+                .option("max-content-size", {
+                  type: "number",
+                  describe:
+                    "Maximum content size in bytes (truncates larger content)",
+                })
                 .option("token", {
                   type: "string",
                   describe: "Use specific token for this command",
