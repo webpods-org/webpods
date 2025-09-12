@@ -5,7 +5,7 @@ Get up and running with WebPods in 5 minutes.
 ## Table of Contents
 
 1. [Installation](#installation)
-2. [Authentication](#authentication)  
+2. [Authentication](#authentication)
 3. [Create Your First Pod](#create-your-first-pod)
 4. [Working with Records](#working-with-records)
 5. [Understanding Streams](#understanding-streams)
@@ -51,9 +51,9 @@ cd webpods
 cp config.example.json config.json
 # Edit config.json with your settings
 
-./build.sh
+./scripts/build.sh
 npm run migrate:latest
-./start.sh
+./scripts/start.sh
 ```
 
 ## Authentication
@@ -134,7 +134,7 @@ podctl record write my-first-pod /notes welcome "Hello, WebPods!"
 # Write JSON data
 podctl record write my-first-pod /api/users alice '{
   "name": "Alice Smith",
-  "email": "alice@example.com", 
+  "email": "alice@example.com",
   "role": "admin"
 }'
 ```
@@ -168,14 +168,14 @@ Streams are hierarchical paths that organize your data, like folders in a file s
 ```bash
 # Write to nested streams (parent streams are created automatically)
 podctl record write my-first-pod /blog/posts/2024 first-post '{
-  "title": "My First Post", 
+  "title": "My First Post",
   "content": "This is my first blog post using WebPods!",
   "published": true
 }'
 
 podctl record write my-first-pod /blog/posts/2024 second-post '{
   "title": "How WebPods Works",
-  "content": "WebPods uses immutable records...", 
+  "content": "WebPods uses immutable records...",
   "published": false
 }'
 
@@ -197,7 +197,7 @@ podctl record list my-first-pod /blog/posts/2024   # Posts from 2024
 # Your data structure looks like:
 # /blog
 #   metadata
-# /blog/posts  
+# /blog/posts
 # /blog/posts/2024
 #   first-post
 #   second-post
@@ -242,7 +242,7 @@ podctl record write my-first-pod /documents manual.pdf --file manual.pdf
 # Create API-like endpoints
 podctl record write my-first-pod /api/config app '{
   "name": "My App",
-  "version": "1.0.0", 
+  "version": "1.0.0",
   "features": ["auth", "storage", "api"]
 }'
 
@@ -282,17 +282,20 @@ curl -H "Accept: application/json" https://my-first-pod.webpods.org/blog/posts/2
 Now that you have the basics, explore more advanced features:
 
 ### Learn More
+
 - [Full Documentation](README.md) - Complete feature reference
-- [API Reference](api.md) - HTTP API documentation  
+- [API Reference](api.md) - HTTP API documentation
 - [Examples](examples.md) - Real-world use cases
 
 ### Build Something
+
 - **Blog**: Use `/posts` streams for blog entries
-- **API**: Create JSON endpoints with `/api` streams  
+- **API**: Create JSON endpoints with `/api` streams
 - **File Storage**: Upload files to organized streams
 - **Activity Log**: Store events in timestamped records
 
 ### Advanced Features
+
 - **Custom Domains**: Point your domain to your pod
 - **OAuth Apps**: Build applications that use WebPods
 - **Stream Sync**: Sync local directories with streams

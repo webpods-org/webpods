@@ -12,8 +12,8 @@ COPY node/package*.json ./node/
 COPY node/packages/webpods-test-utils/package*.json ./node/packages/webpods-test-utils/
 COPY node/packages/webpods/package*.json ./node/packages/webpods/
 
-# Copy build scripts
-COPY build.sh clean.sh format-all.sh ./
+# Copy build scripts from scripts directory
+COPY scripts/ ./scripts/
 
 # Copy TypeScript config
 COPY tsconfig.base.json ./
@@ -24,8 +24,8 @@ COPY node ./node
 COPY database ./database
 
 # Install dependencies and build
-RUN chmod +x build.sh clean.sh format-all.sh && \
-    ./build.sh --install --no-format
+RUN chmod +x scripts/build.sh scripts/clean.sh scripts/format-all.sh && \
+    ./scripts/build.sh --install --no-format
 
 # Runtime stage - Ubuntu minimal
 FROM ubuntu:24.04 AS runtime
@@ -62,8 +62,8 @@ COPY --chown=webpods:root scripts/docker/config.docker.json ./
 COPY --chown=webpods:root scripts/docker/docker-start.sh ./
 
 # Copy Docker entrypoint
-COPY --chown=webpods:root docker-entrypoint.sh ./
-RUN chmod +x docker-start.sh docker-entrypoint.sh
+COPY --chown=webpods:root scripts/docker-entrypoint.sh ./
+RUN chmod +x docker-start.sh scripts/docker-entrypoint.sh
 
 # Switch to non-root user
 USER webpods
@@ -81,5 +81,5 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
     CMD node -e "require('http').get('http://localhost:' + (process.env.WEBPODS_PORT || 3000) + '/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1))"
 
 # Use entrypoint for automatic setup
-ENTRYPOINT ["./docker-entrypoint.sh"]
+ENTRYPOINT ["./scripts/docker-entrypoint.sh"]
 CMD ["./docker-start.sh"]

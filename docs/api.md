@@ -10,9 +10,11 @@ Complete HTTP API documentation for WebPods.
 ## Authentication Endpoints
 
 ### `GET /auth/providers`
+
 List available OAuth providers.
 
 **Response:**
+
 ```json
 {
   "providers": ["github", "google", "microsoft", "gitlab"]
@@ -20,27 +22,34 @@ List available OAuth providers.
 ```
 
 ### `GET /auth/{provider}`
+
 Start OAuth flow for the specified provider.
 
 **Parameters:**
+
 - `provider` - OAuth provider (github, google, microsoft, gitlab)
 - `no_redirect=1` - Return login URL instead of redirecting
 
 **Example:**
+
 ```bash
 curl "https://webpods.org/auth/github?no_redirect=1"
 ```
 
 ### `GET /auth/{provider}/callback`
+
 OAuth callback endpoint (handled automatically by OAuth flow).
 
 ### `GET /auth/whoami`
+
 Get current user information.
 
 **Headers:**
+
 - `Authorization: Bearer {jwt_token}`
 
 **Response:**
+
 ```json
 {
   "user_id": "github:12345",
@@ -51,21 +60,26 @@ Get current user information.
 ```
 
 ### `POST /auth/logout`
+
 Logout and invalidate token.
 
 **Headers:**
+
 - `Authorization: Bearer {jwt_token}`
 
 ## Pod Management
 
 ### `POST /api/pods`
+
 Create a new pod.
 
 **Headers:**
+
 - `Authorization: Bearer {jwt_token}`
 - `Content-Type: application/json`
 
 **Body:**
+
 ```json
 {
   "name": "my-pod"
@@ -73,6 +87,7 @@ Create a new pod.
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -85,12 +100,15 @@ Create a new pod.
 ```
 
 ### `GET /api/pods`
+
 List user's pods.
 
 **Headers:**
+
 - `Authorization: Bearer {jwt_token}`
 
 **Response:**
+
 ```json
 {
   "pods": [
@@ -104,32 +122,41 @@ List user's pods.
 ```
 
 ### `DELETE https://{pod}.webpods.org/`
+
 Delete a pod.
 
 **Headers:**
+
 - `Authorization: Bearer {jwt_token}`
 
 ## Streams
 
 ### `POST https://{pod}.webpods.org/{stream}?access={mode}`
+
 Create a stream explicitly.
 
 **Query Parameters:**
+
 - `access` - Access mode: `public`, `private`, or `custom`
 
 **Headers:**
+
 - `Authorization: Bearer {jwt_token}`
 
 ### `DELETE https://{pod}.webpods.org/{stream}`
+
 Delete a stream.
 
 **Headers:**
+
 - `Authorization: Bearer {jwt_token}`
 
 ### `GET https://{pod}.webpods.org/.config/api/streams`
+
 List all streams in a pod.
 
 **Response:**
+
 ```json
 {
   "streams": [
@@ -140,7 +167,7 @@ List all streams in a pod.
     },
     {
       "path": "/blog/posts",
-      "access": "public", 
+      "access": "public",
       "record_count": 15
     }
   ]
@@ -150,15 +177,18 @@ List all streams in a pod.
 ## Records
 
 ### `POST https://{pod}.webpods.org/{stream}/{name}`
+
 Write a record to a stream.
 
 **Headers:**
+
 - `Authorization: Bearer {jwt_token}` (if stream is private)
 - `Content-Type: application/json` or `text/plain`
 
 **Body:** Any content (JSON, text, binary)
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -175,21 +205,26 @@ Write a record to a stream.
 ```
 
 ### `GET https://{pod}.webpods.org/{stream}/{name}`
+
 Read a specific record.
 
 **Headers:**
+
 - `Authorization: Bearer {jwt_token}` (if stream is private)
 
 **Response:** Record content with headers:
+
 - `Content-Type`: Original content type
 - `X-Record-Index`: Record index number
 - `X-Record-Hash`: Record hash
 - `X-Record-Timestamp`: Creation timestamp
 
 ### `GET https://{pod}.webpods.org/{stream}`
+
 List records in a stream.
 
 **Query Parameters:**
+
 - `after` - Start after this index (supports negative values for "last N")
 - `before` - End before this index
 - `limit` - Maximum records to return (default 100, max 1000)
@@ -197,6 +232,7 @@ List records in a stream.
 - `format` - Response format: `json` (default) or `html`
 
 **Examples:**
+
 ```bash
 # Get all records
 GET /blog/posts
@@ -215,6 +251,7 @@ GET /blog/posts?after=5&before=15
 ```
 
 **Response:**
+
 ```json
 {
   "stream": "/blog/posts",
@@ -240,13 +277,16 @@ GET /blog/posts?after=5&before=15
 ## OAuth Client Management
 
 ### `POST /api/oauth/clients`
+
 Register a new OAuth client.
 
 **Headers:**
+
 - `Authorization: Bearer {jwt_token}`
 - `Content-Type: application/json`
 
 **Body:**
+
 ```json
 {
   "name": "My App",
@@ -255,35 +295,44 @@ Register a new OAuth client.
 ```
 
 ### `GET /api/oauth/clients`
+
 List registered clients.
 
 **Headers:**
+
 - `Authorization: Bearer {jwt_token}`
 
 ### `GET /api/oauth/clients/{id}`
+
 Get client details.
 
 ### `DELETE /api/oauth/clients/{id}`
+
 Delete a client.
 
 ## OAuth 2.0 Flow
 
 ### `GET /connect`
+
 Simplified authorization endpoint.
 
 **Query Parameters:**
+
 - `client_id` - Registered client ID
 - `redirect_uri` - Callback URL
 - `scope` - Requested permissions
 - `state` - Optional state parameter
 
 ### `GET /oauth2/auth`
+
 Full OAuth 2.0 authorization endpoint.
 
 ### `POST /oauth2/token`
+
 OAuth 2.0 token exchange endpoint.
 
 ### `GET /oauth2/userinfo`
+
 Get user information using OAuth token.
 
 ## Error Responses
@@ -300,6 +349,7 @@ All errors follow this format:
 ```
 
 Common error codes:
+
 - `UNAUTHORIZED` - Missing or invalid authentication
 - `FORBIDDEN` - Insufficient permissions
 - `POD_NOT_FOUND` - Pod doesn't exist
@@ -311,6 +361,7 @@ Common error codes:
 ## Rate Limits
 
 Default limits (configurable):
+
 - 1000 requests per hour per user
 - 100 records per request maximum
 - 10MB maximum request size

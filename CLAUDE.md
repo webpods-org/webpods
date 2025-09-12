@@ -152,8 +152,8 @@ The codebase follows a functional programming approach with these key directorie
 
 When the user asks you to commit and push:
 
-1. Run `./format-all.sh` to format all files with Prettier
-2. Run `./lint-all.sh` to ensure code passes linting
+1. Run `./scripts/format-all.sh` to format all files with Prettier
+2. Run `./scripts/lint-all.sh` to ensure code passes linting
 3. Follow the git commit guidelines in the main Claude system prompt
 4. Get explicit user confirmation before any `git push`
 
@@ -163,23 +163,23 @@ When the user asks you to commit and push:
 
 ```bash
 # Build entire project (from root)
-./build.sh              # Standard build with formatting
-./build.sh --migrate    # Build + run DB migrations
-./build.sh --no-format  # Skip prettier formatting (faster builds during development)
+./scripts/build.sh              # Standard build with formatting
+./scripts/build.sh --migrate    # Build + run DB migrations
+./scripts/build.sh --no-format  # Skip prettier formatting (faster builds during development)
 
 # Clean build artifacts
-./clean.sh
+./scripts/clean.sh
 
 # Start the server
-./start.sh
+./scripts/start.sh
 
 # Lint entire project
-./lint-all.sh           # Run ESLint on all packages
-./lint-all.sh --fix     # Run ESLint with auto-fix
+./scripts/lint-all.sh           # Run ESLint on all packages
+./scripts/lint-all.sh --fix     # Run ESLint with auto-fix
 
 # Format code with Prettier (MUST run before committing)
-./format-all.sh         # Format all files
-./format-all.sh --check # Check formatting without changing files
+./scripts/format-all.sh         # Format all files
+./scripts/format-all.sh --check # Check formatting without changing files
 
 # Docker commands (if applicable)
 ./docker-build.sh       # Build Docker image
@@ -390,17 +390,24 @@ npm run test:grep -- "permission"
 
 ### Optimizing Build Speed During Debugging
 
-**TIP**: Use `./build.sh --no-format` during debugging sessions to skip prettier formatting. This:
+**TIP**: Use `./scripts/build.sh --no-format` during debugging sessions to skip prettier formatting. This:
 
 - Reduces build time significantly
 - Minimizes output that gets sent to the AI model (reducing token count)
 - Makes the debugging cycle faster
 
-Only use the standard `./build.sh` (with formatting) for final builds before committing.
+Only use the standard `./scripts/build.sh` (with formatting) for final builds before committing.
 
 ## Git Workflow
 
 **IMPORTANT**: NEVER commit, push, revert, or perform ANY git operations (including but not limited to: git checkout, git reset, git stash, git merge, git rebase) without explicit user permission. This includes never reverting changes unless explicitly asked by the user. When the user asks you to commit and push, follow the git commit guidelines in the main Claude system prompt.
+
+**NEW BRANCH REQUIREMENT**: ALL changes must be made on a new feature branch, never directly on main. When the user asks you to commit and push:
+
+1. **Always create a new branch** with a descriptive name (e.g., `organize-scripts`, `fix-auth-bug`, `add-feature-name`)
+2. **Make commits on the feature branch**
+3. **Push the feature branch to remote**
+4. **Never commit or push directly to main**
 
 **VERSION UPDATES**: Whenever committing changes, you MUST increment the patch version in `/node/packages/webpods/package.json`. For example, from 0.0.5 to 0.0.6. This ensures proper version tracking for all changes.
 

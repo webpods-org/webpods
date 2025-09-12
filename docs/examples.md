@@ -7,6 +7,7 @@ Real-world use cases and code samples for WebPods.
 Build a static blog using WebPods as your data store.
 
 ### Features
+
 - Append-only blog posts
 - Categories and tags
 - Comments system
@@ -27,7 +28,7 @@ podctl record write my-blog /posts/2024 "welcome" '{
 }'
 
 podctl record write my-blog /posts/2024 "second-post" '{
-  "title": "How WebPods Works", 
+  "title": "How WebPods Works",
   "content": "WebPods organizes data into pods and streams...",
   "tags": ["webpods", "technical"],
   "published_at": "2024-01-16T14:20:00Z"
@@ -69,18 +70,22 @@ curl https://my-blog.webpods.org/.config/rss
 ```javascript
 // Fetch blog posts
 async function loadBlogPosts() {
-  const response = await fetch('https://my-blog.webpods.org/posts/2024?after=-10');
+  const response = await fetch(
+    "https://my-blog.webpods.org/posts/2024?after=-10",
+  );
   const data = await response.json();
-  return data.records.map(record => ({
+  return data.records.map((record) => ({
     id: record.name,
     ...JSON.parse(record.content),
-    timestamp: record.timestamp
+    timestamp: record.timestamp,
   }));
 }
 
 // Fetch single post
 async function loadPost(postId) {
-  const response = await fetch(`https://my-blog.webpods.org/posts/2024/${postId}`);
+  const response = await fetch(
+    `https://my-blog.webpods.org/posts/2024/${postId}`,
+  );
   return await response.json();
 }
 ```
@@ -105,9 +110,9 @@ podctl record write my-api /users "alice" '{
 }'
 
 podctl record write my-api /users "bob" '{
-  "id": "bob", 
+  "id": "bob",
   "name": "Bob Johnson",
-  "email": "bob@example.com", 
+  "email": "bob@example.com",
   "role": "user",
   "created_at": "2024-01-15T11:00:00Z"
 }'
@@ -115,7 +120,7 @@ podctl record write my-api /users "bob" '{
 # Activity log
 podctl record write my-api /activity "$(date +%s)" '{
   "user_id": "alice",
-  "action": "login", 
+  "action": "login",
   "timestamp": "2024-01-15T10:30:00Z",
   "ip_address": "192.168.1.100"
 }'
@@ -125,37 +130,41 @@ podctl record write my-api /activity "$(date +%s)" '{
 
 ```javascript
 // Express.js integration
-const express = require('express');
+const express = require("express");
 const app = express();
 
 // Get user profile
-app.get('/api/users/:id', async (req, res) => {
+app.get("/api/users/:id", async (req, res) => {
   try {
-    const response = await fetch(`https://my-api.webpods.org/users/${req.params.id}`);
+    const response = await fetch(
+      `https://my-api.webpods.org/users/${req.params.id}`,
+    );
     if (!response.ok) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: "User not found" });
     }
     const user = await response.json();
     res.json(user);
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
 // List all users
-app.get('/api/users', async (req, res) => {
-  const response = await fetch('https://my-api.webpods.org/users?unique=true');
+app.get("/api/users", async (req, res) => {
+  const response = await fetch("https://my-api.webpods.org/users?unique=true");
   const data = await response.json();
-  const users = data.records.map(record => JSON.parse(record.content));
+  const users = data.records.map((record) => JSON.parse(record.content));
   res.json(users);
 });
 
 // Activity log
-app.get('/api/activity', async (req, res) => {
+app.get("/api/activity", async (req, res) => {
   const limit = req.query.limit || 50;
-  const response = await fetch(`https://my-api.webpods.org/activity?after=-${limit}`);
+  const response = await fetch(
+    `https://my-api.webpods.org/activity?after=-${limit}`,
+  );
   const data = await response.json();
-  const activities = data.records.map(record => JSON.parse(record.content));
+  const activities = data.records.map((record) => JSON.parse(record.content));
   res.json(activities);
 });
 ```
@@ -187,7 +196,7 @@ podctl record write my-site /public/images "logo.png" --file logo.png
 # Set up URL routing
 podctl record write my-site /.config "routes" '{
   "/": "/public/index.html",
-  "/about": "/public/about.html", 
+  "/about": "/public/about.html",
   "/contact": "/public/contact.html",
   "/blog/*": "/public/blog.html"
 }'
@@ -264,25 +273,29 @@ curl "https://chat-room.webpods.org/messages?after=-50"
 
 ```javascript
 // Frontend: Listen for new messages
-const eventSource = new EventSource('https://chat-room.webpods.org/messages/events');
+const eventSource = new EventSource(
+  "https://chat-room.webpods.org/messages/events",
+);
 
-eventSource.onmessage = function(event) {
+eventSource.onmessage = function (event) {
   const message = JSON.parse(event.data);
   displayMessage(message);
 };
 
 // Backend: Stream new messages
-app.get('/messages/events', async (req, res) => {
+app.get("/messages/events", async (req, res) => {
   res.writeHead(200, {
-    'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache',
-    'Connection': 'keep-alive',
-    'Access-Control-Allow-Origin': '*'
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+    "Access-Control-Allow-Origin": "*",
   });
-  
+
   // Poll for new messages and send as SSE
   setInterval(async () => {
-    const response = await fetch('https://chat-room.webpods.org/messages?after=-1');
+    const response = await fetch(
+      "https://chat-room.webpods.org/messages?after=-1",
+    );
     const data = await response.json();
     if (data.records.length > 0) {
       res.write(`data: ${JSON.stringify(data.records[0])}\n\n`);
@@ -302,7 +315,7 @@ Use WebPods for storing and analyzing event data.
 podctl record write analytics /events "$(date +%s)" '{
   "event": "page_view",
   "page": "/home",
-  "user_id": "alice", 
+  "user_id": "alice",
   "timestamp": "2024-01-15T10:30:00Z",
   "properties": {
     "referrer": "https://google.com",
@@ -314,7 +327,7 @@ podctl record write analytics /events "$(date +%s)" '{
 podctl record write analytics /events "$(date +%s)" '{
   "event": "purchase",
   "user_id": "alice",
-  "timestamp": "2024-01-15T10:45:00Z", 
+  "timestamp": "2024-01-15T10:45:00Z",
   "properties": {
     "product_id": "widget-123",
     "amount": 29.99,
@@ -360,7 +373,7 @@ podctl record write my-cms /pages "home" '{
 # Store blog posts
 podctl record write my-cms /blog "first-post" '{
   "title": "Our First Blog Post",
-  "slug": "first-post", 
+  "slug": "first-post",
   "content": "This is our first blog post...",
   "excerpt": "This is our first blog post",
   "status": "published",
@@ -378,20 +391,22 @@ podctl record write my-cms /media "hero-image.jpg" --file hero-image.jpg
 
 ```javascript
 // Get published pages
-app.get('/api/pages', async (req, res) => {
-  const response = await fetch('https://my-cms.webpods.org/pages?unique=true');
+app.get("/api/pages", async (req, res) => {
+  const response = await fetch("https://my-cms.webpods.org/pages?unique=true");
   const data = await response.json();
   const pages = data.records
-    .map(record => JSON.parse(record.content))
-    .filter(page => page.status === 'published');
+    .map((record) => JSON.parse(record.content))
+    .filter((page) => page.status === "published");
   res.json(pages);
 });
 
 // Get specific page
-app.get('/api/pages/:slug', async (req, res) => {
-  const response = await fetch(`https://my-cms.webpods.org/pages/${req.params.slug}`);
+app.get("/api/pages/:slug", async (req, res) => {
+  const response = await fetch(
+    `https://my-cms.webpods.org/pages/${req.params.slug}`,
+  );
   if (!response.ok) {
-    return res.status(404).json({ error: 'Page not found' });
+    return res.status(404).json({ error: "Page not found" });
   }
   const page = await response.json();
   res.json(page);
