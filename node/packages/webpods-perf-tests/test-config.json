@@ -1,0 +1,17 @@
+{
+  "logLevel": "error",
+  "maxRecordLimit": 10000,
+  "rateLimits": {
+    "maxRecordLimit": 10000
+  },
+  "oauth": {
+    "defaultProvider": "github",
+    "providers": {
+      "github": {
+        "clientId": "test-client-id",
+        "clientSecret": "test-client-secret"
+      }
+    }
+  },
+  "externalStorageThreshold": 1024
+}

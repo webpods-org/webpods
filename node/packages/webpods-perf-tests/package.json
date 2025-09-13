@@ -1,0 +1,27 @@
+{
+  "name": "webpods-perf-tests",
+  "version": "0.0.1",
+  "description": "Performance tests for WebPods",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "LOG_LEVEL=error mocha --exit --timeout 120000",
+    "test:grep": "LOG_LEVEL=error mocha --exit --timeout 120000 --grep",
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix"
+  },
+  "devDependencies": {
+    "@types/chai": "^5.2.2",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^24.1.0",
+    "chai": "^5.2.1",
+    "jsonwebtoken": "^9.0.2",
+    "mocha": "^11.7.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3",
+    "webpods-test-utils": "file:../webpods-test-utils"
+  }
+}
