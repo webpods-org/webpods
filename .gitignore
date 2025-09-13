@@ -156,3 +156,6 @@ test-pod-*-backup-*.json
 
 # Analysis working directory
 .analysis/
+
+# Task tracking directory
+.todos/

@@ -11,6 +11,7 @@ import { calculateContentHash, calculateRecordHash } from "../../utils.js";
 import { createLogger } from "../../logger.js";
 import { getStorageAdapter } from "../../storage-adapters/index.js";
 import { extname } from "path";
+import { cacheInvalidation } from "../../cache/index.js";
 
 const logger = createLogger("webpods:domain:records");
 
@@ -173,6 +174,9 @@ export async function deleteRecord(
         index,
         userId,
       });
+
+      // Invalidate caches for the deleted record
+      await cacheInvalidation.invalidateRecord(streamId.toString(), recordName);
 
       return success(mapRecordFromDb(tombstone));
     });

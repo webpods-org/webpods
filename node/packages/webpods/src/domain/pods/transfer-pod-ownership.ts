@@ -9,6 +9,7 @@ import { StreamDbRow, RecordDbRow } from "../../db-types.js";
 import { calculateContentHash, calculateRecordHash } from "../../utils.js";
 import { createLogger } from "../../logger.js";
 import { sql } from "../../db/index.js";
+import { cacheInvalidation, getCache } from "../../cache/index.js";
 
 const logger = createLogger("webpods:domain:pods");
 
@@ -125,6 +126,17 @@ export async function transferPodOwnership(
       };
 
       await t.none(sql.insert("record", params), params);
+
+      // Invalidate pod cache since owner has changed
+      await cacheInvalidation.invalidatePod(podName, podName);
+
+      // Invalidate both users' pod list caches and pod owner cache
+      const cache = getCache();
+      if (cache) {
+        await cache.delete("pods", `user-pods:${fromUserId}`);
+        await cache.delete("pods", `user-pods:${toUserId}`);
+        await cache.delete("pods", `pod-owner:${podName}`);
+      }
 
       logger.info("Pod ownership transferred", {
         podName,

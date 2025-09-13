@@ -6,3 +6,4 @@ import "./tests/auth.test.js";
 import "./tests/streams.test.js";
 import "./tests/permissions.test.js";
 import "./tests/rate-limit.test.js";
+import "./tests/cache.test.js";

@@ -4,6 +4,7 @@ import {
   TestHttpClient,
   createTestUser,
   createTestPod,
+  clearAllCache,
 } from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 import { promises as fs } from "fs";
@@ -31,6 +32,7 @@ describe("WebPods External Storage", () => {
     "/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAr/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCwAA8A/9k=";
 
   beforeEach(async () => {
+    await clearAllCache();
     // Use the configured test media directory
     tempStorageDir = join(process.cwd(), ".tests", "media");
 
@@ -64,6 +66,7 @@ describe("WebPods External Storage", () => {
     // Clean up test media files (but keep the directory for next test)
     const podDir = join(tempStorageDir, testPodId);
     await fs.rm(podDir, { recursive: true, force: true }).catch(() => {});
+    await clearAllCache();
   });
 
   describe("External Storage Upload", () => {

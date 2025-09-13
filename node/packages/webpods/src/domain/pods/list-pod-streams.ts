@@ -7,6 +7,8 @@ import { Result, success, failure } from "../../utils/result.js";
 import { createError } from "../../utils/errors.js";
 import { StreamDbRow, PodDbRow, RecordDbRow } from "../../db-types.js";
 import { createLogger } from "../../logger.js";
+import { getCache, getCacheConfig } from "../../cache/index.js";
+import { createHash } from "crypto";
 
 const logger = createLogger("webpods:domain:pods");
 
@@ -153,6 +155,30 @@ export async function listPodStreams(
   options: ListStreamsOptions = {},
 ): Promise<Result<StreamInfo[]>> {
   try {
+    // Create cache key based on pod name and options
+    const cache = getCache();
+    let cacheKey: string | null = null;
+
+    // Only cache simple queries (not ones with record counts or hashes)
+    if (cache && !options.includeRecordCounts && !options.includeHashes) {
+      const optionsHash = createHash("sha256")
+        .update(
+          JSON.stringify({
+            path: options.path || "",
+            recursive: options.recursive || false,
+          }),
+        )
+        .digest("hex")
+        .substring(0, 8);
+      cacheKey = `pod-streams:${podName}:${optionsHash}`;
+
+      const cached = await cache.get("streams", cacheKey);
+      if (cached !== undefined) {
+        logger.debug("Pod streams found in cache", { podName, options });
+        return success(cached as StreamInfo[]);
+      }
+    }
+
     const pod = await ctx.db.oneOrNone<PodDbRow>(
       `SELECT * FROM pod WHERE name = $(pod_name)`,
       { pod_name: podName },
@@ -321,6 +347,13 @@ export async function listPodStreams(
 
     // Sort by path
     result.sort((a, b) => a.path.localeCompare(b.path));
+
+    // Cache the result if we generated a cache key
+    if (cache && cacheKey) {
+      const cacheConfig = getCacheConfig();
+      const ttl = cacheConfig?.pools?.streams?.ttlSeconds || 300;
+      await cache.set("streams", cacheKey, result, ttl);
+    }
 
     return success(result);
   } catch (error: unknown) {

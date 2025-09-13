@@ -6,6 +6,7 @@ import { DataContext } from "../data-context.js";
 import { Result, success } from "../../utils/result.js";
 import { RecordDbRow, StreamDbRow } from "../../db-types.js";
 import { createLogger } from "../../logger.js";
+import { getCache, getCacheConfig } from "../../cache/index.js";
 
 const logger = createLogger("webpods:domain:routing");
 
@@ -20,6 +21,17 @@ export async function resolveLink(
   path: string,
 ): Promise<Result<LinkMapping | null>> {
   try {
+    // Check cache first
+    const cache = getCache();
+    if (cache) {
+      const cacheKey = `link:${podName}:${path}`;
+      const cached = await cache.get("pods", cacheKey);
+      if (cached !== undefined) {
+        logger.debug("Link resolution found in cache", { podName, path });
+        return success(cached as LinkMapping | null);
+      }
+    }
+
     // Get .config stream
     const configStream = await ctx.db.oneOrNone<StreamDbRow>(
       `SELECT id FROM stream 
@@ -77,6 +89,13 @@ export async function resolveLink(
         : record.content;
 
     if (!links[path]) {
+      // Cache the null result too
+      if (cache) {
+        const cacheKey = `link:${podName}:${path}`;
+        const cacheConfig = getCacheConfig();
+        const ttl = cacheConfig?.pools?.pods?.ttlSeconds || 300;
+        await cache.set("pods", cacheKey, null, ttl);
+      }
       return success(null);
     }
 
@@ -84,33 +103,45 @@ export async function resolveLink(
     const mapping = links[path];
 
     // Check if it has query parameters
+    let result: LinkMapping;
+
     if (mapping.includes("?")) {
       // Handle format like "homepage?i=-1"
       const [streamPath, query] = mapping.split("?");
-      return success({
+      result = {
         streamPath: streamPath!,
         target: query ? `?${query}` : "",
-      });
+      };
+    } else {
+      // Handle format like "homepage/-1" or "homepage/my-post"
+      const parts = mapping.split("/");
+
+      if (parts.length === 1) {
+        // Just stream name, no target
+        result = {
+          streamPath: parts[0]!,
+          target: "",
+        };
+      } else {
+        // Stream name with record name/index
+        const streamPath = parts[0]!;
+        const recordTarget = parts.slice(1).join("/");
+        result = {
+          streamPath,
+          target: `/${recordTarget}`,
+        };
+      }
     }
 
-    // Handle format like "homepage/-1" or "homepage/my-post"
-    const parts = mapping.split("/");
-
-    if (parts.length === 1) {
-      // Just stream name, no target
-      return success({
-        streamPath: parts[0]!,
-        target: "",
-      });
+    // Cache the result
+    if (cache) {
+      const cacheKey = `link:${podName}:${path}`;
+      const cacheConfig = getCacheConfig();
+      const ttl = cacheConfig?.pools?.pods?.ttlSeconds || 300;
+      await cache.set("pods", cacheKey, result, ttl);
     }
 
-    // Stream name with record name/index
-    const streamPath = parts[0]!;
-    const recordTarget = parts.slice(1).join("/");
-    return success({
-      streamPath,
-      target: `/${recordTarget}`,
-    });
+    return success(result);
   } catch (error: unknown) {
     logger.error("Failed to resolve link", { error, podName, path });
     return success(null);

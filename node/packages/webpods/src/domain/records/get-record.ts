@@ -8,6 +8,8 @@ import { RecordDbRow } from "../../db-types.js";
 import { StreamRecord } from "../../types.js";
 import { isNumericIndex } from "../../utils.js";
 import { createLogger } from "../../logger.js";
+import { getCache, cacheKeys } from "../../cache/index.js";
+import { getConfig } from "../../config-loader.js";
 
 const logger = createLogger("webpods:domain:records");
 
@@ -47,7 +49,30 @@ export async function getRecord(
   preferName: boolean = false,
 ): Promise<Result<StreamRecord>> {
   try {
+    const cache = getCache();
+    const config = getConfig();
     let record: RecordDbRow | null = null;
+    let isNameLookup = false;
+    let recordName: string | null = null;
+
+    // Check cache for named records (not index-based lookups)
+    if (!isNumericIndex(target) || preferName) {
+      isNameLookup = true;
+      recordName = target;
+
+      if (cache && config.cache?.pools?.singleRecords?.enabled) {
+        const cacheKey = cacheKeys.record(streamId.toString(), target);
+        const cachedRecord = await cache.get<StreamRecord>(
+          "singleRecords",
+          cacheKey,
+        );
+        if (cachedRecord) {
+          logger.debug("Record cache hit", { streamId, target });
+          return success(cachedRecord);
+        }
+        logger.debug("Record cache miss", { streamId, target });
+      }
+    }
 
     // If preferName is true, try name first even if target is numeric
     if (preferName) {
@@ -64,6 +89,8 @@ export async function getRecord(
 
       // If not found as name and target is numeric, try as index
       if (!record && isNumericIndex(target)) {
+        isNameLookup = false; // Switching to index lookup
+        recordName = null;
         let index = parseInt(target);
 
         // Handle negative indexing
@@ -89,6 +116,8 @@ export async function getRecord(
       }
     } else if (isNumericIndex(target)) {
       // Target is numeric, treat as index
+      isNameLookup = false;
+      recordName = null;
       let index = parseInt(target);
 
       // Handle negative indexing
@@ -128,7 +157,37 @@ export async function getRecord(
       return failure(new Error("Record not found"));
     }
 
-    return success(mapRecordFromDb(record));
+    const mappedRecord = mapRecordFromDb(record);
+
+    // Cache named records only (not index lookups, as indexes can change)
+    if (
+      cache &&
+      config.cache?.pools?.singleRecords?.enabled &&
+      isNameLookup &&
+      recordName
+    ) {
+      // Check size limit
+      const size = cache.checkSize(mappedRecord);
+      if (size <= config.cache.pools.singleRecords.maxRecordSizeBytes) {
+        const cacheKey = cacheKeys.record(streamId.toString(), recordName);
+        const ttl = config.cache.pools.singleRecords.ttlSeconds;
+        await cache.set("singleRecords", cacheKey, mappedRecord, ttl);
+        logger.debug("Record cached", {
+          streamId,
+          name: recordName,
+          size,
+          ttl,
+        });
+      } else {
+        logger.debug("Record too large to cache", {
+          streamId,
+          name: recordName,
+          size,
+        });
+      }
+    }
+
+    return success(mappedRecord);
   } catch (error: unknown) {
     logger.error("Failed to get record", { error, podName, streamId, target });
     return failure(new Error("Failed to get record"));

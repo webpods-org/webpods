@@ -7,6 +7,7 @@ import { Result, success, failure } from "../../utils/result.js";
 import { createError } from "../../utils/errors.js";
 import { StreamDbRow } from "../../db-types.js";
 import { createLogger } from "../../logger.js";
+import { cacheInvalidation, getCache } from "../../cache/index.js";
 
 const logger = createLogger("webpods:domain:streams");
 
@@ -79,6 +80,33 @@ export async function deleteStream(
         podName,
         streamId,
       });
+
+      // Invalidate caches for the deleted stream and its children
+      // Note: Child streams are CASCADE deleted, so we rely on the pod-level invalidation
+      await cacheInvalidation.invalidateStream(
+        streamId.toString(),
+        podName,
+        stream.path,
+      );
+
+      // Invalidate parent's child stream list cache
+      const cache = getCache();
+      if (cache && stream.parent_id) {
+        await cache.delete(
+          "streams",
+          `children:${podName}:${stream.parent_id}`,
+        );
+        await cache.delete(
+          "streams",
+          `children-count:${podName}:${stream.parent_id}`,
+        );
+      }
+      // If this was a root stream, invalidate the root children cache
+      if (!stream.parent_id && cache) {
+        await cache.delete("streams", `children:${podName}:root`);
+        await cache.delete("streams", `children-count:${podName}:root`);
+      }
+
       return success(undefined);
     });
   } catch (error: unknown) {

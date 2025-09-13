@@ -7,6 +7,8 @@ import { Result, success, failure } from "../../utils/result.js";
 import { RecordDbRow } from "../../db-types.js";
 import { StreamRecord } from "../../types.js";
 import { createLogger } from "../../logger.js";
+import { getCache, getCacheConfig } from "../../cache/index.js";
+import { createHash } from "crypto";
 
 const logger = createLogger("webpods:domain:records");
 
@@ -48,6 +50,35 @@ export async function listUniqueRecords(
   Result<{ records: StreamRecord[]; total: number; hasMore: boolean }>
 > {
   try {
+    // Check cache first
+    const cache = getCache();
+    let cacheKey: string | null = null;
+
+    if (cache) {
+      // Create cache key based on stream ID and pagination parameters
+      const paramsHash = createHash("sha256")
+        .update(JSON.stringify({ limit, after: after || 0 }))
+        .digest("hex")
+        .substring(0, 8);
+      cacheKey = `unique:${streamId}:${paramsHash}`;
+
+      const cached = await cache.get("recordLists", cacheKey);
+      if (cached !== undefined) {
+        logger.debug("Unique records found in cache", {
+          streamId,
+          limit,
+          after,
+        });
+        return success(
+          cached as {
+            records: StreamRecord[];
+            total: number;
+            hasMore: boolean;
+          },
+        );
+      }
+    }
+
     // Get all records with names (excluding empty names), ordered by index
     const allRecords = await ctx.db.manyOrNone<RecordDbRow>(
       `SELECT * FROM record
@@ -139,11 +170,25 @@ export async function listUniqueRecords(
       uniqueRecords = uniqueRecords.slice(0, limit);
     }
 
-    return success({
+    const result = {
       records: uniqueRecords.map(mapRecordFromDb),
       total,
       hasMore,
-    });
+    };
+
+    // Cache the result if we have a cache key and result is reasonable size
+    if (cache && cacheKey) {
+      // Check size before caching (don't cache large results)
+      const resultSize = JSON.stringify(result).length;
+      const cacheConfig = getCacheConfig();
+      const ttl = cacheConfig?.pools?.recordLists?.ttlSeconds || 30;
+      if (resultSize <= 52428800) {
+        // 50MB limit for unique record lists
+        await cache.set("recordLists", cacheKey, result, ttl);
+      }
+    }
+
+    return success(result);
   } catch (error: unknown) {
     logger.error("Failed to list unique records", {
       error,

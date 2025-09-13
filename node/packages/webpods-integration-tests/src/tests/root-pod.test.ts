@@ -4,6 +4,7 @@ import {
   TestHttpClient,
   createTestUser,
   createTestPod,
+  clearAllCache,
 } from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 
@@ -51,6 +52,7 @@ describe("WebPods Root Pod", () => {
   }
 
   beforeEach(async () => {
+    await clearAllCache();
     client = new TestHttpClient(mainUrl);
 
     // Create test user - needs to be in beforeEach since afterEach truncates all tables
@@ -62,6 +64,10 @@ describe("WebPods Root Pod", () => {
       name: "Root Test User",
     });
     userId = user.userId;
+  });
+
+  afterEach(async () => {
+    await clearAllCache();
   });
 
   describe("With rootPod configured but not existing", () => {

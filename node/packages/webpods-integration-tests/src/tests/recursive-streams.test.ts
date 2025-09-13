@@ -4,6 +4,7 @@ import {
   TestHttpClient,
   createTestUser,
   createTestPod,
+  clearAllCache,
 } from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 
@@ -15,6 +16,7 @@ describe("Recursive Stream Queries", () => {
   const baseUrl = `http://${testPodId}.localhost:3000`;
 
   beforeEach(async () => {
+    await clearAllCache();
     client = new TestHttpClient("http://localhost:3000");
     // Create a test user and auth token
     const db = testDb.getDb();
@@ -35,6 +37,10 @@ describe("Recursive Stream Queries", () => {
 
     client.setBaseUrl(baseUrl);
     client.setAuthToken(authToken);
+  });
+
+  afterEach(async () => {
+    await clearAllCache();
   });
 
   describe("GET /{stream}?recursive=true", () => {
@@ -203,14 +209,12 @@ describe("Recursive Stream Queries", () => {
       expect(records).to.be.an("array");
       expect(records.length).to.be.greaterThan(0);
 
-      // Check that we have unique named records
-      const recordNames = records.map((r: any) => r.name);
-      const uniqueNames = [...new Set(recordNames)];
-      expect(recordNames.length).to.equal(uniqueNames.length); // All names should be unique
+      // Should have 3 records: config.json from /test, config.json from /test/nested, and other.txt
+      expect(records.length).to.equal(3);
 
-      // Should have records from nested streams
+      // Should have 2 config.json records (one from each stream)
       const configs = records.filter((r: any) => r.name === "config.json");
-      expect(configs.length).to.be.greaterThan(0);
+      expect(configs.length).to.equal(2);
 
       // Should have other.txt from nested stream
       const otherFile = records.find((r: any) => r.name === "other.txt");

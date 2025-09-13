@@ -65,6 +65,35 @@
     "publicUrl": "http://localhost:4444"
   },
   "rootPod": "testroot",
+  "cache": {
+    "enabled": true,
+    "adapter": "in-memory",
+    "pools": {
+      "pods": {
+        "enabled": true,
+        "maxEntries": 100,
+        "ttlSeconds": 2
+      },
+      "streams": {
+        "enabled": true,
+        "maxEntries": 500,
+        "ttlSeconds": 2
+      },
+      "singleRecords": {
+        "enabled": true,
+        "maxEntries": 1000,
+        "maxRecordSizeBytes": 10240,
+        "ttlSeconds": 1
+      },
+      "recordLists": {
+        "enabled": true,
+        "maxQueries": 100,
+        "maxResultSizeBytes": 102400,
+        "maxRecordsPerQuery": 100,
+        "ttlSeconds": 1
+      }
+    }
+  },
   "media": {
     "externalStorage": {
       "enabled": true,

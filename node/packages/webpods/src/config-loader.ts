@@ -11,6 +11,8 @@ import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import { createLogger } from "./logger.js";
 import type { RawConfig } from "./types.js";
+import type { CacheConfig } from "./cache/types.js";
+import { defaultCacheConfig } from "./cache/types.js";
 
 const logger = createLogger("webpods:config-loader");
 
@@ -116,6 +118,7 @@ export interface AppConfig {
   rateLimits: RateLimitsConfig;
   hydra: HydraConfig;
   media?: MediaConfig; // Optional media configuration
+  cache?: CacheConfig; // Optional cache configuration
   rootPod?: string; // Optional pod to serve on main domain
 }
 
@@ -133,6 +136,58 @@ function loadMediaConfig(): MediaConfig | undefined {
           baseUrl:
             process.env.MEDIA_FILESYSTEM_BASE_URL ||
             "https://static.example.com",
+        },
+      },
+    };
+  }
+  return undefined;
+}
+
+// Load cache config from environment for testing
+function loadCacheConfig(): CacheConfig | undefined {
+  if (process.env.CACHE_ENABLED === "true") {
+    return {
+      enabled: true,
+      adapter: (process.env.CACHE_ADAPTER || "in-memory") as
+        | "in-memory"
+        | "redis",
+      pools: {
+        pods: {
+          enabled: process.env.CACHE_PODS_ENABLED !== "false",
+          maxEntries: parseInt(process.env.CACHE_PODS_MAX_ENTRIES || "1000"),
+          ttlSeconds: parseInt(process.env.CACHE_PODS_TTL_SECONDS || "300"),
+        },
+        streams: {
+          enabled: process.env.CACHE_STREAMS_ENABLED !== "false",
+          maxEntries: parseInt(process.env.CACHE_STREAMS_MAX_ENTRIES || "5000"),
+          ttlSeconds: parseInt(process.env.CACHE_STREAMS_TTL_SECONDS || "300"),
+        },
+        singleRecords: {
+          enabled: process.env.CACHE_SINGLE_RECORDS_ENABLED !== "false",
+          maxEntries: parseInt(
+            process.env.CACHE_SINGLE_RECORDS_MAX_ENTRIES || "10000",
+          ),
+          maxRecordSizeBytes: parseInt(
+            process.env.CACHE_SINGLE_RECORDS_MAX_SIZE_BYTES || "10240",
+          ),
+          ttlSeconds: parseInt(
+            process.env.CACHE_SINGLE_RECORDS_TTL_SECONDS || "60",
+          ),
+        },
+        recordLists: {
+          enabled: process.env.CACHE_RECORD_LISTS_ENABLED !== "false",
+          maxQueries: parseInt(
+            process.env.CACHE_RECORD_LISTS_MAX_QUERIES || "500",
+          ),
+          maxResultSizeBytes: parseInt(
+            process.env.CACHE_RECORD_LISTS_MAX_SIZE_BYTES || "102400",
+          ),
+          maxRecordsPerQuery: parseInt(
+            process.env.CACHE_RECORD_LISTS_MAX_RECORDS || "1000",
+          ),
+          ttlSeconds: parseInt(
+            process.env.CACHE_RECORD_LISTS_TTL_SECONDS || "30",
+          ),
         },
       },
     };
@@ -409,6 +464,16 @@ export function loadConfig(configPath?: string): AppConfig {
     // Load media config from environment if not in config file
     if (!config.media) {
       config.media = loadMediaConfig();
+    }
+
+    // Load cache config from environment if not in config file
+    if (!config.cache) {
+      config.cache = loadCacheConfig();
+    }
+
+    // Apply default cache config if cache is defined but incomplete
+    if (config.cache && !config.cache.pools) {
+      config.cache = { ...defaultCacheConfig, ...config.cache };
     }
 
     // Validate required fields

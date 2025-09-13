@@ -34,7 +34,8 @@ Do not write code while discussing or analyzing a problem unless the user specif
 When you begin working on this project, you MUST:
 
 1. **Read this entire CLAUDE.md file** to understand the project structure and conventions
-2. **Read the key documentation files** in this order:
+2. **Check for ongoing tasks in `.todos/` directory** - Look for any in-progress task files
+3. **Read the key documentation files** in this order:
    - `/README.md` - Project overview and API specification
    - `/CODING-STANDARDS.md` - Mandatory coding patterns and conventions
    - `/docs/architecture.md` - System architecture and design decisions
@@ -43,6 +44,32 @@ When you begin working on this project, you MUST:
 Only after reading these documents should you proceed with any implementation or analysis tasks.
 
 **IMPORTANT**: After every conversation compact/summary, you MUST re-read this CLAUDE.md file again as your first action. The conversation context gets compressed and critical project-specific instructions may be lost. Always start by reading CLAUDE.md after a compact.
+
+## Task Management with .todos Directory
+
+**IMPORTANT**: For major multi-step tasks that span sessions or require comprehensive tracking:
+
+1. **Before starting a major task**, create a detailed task file in `.todos/` directory:
+   - Filename format: `YYYY-MM-DD-task-name.md` (e.g., `2025-01-13-caching-implementation.md`)
+   - Include ALL context, decisions, completed work, and remaining work
+   - Write comprehensively so the task can be resumed in any future session
+
+2. **Task file must include**:
+   - Task overview and objectives
+   - Current status (what's been completed)
+   - Detailed list of remaining work
+   - Important decisions made
+   - Code locations affected
+   - Testing requirements
+   - Any gotchas or special considerations
+
+3. **When resuming work**, always check `.todos/` first for in-progress tasks
+
+4. **Update the task file** as you make progress
+
+5. **Mark as complete** by renaming to `YYYY-MM-DD-task-name-COMPLETED.md`
+
+The `.todos/` directory is gitignored, so it won't clutter the repository but provides persistent task tracking across sessions.
 
 ## Project Context: Greenfield Development
 

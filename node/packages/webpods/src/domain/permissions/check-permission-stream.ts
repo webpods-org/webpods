@@ -3,8 +3,9 @@
  */
 
 import { DataContext } from "../data-context.js";
-import { StreamDbRow, RecordDbRow } from "../../db-types.js";
+import { RecordDbRow } from "../../db-types.js";
 import { createLogger } from "../../logger.js";
+import { getStreamByPath } from "../streams/get-stream-by-path.js";
 
 const logger = createLogger("webpods:domain:permissions");
 
@@ -23,43 +24,10 @@ export async function checkPermissionStream(
       action,
     });
 
-    // First resolve the stream path to get the stream
-    const segments = streamPath.split("/").filter(Boolean);
-    let currentStream: StreamDbRow | null = null;
-    let parentId: number | null = null;
+    // Use cached stream lookup instead of manual traversal
+    const streamResult = await getStreamByPath(ctx, podName, streamPath);
 
-    // Traverse the path to find the stream
-    for (const segment of segments) {
-      const segmentStream: StreamDbRow | null =
-        await ctx.db.oneOrNone<StreamDbRow>(
-          parentId === null
-            ? `SELECT * FROM stream 
-             WHERE pod_name = $(pod_name) 
-               AND name = $(name)
-               AND parent_id IS NULL`
-            : `SELECT * FROM stream 
-             WHERE pod_name = $(pod_name) 
-               AND name = $(name)
-               AND parent_id = $(parent_id)`,
-          { pod_name: podName, name: segment, parent_id: parentId },
-        );
-
-      if (!segmentStream) {
-        logger.warn("Permission stream not found", {
-          podName,
-          streamPath,
-          segment,
-        });
-        return false;
-      }
-
-      currentStream = segmentStream;
-      parentId = segmentStream.id;
-    }
-
-    const stream = currentStream;
-
-    if (!stream) {
+    if (!streamResult.success) {
       logger.warn("Permission stream not found", {
         podName,
         streamPath,
@@ -67,9 +35,11 @@ export async function checkPermissionStream(
       return false;
     }
 
+    const stream = streamResult.data;
+
     logger.info("Permission stream found", {
       streamName: stream.name,
-      podName: stream.pod_name,
+      podName: stream.podName,
     });
 
     // Get ALL records from the permission stream

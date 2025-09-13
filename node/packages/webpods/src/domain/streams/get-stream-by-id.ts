@@ -8,6 +8,7 @@ import { createError } from "../../utils/errors.js";
 import { StreamDbRow } from "../../db-types.js";
 import { Stream } from "../../types.js";
 import { createLogger } from "../../logger.js";
+import { getCache, getCacheConfig } from "../../cache/index.js";
 
 const logger = createLogger("webpods:domain:streams");
 
@@ -40,6 +41,17 @@ export async function getStreamById(
   streamId: number,
 ): Promise<Result<Stream>> {
   try {
+    // Check cache first
+    const cache = getCache();
+    if (cache) {
+      const cacheKey = `stream-id:${streamId}`;
+      const cached = await cache.get("streams", cacheKey);
+      if (cached !== undefined) {
+        logger.debug("Stream found in cache by ID", { streamId });
+        return success(cached as Stream);
+      }
+    }
+
     const stream = await ctx.db.oneOrNone<StreamDbRow>(
       `SELECT * FROM stream WHERE id = $(id)`,
       { id: streamId },
@@ -52,7 +64,17 @@ export async function getStreamById(
       );
     }
 
-    return success(mapStreamFromDb(stream));
+    const mappedStream = mapStreamFromDb(stream);
+
+    // Cache the result
+    if (cache) {
+      const cacheKey = `stream-id:${streamId}`;
+      const cacheConfig = getCacheConfig();
+      const ttl = cacheConfig?.pools?.streams?.ttlSeconds || 300;
+      await cache.set("streams", cacheKey, mappedStream, ttl);
+    }
+
+    return success(mappedStream);
   } catch (error: unknown) {
     logger.error("Failed to get stream by ID", { error, streamId });
     return failure(createError("DATABASE_ERROR", "Failed to get stream"));

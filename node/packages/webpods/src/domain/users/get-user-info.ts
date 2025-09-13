@@ -5,6 +5,7 @@
 import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
 import { createLogger } from "../../logger.js";
+import { getCache, getCacheConfig } from "../../cache/index.js";
 
 const logger = createLogger("webpods:domain:users");
 
@@ -27,6 +28,17 @@ export async function getUserInfo(
   userId: string,
 ): Promise<Result<UserInfo>> {
   try {
+    // Check cache first
+    const cache = getCache();
+    if (cache) {
+      const cacheKey = `user-info:${userId}`;
+      const cached = await cache.get("pods", cacheKey); // Using pods pool for user data
+      if (cached !== undefined) {
+        logger.debug("User info found in cache", { userId });
+        return success(cached as UserInfo);
+      }
+    }
+
     // Get user with identity info
     const userInfo = await ctx.db.oneOrNone<UserIdentityRow>(
       `SELECT u.id, i.email, i.name, i.provider 
@@ -42,12 +54,22 @@ export async function getUserInfo(
       return failure(new Error("User not found"));
     }
 
-    return success({
+    const result: UserInfo = {
       user_id: userInfo.id,
       email: userInfo.email,
       name: userInfo.name,
       provider: userInfo.provider,
-    });
+    };
+
+    // Cache the result
+    if (cache) {
+      const cacheKey = `user-info:${userId}`;
+      const cacheConfig = getCacheConfig();
+      const ttl = cacheConfig?.pools?.pods?.ttlSeconds || 600;
+      await cache.set("pods", cacheKey, result, ttl);
+    }
+
+    return success(result);
   } catch (error) {
     logger.error("Failed to get user info", { error, userId });
     return failure(new Error("Failed to get user information"));

@@ -10,6 +10,7 @@ import { createApp } from "./server.js";
 import { getConfig } from "./config-loader.js";
 import { getVersion } from "./version.js";
 import { getConfiguredProviders } from "./auth/oauth-config.js";
+import { initializeCache, shutdownCache } from "./cache/index.js";
 
 // Load environment variables (for secrets referenced in config.json)
 config();
@@ -46,6 +47,21 @@ export async function start() {
       process.exit(1);
     }
 
+    // Initialize cache if configured
+    if (appConfig.cache?.enabled) {
+      await initializeCache(appConfig.cache);
+      logger.info("Cache initialized", {
+        adapter: appConfig.cache.adapter,
+        pools: Object.keys(appConfig.cache.pools).filter(
+          (pool) =>
+            appConfig.cache!.pools[pool as keyof typeof appConfig.cache.pools]
+              .enabled,
+        ),
+      });
+    } else {
+      logger.info("Cache disabled");
+    }
+
     // Start PKCE state cleanup
     setInterval(
       () => {
@@ -74,6 +90,7 @@ export async function start() {
     process.on("SIGTERM", async () => {
       logger.info("SIGTERM received, shutting down gracefully");
       server.close(async () => {
+        await shutdownCache();
         await closeDb();
         process.exit(0);
       });
@@ -82,6 +99,7 @@ export async function start() {
     process.on("SIGINT", async () => {
       logger.info("SIGINT received, shutting down gracefully");
       server.close(async () => {
+        await shutdownCache();
         await closeDb();
         process.exit(0);
       });

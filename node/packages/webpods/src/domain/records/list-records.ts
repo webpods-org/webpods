@@ -7,6 +7,8 @@ import { Result, success, failure } from "../../utils/result.js";
 import { RecordDbRow } from "../../db-types.js";
 import { StreamRecord } from "../../types.js";
 import { createLogger } from "../../logger.js";
+import { getCache, cacheKeys } from "../../cache/index.js";
+import { getConfig } from "../../config-loader.js";
 
 const logger = createLogger("webpods:domain:records");
 
@@ -50,6 +52,28 @@ export async function listRecords(
   // Normalize stream name to ensure leading slash
 
   try {
+    // Check cache first
+    const cache = getCache();
+    const config = getConfig();
+
+    // Create cache key based on query parameters
+    const queryParams = { limit, after: after ?? "none" };
+    const cacheKey = cacheKeys.recordList(streamId.toString(), queryParams);
+
+    if (cache && config.cache?.pools?.recordLists?.enabled) {
+      const cachedResult = await cache.get<{
+        records: StreamRecord[];
+        total: number;
+        hasMore: boolean;
+      }>("recordLists", cacheKey);
+      if (cachedResult) {
+        logger.debug("Record list cache hit", { streamId, limit, after });
+        return success(cachedResult);
+      }
+      logger.debug("Record list cache miss", { streamId, limit, after });
+    }
+
+    // Cache miss - fetch from database
     let query = `SELECT * FROM record 
                   WHERE stream_id = $(streamId) 
                     `;
@@ -102,11 +126,42 @@ export async function listRecords(
       records.pop(); // Remove the extra record
     }
 
-    return success({
+    const result = {
       records: records.map(mapRecordFromDb),
       total,
       hasMore,
-    });
+    };
+
+    // Cache the result if it meets the criteria
+    if (cache && config.cache?.pools?.recordLists?.enabled) {
+      const poolConfig = config.cache.pools.recordLists;
+
+      // Check if result should be cached based on size and record count
+      if (result.records.length <= poolConfig.maxRecordsPerQuery) {
+        const size = cache.checkSize(result);
+        if (size <= poolConfig.maxResultSizeBytes) {
+          const ttl = poolConfig.ttlSeconds;
+          await cache.set("recordLists", cacheKey, result, ttl);
+          logger.debug("Record list cached", {
+            streamId,
+            limit,
+            after,
+            recordCount: result.records.length,
+            size,
+            ttl,
+          });
+        } else {
+          logger.debug("Record list too large to cache", { streamId, size });
+        }
+      } else {
+        logger.debug("Too many records to cache", {
+          streamId,
+          recordCount: result.records.length,
+        });
+      }
+    }
+
+    return success(result);
   } catch (error: unknown) {
     logger.error("Failed to list records", {
       error,

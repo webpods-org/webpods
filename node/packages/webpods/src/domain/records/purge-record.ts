@@ -9,6 +9,7 @@ import { createLogger } from "../../logger.js";
 import { getStorageAdapter } from "../../storage-adapters/index.js";
 import { extname } from "path";
 import { RecordDbRow } from "../../db-types.js";
+import { cacheInvalidation } from "../../cache/index.js";
 
 const logger = createLogger("webpods:domain:records");
 
@@ -110,6 +111,9 @@ export async function purgeRecord(
       recordName,
       userId,
     });
+
+    // Invalidate caches for the purged record
+    await cacheInvalidation.invalidateRecord(streamId.toString(), recordName);
 
     return success({ rowsAffected: result });
   } catch (error: unknown) {

@@ -7,6 +7,7 @@ import { Result, success, failure } from "../../utils/result.js";
 import { createError } from "../../utils/errors.js";
 import { StreamDbRow } from "../../db-types.js";
 import { createLogger } from "../../logger.js";
+import { cacheInvalidation } from "../../cache/index.js";
 
 const logger = createLogger("webpods:domain:streams");
 
@@ -43,6 +44,13 @@ export async function updateStreamPermission(
       podName: updated.pod_name,
       streamName: updated.name,
     });
+
+    // Invalidate stream cache since permission changed
+    await cacheInvalidation.invalidateStream(
+      streamId.toString(),
+      updated.pod_name,
+      updated.path,
+    );
 
     return success({ updated: true });
   } catch (error: unknown) {

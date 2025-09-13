@@ -21,6 +21,7 @@ PACKAGES=(
   "podctl"
   "webpods-integration-tests"
   "podctl-tests"
+  "webpods-perf-tests"
 )
 
 # 1 ▸ clean first
