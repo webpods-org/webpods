@@ -259,7 +259,29 @@ export async function read(options: {
       process.exit(1);
     }
 
-    const content = result.data;
+    let content = result.data;
+
+    // Handle single index query - extract content from list response
+    if (options.index && !options.index.includes(":")) {
+      // Single index query returns a list, extract the content from first record
+      if (
+        typeof content === "object" &&
+        content !== null &&
+        "records" in content
+      ) {
+        const listResponse = content as any;
+        if (
+          Array.isArray(listResponse.records) &&
+          listResponse.records.length > 0
+        ) {
+          content = listResponse.records[0].content;
+        } else {
+          output.error("Record not found at index " + options.index);
+          process.exit(1);
+        }
+      }
+    }
+
     logger.debug("Record retrieved", {
       contentType: typeof content,
       isArray: Array.isArray(content),
@@ -490,7 +512,7 @@ export async function list(options: {
 }
 
 /**
- * Delete (soft delete) a record by writing a tombstone
+ * Delete a record (soft delete or hard delete/purge)
  */
 export async function deleteRecord(options: {
   quiet?: boolean;
@@ -518,64 +540,40 @@ export async function deleteRecord(options: {
       process.exit(1);
     }
 
-    if (options.hard) {
-      // Hard delete (purge) - use DELETE method
-      const path = `/${options.stream}/${options.name}`;
-      const result = await podRequest(options.pod, path, {
-        method: "DELETE",
-        token: options.token,
-        server: options.server,
-        profile: options.profile,
-      });
+    // Use DELETE method for both soft and hard delete
+    // Soft delete: DELETE /stream/name
+    // Hard delete: DELETE /stream/name?purge=true
+    const path = options.hard
+      ? `/${options.stream}/${options.name}?purge=true`
+      : `/${options.stream}/${options.name}`;
 
-      logger.debug("Delete response", {
-        success: result.success,
-        error: result.success ? null : result.error,
-      });
+    const result = await podRequest(options.pod, path, {
+      method: "DELETE",
+      token: options.token,
+      server: options.server,
+      profile: options.profile,
+    });
 
-      if (result.success) {
+    logger.debug("Delete response", {
+      success: result.success,
+      error: result.success ? null : result.error,
+      hard: options.hard,
+    });
+
+    if (result.success) {
+      if (options.hard) {
         output.success(
           `Record '${options.name}' permanently deleted from ${options.pod}/${options.stream}`,
         );
       } else {
-        const errorMessage =
-          result.error.message ||
-          result.error.code ||
-          "Failed to delete record";
-        throw new Error(errorMessage);
-      }
-    } else {
-      // Soft delete - write tombstone record
-      const tombstoneContent = JSON.stringify({ deleted: true });
-      const path = `/${options.stream}/${options.name}`;
-
-      const result = await podRequest(options.pod, path, {
-        method: "POST",
-        body: tombstoneContent,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        token: options.token,
-        server: options.server,
-        profile: options.profile,
-      });
-
-      logger.debug("Delete (tombstone) response", {
-        success: result.success,
-        error: result.success ? null : result.error,
-      });
-
-      if (result.success) {
         output.success(
           `Record '${options.name}' marked as deleted in ${options.pod}/${options.stream}`,
         );
-      } else {
-        const errorMessage =
-          result.error.message ||
-          result.error.code ||
-          "Failed to delete record";
-        throw new Error(errorMessage);
       }
+    } else {
+      const errorMessage =
+        result.error.message || result.error.code || "Failed to delete record";
+      throw new Error(errorMessage);
     }
 
     logger.info("Record deleted successfully", {

@@ -148,23 +148,9 @@ export async function listUniqueRecordsRecursive(
 
     const records = await ctx.db.manyOrNone<RecordDbRow>(query, params);
 
-    // Filter out deleted records in memory
+    // Filter out deleted records using the deleted/purged columns
     const filteredRecords = records.filter((record) => {
-      if (record.content_type === "application/json" && record.content) {
-        try {
-          const content = JSON.parse(record.content);
-          if (
-            content &&
-            typeof content === "object" &&
-            (content.deleted === true || content.purged === true)
-          ) {
-            return false; // Exclude deleted/purged records
-          }
-        } catch {
-          // Not valid JSON, include it
-        }
-      }
-      return true;
+      return !record.deleted && !record.purged;
     });
 
     // Check if there are more records

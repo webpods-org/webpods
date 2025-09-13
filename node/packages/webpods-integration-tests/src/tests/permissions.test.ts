@@ -64,7 +64,8 @@ describe("WebPods Permissions", () => {
       // User1 can read
       const response1 = await client.get("/private-read?i=0");
       expect(response1.status).to.equal(200);
-      expect(response1.data).to.equal("Secret message");
+      expect(response1.data.records).to.have.lengthOf(1);
+      expect(response1.data.records[0].content).to.equal("Secret message");
 
       // User2 cannot read
       client.setAuthToken(user2Token);
@@ -116,11 +117,13 @@ describe("WebPods Permissions", () => {
       client.setAuthToken(user2Token);
       const response1 = await client.get("/public-stream?i=0");
       expect(response1.status).to.equal(200);
+      expect(response1.data.records).to.have.lengthOf(1);
 
       // Anonymous can read
       client.clearAuthToken();
       const response2 = await client.get("/public-stream?i=0");
       expect(response2.status).to.equal(200);
+      expect(response2.data.records).to.have.lengthOf(1);
     });
 
     it("should allow any authenticated user to write to public stream", async () => {
@@ -168,6 +171,7 @@ describe("WebPods Permissions", () => {
       client.setAuthToken(user2Token);
       const response1 = await client.get("/restricted?i=0");
       expect(response1.status).to.equal(200);
+      expect(response1.data.records).to.have.lengthOf(1);
 
       // User2 cannot write (no write permission)
       const response2 = await client.post("/restricted/fail", "Should fail");
@@ -177,6 +181,7 @@ describe("WebPods Permissions", () => {
       client.setAuthToken(user1Token);
       const response3 = await client.get("/restricted?i=0");
       expect(response3.status).to.equal(200);
+      expect(response3.data.records).to.have.lengthOf(1);
       const response4 = await client.post(
         "/restricted/creator",
         "Creator can write",
@@ -381,6 +386,7 @@ describe("WebPods Permissions", () => {
       client.setAuthToken(user2Token);
       let response = await client.get("/member-only?i=0");
       expect(response.status).to.equal(200);
+      expect(response.data.records).to.have.lengthOf(1);
 
       // User1 updates permission to revoke user2's access
       client.setAuthToken(user1Token);

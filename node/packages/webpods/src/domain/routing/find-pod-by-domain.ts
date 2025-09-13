@@ -6,7 +6,7 @@ import { DataContext } from "../data-context.js";
 import { Result, success } from "../../utils/result.js";
 import { PodDbRow, RecordDbRow } from "../../db-types.js";
 import { createLogger } from "../../logger.js";
-import { getCache, getCacheConfig } from "../../cache/index.js";
+import { getCache, getCacheConfig, cacheKeys } from "../../cache/index.js";
 
 const logger = createLogger("webpods:domain:routing");
 
@@ -18,7 +18,7 @@ export async function findPodByDomain(
     // Check cache first (use pods cache pool for domain mappings)
     const cache = getCache();
     if (cache) {
-      const cacheKey = `domain:${domain}`;
+      const cacheKey = cacheKeys.domainPod(domain);
       const cached = await cache.get("pods", cacheKey);
       if (cached !== undefined) {
         logger.debug("Domain mapping found in cache", {
@@ -83,7 +83,7 @@ export async function findPodByDomain(
       if (domains.has(domain)) {
         // Cache the domain->pod mapping
         if (cache) {
-          const cacheKey = `domain:${domain}`;
+          const cacheKey = cacheKeys.domainPod(domain);
           const cacheConfig = getCacheConfig();
           const ttl = cacheConfig?.pools?.pods?.ttlSeconds || 300;
           await cache.set("pods", cacheKey, pod, ttl);
@@ -94,7 +94,7 @@ export async function findPodByDomain(
 
     // No pod found for this domain - cache the negative result too
     if (cache) {
-      const cacheKey = `domain:${domain}`;
+      const cacheKey = cacheKeys.domainPod(domain);
       const cacheConfig = getCacheConfig();
       const ttl = cacheConfig?.pools?.pods?.ttlSeconds || 300;
       await cache.set("pods", cacheKey, null, ttl);

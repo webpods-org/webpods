@@ -66,6 +66,8 @@ export type RecordDbRow = {
   user_id: string; // References user.id
   storage?: string | null; // External storage location (adapter-specific format)
   headers?: Record<string, string>; // User-provided headers (JSONB)
+  deleted: boolean; // Soft delete flag
+  purged: boolean; // Hard delete flag
   created_at: Date | string; // Can be string when inserting
 };
 

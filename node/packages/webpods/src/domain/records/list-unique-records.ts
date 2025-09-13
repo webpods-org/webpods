@@ -4,11 +4,10 @@
 
 import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
-import { RecordDbRow } from "../../db-types.js";
+import { RecordDbRow, StreamDbRow } from "../../db-types.js";
 import { StreamRecord } from "../../types.js";
 import { createLogger } from "../../logger.js";
-import { getCache, getCacheConfig } from "../../cache/index.js";
-import { createHash } from "crypto";
+import { getCache, getCacheConfig, cacheKeys } from "../../cache/index.js";
 
 const logger = createLogger("webpods:domain:records");
 
@@ -53,89 +52,56 @@ export async function listUniqueRecords(
     // Check cache first
     const cache = getCache();
     let cacheKey: string | null = null;
+    let streamPath: string | null = null;
 
     if (cache) {
-      // Create cache key based on stream ID and pagination parameters
-      const paramsHash = createHash("sha256")
-        .update(JSON.stringify({ limit, after: after || 0 }))
-        .digest("hex")
-        .substring(0, 8);
-      cacheKey = `unique:${streamId}:${paramsHash}`;
+      // Get stream path for cache key generation
+      const stream = await ctx.db.oneOrNone<StreamDbRow>(
+        `SELECT path FROM stream WHERE id = $(streamId)`,
+        { streamId },
+      );
 
-      const cached = await cache.get("recordLists", cacheKey);
-      if (cached !== undefined) {
-        logger.debug("Unique records found in cache", {
-          streamId,
+      if (stream) {
+        streamPath = stream.path;
+        // Use cacheKeys function to generate proper hierarchical key
+        cacheKey = cacheKeys.uniqueRecordList(podName, streamPath, {
           limit,
-          after,
+          after: after || 0,
         });
-        return success(
-          cached as {
-            records: StreamRecord[];
-            total: number;
-            hasMore: boolean;
-          },
-        );
+
+        const cached = await cache.get("recordLists", cacheKey);
+        if (cached !== undefined) {
+          logger.debug("Unique records found in cache", {
+            streamId,
+            limit,
+            after,
+          });
+          return success(
+            cached as {
+              records: StreamRecord[];
+              total: number;
+              hasMore: boolean;
+            },
+          );
+        }
       }
     }
 
-    // Get all records with names (excluding empty names), ordered by index
-    const allRecords = await ctx.db.manyOrNone<RecordDbRow>(
-      `SELECT * FROM record
+    // Get the latest record for each unique name using DISTINCT ON
+    const latestRecords = await ctx.db.manyOrNone<RecordDbRow>(
+      `SELECT DISTINCT ON (name) *
+       FROM record
        WHERE stream_id = $(streamId)
          AND name IS NOT NULL
          AND name != ''
-       ORDER BY index ASC`,
+       ORDER BY name, index DESC`,
       { streamId },
     );
 
-    // Build map of latest record per name, excluding deleted
-    const latestByName = new Map<string, RecordDbRow>();
-
-    for (const record of allRecords) {
-      // Check if record is deleted/purged
-      let isDeleted = false;
-      if (record.content_type === "application/json") {
-        try {
-          const content = JSON.parse(record.content);
-          if (
-            content &&
-            typeof content === "object" &&
-            (content.deleted === true || content.purged === true)
-          ) {
-            isDeleted = true;
-          }
-        } catch {
-          // Not valid JSON, treat as normal record
-        }
-      }
-
-      if (isDeleted) {
-        // For deletion records, check if this is a tombstone or direct deletion
-        try {
-          const content = JSON.parse(record.content);
-          const originalName = content.originalName;
-          if (originalName) {
-            // This is a tombstone record - remove the original record name
-            latestByName.delete(originalName);
-          } else {
-            // This is a direct deletion of the record - remove from map
-            latestByName.delete(record.name!);
-          }
-        } catch {
-          // If we can't parse the content, fall back to removing current name
-          latestByName.delete(record.name!);
-        }
-      } else {
-        // Update with this record (latest wins)
-        latestByName.set(record.name!, record);
-      }
-    }
-
-    // Convert map to array and sort by index ascending
-    let uniqueRecords = Array.from(latestByName.values()).sort(
-      (a, b) => a.index - b.index,
-    );
+    // Filter out deleted/purged records in memory and sort by index
+    let uniqueRecords = latestRecords
+      .filter((record) => !record.deleted && !record.purged)
+      .sort((a, b) => a.index - b.index);
 
     // Apply pagination
     let actualAfter = after;
@@ -163,7 +129,7 @@ export async function listUniqueRecords(
       uniqueRecords = uniqueRecords.filter((r) => r.index > actualAfter);
     }
 
-    const total = latestByName.size;
+    const total = uniqueRecords.length;
     const hasMore = uniqueRecords.length > limit;
 
     if (hasMore) {

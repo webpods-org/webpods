@@ -14,7 +14,7 @@ import {
 } from "../../utils.js";
 import { createLogger } from "../../logger.js";
 import { sql } from "../../db/index.js";
-import { getCache } from "../../cache/index.js";
+import { getCache, cacheKeys } from "../../cache/index.js";
 
 const logger = createLogger("webpods:domain:pods");
 
@@ -129,7 +129,7 @@ export async function createPod(
       // Invalidate user's pod list cache
       const cache = getCache();
       if (cache) {
-        await cache.delete("pods", `user-pods:${userId}`);
+        await cache.delete("pods", cacheKeys.userPods(userId));
       }
 
       logger.info("Pod created", { podName });

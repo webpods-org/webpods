@@ -7,7 +7,7 @@ import { Result, success, failure } from "../../utils/result.js";
 import { RecordDbRow } from "../../db-types.js";
 import { createLogger } from "../../logger.js";
 import { createError } from "../../utils/errors.js";
-import { getCache, getCacheConfig } from "../../cache/index.js";
+import { getCache, getCacheConfig, cacheKeys } from "../../cache/index.js";
 
 const logger = createLogger("webpods:domain:pods");
 
@@ -19,7 +19,7 @@ export async function getPodOwner(
     // Check cache first
     const cache = getCache();
     if (cache) {
-      const cacheKey = `pod-owner:${podName}`;
+      const cacheKey = cacheKeys.podOwner(podName);
       const cached = await cache.get("pods", cacheKey);
       // cache.get returns undefined for cache misses
       // It can return null if we cached a null value (no owner)
@@ -43,7 +43,7 @@ export async function getPodOwner(
       logger.debug("No .config stream found for pod", { podName });
       // Cache the null result
       if (cache) {
-        const cacheKey = `pod-owner:${podName}`;
+        const cacheKey = cacheKeys.podOwner(podName);
         const cacheConfig = getCacheConfig();
         const ttl = cacheConfig?.pools?.pods?.ttlSeconds || 300;
         await cache.set("pods", cacheKey, null, ttl);
@@ -66,7 +66,7 @@ export async function getPodOwner(
       });
       // Cache the null result
       if (cache) {
-        const cacheKey = `pod-owner:${podName}`;
+        const cacheKey = cacheKeys.podOwner(podName);
         const cacheConfig = getCacheConfig();
         const ttl = cacheConfig?.pools?.pods?.ttlSeconds || 300;
         await cache.set("pods", cacheKey, null, ttl);
@@ -91,7 +91,7 @@ export async function getPodOwner(
       });
       // Cache the null result
       if (cache) {
-        const cacheKey = `pod-owner:${podName}`;
+        const cacheKey = cacheKeys.podOwner(podName);
         const cacheConfig = getCacheConfig();
         const ttl = cacheConfig?.pools?.pods?.ttlSeconds || 300;
         await cache.set("pods", cacheKey, null, ttl);
@@ -105,7 +105,7 @@ export async function getPodOwner(
 
       // Cache the result
       if (cache) {
-        const cacheKey = `pod-owner:${podName}`;
+        const cacheKey = cacheKeys.podOwner(podName);
         const cacheConfig = getCacheConfig();
         const ttl = cacheConfig?.pools?.pods?.ttlSeconds || 300;
         await cache.set("pods", cacheKey, ownerId, ttl);

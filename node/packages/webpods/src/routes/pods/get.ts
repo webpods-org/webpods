@@ -23,7 +23,6 @@ import { listUniqueRecords } from "../../domain/records/list-unique-records.js";
 import { listRecordsRecursive } from "../../domain/records/list-records-recursive.js";
 import { listUniqueRecordsRecursive } from "../../domain/records/list-unique-records-recursive.js";
 import { recordToFilteredResponse } from "../../domain/records/record-to-response.js";
-import { hasTombstone } from "../../domain/records/check-tombstone.js";
 import { canRead } from "../../domain/permissions/can-read.js";
 import type { StreamRecord, StreamInfo } from "../../types.js";
 
@@ -270,13 +269,13 @@ export const getHandler = async (
     }
 
     if (parsed.type === "single") {
-      // Single record by index (don't prefer name when using ?i=)
-      const result = await getRecord(
+      // Single record by index - use getRecordRange to return a list with one item
+      const result = await getRecordRange(
         { db },
         req.podName,
         streamResult.data.id,
-        parsed.start.toString(),
-        false,
+        parsed.start,
+        parsed.start + 1,
       );
 
       if (!result.success) {
@@ -288,98 +287,16 @@ export const getHandler = async (
         return;
       }
 
-      // Check if record is deleted
-      const record = result.data;
-      try {
-        const content =
-          typeof record.content === "string" &&
-          record.contentType === "application/json"
-            ? JSON.parse(record.content)
-            : record.content;
-
-        if (
-          typeof content === "object" &&
-          content !== null &&
-          content.deleted === true
-        ) {
-          if (!res.headersSent) {
-            res.status(404).json({
-              error: {
-                code: "RECORD_DELETED",
-                message: "Record has been deleted",
-              },
-            });
-          }
-          return;
-        }
-      } catch {
-        // Not JSON or can't parse, continue normally
-      }
-
-      // Check if content is stored externally
-      const recordRow = result.data as StreamRecord & {
-        storage?: string | null;
-      }; // Access the record with storage field
-      if (recordRow.storage) {
-        // Content is stored externally, return 302 redirect
-        const adapter = getStorageAdapter();
-        if (adapter) {
-          const redirectUrl = adapter.getFileUrl(recordRow.storage);
-
-          if (!res.headersSent) {
-            // Set cache headers based on content hash
-            res.setHeader("Cache-Control", "private, max-age=3600");
-            res.setHeader("ETag", `"${record.contentHash}"`);
-            res.setHeader("X-Record-Type", "file");
-            res.redirect(302, redirectUrl);
-          }
-          return;
-        }
-      }
-
-      // Return raw content for single records (not external)
-      // Set headers (only if not already sent)
+      // Return as JSON list for consistency with range queries
+      // Note: Including deletion markers as this is an append-only log
       if (!res.headersSent) {
-        res.setHeader("X-Content-Hash", record.contentHash);
-        res.setHeader("X-Hash", record.hash);
-        res.setHeader("X-Previous-Hash", record.previousHash || "");
-        res.setHeader("X-Author", record.userId);
-        res.setHeader("X-Timestamp", record.createdAt.toISOString());
-
-        // Add custom headers if present
-        if (record.headers) {
-          for (const [key, value] of Object.entries(record.headers)) {
-            res.setHeader(key, value);
-          }
-        }
-      }
-
-      // Set content type and send response (only if not already sent)
-      if (!res.headersSent) {
-        res.type(record.contentType);
-
-        // Handle different content types
-        if (record.isBinary) {
-          // Decode base64 for binary content
-          const contentStr =
-            typeof record.content === "string"
-              ? record.content
-              : String(record.content);
-          const buffer = Buffer.from(contentStr, "base64");
-          res.send(buffer);
-        } else if (
-          record.contentType === "application/json" &&
-          typeof record.content === "string"
-        ) {
-          // Parse JSON content if needed
-          try {
-            res.send(JSON.parse(record.content));
-          } catch {
-            res.send(record.content);
-          }
-        } else {
-          res.send(record.content);
-        }
+        res.json({
+          records: result.data.map((r) =>
+            recordToFilteredResponse(r, streamPath, { fields, maxContentSize }),
+          ),
+          range: { start: parsed.start, end: parsed.start + 1 },
+          total: result.data.length,
+        });
       }
     } else {
       // Range of records
@@ -411,13 +328,13 @@ export const getHandler = async (
       }
     }
   } else if (name) {
-    // Get by name (prefer name over index for path-based access)
+    // Get by name
     const result = await getRecord(
       { db },
       req.podName,
       streamResult.data.id,
       name,
-      true,
+      streamResult.data.path,
     );
 
     if (!result.success) {
@@ -427,52 +344,8 @@ export const getHandler = async (
       return;
     }
 
-    // Check if there's a tombstone record for this name that's newer than the current record
-    const hasTombstoneRecord = await hasTombstone(
-      { db },
-      streamResult.data.id,
-      name,
-      result.data.index,
-    );
-
-    if (hasTombstoneRecord) {
-      // Found a newer tombstone, so this record is considered deleted
-      if (!res.headersSent) {
-        res.status(404).json({
-          error: {
-            code: "RECORD_DELETED",
-            message: "Record has been deleted",
-          },
-        });
-      }
-      return;
-    }
-
-    // Check if record itself is a purged record
+    // No need to check for deleted records - getRecord already filters them
     const record = result.data;
-    try {
-      const content =
-        typeof record.content === "string" &&
-        record.contentType === "application/json"
-          ? JSON.parse(record.content)
-          : record.content;
-
-      if (
-        typeof content === "object" &&
-        content !== null &&
-        (content.deleted === true || content.purged === true)
-      ) {
-        res.status(404).json({
-          error: {
-            code: "RECORD_DELETED",
-            message: "Record has been deleted",
-          },
-        });
-        return;
-      }
-    } catch {
-      // Not JSON or can't parse, continue normally
-    }
 
     // Check if content is stored externally
     const recordRow = result.data as StreamRecord & { storage?: string | null };

@@ -13,7 +13,7 @@ export class CliTestServer {
   private port: number;
   private dbName: string;
 
-  constructor(port = 3456, dbName = "webpodsdb_cli_test") {
+  constructor(port = 3000, dbName = "webpodsdb_test") {
     this.port = port;
     this.dbName = dbName;
   }

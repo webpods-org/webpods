@@ -8,7 +8,7 @@ import { createError } from "../../utils/errors.js";
 import { StreamDbRow } from "../../db-types.js";
 import { Stream } from "../../types.js";
 import { createLogger } from "../../logger.js";
-import { getCache, getCacheConfig } from "../../cache/index.js";
+import { getCache, getCacheConfig, cacheKeys } from "../../cache/index.js";
 
 const logger = createLogger("webpods:domain:streams");
 
@@ -44,7 +44,7 @@ export async function getStreamById(
     // Check cache first
     const cache = getCache();
     if (cache) {
-      const cacheKey = `stream-id:${streamId}`;
+      const cacheKey = cacheKeys.streamById(streamId);
       const cached = await cache.get("streams", cacheKey);
       if (cached !== undefined) {
         logger.debug("Stream found in cache by ID", { streamId });
@@ -68,7 +68,7 @@ export async function getStreamById(
 
     // Cache the result
     if (cache) {
-      const cacheKey = `stream-id:${streamId}`;
+      const cacheKey = cacheKeys.streamById(streamId);
       const cacheConfig = getCacheConfig();
       const ttl = cacheConfig?.pools?.streams?.ttlSeconds || 300;
       await cache.set("streams", cacheKey, mappedStream, ttl);

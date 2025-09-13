@@ -1,5 +1,10 @@
 // Test setup for WebPods integration tests
-import { TestDatabase, TestServer, testLogger } from "webpods-test-utils";
+import {
+  TestDatabase,
+  TestServer,
+  testLogger,
+  clearAllCache,
+} from "webpods-test-utils";
 import * as path from "path";
 import { fileURLToPath } from "url";
 import { promises as fs } from "fs";
@@ -45,6 +50,7 @@ before(async function () {
 // Cleanup after each test
 afterEach(async function () {
   await testDb.truncateAllTables();
+  await clearAllCache(); // Clear cache to prevent stale data between tests
   // Note: Each test file manages its own client, so no global client cleanup needed
 });
 

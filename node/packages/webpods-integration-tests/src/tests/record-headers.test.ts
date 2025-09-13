@@ -195,13 +195,20 @@ describe("WebPods Record Headers", () => {
         },
       );
 
-      // Fetch by index
+      // Fetch by index - now returns a list with headers in the record object
       const response = await client.get("/index-test?i=0");
       expect(response.status).to.equal(200);
-      expect(response.data).to.have.property("message", "JSON content");
+      expect(response.data.records).to.have.lengthOf(1);
+      expect(response.data.records[0].content).to.have.property(
+        "message",
+        "JSON content",
+      );
 
-      // When fetching by index with JSON response, headers should be in response headers
-      expect(response.headers).to.have.property("hello-world", "from-index");
+      // Headers are now in the record object, not response headers
+      expect(response.data.records[0].headers).to.have.property(
+        "hello-world",
+        "from-index",
+      );
     });
   });
 

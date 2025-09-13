@@ -9,7 +9,7 @@ import { Stream } from "../../types.js";
 import { createLogger } from "../../logger.js";
 import { createError } from "../../utils/errors.js";
 import { isValidStreamName } from "../../utils/stream-utils.js";
-import { getCache } from "../../cache/index.js";
+import { getCache, cacheKeys } from "../../cache/index.js";
 
 const logger = createLogger("webpods:domain:streams");
 
@@ -182,18 +182,30 @@ export async function createStream(
     if (cache) {
       // Invalidate ALL pod stream list caches (for /.config/api/streams endpoint)
       // This ensures no stale cache remains regardless of query options
-      await cache.deletePattern("streams", `pod-streams:${podName}:*`);
+      await cache.deletePattern(
+        "streams",
+        cacheKeys.podStreamsPattern(podName),
+      );
 
       // Invalidate parent's child stream list cache if applicable
       if (parentId) {
-        await cache.delete("streams", `children:${podName}:${parentId}`);
-        await cache.delete("streams", `children-count:${podName}:${parentId}`);
+        await cache.delete(
+          "streams",
+          cacheKeys.streamChildren(podName, parentId),
+        );
+        await cache.delete(
+          "streams",
+          cacheKeys.streamChildrenCount(podName, parentId),
+        );
       }
 
       // Also invalidate root-level cache if this is a root stream
       if (!parentId) {
-        await cache.delete("streams", `children:${podName}:root`);
-        await cache.delete("streams", `children-count:${podName}:root`);
+        await cache.delete("streams", cacheKeys.streamChildren(podName, null));
+        await cache.delete(
+          "streams",
+          cacheKeys.streamChildrenCount(podName, null),
+        );
       }
     }
 

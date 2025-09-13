@@ -234,7 +234,7 @@ describe("WebPods Root Pod", () => {
       // Should return 404 after deletion
       const getResponse = await client.get("/temp/data");
       expect(getResponse.status).to.equal(404);
-      expect(getResponse.data.error.code).to.equal("RECORD_DELETED");
+      expect(getResponse.data.error.code).to.equal("RECORD_NOT_FOUND");
     });
   });
 

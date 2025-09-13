@@ -46,6 +46,7 @@ export async function listRecords(
   streamId: number,
   limit: number = 100,
   after?: number,
+  streamPath?: string,
 ): Promise<
   Result<{ records: StreamRecord[]; total: number; hasMore: boolean }>
 > {
@@ -56,11 +57,25 @@ export async function listRecords(
     const cache = getCache();
     const config = getConfig();
 
+    // Get stream path if not provided (needed for cache keys)
+    let actualStreamPath = streamPath;
+    if (!actualStreamPath) {
+      const streamInfo = await ctx.db.oneOrNone<{ path: string }>(
+        `SELECT path FROM stream WHERE id = $(streamId)`,
+        { streamId },
+      );
+      if (streamInfo) {
+        actualStreamPath = streamInfo.path;
+      }
+    }
+
     // Create cache key based on query parameters
     const queryParams = { limit, after: after ?? "none" };
-    const cacheKey = cacheKeys.recordList(streamId.toString(), queryParams);
+    const cacheKey = actualStreamPath
+      ? cacheKeys.recordList(podName, actualStreamPath, queryParams)
+      : null;
 
-    if (cache && config.cache?.pools?.recordLists?.enabled) {
+    if (cache && config.cache?.pools?.recordLists?.enabled && cacheKey) {
       const cachedResult = await cache.get<{
         records: StreamRecord[];
         total: number;
@@ -74,9 +89,9 @@ export async function listRecords(
     }
 
     // Cache miss - fetch from database
-    let query = `SELECT * FROM record 
-                  WHERE stream_id = $(streamId) 
-                    `;
+    // Note: We include ALL records, including deletion markers, as this is an append-only log
+    let query = `SELECT * FROM record
+                  WHERE stream_id = $(streamId)`;
     const params: Record<string, unknown> = {
       streamId,
       limit: limit + 1,
@@ -85,11 +100,10 @@ export async function listRecords(
     // Handle negative 'after' parameter
     let actualAfter = after;
     if (after !== undefined && after < 0) {
-      // Get total count to convert negative index (using normalized stream name)
+      // Get total count to convert negative index
       const countResult = await ctx.db.one<{ count: string }>(
-        `SELECT COUNT(*) as count FROM record 
-         WHERE stream_id = $(streamId) 
-           `,
+        `SELECT COUNT(*) as count FROM record
+         WHERE stream_id = $(streamId)`,
         { streamId },
       );
       const totalCount = parseInt(countResult.count);
@@ -113,9 +127,8 @@ export async function listRecords(
     const records = await ctx.db.manyOrNone<RecordDbRow>(query, params);
 
     const countResult = await ctx.db.one<{ count: string }>(
-      `SELECT COUNT(*) as count FROM record 
-       WHERE stream_id = $(streamId) 
-         `,
+      `SELECT COUNT(*) as count FROM record
+       WHERE stream_id = $(streamId)`,
       { streamId },
     );
 
@@ -133,7 +146,7 @@ export async function listRecords(
     };
 
     // Cache the result if it meets the criteria
-    if (cache && config.cache?.pools?.recordLists?.enabled) {
+    if (cache && config.cache?.pools?.recordLists?.enabled && cacheKey) {
       const poolConfig = config.cache.pools.recordLists;
 
       // Check if result should be cached based on size and record count

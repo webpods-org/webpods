@@ -30,8 +30,8 @@ export async function purgeRecord(
   userId: string,
 ): Promise<Result<{ rowsAffected: number }>> {
   try {
-    // First check if the record has external storage
-    const recordToPurge = await ctx.db.oneOrNone<RecordDbRow>(
+    // First check if any record exists with this name
+    const latestRecord = await ctx.db.oneOrNone<RecordDbRow>(
       `SELECT * FROM record
        WHERE stream_id = $(streamId)
          AND name = $(recordName)
@@ -40,7 +40,7 @@ export async function purgeRecord(
       { streamId, recordName },
     );
 
-    if (!recordToPurge) {
+    if (!latestRecord) {
       return failure(
         createError(
           "RECORD_NOT_FOUND",
@@ -49,8 +49,19 @@ export async function purgeRecord(
       );
     }
 
-    // If record has external storage, purge both hash and name files
-    if (recordToPurge.storage) {
+    // Find the last record with external storage info (skip deletion markers)
+    const recordWithStorage = await ctx.db.oneOrNone<RecordDbRow>(
+      `SELECT * FROM record
+       WHERE stream_id = $(streamId)
+         AND name = $(recordName)
+         AND storage IS NOT NULL
+       ORDER BY index DESC
+       LIMIT 1`,
+      { streamId, recordName },
+    );
+
+    // If any record had external storage, purge the files
+    if (recordWithStorage && recordWithStorage.storage) {
       const adapter = getStorageAdapter();
       if (adapter) {
         // Get pod and stream info for deletion
@@ -67,7 +78,7 @@ export async function purgeRecord(
           streamInfo.pod_name,
           streamInfo.path,
           recordName,
-          recordToPurge.content_hash,
+          recordWithStorage.content_hash,
           ext,
           true, // purge - delete both files
         );
@@ -76,31 +87,27 @@ export async function purgeRecord(
           logger.warn("Failed to purge external files", {
             error: deleteResult.error,
             recordName,
-            storage: recordToPurge.storage,
+            storage: recordWithStorage.storage,
           });
         }
       }
     }
 
-    // Update the record in the database
+    // Update the record in the database - set both deleted and purged flags and clear content
     const result = await ctx.db.result(
       `UPDATE record
-       SET content = $(content),
-           content_type = $(contentType),
+       SET content = '',
+           content_type = 'text/plain',
            content_hash = $(contentHash),
-           storage = NULL
+           size = 0,
+           storage = NULL,
+           deleted = true,
+           purged = true
        WHERE stream_id = $(streamId)
          AND name = $(recordName)`,
       {
         streamId,
         recordName,
-        content: JSON.stringify({
-          deleted: true,
-          purged: true,
-          purgedAt: new Date().toISOString(),
-          purgedBy: userId,
-        }),
-        contentType: "application/json",
         contentHash: "purged", // Special marker for purged content
       },
       (r) => r.rowCount,
@@ -112,8 +119,22 @@ export async function purgeRecord(
       userId,
     });
 
+    // Get stream info for cache invalidation
+    const streamInfo = await ctx.db.oneOrNone<{
+      pod_name: string;
+      path: string;
+    }>(`SELECT pod_name, path FROM stream WHERE id = $(streamId)`, {
+      streamId,
+    });
+
     // Invalidate caches for the purged record
-    await cacheInvalidation.invalidateRecord(streamId.toString(), recordName);
+    if (streamInfo) {
+      await cacheInvalidation.invalidateRecord(
+        streamInfo.pod_name,
+        streamInfo.path,
+        recordName,
+      );
+    }
 
     return success({ rowsAffected: result });
   } catch (error: unknown) {

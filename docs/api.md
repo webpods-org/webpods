@@ -2,14 +2,48 @@
 
 Complete HTTP API documentation for WebPods.
 
-## Base URLs
+## Overview
 
-- **Main domain**: `https://webpods.org` (authentication, pod management)
-- **Pod subdomains**: `https://{pod}.webpods.org` (data operations)
+WebPods provides a RESTful API accessible via standard HTTP. The API is split between:
 
-## Authentication Endpoints
+- **Main domain** (`webpods.org`) - Authentication, pod management, OAuth
+- **Pod subdomains** (`alice.webpods.org`) - Data operations on streams and records
 
-### `GET /auth/providers`
+## Authentication
+
+WebPods supports two authentication methods:
+
+### WebPods JWT Tokens
+
+Used for direct API access and CLI. Obtained through OAuth provider login.
+
+```bash
+# Get token via OAuth provider
+curl "https://webpods.org/auth/github?no_redirect=1"
+# Returns login URL, visit in browser, copy token
+
+# Use token in requests
+curl -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  https://webpods.org/api/pods
+```
+
+### OAuth 2.0 Tokens (Hydra)
+
+Used by third-party applications after user authorization.
+
+```bash
+# OAuth tokens obtained through OAuth flow
+curl -H "Authorization: Bearer OAUTH_TOKEN" \
+  https://alice.webpods.org/data
+```
+
+## Main Domain Endpoints
+
+Base URL: `https://webpods.org`
+
+### Authentication Endpoints
+
+#### `GET /auth/providers`
 
 List available OAuth providers.
 
@@ -21,32 +55,35 @@ List available OAuth providers.
 }
 ```
 
-### `GET /auth/{provider}`
+#### `GET /auth/{provider}`
 
-Start OAuth flow for the specified provider.
+Start OAuth authentication flow.
 
 **Parameters:**
 
-- `provider` - OAuth provider (github, google, microsoft, gitlab)
-- `no_redirect=1` - Return login URL instead of redirecting
+- `provider` - OAuth provider name (github, google, microsoft, gitlab)
+- `no_redirect=1` (optional) - Return login URL instead of redirecting
+- `redirect` (optional) - URL to redirect after authentication
 
-**Example:**
+**Response (with no_redirect=1):**
 
-```bash
-curl "https://webpods.org/auth/github?no_redirect=1"
+```json
+{
+  "loginUrl": "https://github.com/login/oauth/authorize?..."
+}
 ```
 
-### `GET /auth/{provider}/callback`
+#### `GET /auth/{provider}/callback`
 
-OAuth callback endpoint (handled automatically by OAuth flow).
+OAuth callback endpoint. Handled automatically during OAuth flow.
 
-### `GET /auth/whoami`
+#### `GET /auth/whoami`
 
-Get current user information.
+Get current authenticated user information.
 
 **Headers:**
 
-- `Authorization: Bearer {jwt_token}`
+- `Authorization: Bearer {token}`
 
 **Response:**
 
@@ -59,26 +96,46 @@ Get current user information.
 }
 ```
 
-### `POST /auth/logout`
+**Error Response (401):**
 
-Logout and invalidate token.
+```json
+{
+  "error": {
+    "code": "UNAUTHORIZED",
+    "message": "Invalid or expired token"
+  }
+}
+```
+
+#### `POST /auth/logout`
+
+Invalidate current session and token.
 
 **Headers:**
 
-- `Authorization: Bearer {jwt_token}`
+- `Authorization: Bearer {token}`
 
-## Pod Management
+**Response:**
 
-### `POST /api/pods`
+```json
+{
+  "success": true,
+  "message": "Logged out successfully"
+}
+```
+
+### Pod Management Endpoints
+
+#### `POST /api/pods`
 
 Create a new pod.
 
 **Headers:**
 
-- `Authorization: Bearer {jwt_token}`
+- `Authorization: Bearer {token}`
 - `Content-Type: application/json`
 
-**Body:**
+**Request Body:**
 
 ```json
 {
@@ -86,7 +143,7 @@ Create a new pod.
 }
 ```
 
-**Response:**
+**Response (201):**
 
 ```json
 {
@@ -99,13 +156,35 @@ Create a new pod.
 }
 ```
 
-### `GET /api/pods`
+**Error Response (409):**
 
-List user's pods.
+```json
+{
+  "error": {
+    "code": "POD_EXISTS",
+    "message": "Pod 'my-pod' already exists"
+  }
+}
+```
+
+**Error Response (400):**
+
+```json
+{
+  "error": {
+    "code": "INVALID_POD_NAME",
+    "message": "Pod name must be lowercase alphanumeric with hyphens"
+  }
+}
+```
+
+#### `GET /api/pods`
+
+List pods owned by authenticated user.
 
 **Headers:**
 
-- `Authorization: Bearer {jwt_token}`
+- `Authorization: Bearer {token}`
 
 **Response:**
 
@@ -114,46 +193,220 @@ List user's pods.
   "pods": [
     {
       "name": "my-pod",
-      "owner_id": "github:12345",
       "created_at": "2024-01-15T10:30:00Z"
+    },
+    {
+      "name": "test-pod",
+      "created_at": "2024-01-14T09:20:00Z"
     }
   ]
 }
 ```
 
-### `DELETE https://{pod}.webpods.org/`
+#### `GET /api/pods/{name}`
 
-Delete a pod.
+Get pod information.
 
 **Headers:**
 
-- `Authorization: Bearer {jwt_token}`
+- `Authorization: Bearer {token}`
 
-## Streams
+**Response:**
 
-### `POST https://{pod}.webpods.org/{stream}?access={mode}`
+```json
+{
+  "name": "my-pod",
+  "owner_id": "github:12345",
+  "created_at": "2024-01-15T10:30:00Z",
+  "stream_count": 42,
+  "record_count": 1337
+}
+```
 
-Create a stream explicitly.
+#### `DELETE /api/pods/{name}`
+
+Delete a pod and all its data.
+
+**Headers:**
+
+- `Authorization: Bearer {token}`
 
 **Query Parameters:**
 
-- `access` - Access mode: `public`, `private`, or `custom`
+- `force=true` - Skip confirmation
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "message": "Pod 'my-pod' deleted"
+}
+```
+
+#### `PUT /api/pods/{name}/transfer`
+
+Transfer pod ownership to another user.
 
 **Headers:**
 
-- `Authorization: Bearer {jwt_token}`
+- `Authorization: Bearer {token}`
+- `Content-Type: application/json`
 
-### `DELETE https://{pod}.webpods.org/{stream}`
+**Request Body:**
 
-Delete a stream.
+```json
+{
+  "new_owner_id": "github:67890"
+}
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "message": "Pod transferred to github:67890"
+}
+```
+
+### OAuth Endpoints (Third-Party Apps)
+
+#### `POST /oauth/register`
+
+Register a new OAuth client application.
 
 **Headers:**
 
-- `Authorization: Bearer {jwt_token}`
+- `Content-Type: application/json`
 
-### `GET https://{pod}.webpods.org/.config/api/streams`
+**Request Body:**
 
-List all streams in a pod.
+```json
+{
+  "client_name": "My Application",
+  "redirect_uris": ["https://myapp.com/callback"],
+  "grant_types": ["authorization_code", "refresh_token"],
+  "response_types": ["code"],
+  "scope": "openid offline pod:read pod:write",
+  "token_endpoint_auth_method": "client_secret_post",
+  "contacts": ["admin@myapp.com"],
+  "logo_uri": "https://myapp.com/logo.png",
+  "client_uri": "https://myapp.com",
+  "policy_uri": "https://myapp.com/privacy",
+  "tos_uri": "https://myapp.com/terms"
+}
+```
+
+**Response (201):**
+
+```json
+{
+  "client_id": "abc123xyz",
+  "client_secret": "secret789",
+  "client_name": "My Application",
+  "redirect_uris": ["https://myapp.com/callback"],
+  "grant_types": ["authorization_code", "refresh_token"],
+  "scope": "openid offline pod:read pod:write"
+}
+```
+
+#### `GET /oauth/client/{clientId}`
+
+Get public information about an OAuth client.
+
+**Response:**
+
+```json
+{
+  "client_id": "abc123xyz",
+  "client_name": "My Application",
+  "logo_uri": "https://myapp.com/logo.png",
+  "client_uri": "https://myapp.com",
+  "policy_uri": "https://myapp.com/privacy",
+  "tos_uri": "https://myapp.com/terms",
+  "scope": "openid offline pod:read pod:write"
+}
+```
+
+#### `GET /connect`
+
+Simplified OAuth authorization flow for third-party apps.
+
+**Query Parameters:**
+
+- `client_id` - OAuth client ID
+
+**Response:**
+Redirects to Hydra OAuth authorization endpoint with proper parameters.
+
+#### `GET /oauth/login`
+
+Hydra login challenge handler. Part of OAuth flow.
+
+**Query Parameters:**
+
+- `login_challenge` - Hydra login challenge
+
+#### `GET /oauth/consent`
+
+Hydra consent screen. Shows which pods the app wants to access.
+
+**Query Parameters:**
+
+- `consent_challenge` - Hydra consent challenge
+
+#### `POST /oauth/consent`
+
+Handle user's consent decision.
+
+**Request Body:**
+
+```json
+{
+  "challenge": "consent_challenge_string",
+  "action": "accept",
+  "scopes": "pod:alice,pod:bob"
+}
+```
+
+### Rate Limit Information
+
+#### `GET /api/limits`
+
+Get current rate limit status for authenticated user.
+
+**Headers:**
+
+- `Authorization: Bearer {token}`
+
+**Response:**
+
+```json
+{
+  "limits": {
+    "requests_per_minute": 60,
+    "requests_remaining": 45,
+    "reset_at": "2024-01-15T10:31:00Z",
+    "max_record_size": 10485760,
+    "max_record_limit": 1000
+  }
+}
+```
+
+## Pod Subdomain Endpoints
+
+Base URL: `https://{pod}.webpods.org`
+
+### Stream Operations
+
+#### `GET /`
+
+List all streams in the pod.
+
+**Headers (optional):**
+
+- `Authorization: Bearer {token}` - Required for private pods
 
 **Response:**
 
@@ -162,247 +415,525 @@ List all streams in a pod.
   "streams": [
     {
       "path": "/blog",
+      "record_count": 10,
+      "created_at": "2024-01-15T10:30:00Z",
       "access": "public",
-      "record_count": 42
+      "children": ["/blog/posts", "/blog/comments"]
     },
     {
-      "path": "/blog/posts",
-      "access": "public",
-      "record_count": 15
+      "path": "/config",
+      "record_count": 5,
+      "created_at": "2024-01-14T09:20:00Z",
+      "access": "private",
+      "children": []
     }
   ]
 }
 ```
 
-## Records
+#### `DELETE /{path}`
 
-### `POST https://{pod}.webpods.org/{stream}/{name}`
-
-Write a record to a stream.
+Delete an entire stream and all its records.
 
 **Headers:**
 
-- `Authorization: Bearer {jwt_token}` (if stream is private)
-- `Content-Type: application/json` or `text/plain`
-- `x-record-header-{key}: {value}` - Custom headers to store with the record (optional)
+- `Authorization: Bearer {token}`
 
-**Custom Headers:**
+**Query Parameters:**
 
-You can attach custom headers to records that will be stored and returned when reading the record. Headers must be configured as allowed in the server configuration.
-
-Example headers:
-
-- `x-record-header-cache-control: no-cache` - Sets cache-control header
-- `x-record-header-hello-world: greeting` - Custom application header
-
-**Body:** Any content (JSON, text, binary)
+- `force=true` - Skip confirmation
+- `recursive=true` - Delete child streams
 
 **Response:**
 
 ```json
 {
   "success": true,
-  "record": {
-    "index": 5,
-    "name": "my-record",
-    "hash": "sha256:abc123...",
-    "previous_hash": "sha256:def456...",
-    "timestamp": "2024-01-15T10:30:00Z",
-    "content_type": "application/json",
-    "content_length": 156,
-    "headers": {
-      "cache-control": "no-cache",
-      "hello-world": "greeting"
+  "deleted_count": 42
+}
+```
+
+### Record Operations
+
+#### `GET /{path}`
+
+List records in a stream or get a specific record.
+
+**Headers (optional):**
+
+- `Authorization: Bearer {token}` - Required for private streams
+
+**Query Parameters:**
+
+- `limit` (number) - Maximum records to return (default: 100, max: 1000)
+- `after` (number) - Skip records after index, or negative for last N records
+- `before` (number) - Get records before index
+- `unique` (boolean) - Return only latest version of named records
+- `include_deleted` (boolean) - Include deleted records
+- `format` (string) - Response format: "full" (default), "hash", "minimal"
+- `fields` (string) - Comma-separated list of fields to include
+- `maxContentSize` (number) - Truncate content larger than this
+- `order` (string) - Sort order: "asc" (default) or "desc"
+
+**Response (list):**
+
+```json
+{
+  "stream": "/blog/posts",
+  "total_count": 150,
+  "returned_count": 20,
+  "records": [
+    {
+      "index": 1,
+      "name": "1",
+      "hash": "sha256:abc123...",
+      "previous_hash": "sha256:000000...",
+      "content": {
+        "title": "First Post",
+        "body": "Content here..."
+      },
+      "content_type": "application/json",
+      "created_at": "2024-01-15T10:30:00Z",
+      "created_by": "github:12345",
+      "deleted": false
+    },
+    {
+      "index": 2,
+      "name": "2",
+      "hash": "sha256:def456...",
+      "previous_hash": "sha256:abc123...",
+      "content": {
+        "title": "Second Post",
+        "body": "More content..."
+      },
+      "content_type": "application/json",
+      "created_at": "2024-01-15T11:00:00Z",
+      "created_by": "github:12345",
+      "deleted": false
     }
+  ]
+}
+```
+
+**Response (single record):**
+
+```json
+{
+  "index": 1,
+  "name": "welcome",
+  "hash": "sha256:abc123...",
+  "previous_hash": "sha256:000000...",
+  "content": {
+    "title": "Welcome",
+    "body": "Hello World"
+  },
+  "content_type": "application/json",
+  "created_at": "2024-01-15T10:30:00Z",
+  "created_by": "github:12345",
+  "deleted": false
+}
+```
+
+**Response (format=hash):**
+
+```json
+{
+  "stream": "/blog/posts",
+  "hashes": [
+    {
+      "index": 1,
+      "hash": "sha256:abc123...",
+      "previous_hash": "sha256:000000..."
+    },
+    {
+      "index": 2,
+      "hash": "sha256:def456...",
+      "previous_hash": "sha256:abc123..."
+    }
+  ]
+}
+```
+
+#### `GET /{path}/{name}`
+
+Get a specific named record.
+
+**Headers (optional):**
+
+- `Authorization: Bearer {token}` - Required for private streams
+
+**Response:**
+
+```json
+{
+  "index": 42,
+  "name": "config",
+  "hash": "sha256:xyz789...",
+  "previous_hash": "sha256:uvw456...",
+  "content": {
+    "theme": "dark",
+    "language": "en"
+  },
+  "content_type": "application/json",
+  "created_at": "2024-01-15T10:30:00Z",
+  "created_by": "github:12345",
+  "deleted": false
+}
+```
+
+**Error Response (404):**
+
+```json
+{
+  "error": {
+    "code": "RECORD_NOT_FOUND",
+    "message": "Record 'config' not found in stream '/settings'"
   }
 }
 ```
 
-### `GET https://{pod}.webpods.org/{stream}/{name}`
+#### `POST /{path}`
 
-Read a specific record.
+Create a new record in a stream.
 
 **Headers:**
 
-- `Authorization: Bearer {jwt_token}` (if stream is private)
+- `Authorization: Bearer {token}`
+- `Content-Type` - Type of content (application/json, text/plain, etc.)
 
-**Response:** Record content with headers:
+**Request Body (auto-named):**
 
-- `Content-Type`: Original content type
-- `X-Record-Index`: Record index number
-- `X-Record-Hash`: Record hash
-- `X-Record-Timestamp`: Creation timestamp
-- Custom headers stored with the record (e.g., `cache-control`, `hello-world`)
+```json
+{
+  "title": "New Post",
+  "content": "Post content here..."
+}
+```
 
-### `GET https://{pod}.webpods.org/{stream}`
+**Request Body (named):**
 
-List records in a stream.
+```json
+{
+  "name": "my-config",
+  "content": {
+    "setting1": "value1",
+    "setting2": "value2"
+  }
+}
+```
+
+**Request Body (with headers):**
+
+```json
+{
+  "content": "Data here...",
+  "headers": {
+    "X-Custom-Header": "value",
+    "X-Source": "api-client"
+  }
+}
+```
+
+**Response (201):**
+
+```json
+{
+  "success": true,
+  "record": {
+    "index": 43,
+    "name": "43",
+    "hash": "sha256:newHash...",
+    "previous_hash": "sha256:prevHash...",
+    "stream": "/blog/posts",
+    "created_at": "2024-01-15T12:00:00Z"
+  }
+}
+```
+
+**Error Response (400):**
+
+```json
+{
+  "error": {
+    "code": "INVALID_CONTENT",
+    "message": "Content exceeds maximum size of 10MB"
+  }
+}
+```
+
+**Error Response (409):**
+
+```json
+{
+  "error": {
+    "code": "DUPLICATE_NAME",
+    "message": "Record with name 'my-config' already exists"
+  }
+}
+```
+
+#### `DELETE /{path}/{name}`
+
+Mark a record as deleted (soft delete).
+
+**Headers:**
+
+- `Authorization: Bearer {token}`
 
 **Query Parameters:**
 
-- `after` - Start after this index (supports negative values for "last N")
-- `before` - End before this index
-- `limit` - Maximum records to return (default 100, max 1000)
-- `unique` - Only return the latest record for each unique name
-- `format` - Response format: `json` (default) or `html`
-- `fields` - Comma-separated list of fields to return (e.g., `name,index,timestamp`)
-- `maxContentSize` - Maximum content size in bytes (truncates larger content)
+- `purge=true` - Permanently delete (requires special permission)
 
-**Field Selection:**
+**Response:**
 
-The `fields` parameter allows you to request only specific fields in the response, reducing bandwidth usage. Available fields:
+```json
+{
+  "success": true,
+  "message": "Record marked as deleted"
+}
+```
 
-- `index`, `name`, `hash`, `previousHash`, `contentHash`, `timestamp`, `userId`, `content`, `contentType`, `headers`, `size`
+### Permission Operations
 
-Note: When requesting `content`, the `size` field is automatically included.
+#### `GET /.permissions/{path}`
 
-**Content Truncation:**
+Get permissions for a stream.
 
-The `maxContentSize` parameter limits the content field to the specified number of bytes. The original `size` field is preserved, allowing you to detect truncation.
+**Headers:**
 
-**Examples:**
+- `Authorization: Bearer {token}`
 
-```bash
-# Get all records
-GET /blog/posts
+**Response:**
 
-# Pagination
-GET /blog/posts?after=10&limit=20
+```json
+{
+  "stream": "/private/data",
+  "access": "custom",
+  "permissions": [
+    {
+      "user_id": "github:12345",
+      "read": true,
+      "write": true
+    },
+    {
+      "user_id": "github:67890",
+      "read": true,
+      "write": false
+    }
+  ]
+}
+```
 
-# Last 10 records
-GET /blog/posts?after=-10
+#### `POST /.permissions/{path}`
 
-# Latest version of each named record
-GET /blog/posts?unique=true
+Grant permissions to a user.
 
-# Range query
-GET /blog/posts?after=5&before=15
+**Headers:**
 
-# Get only name and timestamp fields
-GET /blog/posts?fields=name,timestamp
+- `Authorization: Bearer {token}`
+- `Content-Type: application/json`
 
-# Limit content to 1000 bytes
-GET /blog/posts?maxContentSize=1000
+**Request Body:**
 
-# Combine field selection with content truncation
-GET /blog/posts?fields=name,content&maxContentSize=500
+```json
+{
+  "userId": "github:67890",
+  "read": true,
+  "write": false
+}
 ```
 
 **Response:**
 
 ```json
 {
-  "stream": "/blog/posts",
-  "records": [
-    {
-      "index": 1,
-      "name": "first-post",
-      "hash": "sha256:abc123...",
-      "previous_hash": null,
-      "timestamp": "2024-01-15T10:30:00Z",
-      "content_type": "text/plain",
-      "content": "My first blog post!",
-      "headers": {
-        "cache-control": "public, max-age=3600"
-      }
-    }
-  ],
-  "pagination": {
-    "after": 0,
-    "limit": 100,
-    "has_more": false
+  "success": true,
+  "message": "Permissions updated"
+}
+```
+
+### Link Operations
+
+#### `GET /.links/{path}`
+
+Get link/redirect for a stream.
+
+**Response:**
+
+```json
+{
+  "source": "/old/path",
+  "target": "/new/path",
+  "created_at": "2024-01-15T10:30:00Z"
+}
+```
+
+#### `POST /.links/{path}`
+
+Create a link/redirect from one stream to another.
+
+**Headers:**
+
+- `Authorization: Bearer {token}`
+- `Content-Type: application/json`
+
+**Request Body:**
+
+```json
+{
+  "target": "/new/path"
+}
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "link": {
+    "source": "/old/path",
+    "target": "/new/path"
   }
 }
 ```
 
-## OAuth Client Management
-
-### `POST /api/oauth/clients`
-
-Register a new OAuth client.
-
-**Headers:**
-
-- `Authorization: Bearer {jwt_token}`
-- `Content-Type: application/json`
-
-**Body:**
-
-```json
-{
-  "name": "My App",
-  "redirect_uris": ["https://myapp.com/callback"]
-}
-```
-
-### `GET /api/oauth/clients`
-
-List registered clients.
-
-**Headers:**
-
-- `Authorization: Bearer {jwt_token}`
-
-### `GET /api/oauth/clients/{id}`
-
-Get client details.
-
-### `DELETE /api/oauth/clients/{id}`
-
-Delete a client.
-
-## OAuth 2.0 Flow
-
-### `GET /connect`
-
-Simplified authorization endpoint.
-
-**Query Parameters:**
-
-- `client_id` - Registered client ID
-- `redirect_uri` - Callback URL
-- `scope` - Requested permissions
-- `state` - Optional state parameter
-
-### `GET /oauth2/auth`
-
-Full OAuth 2.0 authorization endpoint.
-
-### `POST /oauth2/token`
-
-OAuth 2.0 token exchange endpoint.
-
-### `GET /oauth2/userinfo`
-
-Get user information using OAuth token.
-
 ## Error Responses
 
-All errors follow this format:
+All error responses follow this format:
 
 ```json
 {
   "error": {
-    "code": "RECORD_NOT_FOUND",
-    "message": "Record 'my-record' not found in stream '/blog/posts'"
+    "code": "ERROR_CODE",
+    "message": "Human-readable error message",
+    "details": {} // Optional additional information
   }
 }
 ```
 
-Common error codes:
+### Common Error Codes
+
+#### Authentication Errors (4xx)
 
 - `UNAUTHORIZED` - Missing or invalid authentication
-- `FORBIDDEN` - Insufficient permissions
-- `POD_NOT_FOUND` - Pod doesn't exist
-- `STREAM_NOT_FOUND` - Stream doesn't exist
-- `RECORD_NOT_FOUND` - Record doesn't exist
-- `VALIDATION_ERROR` - Invalid request data
-- `RATE_LIMITED` - Too many requests
+- `TOKEN_EXPIRED` - JWT token has expired
+- `INVALID_TOKEN` - Malformed or invalid token
+- `FORBIDDEN` - Authenticated but not authorized
+- `POD_FORBIDDEN` - Token not authorized for this pod
+
+#### Validation Errors (4xx)
+
+- `INVALID_POD_NAME` - Pod name format invalid
+- `INVALID_STREAM_PATH` - Stream path format invalid
+- `INVALID_RECORD_NAME` - Record name format invalid
+- `INVALID_CONTENT` - Content validation failed
+- `CONTENT_TOO_LARGE` - Content exceeds size limit
+- `INVALID_QUERY_PARAM` - Query parameter invalid
+
+#### Resource Errors (4xx)
+
+- `POD_NOT_FOUND` - Pod does not exist
+- `STREAM_NOT_FOUND` - Stream does not exist
+- `RECORD_NOT_FOUND` - Record does not exist
+- `POD_EXISTS` - Pod name already taken
+- `DUPLICATE_NAME` - Named record already exists
+
+#### Rate Limiting (429)
+
+- `RATE_LIMIT_EXCEEDED` - Too many requests
+
+#### Server Errors (5xx)
+
+- `INTERNAL_ERROR` - Unexpected server error
+- `DATABASE_ERROR` - Database operation failed
+- `HASH_VERIFICATION_ERROR` - Hash chain broken
+
+## Query Parameters
+
+### Pagination
+
+Use `limit` and `after` for pagination:
+
+```bash
+# First page
+GET /stream?limit=20
+
+# Next page
+GET /stream?limit=20&after=20
+
+# Page 3
+GET /stream?limit=20&after=40
+```
+
+### Negative Indexing
+
+Use negative `after` values to get recent records:
+
+```bash
+# Last 10 records
+GET /stream?after=-10
+
+# Last 50 records, but only return 20
+GET /stream?after=-50&limit=20
+```
+
+### Unique Records
+
+For configuration/state management:
+
+```bash
+# Get only latest version of each named record
+GET /config?unique=true
+```
+
+### Field Selection
+
+Reduce response size:
+
+```bash
+# Only get specific fields
+GET /stream?fields=name,created_at,hash
+
+# Truncate large content
+GET /stream?maxContentSize=1000
+```
+
+## Content Types
+
+WebPods preserves Content-Type headers:
+
+- `application/json` - JSON data (default)
+- `text/plain` - Plain text
+- `text/html` - HTML content
+- `text/markdown` - Markdown content
+- `application/octet-stream` - Binary data
+- Custom types supported
 
 ## Rate Limits
 
-Default limits (configurable):
+Default rate limits (configurable):
 
-- 1000 requests per hour per user
-- 100 records per request maximum
-- 10MB maximum request size
+- **Requests**: 60 per minute per IP/user
+- **Record Size**: 10MB maximum
+- **Records per Request**: 1000 maximum
+- **Pod Creation**: 10 per hour per user
+
+Rate limit headers included in responses:
+
+- `X-RateLimit-Limit` - Request limit
+- `X-RateLimit-Remaining` - Requests remaining
+- `X-RateLimit-Reset` - Reset timestamp
+
+## HTTP Status Codes
+
+- `200 OK` - Successful GET request
+- `201 Created` - Resource created successfully
+- `204 No Content` - Successful DELETE request
+- `400 Bad Request` - Invalid request parameters
+- `401 Unauthorized` - Authentication required
+- `403 Forbidden` - Not authorized for resource
+- `404 Not Found` - Resource does not exist
+- `409 Conflict` - Resource already exists
+- `429 Too Many Requests` - Rate limit exceeded
+- `500 Internal Server Error` - Server error
+- `503 Service Unavailable` - Temporary unavailability

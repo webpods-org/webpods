@@ -268,21 +268,31 @@ describe("WebPods Stream Operations", () => {
     it("should get record by positive index", async () => {
       const response = await client.get("/read-test?i=0");
       expect(response.status).to.equal(200);
-      expect(response.data).to.equal("First");
+      expect(response.data.records).to.have.lengthOf(1);
+      expect(response.data.records[0].content).to.equal("First");
+      expect(response.data.range).to.deep.equal({ start: 0, end: 1 });
+      expect(response.data.total).to.equal(1);
 
       const response2 = await client.get("/read-test?i=2");
       expect(response2.status).to.equal(200);
-      expect(response2.data).to.equal("Third");
+      expect(response2.data.records).to.have.lengthOf(1);
+      expect(response2.data.records[0].content).to.equal("Third");
+      expect(response2.data.range).to.deep.equal({ start: 2, end: 3 });
+      expect(response2.data.total).to.equal(1);
     });
 
     it("should get record by negative index", async () => {
       const response = await client.get("/read-test?i=-1");
       expect(response.status).to.equal(200);
-      expect(response.data).to.equal("Year 2024");
+      expect(response.data.records).to.have.lengthOf(1);
+      expect(response.data.records[0].content).to.equal("Year 2024");
+      expect(response.data.total).to.equal(1);
 
       const response2 = await client.get("/read-test?i=-5");
       expect(response2.status).to.equal(200);
-      expect(response2.data).to.equal("First");
+      expect(response2.data.records).to.have.lengthOf(1);
+      expect(response2.data.records[0].content).to.equal("First");
+      expect(response2.data.total).to.equal(1);
     });
 
     it("should get range of records", async () => {
@@ -319,15 +329,16 @@ describe("WebPods Stream Operations", () => {
       expect(page2.data.records).to.have.lengthOf(2);
     });
 
-    it("should return raw content with metadata in headers", async () => {
+    it("should return JSON list with metadata for single index", async () => {
       const response = await client.get("/read-test?i=0");
-      // Express adds charset, so check if content-type starts with expected value
-      expect(response.headers["content-type"]).to.include("text/plain");
-      expect(response.headers["x-content-hash"]).to.exist;
-      expect(response.headers["x-hash"]).to.exist;
-      expect(response.headers["x-author"]).to.equal(userId);
-      expect(response.headers["x-timestamp"]).to.exist;
-      expect(response.data).to.equal("First");
+      expect(response.headers["content-type"]).to.include("application/json");
+      expect(response.status).to.equal(200);
+      expect(response.data.records).to.have.lengthOf(1);
+      expect(response.data.records[0].content).to.equal("First");
+      expect(response.data.records[0].contentHash).to.exist;
+      expect(response.data.records[0].hash).to.exist;
+      expect(response.data.records[0].userId).to.equal(userId);
+      expect(response.data.records[0].timestamp).to.exist;
     });
 
     it("should support negative 'after' parameter for pagination", async () => {
@@ -455,10 +466,11 @@ describe("WebPods Stream Operations", () => {
       const response = await client.post("/.config/routing/routes", links);
       expect(response.status).to.equal(201);
 
-      // Verify links work
+      // Verify links work - now returns JSON list since ?i=-1 returns a list
       const rootResponse = await client.get("/");
       expect(rootResponse.status).to.equal(200);
-      expect(rootResponse.data).to.equal("<h1>Welcome</h1>");
+      expect(rootResponse.data.records).to.have.lengthOf(1);
+      expect(rootResponse.data.records[0].content).to.equal("<h1>Welcome</h1>");
     });
 
     it("should only allow owner to write to .config/ streams", async () => {

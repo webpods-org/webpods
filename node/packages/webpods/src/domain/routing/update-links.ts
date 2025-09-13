@@ -8,7 +8,7 @@ import { PodDbRow, StreamDbRow, RecordDbRow } from "../../db-types.js";
 import { calculateContentHash, calculateRecordHash } from "../../utils.js";
 import { createLogger } from "../../logger.js";
 import { sql } from "../../db/index.js";
-import { getCache } from "../../cache/index.js";
+import { getCache, cacheKeys } from "../../cache/index.js";
 
 const logger = createLogger("webpods:domain:routing");
 
@@ -131,7 +131,7 @@ export async function updateLinks(
         // Clear all cached link resolutions for this pod
         // Invalidate each specific link path
         for (const linkPath of Object.keys(links)) {
-          await cache.delete("pods", `link:${podName}:${linkPath}`);
+          await cache.delete("pods", cacheKeys.link(podName, linkPath));
         }
       }
 
