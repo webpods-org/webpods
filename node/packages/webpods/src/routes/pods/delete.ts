@@ -139,7 +139,7 @@ export const deleteHandler = async (
       });
       res.status(204).send();
     } else {
-      // Soft delete - add a tombstone record
+      // Soft delete - add a deletion marker record
       const deleteResult = await deleteRecord(
         { db },
         streamId,
@@ -158,7 +158,7 @@ export const deleteHandler = async (
         podId: req.podName,
         streamPath,
         recordName,
-        tombstoneName: deleteResult.data.name,
+        deletionMarkerName: deleteResult.data.name,
         userId: req.auth.user_id,
       });
       res.status(204).send();

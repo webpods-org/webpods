@@ -168,8 +168,24 @@ podctl record read <pod> <stream> <record-name> --output data.json
 #### Delete Record
 
 ```bash
+# Soft delete (default) - creates deletion marker, preserves data
 podctl record delete <pod> <stream> <record-name> [--force]
+
+# Hard delete/purge - permanently erases content, preserves hash chain
+podctl record delete <pod> <stream> <record-name> --purge [--force]
 ```
+
+**Soft Delete (default):**
+
+- Creates a new deletion marker record
+- Record becomes invisible to normal queries
+- Original data preserved in history
+
+**Hard Delete (with `--purge`):**
+
+- Permanently erases content from ALL records with this name
+- Preserves hash values for chain integrity
+- Cannot be undone
 
 #### List Records
 

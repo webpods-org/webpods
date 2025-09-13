@@ -159,6 +159,18 @@ podctl record list my-first-pod /notes
 podctl record list my-first-pod /notes --format json
 ```
 
+### Delete Records
+
+```bash
+# Soft delete - creates deletion marker, preserves data
+podctl record delete my-first-pod /notes welcome --force
+
+# Hard delete/purge - permanently erases content
+podctl record delete my-first-pod /notes sensitive-data --purge --force
+```
+
+**Note:** Soft delete is reversible (data preserved in history), while purge permanently erases content.
+
 ## Understanding Streams
 
 Streams are hierarchical paths that organize your data, like folders in a file system:

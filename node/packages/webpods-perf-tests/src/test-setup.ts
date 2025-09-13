@@ -1,5 +1,10 @@
 // Test setup for WebPods performance tests
-import { TestDatabase, TestServer, testLogger } from "webpods-test-utils";
+import {
+  TestDatabase,
+  TestServer,
+  testLogger,
+  clearAllCache,
+} from "webpods-test-utils";
 import * as path from "path";
 import { fileURLToPath } from "url";
 import { promises as fs } from "fs";
@@ -53,6 +58,7 @@ afterEach(async function () {
   // Only truncate if a test specifically requests it
   if (process.env.PERF_TEST_CLEANUP === "true") {
     await testDb.truncateAllTables();
+    await clearAllCache(); // Clear cache when cleaning up data
   }
 });
 

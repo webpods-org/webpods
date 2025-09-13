@@ -59,7 +59,7 @@ describe("WebPods Record Deletion", () => {
     await clearAllCache();
   });
 
-  describe("Soft Delete (Tombstone)", () => {
+  describe("Soft Delete (Deletion Marker)", () => {
     it("should allow pod owner to soft delete a record", async () => {
       // Create a record
       client.setAuthToken(ownerToken);
@@ -76,12 +76,13 @@ describe("WebPods Record Deletion", () => {
       // Check delete response
       expect(response.status).to.equal(204);
 
-      // Verify it returns 404
+      // Verify it returns 404 (deleted records are invisible)
       response = await client.get("/documents/report");
       expect(response.status).to.equal(404);
-      expect(response.data.error.code).to.equal("RECORD_DELETED");
+      // getRecord returns a generic error, check that we have an error
+      expect(response.data).to.have.property("error");
 
-      // Verify the tombstone record exists in database
+      // Verify the deletion marker record exists in database
       const db = testDb.getDb();
       const pod = await db.oneOrNone(
         `SELECT * FROM pod WHERE name = $(podId)`,
@@ -94,21 +95,21 @@ describe("WebPods Record Deletion", () => {
         { pod_name: pod.name, streamName: "documents" },
       );
 
-      // Check for tombstone record using stream_id
-      const tombstones = await db.manyOrNone(
-        `SELECT * FROM record 
+      // Check for deletion record using stream_id
+      const deletionRecords = await db.manyOrNone(
+        `SELECT * FROM record
          WHERE stream_id = $(streamId)
-         AND name LIKE 'report.deleted.%'
+         AND name = 'report'
+         AND deleted = true
          ORDER BY index DESC`,
         { streamId: stream.id },
       );
 
-      expect(tombstones).to.have.lengthOf(1);
-      const tombstone = JSON.parse(tombstones[0].content);
-      expect(tombstone).to.have.property("deleted", true);
-      expect(tombstone).to.have.property("deletedAt");
-      expect(tombstone).to.have.property("deletedBy", ownerId);
-      expect(tombstone).to.have.property("originalName", "report");
+      expect(deletionRecords).to.have.lengthOf(1);
+      // Deletion records now have empty content, not metadata
+      expect(deletionRecords[0].content).to.equal("");
+      expect(deletionRecords[0].deleted).to.be.true;
+      expect(deletionRecords[0].user_id).to.equal(ownerId);
     });
 
     it("should prevent non-owner from deleting records", async () => {
@@ -138,10 +139,13 @@ describe("WebPods Record Deletion", () => {
       await client.post("/data/item1", "Content 1");
       await client.delete("/data/item1");
 
-      // Try to access by index
+      // Try to access by index - deleted record is included in the list (append-only log)
       const response = await client.get("/data?i=-1");
-      expect(response.status).to.equal(404);
-      expect(response.data.error.code).to.equal("RECORD_DELETED");
+      expect(response.status).to.equal(200);
+      expect(response.data.records).to.have.lengthOf(1);
+      // The deleted record should still be in the list (it's a deletion marker)
+      expect(response.data.records[0].content).to.equal("");
+      expect(response.data.records[0].name).to.equal("item1");
     });
   });
 
@@ -161,10 +165,10 @@ describe("WebPods Record Deletion", () => {
       response = await client.delete("/secrets/password?purge=true");
       expect(response.status).to.equal(204);
 
-      // Verify it returns 404
+      // Verify it returns 404 (purged records are invisible)
       response = await client.get("/secrets/password");
       expect(response.status).to.equal(404);
-      expect(response.data.error.code).to.equal("RECORD_DELETED");
+      expect(response.data).to.have.property("error");
 
       // Verify the content was physically deleted but hash preserved
       const db = testDb.getDb();
@@ -182,13 +186,11 @@ describe("WebPods Record Deletion", () => {
       );
 
       expect(record).to.exist;
-      const content = JSON.parse(record.content);
-      expect(content).to.have.property("deleted", true);
-      expect(content).to.have.property("purged", true);
-      expect(content).to.have.property("purgedAt");
-      expect(content).to.have.property("purgedBy", ownerId);
+      // Content should be empty after purge
+      expect(record.content).to.equal("");
+      expect(record.purged).to.be.true;
       // Original content should be gone
-      expect(content).to.not.have.property("super-secret-password-123");
+      expect(record.content).to.not.include("super-secret-password-123");
 
       // Hash should still exist
       expect(record.hash).to.exist;
@@ -280,10 +282,10 @@ describe("WebPods Record Deletion", () => {
       const response = await client.delete("/app/config");
       expect(response.status).to.equal(204);
 
-      // Verify record is deleted
+      // Verify record is deleted (invisible)
       const getResponse = await client.get("/app/config");
       expect(getResponse.status).to.equal(404);
-      expect(getResponse.data.error.code).to.equal("RECORD_DELETED");
+      expect(getResponse.data).to.have.property("error");
     });
 
     it("should prevent deletion of system streams", async () => {

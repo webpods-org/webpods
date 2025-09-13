@@ -52,7 +52,7 @@ export async function getRecordRange(
     // Handle negative indices
     if (startIndex < 0 || endIndex < 0) {
       const countResult = await ctx.db.one<{ count: string }>(
-        `SELECT COUNT(*) as count FROM record WHERE stream_id = $(streamId) `,
+        `SELECT COUNT(*) as count FROM record WHERE stream_id = $(streamId)`,
         { streamId },
       );
       const totalCount = parseInt(countResult.count);
@@ -62,6 +62,12 @@ export async function getRecordRange(
       }
       if (endIndex < 0) {
         actualEndIndex = totalCount + endIndex;
+      } else if (startIndex < 0 && endIndex >= 0) {
+        // Special case: negative start with non-negative end
+        // This happens for single negative index queries
+        // e.g., getRecordRange(-1, 0) should get the last record
+        // After conversion: start=4 (for 5 records), end should be 5
+        actualEndIndex = actualStartIndex + (endIndex - startIndex);
       }
     }
 
@@ -71,6 +77,8 @@ export async function getRecordRange(
       return success([]);
     }
 
+    // Fetch records in the specified index range
+    // Note: Including all records at these indices, even deletion markers
     const records = await ctx.db.manyOrNone<RecordDbRow>(
       `SELECT * FROM record
        WHERE stream_id = $(streamId)

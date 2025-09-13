@@ -91,12 +91,11 @@ export async function listRecordsRecursive(
     const readableStreamIds = readableStreams.map((stream) => stream.id);
 
     // Step 4: Get total count with a single efficient query
+    // Note: Including all records, even deletion markers, as this is an append-only log
     const countResult = await ctx.db.one<{ count: string }>(
-      `SELECT COUNT(*) as count 
-       FROM record 
-       WHERE stream_id = ANY($(streamIds)::bigint[])
-         AND deleted = false
-         AND purged = false`,
+      `SELECT COUNT(*) as count
+       FROM record
+       WHERE stream_id = ANY($(streamIds)::bigint[])`,
       { streamIds: readableStreamIds },
     );
 
@@ -113,12 +112,11 @@ export async function listRecordsRecursive(
     }
 
     // Step 5: Use single efficient query with proper ordering and pagination
+    // Note: Including all records as this is an append-only log
     let query = `
-      SELECT r.* 
+      SELECT r.*
       FROM record r
       WHERE r.stream_id = ANY($(streamIds)::bigint[])
-        AND r.deleted = false
-        AND r.purged = false
       ORDER BY r.created_at ASC`;
 
     // Add pagination parameters

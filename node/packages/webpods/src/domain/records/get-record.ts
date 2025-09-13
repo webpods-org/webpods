@@ -1,13 +1,13 @@
 /**
- * Get a record by index or alias
+ * Get a record by name
  */
 
 import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
 import { RecordDbRow } from "../../db-types.js";
 import { StreamRecord } from "../../types.js";
-import { isNumericIndex } from "../../utils.js";
 import { createLogger } from "../../logger.js";
+import { createError } from "../../utils/errors.js";
 import { getCache, cacheKeys } from "../../cache/index.js";
 import { getConfig } from "../../config-loader.js";
 
@@ -45,145 +45,67 @@ export async function getRecord(
   ctx: DataContext,
   podName: string,
   streamId: number,
-  target: string,
-  preferName: boolean = false,
+  name: string,
   streamPath?: string,
 ): Promise<Result<StreamRecord>> {
   try {
     const cache = getCache();
     const config = getConfig();
     let record: RecordDbRow | null = null;
-    let isNameLookup = false;
-    let recordName: string | null = null;
 
-    // Check cache for named records (not index-based lookups)
-    if (!isNumericIndex(target) || preferName) {
-      isNameLookup = true;
-      recordName = target;
-
-      if (cache && config.cache?.pools?.singleRecords?.enabled && streamPath) {
-        const cacheKey = cacheKeys.recordData(podName, streamPath, target);
-        const cachedRecord = await cache.get<StreamRecord>(
-          "singleRecords",
-          cacheKey,
-        );
-        if (cachedRecord) {
-          logger.debug("Record cache hit", { streamId, target });
-          return success(cachedRecord);
-        }
-        logger.debug("Record cache miss", { streamId, target });
+    // Check cache first
+    if (cache && config.cache?.pools?.singleRecords?.enabled && streamPath) {
+      const cacheKey = cacheKeys.recordData(podName, streamPath, name);
+      const cachedRecord = await cache.get<StreamRecord>(
+        "singleRecords",
+        cacheKey,
+      );
+      if (cachedRecord) {
+        logger.debug("Record cache hit", { streamId, name });
+        return success(cachedRecord);
       }
+      logger.debug("Record cache miss", { streamId, name });
     }
 
-    // If preferName is true, try name first even if target is numeric
-    if (preferName) {
-      // Try to get by name first - get the latest record with this name
-      record = await ctx.db.oneOrNone<RecordDbRow>(
-        `SELECT * FROM record
-         WHERE stream_id = $(streamId)
-           
-           AND name = $(name)
-         ORDER BY index DESC
-         LIMIT 1`,
-        { streamId, name: target },
-      );
+    // Get the latest record by name and check if it's deleted
+    const latestRecord = await ctx.db.oneOrNone<RecordDbRow>(
+      `SELECT * FROM record
+       WHERE stream_id = $(streamId)
+         AND name = $(name)
+       ORDER BY index DESC
+       LIMIT 1`,
+      { streamId, name },
+    );
 
-      // If not found as name and target is numeric, try as index
-      if (!record && isNumericIndex(target)) {
-        isNameLookup = false; // Switching to index lookup
-        recordName = null;
-        let index = parseInt(target);
-
-        // Handle negative indexing
-        if (index < 0) {
-          const countResult = await ctx.db.one<{ count: string }>(
-            `SELECT COUNT(*) as count FROM record WHERE stream_id = $(streamId) `,
-            { streamId },
-          );
-
-          index = parseInt(countResult.count) + index;
-          if (index < 0) {
-            return failure(new Error("Record not found"));
-          }
-        }
-
-        record = await ctx.db.oneOrNone<RecordDbRow>(
-          `SELECT * FROM record
-           WHERE stream_id = $(streamId)
-             
-             AND index = $(index)`,
-          { streamId, index },
-        );
-      }
-    } else if (isNumericIndex(target)) {
-      // Target is numeric, treat as index
-      isNameLookup = false;
-      recordName = null;
-      let index = parseInt(target);
-
-      // Handle negative indexing
-      if (index < 0) {
-        const countResult = await ctx.db.one<{ count: string }>(
-          `SELECT COUNT(*) as count FROM record WHERE stream_id = $(streamId) `,
-          { streamId },
-        );
-
-        index = parseInt(countResult.count) + index;
-        if (index < 0) {
-          return failure(new Error("Record not found"));
-        }
-      }
-
-      record = await ctx.db.oneOrNone<RecordDbRow>(
-        `SELECT * FROM record
-         WHERE stream_id = $(streamId)
-           
-           AND index = $(index)`,
-        { streamId, index },
-      );
-    } else {
-      // Target is not numeric, treat as name - get the latest record with this name
-      record = await ctx.db.oneOrNone<RecordDbRow>(
-        `SELECT * FROM record
-         WHERE stream_id = $(streamId)
-           
-           AND name = $(name)
-         ORDER BY index DESC
-         LIMIT 1`,
-        { streamId, name: target },
-      );
+    // Only use it if it's not deleted or purged
+    if (latestRecord && !latestRecord.deleted && !latestRecord.purged) {
+      record = latestRecord;
     }
 
     if (!record) {
-      return failure(new Error("Record not found"));
+      return failure(createError("RECORD_NOT_FOUND", "Record not found"));
     }
 
     const mappedRecord = mapRecordFromDb(record);
 
-    // Cache named records only (not index lookups, as indexes can change)
-    if (
-      cache &&
-      config.cache?.pools?.singleRecords?.enabled &&
-      isNameLookup &&
-      recordName &&
-      streamPath
-    ) {
+    // Cache the record
+    if (cache && config.cache?.pools?.singleRecords?.enabled && streamPath) {
       // Check size limit
       const size = cache.checkSize(mappedRecord);
       if (size <= config.cache.pools.singleRecords.maxRecordSizeBytes) {
-        const cacheKey = cacheKeys.recordData(podName, streamPath, recordName);
+        const cacheKey = cacheKeys.recordData(podName, streamPath, name);
         const ttl = config.cache.pools.singleRecords.ttlSeconds;
         await cache.set("singleRecords", cacheKey, mappedRecord, ttl);
         logger.debug("Record cached", {
           streamId,
-          name: recordName,
+          name,
           size,
           ttl,
         });
       } else {
         logger.debug("Record too large to cache", {
           streamId,
-          name: recordName,
+          name,
           size,
         });
       }
@@ -191,7 +113,7 @@ export async function getRecord(
 
     return success(mappedRecord);
   } catch (error: unknown) {
-    logger.error("Failed to get record", { error, podName, streamId, target });
-    return failure(new Error("Failed to get record"));
+    logger.error("Failed to get record", { error, podName, streamId, name });
+    return failure(createError("INTERNAL_ERROR", "Failed to get record"));
   }
 }

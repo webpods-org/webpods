@@ -199,8 +199,10 @@ describe("WebPods Image Support", () => {
       const response = await client.get("/gallery/photo1?i=0");
 
       expect(response.status).to.equal(200);
-      expect(response.headers["content-type"]).to.include("text/plain");
-      expect(response.data).to.equal(testPngDataUrl);
+      expect(response.headers["content-type"]).to.include("application/json");
+      expect(response.data.records).to.have.lengthOf(1);
+      expect(response.data.records[0].content).to.equal(testPngDataUrl);
+      expect(response.data.records[0].contentType).to.equal("text/plain");
     });
 
     it("should include metadata headers when serving images", async () => {

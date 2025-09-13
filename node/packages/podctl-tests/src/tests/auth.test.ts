@@ -46,7 +46,7 @@ describe("CLI Auth Commands", function () {
       expect(result.stdout).to.include("To authenticate with WebPods:");
       expect(result.stdout).to.include("Open this URL in your browser:");
       expect(result.stdout).to.include(
-        "http://localhost:3456/auth/test-provider",
+        "http://localhost:3000/auth/test-provider",
       );
     });
   });
