@@ -65,7 +65,7 @@ export async function getStreamById(
     }
 
     const mappedStream = mapStreamFromDb(stream);
-    
+
     // Cache the result
     if (cache) {
       const cacheKey = `stream-id:${streamId}`;

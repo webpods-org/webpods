@@ -83,13 +83,23 @@ export async function deleteStream(
 
       // Invalidate caches for the deleted stream and its children
       // Note: Child streams are CASCADE deleted, so we rely on the pod-level invalidation
-      await cacheInvalidation.invalidateStream(streamId.toString(), podName, stream.path);
-      
+      await cacheInvalidation.invalidateStream(
+        streamId.toString(),
+        podName,
+        stream.path,
+      );
+
       // Invalidate parent's child stream list cache
       const cache = getCache();
       if (cache && stream.parent_id) {
-        await cache.delete("streams", `children:${podName}:${stream.parent_id}`);
-        await cache.delete("streams", `children-count:${podName}:${stream.parent_id}`);
+        await cache.delete(
+          "streams",
+          `children:${podName}:${stream.parent_id}`,
+        );
+        await cache.delete(
+          "streams",
+          `children-count:${podName}:${stream.parent_id}`,
+        );
       }
       // If this was a root stream, invalidate the root children cache
       if (!stream.parent_id && cache) {

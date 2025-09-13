@@ -129,7 +129,7 @@ export async function transferPodOwnership(
 
       // Invalidate pod cache since owner has changed
       await cacheInvalidation.invalidatePod(podName, podName);
-      
+
       // Invalidate both users' pod list caches and pod owner cache
       const cache = getCache();
       if (cache) {

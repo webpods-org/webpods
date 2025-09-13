@@ -59,10 +59,13 @@ export async function getRecord(
     if (!isNumericIndex(target) || preferName) {
       isNameLookup = true;
       recordName = target;
-      
+
       if (cache && config.cache?.pools?.singleRecords?.enabled) {
         const cacheKey = cacheKeys.record(streamId.toString(), target);
-        const cachedRecord = await cache.get<StreamRecord>("singleRecords", cacheKey);
+        const cachedRecord = await cache.get<StreamRecord>(
+          "singleRecords",
+          cacheKey,
+        );
         if (cachedRecord) {
           logger.debug("Record cache hit", { streamId, target });
           return success(cachedRecord);
@@ -157,16 +160,30 @@ export async function getRecord(
     const mappedRecord = mapRecordFromDb(record);
 
     // Cache named records only (not index lookups, as indexes can change)
-    if (cache && config.cache?.pools?.singleRecords?.enabled && isNameLookup && recordName) {
+    if (
+      cache &&
+      config.cache?.pools?.singleRecords?.enabled &&
+      isNameLookup &&
+      recordName
+    ) {
       // Check size limit
       const size = cache.checkSize(mappedRecord);
       if (size <= config.cache.pools.singleRecords.maxRecordSizeBytes) {
         const cacheKey = cacheKeys.record(streamId.toString(), recordName);
         const ttl = config.cache.pools.singleRecords.ttlSeconds;
         await cache.set("singleRecords", cacheKey, mappedRecord, ttl);
-        logger.debug("Record cached", { streamId, name: recordName, size, ttl });
+        logger.debug("Record cached", {
+          streamId,
+          name: recordName,
+          size,
+          ttl,
+        });
       } else {
-        logger.debug("Record too large to cache", { streamId, name: recordName, size });
+        logger.debug("Record too large to cache", {
+          streamId,
+          name: recordName,
+          size,
+        });
       }
     }
 

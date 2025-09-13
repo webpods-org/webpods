@@ -148,7 +148,9 @@ function loadCacheConfig(): CacheConfig | undefined {
   if (process.env.CACHE_ENABLED === "true") {
     return {
       enabled: true,
-      adapter: (process.env.CACHE_ADAPTER || "in-memory") as "in-memory" | "redis",
+      adapter: (process.env.CACHE_ADAPTER || "in-memory") as
+        | "in-memory"
+        | "redis",
       pools: {
         pods: {
           enabled: process.env.CACHE_PODS_ENABLED !== "false",
@@ -162,16 +164,30 @@ function loadCacheConfig(): CacheConfig | undefined {
         },
         singleRecords: {
           enabled: process.env.CACHE_SINGLE_RECORDS_ENABLED !== "false",
-          maxEntries: parseInt(process.env.CACHE_SINGLE_RECORDS_MAX_ENTRIES || "10000"),
-          maxRecordSizeBytes: parseInt(process.env.CACHE_SINGLE_RECORDS_MAX_SIZE_BYTES || "10240"),
-          ttlSeconds: parseInt(process.env.CACHE_SINGLE_RECORDS_TTL_SECONDS || "60"),
+          maxEntries: parseInt(
+            process.env.CACHE_SINGLE_RECORDS_MAX_ENTRIES || "10000",
+          ),
+          maxRecordSizeBytes: parseInt(
+            process.env.CACHE_SINGLE_RECORDS_MAX_SIZE_BYTES || "10240",
+          ),
+          ttlSeconds: parseInt(
+            process.env.CACHE_SINGLE_RECORDS_TTL_SECONDS || "60",
+          ),
         },
         recordLists: {
           enabled: process.env.CACHE_RECORD_LISTS_ENABLED !== "false",
-          maxQueries: parseInt(process.env.CACHE_RECORD_LISTS_MAX_QUERIES || "500"),
-          maxResultSizeBytes: parseInt(process.env.CACHE_RECORD_LISTS_MAX_SIZE_BYTES || "102400"),
-          maxRecordsPerQuery: parseInt(process.env.CACHE_RECORD_LISTS_MAX_RECORDS || "1000"),
-          ttlSeconds: parseInt(process.env.CACHE_RECORD_LISTS_TTL_SECONDS || "30"),
+          maxQueries: parseInt(
+            process.env.CACHE_RECORD_LISTS_MAX_QUERIES || "500",
+          ),
+          maxResultSizeBytes: parseInt(
+            process.env.CACHE_RECORD_LISTS_MAX_SIZE_BYTES || "102400",
+          ),
+          maxRecordsPerQuery: parseInt(
+            process.env.CACHE_RECORD_LISTS_MAX_RECORDS || "1000",
+          ),
+          ttlSeconds: parseInt(
+            process.env.CACHE_RECORD_LISTS_TTL_SECONDS || "30",
+          ),
         },
       },
     };

@@ -47,7 +47,7 @@ export async function listChildStreams(
     // Check cache first
     const cache = getCache();
     if (cache) {
-      const cacheKey = `children:${podName}:${parentId || 'root'}`;
+      const cacheKey = `children:${podName}:${parentId || "root"}`;
       const cached = await cache.get("streams", cacheKey);
       if (cached) {
         logger.debug("Child streams found in cache", { podName, parentId });
@@ -76,10 +76,10 @@ export async function listChildStreams(
     });
 
     const mappedStreams = streams.map(mapStreamFromDb);
-    
+
     // Cache the result
     if (cache) {
-      const cacheKey = `children:${podName}:${parentId || 'root'}`;
+      const cacheKey = `children:${podName}:${parentId || "root"}`;
       const cacheConfig = getCacheConfig();
       const ttl = cacheConfig?.pools?.streams?.ttlSeconds || 300;
       await cache.set("streams", cacheKey, mappedStreams, ttl);
@@ -114,10 +114,14 @@ export async function countChildStreams(
     // Check cache first
     const cache = getCache();
     if (cache) {
-      const cacheKey = `children-count:${podName}:${parentId || 'root'}`;
+      const cacheKey = `children-count:${podName}:${parentId || "root"}`;
       const cached = await cache.get("streams", cacheKey);
       if (cached !== null && cached !== undefined) {
-        logger.debug("Child stream count found in cache", { podName, parentId, count: cached });
+        logger.debug("Child stream count found in cache", {
+          podName,
+          parentId,
+          count: cached,
+        });
         return success(cached as number);
       }
     }
@@ -134,10 +138,10 @@ export async function countChildStreams(
 
     const result = await ctx.db.one<{ count: string }>(query, params);
     const count = parseInt(result.count);
-    
+
     // Cache the result
     if (cache) {
-      const cacheKey = `children-count:${podName}:${parentId || 'root'}`;
+      const cacheKey = `children-count:${podName}:${parentId || "root"}`;
       const cacheConfig = getCacheConfig();
       const ttl = cacheConfig?.pools?.streams?.ttlSeconds || 300;
       await cache.set("streams", cacheKey, count, ttl);

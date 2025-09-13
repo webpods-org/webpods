@@ -104,7 +104,7 @@ export async function resolveLink(
 
     // Check if it has query parameters
     let result: LinkMapping;
-    
+
     if (mapping.includes("?")) {
       // Handle format like "homepage?i=-1"
       const [streamPath, query] = mapping.split("?");
@@ -132,7 +132,7 @@ export async function resolveLink(
         };
       }
     }
-    
+
     // Cache the result
     if (cache) {
       const cacheKey = `link:${podName}:${path}`;
@@ -140,7 +140,7 @@ export async function resolveLink(
       const ttl = cacheConfig?.pools?.pods?.ttlSeconds || 300;
       await cache.set("pods", cacheKey, result, ttl);
     }
-    
+
     return success(result);
   } catch (error: unknown) {
     logger.error("Failed to resolve link", { error, podName, path });

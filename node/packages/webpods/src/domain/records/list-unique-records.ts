@@ -53,7 +53,7 @@ export async function listUniqueRecords(
     // Check cache first
     const cache = getCache();
     let cacheKey: string | null = null;
-    
+
     if (cache) {
       // Create cache key based on stream ID and pagination parameters
       const paramsHash = createHash("sha256")
@@ -61,11 +61,21 @@ export async function listUniqueRecords(
         .digest("hex")
         .substring(0, 8);
       cacheKey = `unique:${streamId}:${paramsHash}`;
-      
+
       const cached = await cache.get("recordLists", cacheKey);
       if (cached) {
-        logger.debug("Unique records found in cache", { streamId, limit, after });
-        return success(cached as { records: StreamRecord[]; total: number; hasMore: boolean });
+        logger.debug("Unique records found in cache", {
+          streamId,
+          limit,
+          after,
+        });
+        return success(
+          cached as {
+            records: StreamRecord[];
+            total: number;
+            hasMore: boolean;
+          },
+        );
       }
     }
 
@@ -165,14 +175,15 @@ export async function listUniqueRecords(
       total,
       hasMore,
     };
-    
+
     // Cache the result if we have a cache key and result is reasonable size
     if (cache && cacheKey) {
       // Check size before caching (don't cache large results)
       const resultSize = JSON.stringify(result).length;
       const cacheConfig = getCacheConfig();
       const ttl = cacheConfig?.pools?.recordLists?.ttlSeconds || 30;
-      if (resultSize <= 52428800) { // 50MB limit for unique record lists
+      if (resultSize <= 52428800) {
+        // 50MB limit for unique record lists
         await cache.set("recordLists", cacheKey, result, ttl);
       }
     }

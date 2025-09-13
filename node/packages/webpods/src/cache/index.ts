@@ -48,6 +48,13 @@ export function getCacheConfig(): CacheConfig | null {
   return cacheConfig;
 }
 
+// Clear all cache entries (useful for testing)
+export async function clearAllCache(): Promise<void> {
+  if (cacheInstance) {
+    await cacheInstance.clear();
+  }
+}
+
 // Cache invalidation helpers
 export const cacheInvalidation = {
   // When a pod is updated/deleted
@@ -71,10 +78,10 @@ export const cacheInvalidation = {
 
     // Delete specific stream entry by path
     await cacheInstance.delete("streams", cacheKeys.stream(podId, path));
-    
+
     // Delete stream entry by ID (for get-stream-by-id caching)
     await cacheInstance.delete("streams", `stream-id:${streamId}`);
-    
+
     // Clear pod streams cache (since stream list changed)
     await cacheInstance.clear(`pod-streams:${podId}:*`);
 
@@ -83,10 +90,7 @@ export const cacheInvalidation = {
   },
 
   // When a record is added/updated/deleted
-  async invalidateRecord(
-    streamId: string,
-    recordName: string,
-  ): Promise<void> {
+  async invalidateRecord(streamId: string, recordName: string): Promise<void> {
     if (!cacheInstance) return;
 
     // Delete specific record entry

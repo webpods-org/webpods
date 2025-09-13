@@ -53,7 +53,9 @@ export async function start() {
       logger.info("Cache initialized", {
         adapter: appConfig.cache.adapter,
         pools: Object.keys(appConfig.cache.pools).filter(
-          (pool) => appConfig.cache!.pools[pool as keyof typeof appConfig.cache.pools].enabled
+          (pool) =>
+            appConfig.cache!.pools[pool as keyof typeof appConfig.cache.pools]
+              .enabled,
         ),
       });
     } else {

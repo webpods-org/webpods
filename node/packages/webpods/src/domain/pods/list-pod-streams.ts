@@ -158,18 +158,20 @@ export async function listPodStreams(
     // Create cache key based on pod name and options
     const cache = getCache();
     let cacheKey: string | null = null;
-    
+
     // Only cache simple queries (not ones with record counts or hashes)
     if (cache && !options.includeRecordCounts && !options.includeHashes) {
       const optionsHash = createHash("sha256")
-        .update(JSON.stringify({
-          path: options.path || "",
-          recursive: options.recursive || false
-        }))
+        .update(
+          JSON.stringify({
+            path: options.path || "",
+            recursive: options.recursive || false,
+          }),
+        )
         .digest("hex")
         .substring(0, 8);
       cacheKey = `pod-streams:${podName}:${optionsHash}`;
-      
+
       const cached = await cache.get("streams", cacheKey);
       if (cached) {
         logger.debug("Pod streams found in cache", { podName, options });

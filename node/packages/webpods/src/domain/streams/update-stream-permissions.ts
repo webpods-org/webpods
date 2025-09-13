@@ -39,7 +39,11 @@ export async function updateStreamPermissions(
 
     // Invalidate caches for all affected streams
     for (const stream of affectedStreams) {
-      await cacheInvalidation.invalidateStream(stream.id.toString(), podName, stream.path);
+      await cacheInvalidation.invalidateStream(
+        stream.id.toString(),
+        podName,
+        stream.path,
+      );
     }
 
     logger.info("Stream permissions updated", {

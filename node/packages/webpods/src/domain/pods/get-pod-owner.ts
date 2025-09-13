@@ -70,7 +70,7 @@ export async function getPodOwner(
     try {
       const content = JSON.parse(ownerRecord.content);
       const ownerId = content.userId || null;
-      
+
       // Cache the result
       if (cache) {
         const cacheKey = `pod-owner:${podName}`;
@@ -78,7 +78,7 @@ export async function getPodOwner(
         const ttl = cacheConfig?.pools?.pods?.ttlSeconds || 300;
         await cache.set("pods", cacheKey, ownerId, ttl);
       }
-      
+
       return success(ownerId);
     } catch {
       logger.warn("Failed to parse owner record", { podName });

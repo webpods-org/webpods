@@ -100,7 +100,7 @@ export async function updateCustomDomains(
            LIMIT 1`,
           { stream_id: domainsStream.id },
         );
-        
+
         if (lastDomainsRecord) {
           try {
             const content = JSON.parse(lastDomainsRecord.content);
@@ -176,7 +176,7 @@ export async function updateCustomDomains(
         for (const oldDomain of oldDomains) {
           await cache.delete("pods", `domain:${oldDomain}`);
         }
-        
+
         // Invalidate new domains to force fresh lookup
         for (const newDomain of domains) {
           await cache.delete("pods", `domain:${newDomain}`);

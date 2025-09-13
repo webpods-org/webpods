@@ -46,7 +46,11 @@ export async function updateStreamPermission(
     });
 
     // Invalidate stream cache since permission changed
-    await cacheInvalidation.invalidateStream(streamId.toString(), updated.pod_name, updated.path);
+    await cacheInvalidation.invalidateStream(
+      streamId.toString(),
+      updated.pod_name,
+      updated.path,
+    );
 
     return success({ updated: true });
   } catch (error: unknown) {

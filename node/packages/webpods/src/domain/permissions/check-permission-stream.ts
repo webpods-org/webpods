@@ -26,7 +26,7 @@ export async function checkPermissionStream(
 
     // Use cached stream lookup instead of manual traversal
     const streamResult = await getStreamByPath(ctx, podName, streamPath);
-    
+
     if (!streamResult.success) {
       logger.warn("Permission stream not found", {
         podName,

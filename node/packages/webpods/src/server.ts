@@ -15,6 +15,7 @@ import { getVersion } from "./version.js";
 import { isMainDomain, isSubdomainOf } from "./utils.js";
 import { isBinaryContentType } from "./utils/content-type-detection.js";
 import { getDb } from "./db/index.js";
+import { clearAllCache } from "./cache/index.js";
 import authRouter from "./auth/routes.js";
 import loginRouter from "./auth/login-page.js";
 import oauthRouter from "./oauth/routes.js";
@@ -102,6 +103,32 @@ export function createApp(): Express {
       },
     });
   });
+
+  // Test utility endpoint for clearing cache (test mode only)
+  if (process.env.NODE_ENV === "test") {
+    app.post("/test-utils/clear-cache", async (req, res) => {
+      // Only allow on localhost in test mode
+      const clientIP = req.ip || req.connection.remoteAddress || "";
+      const isLocalhost =
+        ["127.0.0.1", "::1", "localhost"].includes(clientIP) ||
+        clientIP.startsWith("127.") ||
+        clientIP === "::ffff:127.0.0.1" ||
+        clientIP.startsWith("::ffff:127.");
+
+      if (!isLocalhost) {
+        res.status(403).json({
+          error: {
+            code: "FORBIDDEN",
+            message: "Test utilities only available on localhost",
+          },
+        });
+        return;
+      }
+
+      await clearAllCache();
+      res.json({ success: true, message: "Cache cleared" });
+    });
+  }
 
   // Login page (main domain only)
   app.use("/", (req, res, next) => {

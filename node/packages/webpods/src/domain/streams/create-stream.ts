@@ -183,13 +183,13 @@ export async function createStream(
       // Invalidate ALL pod stream list caches (for /.config/api/streams endpoint)
       // This ensures no stale cache remains regardless of query options
       await cache.deletePattern("streams", `pod-streams:${podName}:*`);
-      
+
       // Invalidate parent's child stream list cache if applicable
       if (parentId) {
         await cache.delete("streams", `children:${podName}:${parentId}`);
         await cache.delete("streams", `children-count:${podName}:${parentId}`);
       }
-      
+
       // Also invalidate root-level cache if this is a root stream
       if (!parentId) {
         await cache.delete("streams", `children:${podName}:root`);

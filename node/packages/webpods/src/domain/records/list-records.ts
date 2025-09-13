@@ -55,16 +55,17 @@ export async function listRecords(
     // Check cache first
     const cache = getCache();
     const config = getConfig();
-    
+
     // Create cache key based on query parameters
     const queryParams = { limit, after: after ?? "none" };
     const cacheKey = cacheKeys.recordList(streamId.toString(), queryParams);
-    
+
     if (cache && config.cache?.pools?.recordLists?.enabled) {
-      const cachedResult = await cache.get<{ records: StreamRecord[]; total: number; hasMore: boolean }>(
-        "recordLists",
-        cacheKey
-      );
+      const cachedResult = await cache.get<{
+        records: StreamRecord[];
+        total: number;
+        hasMore: boolean;
+      }>("recordLists", cacheKey);
       if (cachedResult) {
         logger.debug("Record list cache hit", { streamId, limit, after });
         return success(cachedResult);
@@ -134,28 +135,28 @@ export async function listRecords(
     // Cache the result if it meets the criteria
     if (cache && config.cache?.pools?.recordLists?.enabled) {
       const poolConfig = config.cache.pools.recordLists;
-      
+
       // Check if result should be cached based on size and record count
       if (result.records.length <= poolConfig.maxRecordsPerQuery) {
         const size = cache.checkSize(result);
         if (size <= poolConfig.maxResultSizeBytes) {
           const ttl = poolConfig.ttlSeconds;
           await cache.set("recordLists", cacheKey, result, ttl);
-          logger.debug("Record list cached", { 
-            streamId, 
-            limit, 
-            after, 
+          logger.debug("Record list cached", {
+            streamId,
+            limit,
+            after,
             recordCount: result.records.length,
             size,
-            ttl 
+            ttl,
           });
         } else {
           logger.debug("Record list too large to cache", { streamId, size });
         }
       } else {
-        logger.debug("Too many records to cache", { 
-          streamId, 
-          recordCount: result.records.length 
+        logger.debug("Too many records to cache", {
+          streamId,
+          recordCount: result.records.length,
         });
       }
     }

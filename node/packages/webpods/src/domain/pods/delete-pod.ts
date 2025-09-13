@@ -98,7 +98,7 @@ export async function deletePod(
 
       // Invalidate pod cache and all related caches
       await cacheInvalidation.invalidatePod(pod.name, pod.name);
-      
+
       // Also invalidate user's pod list cache
       const cache = getCache();
       if (cache) {

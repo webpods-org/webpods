@@ -60,7 +60,7 @@ export async function getUserInfo(
       name: userInfo.name,
       provider: userInfo.provider,
     };
-    
+
     // Cache the result
     if (cache) {
       const cacheKey = `user-info:${userId}`;

@@ -19,3 +19,4 @@ export {
   generateTestWebPodsToken,
 } from "./utils/test-helpers.js";
 export type { TestUser } from "./utils/test-helpers.js";
+export { clearAllCache } from "./utils/test-cache.js";

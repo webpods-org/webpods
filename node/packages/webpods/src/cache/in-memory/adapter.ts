@@ -6,7 +6,10 @@ import type {
   RecordCachePoolConfig,
   RecordListCachePoolConfig,
 } from "../types.js";
-import { createLRUCache, type LRUCache } from "./lru-cache.js";
+import {
+  createHierarchicalLRUCache,
+  type LRUCache,
+} from "./hierarchical-lru-cache.js";
 
 type CachePools = {
   pods: LRUCache;
@@ -76,10 +79,12 @@ export const inMemoryCacheAdapter: CacheAdapter = {
   async initialize(cfg: CacheConfig): Promise<void> {
     config = cfg;
     pools = {
-      pods: createLRUCache(cfg.pools.pods.maxEntries),
-      streams: createLRUCache(cfg.pools.streams.maxEntries),
-      singleRecords: createLRUCache(cfg.pools.singleRecords.maxEntries),
-      recordLists: createLRUCache(
+      pods: createHierarchicalLRUCache(cfg.pools.pods.maxEntries),
+      streams: createHierarchicalLRUCache(cfg.pools.streams.maxEntries),
+      singleRecords: createHierarchicalLRUCache(
+        cfg.pools.singleRecords.maxEntries,
+      ),
+      recordLists: createHierarchicalLRUCache(
         (cfg.pools.recordLists as RecordListCachePoolConfig).maxQueries,
       ),
     };
