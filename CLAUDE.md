@@ -7,6 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with th
 ### NEVER ACT WITHOUT EXPLICIT USER APPROVAL
 
 **YOU MUST ALWAYS ASK FOR PERMISSION BEFORE:**
+
 - Making architectural decisions or changes
 - Implementing new features or functionality
 - Modifying APIs, interfaces, or data structures
@@ -18,6 +19,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with th
 ### FINISH DISCUSSIONS BEFORE WRITING CODE
 
 **IMPORTANT**: When the user asks a question or you're in the middle of a discussion, DO NOT jump to writing code. Always:
+
 1. **Complete the discussion first** - Understand the problem fully
 2. **Analyze and explain** - Work through the issue verbally
 3. **Get confirmation** - Ensure the user agrees with the approach
@@ -32,6 +34,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with th
 ### First Steps When Starting a Session
 
 When you begin working on this project, you MUST:
+
 1. **Read this entire CLAUDE.md file** to understand the project structure and conventions
 2. **Check for ongoing tasks in `.todos/` directory** - Look for any in-progress task files
 3. **Read the key documentation files** in this order:
@@ -75,6 +78,7 @@ WebPods is a comprehensive API and platform for decentralized data management. F
 ### Greenfield Development Context
 
 **IMPORTANT**: WebPods is a greenfield project with no legacy constraints:
+
 - **No backward compatibility concerns** - No existing deployments or users to migrate
 - **No legacy code patterns** - All code should follow current best practices without compromise
 - **No migration paths needed** - Database schemas, APIs, and data structures can be designed optimally
@@ -87,6 +91,7 @@ This means: Focus on clean, optimal implementations without worrying about exist
 ### Documentation & Code Principles
 
 **Documentation Guidelines:**
+
 - Write as if the spec was designed from the beginning, not evolved over time
 - Avoid phrases like "now allows", "changed from", "previously was"
 - Present features and constraints as inherent design decisions
@@ -95,6 +100,7 @@ This means: Focus on clean, optimal implementations without worrying about exist
 - Keep README.md as single source of truth
 
 **Code Principles:**
+
 - **NO BACKWARDS COMPATIBILITY** - Do not write backwards compatibility code
 - **PREFER FUNCTIONS OVER CLASSES** - Export functions from modules when possible, use classes only when beneficial for stateful connections or complex state management
 - **NO DYNAMIC IMPORTS** - Always use static imports, never `await import()` or `import()` in the code
@@ -106,6 +112,7 @@ This means: Focus on clean, optimal implementations without worrying about exist
 ### Security: Never Use npx
 
 **CRITICAL SECURITY REQUIREMENT**: NEVER use `npx` for any commands. This poses grave security risks by executing arbitrary code.
+
 - **ALWAYS use exact dependency versions** in package.json
 - **ALWAYS use local node_modules binaries** (e.g., `prettier`, `mocha`, `http-server`)
 - **NEVER use `npx prettier`** - use `prettier` from local dependencies
@@ -124,6 +131,7 @@ This means: Focus on clean, optimal implementations without worrying about exist
 - **MIGRATION POLICY**: Never create new migration files. All schema changes go in `/database/webpods/migrations/20250810000000_initial_schema.js`
 
 **Query Optimization Guidelines**:
+
 - **Prefer simple separate queries over complex joins** when it only saves 1-3 database calls
 - **Use joins only to prevent N+1 query problems** (e.g., fetching data for many items in a loop)
 - **Prioritize code simplicity and readability** over minor performance optimizations
@@ -206,6 +214,7 @@ npm run test:grep -- "permission"
 ### Git Workflow
 
 **CRITICAL GIT SAFETY RULES**:
+
 1. **NEVER use `git push --force` or `git push -f`** - Force pushing destroys history
 2. **ALL git push commands require EXPLICIT user authorization**
 3. **Use revert commits instead of force push** - To undo changes, create revert commits
@@ -216,6 +225,7 @@ npm run test:grep -- "permission"
 **NEW BRANCH REQUIREMENT**: ALL changes must be made on a new feature branch, never directly on main.
 
 When the user asks you to commit and push:
+
 1. Run `./scripts/format-all.sh` to format all files with Prettier
 2. Run `./scripts/lint-all.sh` to ensure code passes linting
 3. Follow the git commit guidelines in the main Claude system prompt
@@ -228,6 +238,7 @@ When the user asks you to commit and push:
 For detailed architecture information, see `/docs/architecture.md` and `/README.md`.
 
 Key concepts:
+
 - **Pods**: Subdomains that act as namespaces
 - **Streams**: Append-only logs within pods (supports nested paths)
 - **Records**: Immutable entries with hash chains
@@ -238,6 +249,7 @@ Key concepts:
 #### Pagination with `after` Parameter
 
 The `after` parameter supports both positive and negative values:
+
 - **Positive values**: Skip records up to that index (`after=10` starts at index 11)
 - **Negative values**: Get the last N records (`after=-20` returns last 20 records)
 - Works with both regular listing and `unique=true` mode
@@ -245,6 +257,7 @@ The `after` parameter supports both positive and negative values:
 - If abs(negative value) > total count, returns all records
 
 Examples:
+
 ```bash
 ?after=-20           # Last 20 records
 ?after=-3&limit=2    # Last 3 records, but limited to 2
@@ -254,6 +267,7 @@ Examples:
 #### Record Limit Configuration
 
 The server enforces a maximum number of records per request:
+
 - **Default max**: 1000 records (configurable via `MAX_RECORD_LIMIT`)
 - **Behavior**: If `limit` exceeds max, it's silently capped (no error)
 - **Configuration**: Set in `config.json` under `rateLimits.maxRecordLimit` or via `MAX_RECORD_LIMIT` env var
@@ -346,6 +360,7 @@ Benefits: Keeps analysis artifacts separate from source code, allows iterative w
 ### Build & Lint Workflow
 
 **ALWAYS follow this sequence:**
+
 1. Run `./scripts/lint-all.sh` first
 2. Run `./scripts/build.sh`
 3. **If build fails and you make changes**: You MUST run `./scripts/lint-all.sh` again before building
@@ -403,6 +418,7 @@ podctl permission list my-pod my-stream
 ## Environment Variables
 
 See `.env.example` for complete list of configuration options. Key variables:
+
 - `HOST` - Server bind address (default: 0.0.0.0)
 - `PORT` - Server bind port (default: 3000)
 - `PUBLIC_URL` - Public-facing URL for OAuth callbacks
@@ -428,6 +444,7 @@ See `.env.example` for complete list of configuration options. Key variables:
 ## Common Issues
 
 For troubleshooting common issues, refer to:
+
 - Wildcard DNS configuration
 - Permission stream processing (now done in-memory)
 - Content type handling
