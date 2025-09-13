@@ -47,6 +47,7 @@ export async function getRecord(
   streamId: number,
   target: string,
   preferName: boolean = false,
+  streamPath?: string,
 ): Promise<Result<StreamRecord>> {
   try {
     const cache = getCache();
@@ -60,8 +61,8 @@ export async function getRecord(
       isNameLookup = true;
       recordName = target;
 
-      if (cache && config.cache?.pools?.singleRecords?.enabled) {
-        const cacheKey = cacheKeys.record(streamId.toString(), target);
+      if (cache && config.cache?.pools?.singleRecords?.enabled && streamPath) {
+        const cacheKey = cacheKeys.recordData(podName, streamPath, target);
         const cachedRecord = await cache.get<StreamRecord>(
           "singleRecords",
           cacheKey,
@@ -164,12 +165,13 @@ export async function getRecord(
       cache &&
       config.cache?.pools?.singleRecords?.enabled &&
       isNameLookup &&
-      recordName
+      recordName &&
+      streamPath
     ) {
       // Check size limit
       const size = cache.checkSize(mappedRecord);
       if (size <= config.cache.pools.singleRecords.maxRecordSizeBytes) {
-        const cacheKey = cacheKeys.record(streamId.toString(), recordName);
+        const cacheKey = cacheKeys.recordData(podName, streamPath, recordName);
         const ttl = config.cache.pools.singleRecords.ttlSeconds;
         await cache.set("singleRecords", cacheKey, mappedRecord, ttl);
         logger.debug("Record cached", {

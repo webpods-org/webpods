@@ -277,6 +277,7 @@ export const getHandler = async (
         streamResult.data.id,
         parsed.start.toString(),
         false,
+        streamResult.data.path,
       );
 
       if (!result.success) {
@@ -418,6 +419,7 @@ export const getHandler = async (
       streamResult.data.id,
       name,
       true,
+      streamResult.data.path,
     );
 
     if (!result.success) {

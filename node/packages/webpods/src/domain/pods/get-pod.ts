@@ -33,7 +33,7 @@ export async function getPod(
     // Check cache first
     const cache = getCache();
     const config = getConfig();
-    const cacheKey = cacheKeys.pod(podName);
+    const cacheKey = cacheKeys.podMeta(podName);
 
     if (cache && config.cache?.pools?.pods?.enabled) {
       const cachedPod = await cache.get<Pod>("pods", cacheKey);

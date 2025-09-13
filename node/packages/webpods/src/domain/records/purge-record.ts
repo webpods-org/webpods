@@ -112,8 +112,22 @@ export async function purgeRecord(
       userId,
     });
 
+    // Get stream info for cache invalidation
+    const streamInfo = await ctx.db.oneOrNone<{
+      pod_name: string;
+      path: string;
+    }>(`SELECT pod_name, path FROM stream WHERE id = $(streamId)`, {
+      streamId,
+    });
+
     // Invalidate caches for the purged record
-    await cacheInvalidation.invalidateRecord(streamId.toString(), recordName);
+    if (streamInfo) {
+      await cacheInvalidation.invalidateRecord(
+        streamInfo.pod_name,
+        streamInfo.path,
+        recordName,
+      );
+    }
 
     return success({ rowsAffected: result });
   } catch (error: unknown) {

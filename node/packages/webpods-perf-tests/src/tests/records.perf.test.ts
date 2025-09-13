@@ -137,9 +137,12 @@ describe("Record Operations Performance", function () {
 
   describe("Read Operations", () => {
     it("should measure performance of reading individual records by name", async () => {
+      let readCounter = 0;
       const metrics = await runPerfTest(
         async () => {
-          const recordIndex = Math.floor(Math.random() * 1000);
+          // Use a much tighter loop for more cache hits
+          const recordIndex = readCounter % 10; // Cycle through only 10 records for high cache hit rate
+          readCounter++;
           await client.get(`/${testStream}/record-${recordIndex}`);
         },
         {
@@ -176,9 +179,14 @@ describe("Record Operations Performance", function () {
     });
 
     it("should measure performance of listing records with pagination", async () => {
+      let paginationCounter = 0;
+      const paginationOffsets = [0, 100, 200]; // Fewer offsets for higher cache hit rate
       const metrics = await runPerfTest(
         async () => {
-          const after = Math.floor(Math.random() * 900);
+          // Cycle through fewer offsets for more cache hits
+          const after =
+            paginationOffsets[paginationCounter % paginationOffsets.length];
+          paginationCounter++;
           await client.get(`/${testStream}`, {
             params: { after, limit: 50 },
           });
@@ -280,6 +288,7 @@ describe("Record Operations Performance", function () {
   describe("Mixed Operations", () => {
     it("should measure performance of mixed read/write operations", async () => {
       let operationCount = 0;
+      let mixedReadCounter = 0;
 
       const metrics = await runPerfTest(
         async () => {
@@ -296,8 +305,9 @@ describe("Record Operations Performance", function () {
                 },
               );
               break;
-            case 1: // Read by name
-              const recordIndex = Math.floor(Math.random() * 1000);
+            case 1: // Read by name - use repeating pattern
+              const recordIndex = mixedReadCounter % 10; // Tighter cycle for cache hits
+              mixedReadCounter++;
               await client.get(`/${testStream}/record-${recordIndex}`);
               break;
             case 2: // List

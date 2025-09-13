@@ -5,7 +5,7 @@
 import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
 import { createLogger } from "../../logger.js";
-import { getCache, getCacheConfig } from "../../cache/index.js";
+import { getCache, getCacheConfig, cacheKeys } from "../../cache/index.js";
 
 const logger = createLogger("webpods:domain:users");
 
@@ -31,7 +31,7 @@ export async function getUserInfo(
     // Check cache first
     const cache = getCache();
     if (cache) {
-      const cacheKey = `user-info:${userId}`;
+      const cacheKey = cacheKeys.userInfo(userId);
       const cached = await cache.get("pods", cacheKey); // Using pods pool for user data
       if (cached !== undefined) {
         logger.debug("User info found in cache", { userId });
@@ -63,7 +63,7 @@ export async function getUserInfo(
 
     // Cache the result
     if (cache) {
-      const cacheKey = `user-info:${userId}`;
+      const cacheKey = cacheKeys.userInfo(userId);
       const cacheConfig = getCacheConfig();
       const ttl = cacheConfig?.pools?.pods?.ttlSeconds || 600;
       await cache.set("pods", cacheKey, result, ttl);

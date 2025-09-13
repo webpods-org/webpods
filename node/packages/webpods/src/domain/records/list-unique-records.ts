@@ -4,11 +4,10 @@
 
 import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
-import { RecordDbRow } from "../../db-types.js";
+import { RecordDbRow, StreamDbRow } from "../../db-types.js";
 import { StreamRecord } from "../../types.js";
 import { createLogger } from "../../logger.js";
-import { getCache, getCacheConfig } from "../../cache/index.js";
-import { createHash } from "crypto";
+import { getCache, getCacheConfig, cacheKeys } from "../../cache/index.js";
 
 const logger = createLogger("webpods:domain:records");
 
@@ -53,29 +52,38 @@ export async function listUniqueRecords(
     // Check cache first
     const cache = getCache();
     let cacheKey: string | null = null;
+    let streamPath: string | null = null;
 
     if (cache) {
-      // Create cache key based on stream ID and pagination parameters
-      const paramsHash = createHash("sha256")
-        .update(JSON.stringify({ limit, after: after || 0 }))
-        .digest("hex")
-        .substring(0, 8);
-      cacheKey = `unique:${streamId}:${paramsHash}`;
+      // Get stream path for cache key generation
+      const stream = await ctx.db.oneOrNone<StreamDbRow>(
+        `SELECT path FROM stream WHERE id = $(streamId)`,
+        { streamId },
+      );
 
-      const cached = await cache.get("recordLists", cacheKey);
-      if (cached !== undefined) {
-        logger.debug("Unique records found in cache", {
-          streamId,
+      if (stream) {
+        streamPath = stream.path;
+        // Use cacheKeys function to generate proper hierarchical key
+        cacheKey = cacheKeys.uniqueRecordList(podName, streamPath, {
           limit,
-          after,
+          after: after || 0,
         });
-        return success(
-          cached as {
-            records: StreamRecord[];
-            total: number;
-            hasMore: boolean;
-          },
-        );
+
+        const cached = await cache.get("recordLists", cacheKey);
+        if (cached !== undefined) {
+          logger.debug("Unique records found in cache", {
+            streamId,
+            limit,
+            after,
+          });
+          return success(
+            cached as {
+              records: StreamRecord[];
+              total: number;
+              hasMore: boolean;
+            },
+          );
+        }
       }
     }
 

@@ -58,58 +58,45 @@ export async function clearAllCache(): Promise<void> {
 // Cache invalidation helpers
 export const cacheInvalidation = {
   // When a pod is updated/deleted
-  async invalidatePod(podId: string, subdomain: string): Promise<void> {
+  async invalidatePod(podName: string): Promise<void> {
     if (!cacheInstance) return;
 
-    // Delete specific pod entry
-    await cacheInstance.delete("pods", cacheKeys.pod(subdomain));
-
-    // Clear all streams under this pod
-    await cacheInstance.clear(cacheKeys.podPattern(podId));
+    // Clear all pod-related caches using pattern
+    await cacheInstance.clear(cacheKeys.podPattern(podName));
   },
 
   // When a stream is updated/deleted
-  async invalidateStream(
-    streamId: string,
-    podId: string,
-    path: string,
-  ): Promise<void> {
+  async invalidateStream(podName: string, streamPath: string): Promise<void> {
     if (!cacheInstance) return;
 
-    // Delete specific stream entry by path
-    await cacheInstance.delete("streams", cacheKeys.stream(podId, path));
-
-    // Delete stream entry by ID (for get-stream-by-id caching)
-    await cacheInstance.delete("streams", `stream-id:${streamId}`);
-
-    // Clear pod streams cache (since stream list changed)
-    await cacheInstance.clear(`pod-streams:${podId}:*`);
-
-    // Clear all record lists for this stream
-    await cacheInstance.clear(cacheKeys.recordListPattern(streamId));
+    // Clear all stream-related caches using pattern
+    await cacheInstance.clear(cacheKeys.streamPattern(podName, streamPath));
   },
 
   // When a record is added/updated/deleted
-  async invalidateRecord(streamId: string, recordName: string): Promise<void> {
+  async invalidateRecord(
+    podName: string,
+    streamPath: string,
+    recordName: string,
+  ): Promise<void> {
     if (!cacheInstance) return;
 
-    // Delete specific record entry
-    await cacheInstance.delete(
-      "singleRecords",
-      cacheKeys.record(streamId, recordName),
+    // Clear specific record and all list caches for the stream
+    await cacheInstance.clear(
+      cacheKeys.recordPattern(podName, streamPath, recordName),
     );
-
-    // Invalidate all list queries for this stream (since lists would change)
-    await cacheInstance.clear(cacheKeys.recordListPattern(streamId));
+    await cacheInstance.clear(cacheKeys.recordListPattern(podName, streamPath));
   },
 
   // When bulk operations occur
-  async invalidateStream全Records(streamId: string): Promise<void> {
+  async invalidateStreamAllRecords(
+    podName: string,
+    streamPath: string,
+  ): Promise<void> {
     if (!cacheInstance) return;
 
-    // Clear all individual records and lists for this stream
-    await cacheInstance.clear(`record:${streamId}:*`);
-    await cacheInstance.clear(cacheKeys.recordListPattern(streamId));
+    // Clear all records and lists for this stream
+    await cacheInstance.clear(cacheKeys.streamPattern(podName, streamPath));
   },
 };
 

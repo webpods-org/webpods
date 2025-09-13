@@ -175,8 +175,18 @@ export async function deleteRecord(
         userId,
       });
 
+      // Get stream info for cache invalidation
+      const streamInfo = await t.one<{ pod_name: string; path: string }>(
+        `SELECT pod_name, path FROM stream WHERE id = $(streamId)`,
+        { streamId },
+      );
+
       // Invalidate caches for the deleted record
-      await cacheInvalidation.invalidateRecord(streamId.toString(), recordName);
+      await cacheInvalidation.invalidateRecord(
+        streamInfo.pod_name,
+        streamInfo.path,
+        recordName,
+      );
 
       return success(mapRecordFromDb(tombstone));
     });

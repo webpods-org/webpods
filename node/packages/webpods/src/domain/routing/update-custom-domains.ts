@@ -8,7 +8,7 @@ import { PodDbRow, StreamDbRow, RecordDbRow } from "../../db-types.js";
 import { calculateContentHash, calculateRecordHash } from "../../utils.js";
 import { createLogger } from "../../logger.js";
 import { sql } from "../../db/index.js";
-import { getCache } from "../../cache/index.js";
+import { getCache, cacheKeys } from "../../cache/index.js";
 
 const logger = createLogger("webpods:domain:routing");
 
@@ -174,12 +174,12 @@ export async function updateCustomDomains(
       if (cache) {
         // Invalidate old domains that may no longer point to this pod
         for (const oldDomain of oldDomains) {
-          await cache.delete("pods", `domain:${oldDomain}`);
+          await cache.delete("pods", cacheKeys.domainPod(oldDomain));
         }
 
         // Invalidate new domains to force fresh lookup
         for (const newDomain of domains) {
-          await cache.delete("pods", `domain:${newDomain}`);
+          await cache.delete("pods", cacheKeys.domainPod(newDomain));
         }
       }
 
