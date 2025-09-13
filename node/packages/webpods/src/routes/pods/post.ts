@@ -463,7 +463,7 @@ export const postHandler = async (
         error: {
           code: "INVALID_INPUT",
           message: "Invalid request",
-          details: error.errors,
+          details: error.issues,
         },
       });
       return;

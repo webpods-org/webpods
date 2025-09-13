@@ -126,7 +126,7 @@ router.post(
         res.status(400).json({
           error: {
             code: "INVALID_INPUT",
-            message: error.errors[0]?.message || "Invalid input",
+            message: error.issues[0]?.message || "Invalid input",
           },
         });
         return;

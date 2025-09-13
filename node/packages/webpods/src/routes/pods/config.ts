@@ -65,7 +65,7 @@ export const transferOwnerHandler = async (req: AuthRequest, res: Response) => {
         error: {
           code: "INVALID_INPUT",
           message: "Invalid request",
-          details: error.errors,
+          details: error.issues,
         },
       });
       return;
@@ -131,7 +131,7 @@ export const updateRoutingHandler = async (req: AuthRequest, res: Response) => {
         error: {
           code: "INVALID_INPUT",
           message: "Invalid request",
-          details: error.errors,
+          details: error.issues,
         },
       });
       return;
@@ -197,7 +197,7 @@ export const updateDomainsHandler = async (req: AuthRequest, res: Response) => {
         error: {
           code: "INVALID_INPUT",
           message: "Invalid request",
-          details: error.errors,
+          details: error.issues,
         },
       });
       return;
