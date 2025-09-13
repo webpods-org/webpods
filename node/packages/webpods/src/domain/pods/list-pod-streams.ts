@@ -173,7 +173,7 @@ export async function listPodStreams(
       cacheKey = `pod-streams:${podName}:${optionsHash}`;
 
       const cached = await cache.get("streams", cacheKey);
-      if (cached) {
+      if (cached !== undefined) {
         logger.debug("Pod streams found in cache", { podName, options });
         return success(cached as StreamInfo[]);
       }

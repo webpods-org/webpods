@@ -46,7 +46,7 @@ export async function getStreamById(
     if (cache) {
       const cacheKey = `stream-id:${streamId}`;
       const cached = await cache.get("streams", cacheKey);
-      if (cached) {
+      if (cached !== undefined) {
         logger.debug("Stream found in cache by ID", { streamId });
         return success(cached as Stream);
       }

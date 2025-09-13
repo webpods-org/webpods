@@ -8,6 +8,7 @@ import {
   TestHttpClient,
   createTestUser,
   createTestPod,
+  clearAllCache,
 } from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 
@@ -18,6 +19,7 @@ describe("Field Selection and Content Truncation", () => {
   const baseUrl = `http://${testPodId}.localhost:3000`;
 
   beforeEach(async () => {
+    await clearAllCache();
     client = new TestHttpClient("http://localhost:3000");
     // Create a test user and auth token
     const db = testDb.getDb();
@@ -47,6 +49,10 @@ describe("Field Selection and Content Truncation", () => {
         },
       },
     );
+  });
+
+  afterEach(async () => {
+    await clearAllCache();
   });
 
   describe("Field Selection", () => {

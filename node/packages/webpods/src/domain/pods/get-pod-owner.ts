@@ -21,6 +21,8 @@ export async function getPodOwner(
     if (cache) {
       const cacheKey = `pod-owner:${podName}`;
       const cached = await cache.get("pods", cacheKey);
+      // cache.get returns undefined for cache misses
+      // It can return null if we cached a null value (no owner)
       if (cached !== undefined) {
         logger.debug("Pod owner found in cache", { podName, owner: cached });
         return success(cached as string | null);
@@ -38,6 +40,14 @@ export async function getPodOwner(
     );
 
     if (!configStream) {
+      logger.debug("No .config stream found for pod", { podName });
+      // Cache the null result
+      if (cache) {
+        const cacheKey = `pod-owner:${podName}`;
+        const cacheConfig = getCacheConfig();
+        const ttl = cacheConfig?.pools?.pods?.ttlSeconds || 300;
+        await cache.set("pods", cacheKey, null, ttl);
+      }
       return success(null);
     }
 
@@ -50,6 +60,17 @@ export async function getPodOwner(
     );
 
     if (!ownerStream) {
+      logger.debug("No owner stream found under .config", {
+        podName,
+        configStreamId: configStream.id,
+      });
+      // Cache the null result
+      if (cache) {
+        const cacheKey = `pod-owner:${podName}`;
+        const cacheConfig = getCacheConfig();
+        const ttl = cacheConfig?.pools?.pods?.ttlSeconds || 300;
+        await cache.set("pods", cacheKey, null, ttl);
+      }
       return success(null);
     }
 
@@ -64,6 +85,17 @@ export async function getPodOwner(
     );
 
     if (!ownerRecord) {
+      logger.debug("No owner record found in owner stream", {
+        podName,
+        ownerStreamId: ownerStream.id,
+      });
+      // Cache the null result
+      if (cache) {
+        const cacheKey = `pod-owner:${podName}`;
+        const cacheConfig = getCacheConfig();
+        const ttl = cacheConfig?.pools?.pods?.ttlSeconds || 300;
+        await cache.set("pods", cacheKey, null, ttl);
+      }
       return success(null);
     }
 

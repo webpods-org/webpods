@@ -63,7 +63,7 @@ export async function listUniqueRecords(
       cacheKey = `unique:${streamId}:${paramsHash}`;
 
       const cached = await cache.get("recordLists", cacheKey);
-      if (cached) {
+      if (cached !== undefined) {
         logger.debug("Unique records found in cache", {
           streamId,
           limit,

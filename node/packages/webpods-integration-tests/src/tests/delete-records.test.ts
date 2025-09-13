@@ -4,6 +4,7 @@ import {
   TestHttpClient,
   createTestUser,
   createTestPod,
+  clearAllCache,
 } from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 
@@ -16,6 +17,7 @@ describe("WebPods Record Deletion", () => {
   const baseUrl = `http://${testPodId}.localhost:3000`;
 
   beforeEach(async () => {
+    await clearAllCache();
     client = new TestHttpClient("http://localhost:3000");
 
     // Create pod owner
@@ -51,6 +53,10 @@ describe("WebPods Record Deletion", () => {
     client.setAuthToken(ownerToken);
     await client.createStream("init");
     await client.post("/init/start", "Initialize pod");
+  });
+
+  afterEach(async () => {
+    await clearAllCache();
   });
 
   describe("Soft Delete (Tombstone)", () => {

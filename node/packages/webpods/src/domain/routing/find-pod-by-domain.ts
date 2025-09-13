@@ -20,7 +20,7 @@ export async function findPodByDomain(
     if (cache) {
       const cacheKey = `domain:${domain}`;
       const cached = await cache.get("pods", cacheKey);
-      if (cached !== null) {
+      if (cached !== undefined) {
         logger.debug("Domain mapping found in cache", {
           domain,
           found: !!cached,

@@ -18,8 +18,8 @@ type HierarchicalNode<T> = {
 };
 
 export type LRUCache<T = unknown> = {
-  get: (key: string) => T | null;
-  set: (key: string, value: T, ttlSeconds: number) => void;
+  get: (key: string) => T | null | undefined;
+  set: (key: string, value: T | null, ttlSeconds: number) => void;
   delete: (key: string) => boolean;
   deletePattern: (pattern: string) => number;
   clear: (pattern?: string) => void;
@@ -38,7 +38,7 @@ export function createHierarchicalLRUCache<T>(maxEntries: number): LRUCache<T> {
   let head: LRUNode<T> | null = null;
   let tail: LRUNode<T> | null = null;
   let currentSize = 0;
-  let stats: CacheStats = {
+  const stats: CacheStats = {
     hits: 0,
     misses: 0,
     evictions: 0,
@@ -226,11 +226,11 @@ export function createHierarchicalLRUCache<T>(maxEntries: number): LRUCache<T> {
   }
 
   return {
-    get(key: string): T | null {
+    get(key: string): T | null | undefined {
       const node = flatCache.get(key);
       if (!node) {
         stats.misses++;
-        return null;
+        return undefined;
       }
 
       // Check expiration
@@ -241,7 +241,7 @@ export function createHierarchicalLRUCache<T>(maxEntries: number): LRUCache<T> {
         currentSize -= node.entry.size;
         stats.entryCount--;
         stats.misses++;
-        return null;
+        return undefined;
       }
 
       // Update stats and move to head
@@ -251,7 +251,7 @@ export function createHierarchicalLRUCache<T>(maxEntries: number): LRUCache<T> {
       return node.entry.value;
     },
 
-    set(key: string, value: T, ttlSeconds: number): void {
+    set(key: string, value: T | null, ttlSeconds: number): void {
       const size = calculateSize(value);
       const now = Date.now();
       const entry: CacheEntry<T> = {

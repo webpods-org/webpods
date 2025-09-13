@@ -22,7 +22,7 @@ export function createLRUCache<T>(maxEntries: number): LRUCache<T> {
   let head: LRUNode<T> | null = null;
   let tail: LRUNode<T> | null = null;
   let currentSize = 0;
-  let stats: CacheStats = {
+  const stats: CacheStats = {
     hits: 0,
     misses: 0,
     evictions: 0,

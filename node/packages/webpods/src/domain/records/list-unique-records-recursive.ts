@@ -87,27 +87,23 @@ export async function listUniqueRecordsRecursive(
       });
     }
 
-    // Step 3: Use path-based query to get all unique records efficiently
-    // This uses a single query with DISTINCT ON to get latest version of each named record
-    const pathPattern = streamPath.endsWith("/")
-      ? `${streamPath}%`
-      : `${streamPath}/%`;
+    // Step 3: Use efficient query to get all unique records
+    // This uses a single query with DISTINCT ON to get latest version of each named record PER STREAM
 
     // First, get total count of unique records
+    // For recursive unique, we want the latest record with each name FROM EACH STREAM
     const countResult = await ctx.db.one<{ count: string }>(
       `WITH latest_records AS (
-        SELECT DISTINCT ON (name) *
+        SELECT DISTINCT ON (stream_id, name) *
         FROM record
         WHERE stream_id = ANY($(streamIds)::bigint[])
-          AND path LIKE $(pathPattern)
           AND name IS NOT NULL
           AND name != ''
-        ORDER BY name, index DESC
+        ORDER BY stream_id, name, index DESC
       )
       SELECT COUNT(*) as count FROM latest_records`,
       {
         streamIds: readableStreamIds,
-        pathPattern,
       },
     );
 
@@ -127,13 +123,12 @@ export async function listUniqueRecordsRecursive(
     // Note: We'll filter deleted records in memory since content is TEXT not JSONB
     let query = `
       WITH latest_records AS (
-        SELECT DISTINCT ON (name) *
+        SELECT DISTINCT ON (stream_id, name) *
         FROM record
         WHERE stream_id = ANY($(streamIds)::bigint[])
-          AND path LIKE $(pathPattern)
           AND name IS NOT NULL
           AND name != ''
-        ORDER BY name, index DESC
+        ORDER BY stream_id, name, index DESC
       )
       SELECT * FROM latest_records
       ORDER BY index ASC`;
@@ -141,7 +136,6 @@ export async function listUniqueRecordsRecursive(
     // Add pagination
     const params: Record<string, unknown> = {
       streamIds: readableStreamIds,
-      pathPattern,
       limit: limit + 1, // Get one extra to check hasMore
     };
 

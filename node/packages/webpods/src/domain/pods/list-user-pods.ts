@@ -26,7 +26,7 @@ export async function listUserPods(
     if (cache) {
       const cacheKey = `user-pods:${userId}`;
       const cached = await cache.get("pods", cacheKey);
-      if (cached) {
+      if (cached !== undefined) {
         logger.debug("User pods found in cache", {
           userId,
           count: (cached as UserPod[]).length,

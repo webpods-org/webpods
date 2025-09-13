@@ -49,7 +49,7 @@ export async function listChildStreams(
     if (cache) {
       const cacheKey = `children:${podName}:${parentId || "root"}`;
       const cached = await cache.get("streams", cacheKey);
-      if (cached) {
+      if (cached !== undefined) {
         logger.debug("Child streams found in cache", { podName, parentId });
         return success(cached as Stream[]);
       }
@@ -116,7 +116,7 @@ export async function countChildStreams(
     if (cache) {
       const cacheKey = `children-count:${podName}:${parentId || "root"}`;
       const cached = await cache.get("streams", cacheKey);
-      if (cached !== null && cached !== undefined) {
+      if (cached !== undefined) {
         logger.debug("Child stream count found in cache", {
           podName,
           parentId,

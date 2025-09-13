@@ -4,6 +4,7 @@ import {
   TestHttpClient,
   createTestUser,
   createTestPod,
+  clearAllCache,
 } from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 
@@ -15,6 +16,7 @@ describe("WebPods Stream Operations", () => {
   const baseUrl = `http://${testPodId}.localhost:3000`;
 
   beforeEach(async () => {
+    await clearAllCache();
     client = new TestHttpClient("http://localhost:3000");
     // Create a test user and auth token
     const db = testDb.getDb();
@@ -35,6 +37,10 @@ describe("WebPods Stream Operations", () => {
 
     client.setBaseUrl(baseUrl);
     client.setAuthToken(authToken);
+  });
+
+  afterEach(async () => {
+    await clearAllCache();
   });
 
   describe("Pod and Stream Creation", () => {

@@ -142,10 +142,6 @@ describe("WebPods Caching Layer", () => {
       expect(response1.status).to.equal(200);
       const initialStreams = response1.data.streams;
       const initialCount = initialStreams.length;
-      console.log(
-        `Initial stream count: ${initialCount}, streams:`,
-        initialStreams.map((s: any) => s.name),
-      );
 
       // Create a new stream
       const newStreamName = `cache-new-stream-${Date.now()}`;
@@ -155,10 +151,6 @@ describe("WebPods Caching Layer", () => {
       const response2 = await client.get(`/.config/api/streams`);
       expect(response2.status).to.equal(200);
       const newStreams = response2.data.streams;
-      console.log(
-        `New stream count: ${newStreams.length}, streams:`,
-        newStreams.map((s: any) => s.name),
-      );
 
       expect(newStreams.length).to.equal(initialCount + 1);
       expect(newStreams.some((s: any) => s.name === newStreamName)).to.be.true;

@@ -20,7 +20,7 @@ type CachePools = {
 
 let pools: CachePools | null = null;
 let config: CacheConfig | null = null;
-let cleanupInterval: NodeJS.Timeout | null = null;
+let cleanupInterval: ReturnType<typeof setInterval> | null = null;
 
 // Helper to check if value should be cached based on size limits
 function shouldCache(
@@ -100,18 +100,18 @@ export const inMemoryCacheAdapter: CacheAdapter = {
     config = null;
   },
 
-  async get<T>(pool: string, key: CacheKey): Promise<T | null> {
-    if (!pools || !config) return null;
-    if (!(pool in pools)) return null;
-    if (!config.pools[pool as keyof CachePools].enabled) return null;
+  async get<T>(pool: string, key: CacheKey): Promise<T | null | undefined> {
+    if (!pools || !config) return undefined;
+    if (!(pool in pools)) return undefined;
+    if (!config.pools[pool as keyof CachePools].enabled) return undefined;
 
-    return pools[pool as keyof CachePools].get(key) as T | null;
+    return pools[pool as keyof CachePools].get(key) as T | null | undefined;
   },
 
   async set<T>(
     pool: string,
     key: CacheKey,
-    value: T,
+    value: T | null,
     ttlSeconds: number,
   ): Promise<void> {
     if (!pools || !config) return;

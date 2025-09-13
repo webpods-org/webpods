@@ -50,7 +50,7 @@ describe("Cache Performance - Hierarchical vs Flat", () => {
 
       // Delete again to ensure clean deletion
       cache.deletePattern(pattern);
-      expect(cache.get(testKey)).to.be.null;
+      expect(cache.get(testKey)).to.be.undefined;
     });
 
     it("should handle deeply nested hierarchies efficiently", () => {

@@ -33,7 +33,7 @@ export async function getUserInfo(
     if (cache) {
       const cacheKey = `user-info:${userId}`;
       const cached = await cache.get("pods", cacheKey); // Using pods pool for user data
-      if (cached) {
+      if (cached !== undefined) {
         logger.debug("User info found in cache", { userId });
         return success(cached as UserInfo);
       }

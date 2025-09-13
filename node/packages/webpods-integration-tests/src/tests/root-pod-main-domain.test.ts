@@ -9,6 +9,7 @@ import {
   TestHttpClient,
   createTestUser,
   createTestPod,
+  clearAllCache,
 } from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 import jwt from "jsonwebtoken";
@@ -36,6 +37,7 @@ describe("WebPods Root Pod Main Domain", () => {
   const rootPodUrl = `http://${rootPodId}.localhost:3000`;
 
   beforeEach(async () => {
+    await clearAllCache();
     // Create test user
     const db = testDb.getDb();
     const user = await createTestUser(db, {
@@ -115,6 +117,10 @@ describe("WebPods Root Pod Main Domain", () => {
 
     // Now switch to main domain client
     mainClient = new TestHttpClient(mainUrl);
+  });
+
+  afterEach(async () => {
+    await clearAllCache();
   });
 
   describe("Main domain serves root pod content", () => {

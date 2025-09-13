@@ -3,6 +3,7 @@ import {
   TestHttpClient,
   createTestUser,
   createTestPod,
+  clearAllCache,
 } from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 
@@ -16,6 +17,7 @@ describe("Stream Name Normalization", function () {
   const baseUrl = `http://${testPodId}.localhost:3000`;
 
   beforeEach(async () => {
+    await clearAllCache();
     const db = testDb.getDb();
     client = new TestHttpClient("http://localhost:3000");
 
@@ -37,6 +39,10 @@ describe("Stream Name Normalization", function () {
     // Set base URL and auth
     client.setBaseUrl(baseUrl);
     client.setAuthToken(userToken);
+  });
+
+  afterEach(async () => {
+    await clearAllCache();
   });
 
   describe("Stream creation normalization", () => {

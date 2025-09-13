@@ -169,10 +169,13 @@ describe("CLI Recursive Records", function () {
       // Should have unique records from all nested streams
       expect(output.records).to.be.an("array");
 
-      // Check that we got unique records (latest version of each named record)
+      // Should have 4 records: record1 from /api, /api/v1, /api/v1/users, and /api/v2 streams
+      expect(output.records).to.have.lengthOf(4);
+
+      // All records should be named "record1" (one from each matching stream)
       const recordNames = output.records.map((r: any) => r.name);
-      const uniqueNames = [...new Set(recordNames)];
-      expect(recordNames.length).to.equal(uniqueNames.length); // All names should be unique
+      expect(recordNames.every((name: string) => name === "record1")).to.be
+        .true;
     });
 
     it("should work with pagination parameters", async () => {

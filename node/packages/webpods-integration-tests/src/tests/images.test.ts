@@ -4,6 +4,7 @@ import {
   TestHttpClient,
   createTestUser,
   createTestPod,
+  clearAllCache,
 } from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 
@@ -24,6 +25,7 @@ describe("WebPods Image Support", () => {
     '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><circle cx="50" cy="50" r="40" fill="red"/></svg>';
 
   beforeEach(async () => {
+    await clearAllCache();
     client = new TestHttpClient("http://localhost:3000");
     // Create a test user and auth token
     const db = testDb.getDb();
@@ -44,6 +46,10 @@ describe("WebPods Image Support", () => {
 
     client.setBaseUrl(baseUrl);
     client.setAuthToken(authToken);
+  });
+
+  afterEach(async () => {
+    await clearAllCache();
   });
 
   describe("Image Upload", () => {

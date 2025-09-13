@@ -1,7 +1,7 @@
 export type CacheKey = string;
 
 export type CacheEntry<T = unknown> = {
-  value: T;
+  value: T | null;
   size: number; // Size in bytes
   expiresAt: number; // Unix timestamp
   hits: number; // Access count for statistics

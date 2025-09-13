@@ -13,7 +13,7 @@ export const cacheKeys = {
 
   // Record list: "list:streamId:queryHash"
   // Query hash includes all params (limit, after, unique, fields, etc.)
-  recordList: (streamId: string, queryParams: Record<string, any>): string => {
+  recordList: (streamId: string, queryParams: Record<string, unknown>): string => {
     // Sort params for consistent hashing
     const sortedParams = Object.keys(queryParams)
       .sort()

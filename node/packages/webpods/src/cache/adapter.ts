@@ -2,11 +2,11 @@ import type { CacheConfig, CacheKey, CacheStats } from "./types.js";
 
 export type CacheAdapter = {
   // Basic operations
-  get: <T>(pool: string, key: CacheKey) => Promise<T | null>;
+  get: <T>(pool: string, key: CacheKey) => Promise<T | null | undefined>;
   set: <T>(
     pool: string,
     key: CacheKey,
-    value: T,
+    value: T | null,
     ttlSeconds: number,
   ) => Promise<void>;
   delete: (pool: string, key: CacheKey) => Promise<boolean>;
