@@ -8,6 +8,8 @@ import { createError } from "../../utils/errors.js";
 import { StreamDbRow } from "../../db-types.js";
 import { Stream } from "../../types.js";
 import { createLogger } from "../../logger.js";
+import { getCache, cacheKeys } from "../../cache/index.js";
+import { getConfig } from "../../config-loader.js";
 
 const logger = createLogger("webpods:domain:streams");
 
@@ -50,6 +52,21 @@ export async function getStreamByPath(
   }
 
   try {
+    // Check cache first
+    const cache = getCache();
+    const config = getConfig();
+    const cacheKey = cacheKeys.stream(podName, normalizedPath);
+
+    if (cache && config.cache?.pools?.streams?.enabled) {
+      const cachedStream = await cache.get<Stream>("streams", cacheKey);
+      if (cachedStream) {
+        logger.debug("Stream cache hit", { podName, path: normalizedPath });
+        return success(cachedStream);
+      }
+      logger.debug("Stream cache miss", { podName, path: normalizedPath });
+    }
+
+    // Cache miss - fetch from database
     // Direct lookup using path column - O(1) instead of O(n)
     const stream = await ctx.db.oneOrNone<StreamDbRow>(
       `SELECT * FROM stream
@@ -68,7 +85,16 @@ export async function getStreamByPath(
       );
     }
 
-    return success(mapStreamFromDb(stream));
+    const mappedStream = mapStreamFromDb(stream);
+
+    // Cache the result
+    if (cache && config.cache?.pools?.streams?.enabled) {
+      const ttl = config.cache.pools.streams.ttlSeconds;
+      await cache.set("streams", cacheKey, mappedStream, ttl);
+      logger.debug("Stream cached", { podName, path: normalizedPath, ttl });
+    }
+
+    return success(mappedStream);
   } catch (error: unknown) {
     logger.error("Failed to get stream by path", { error, podName, path });
     return failure(createError("DATABASE_ERROR", "Failed to get stream"));

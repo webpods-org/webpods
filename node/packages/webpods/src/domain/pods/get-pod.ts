@@ -7,6 +7,8 @@ import { Result, success, failure } from "../../utils/result.js";
 import { PodDbRow, RecordDbRow } from "../../db-types.js";
 import { Pod } from "../../types.js";
 import { createLogger } from "../../logger.js";
+import { getCache, cacheKeys } from "../../cache/index.js";
+import { getConfig } from "../../config-loader.js";
 
 const logger = createLogger("webpods:domain:pods");
 
@@ -28,6 +30,21 @@ export async function getPod(
   podName: string,
 ): Promise<Result<Pod>> {
   try {
+    // Check cache first
+    const cache = getCache();
+    const config = getConfig();
+    const cacheKey = cacheKeys.pod(podName);
+    
+    if (cache && config.cache?.pools?.pods?.enabled) {
+      const cachedPod = await cache.get<Pod>("pods", cacheKey);
+      if (cachedPod) {
+        logger.debug("Pod cache hit", { podName });
+        return success(cachedPod);
+      }
+      logger.debug("Pod cache miss", { podName });
+    }
+
+    // Cache miss - fetch from database
     const pod = await ctx.db.oneOrNone<PodDbRow>(
       `SELECT * FROM pod WHERE name = $(pod_name)`,
       { pod_name: podName },
@@ -78,6 +95,13 @@ export async function getPod(
       } catch {
         logger.warn("Failed to parse owner record", { podName });
       }
+    }
+
+    // Cache the result
+    if (cache && config.cache?.pools?.pods?.enabled) {
+      const ttl = config.cache.pools.pods.ttlSeconds;
+      await cache.set("pods", cacheKey, mappedPod, ttl);
+      logger.debug("Pod cached", { podName, ttl });
     }
 
     return success(mappedPod);

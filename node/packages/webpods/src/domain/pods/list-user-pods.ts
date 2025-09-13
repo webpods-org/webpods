@@ -6,6 +6,7 @@ import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
 import { PodDbRow } from "../../db-types.js";
 import { createLogger } from "../../logger.js";
+import { getCache, getCacheConfig } from "../../cache/index.js";
 
 const logger = createLogger("webpods:domain:pods");
 
@@ -20,6 +21,17 @@ export async function listUserPods(
   userId: string,
 ): Promise<Result<UserPod[]>> {
   try {
+    // Check cache first
+    const cache = getCache();
+    if (cache) {
+      const cacheKey = `user-pods:${userId}`;
+      const cached = await cache.get("pods", cacheKey);
+      if (cached) {
+        logger.debug("User pods found in cache", { userId, count: (cached as UserPod[]).length });
+        return success(cached as UserPod[]);
+      }
+    }
+
     // Get all pods first
     const pods = await ctx.db.manyOrNone<PodDbRow>(
       `SELECT * FROM pod ORDER BY created_at DESC`,
@@ -80,6 +92,14 @@ export async function listUserPods(
       userId,
       count: userPods.length,
     });
+
+    // Cache the result
+    if (cache) {
+      const cacheKey = `user-pods:${userId}`;
+      const cacheConfig = getCacheConfig();
+      const ttl = cacheConfig?.pools?.pods?.ttlSeconds || 300;
+      await cache.set("pods", cacheKey, userPods, ttl);
+    }
 
     return success(userPods);
   } catch (error: unknown) {

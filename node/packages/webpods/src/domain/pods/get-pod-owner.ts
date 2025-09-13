@@ -7,6 +7,7 @@ import { Result, success, failure } from "../../utils/result.js";
 import { RecordDbRow } from "../../db-types.js";
 import { createLogger } from "../../logger.js";
 import { createError } from "../../utils/errors.js";
+import { getCache, getCacheConfig } from "../../cache/index.js";
 
 const logger = createLogger("webpods:domain:pods");
 
@@ -15,6 +16,17 @@ export async function getPodOwner(
   podName: string,
 ): Promise<Result<string | null>> {
   try {
+    // Check cache first
+    const cache = getCache();
+    if (cache) {
+      const cacheKey = `pod-owner:${podName}`;
+      const cached = await cache.get("pods", cacheKey);
+      if (cached !== undefined) {
+        logger.debug("Pod owner found in cache", { podName, owner: cached });
+        return success(cached as string | null);
+      }
+    }
+
     // Get the latest owner record using separate queries
     // Get .config stream
     const configStream = await ctx.db.oneOrNone<{ id: string }>(
@@ -57,7 +69,17 @@ export async function getPodOwner(
 
     try {
       const content = JSON.parse(ownerRecord.content);
-      return success(content.userId || null);
+      const ownerId = content.userId || null;
+      
+      // Cache the result
+      if (cache) {
+        const cacheKey = `pod-owner:${podName}`;
+        const cacheConfig = getCacheConfig();
+        const ttl = cacheConfig?.pools?.pods?.ttlSeconds || 300;
+        await cache.set("pods", cacheKey, ownerId, ttl);
+      }
+      
+      return success(ownerId);
     } catch {
       logger.warn("Failed to parse owner record", { podName });
       return success(null);

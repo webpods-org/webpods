@@ -15,6 +15,7 @@ import {
   isExternalStorageEnabled,
 } from "../../storage-adapters/index.js";
 import { extname } from "path";
+import { cacheInvalidation } from "../../cache/index.js";
 
 const logger = createLogger("webpods:domain:records");
 
@@ -233,6 +234,10 @@ export async function writeRecord(
         name,
         hash,
       });
+
+      // Invalidate caches
+      await cacheInvalidation.invalidateRecord(streamId.toString(), name);
+
       return success(mapRecordFromDb(record));
     });
   } catch (error: unknown) {

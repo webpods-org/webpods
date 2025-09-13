@@ -7,6 +7,7 @@ import { Result, success, failure } from "../../utils/result.js";
 import { createError } from "../../utils/errors.js";
 import { PodDbRow, RecordDbRow } from "../../db-types.js";
 import { createLogger } from "../../logger.js";
+import { cacheInvalidation, getCache } from "../../cache/index.js";
 
 const logger = createLogger("webpods:domain:pods");
 
@@ -94,6 +95,15 @@ export async function deletePod(
       await t.none(`DELETE FROM pod WHERE name = $(pod_name)`, {
         pod_name: pod.name,
       });
+
+      // Invalidate pod cache and all related caches
+      await cacheInvalidation.invalidatePod(pod.name, pod.name);
+      
+      // Also invalidate user's pod list cache
+      const cache = getCache();
+      if (cache) {
+        await cache.delete("pods", `user-pods:${userId}`);
+      }
 
       logger.info("Pod deleted", { podName });
       return success(undefined);

@@ -8,6 +8,7 @@ import { createError } from "../../utils/errors.js";
 import { StreamDbRow } from "../../db-types.js";
 import { Stream } from "../../types.js";
 import { createLogger } from "../../logger.js";
+import { getCache, getCacheConfig } from "../../cache/index.js";
 
 const logger = createLogger("webpods:domain:streams");
 
@@ -43,6 +44,17 @@ export async function listChildStreams(
   podName: string,
 ): Promise<Result<Stream[]>> {
   try {
+    // Check cache first
+    const cache = getCache();
+    if (cache) {
+      const cacheKey = `children:${podName}:${parentId || 'root'}`;
+      const cached = await cache.get("streams", cacheKey);
+      if (cached) {
+        logger.debug("Child streams found in cache", { podName, parentId });
+        return success(cached as Stream[]);
+      }
+    }
+
     const query = parentId
       ? `SELECT * FROM stream
          WHERE pod_name = $(podName)
@@ -63,7 +75,17 @@ export async function listChildStreams(
       count: streams.length,
     });
 
-    return success(streams.map(mapStreamFromDb));
+    const mappedStreams = streams.map(mapStreamFromDb);
+    
+    // Cache the result
+    if (cache) {
+      const cacheKey = `children:${podName}:${parentId || 'root'}`;
+      const cacheConfig = getCacheConfig();
+      const ttl = cacheConfig?.pools?.streams?.ttlSeconds || 300;
+      await cache.set("streams", cacheKey, mappedStreams, ttl);
+    }
+
+    return success(mappedStreams);
   } catch (error: unknown) {
     logger.error("Failed to list child streams", {
       error,
@@ -89,6 +111,17 @@ export async function countChildStreams(
   podName: string,
 ): Promise<Result<number>> {
   try {
+    // Check cache first
+    const cache = getCache();
+    if (cache) {
+      const cacheKey = `children-count:${podName}:${parentId || 'root'}`;
+      const cached = await cache.get("streams", cacheKey);
+      if (cached !== null && cached !== undefined) {
+        logger.debug("Child stream count found in cache", { podName, parentId, count: cached });
+        return success(cached as number);
+      }
+    }
+
     const query = parentId
       ? `SELECT COUNT(*) as count FROM stream
          WHERE pod_name = $(podName)
@@ -100,8 +133,17 @@ export async function countChildStreams(
     const params = parentId ? { podName, parentId } : { podName };
 
     const result = await ctx.db.one<{ count: string }>(query, params);
+    const count = parseInt(result.count);
+    
+    // Cache the result
+    if (cache) {
+      const cacheKey = `children-count:${podName}:${parentId || 'root'}`;
+      const cacheConfig = getCacheConfig();
+      const ttl = cacheConfig?.pools?.streams?.ttlSeconds || 300;
+      await cache.set("streams", cacheKey, count, ttl);
+    }
 
-    return success(parseInt(result.count));
+    return success(count);
   } catch (error: unknown) {
     logger.error("Failed to count child streams", {
       error,

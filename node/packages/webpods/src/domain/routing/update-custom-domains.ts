@@ -8,6 +8,7 @@ import { PodDbRow, StreamDbRow, RecordDbRow } from "../../db-types.js";
 import { calculateContentHash, calculateRecordHash } from "../../utils.js";
 import { createLogger } from "../../logger.js";
 import { sql } from "../../db/index.js";
+import { getCache } from "../../cache/index.js";
 
 const logger = createLogger("webpods:domain:routing");
 
@@ -87,7 +88,28 @@ export async function updateCustomDomains(
         { parent_id: configStream.id },
       );
 
-      if (!domainsStream) {
+      // Get old domains for cache invalidation
+      let oldDomains: string[] = [];
+      if (domainsStream) {
+        // Get the most recent domains record to find old domains
+        const lastDomainsRecord = await t.oneOrNone<RecordDbRow>(
+          `SELECT * FROM record
+           WHERE stream_id = $(stream_id)
+             AND name = 'domains'
+           ORDER BY index DESC
+           LIMIT 1`,
+          { stream_id: domainsStream.id },
+        );
+        
+        if (lastDomainsRecord) {
+          try {
+            const content = JSON.parse(lastDomainsRecord.content);
+            oldDomains = content.domains || [];
+          } catch {
+            // Ignore parse errors
+          }
+        }
+      } else {
         // Create the stream with hierarchical structure
         const streamParams = {
           pod_name: podName,
@@ -146,6 +168,20 @@ export async function updateCustomDomains(
       };
 
       await t.none(sql.insert("record", params), params);
+
+      // Invalidate cache for all affected domains
+      const cache = getCache();
+      if (cache) {
+        // Invalidate old domains that may no longer point to this pod
+        for (const oldDomain of oldDomains) {
+          await cache.delete("pods", `domain:${oldDomain}`);
+        }
+        
+        // Invalidate new domains to force fresh lookup
+        for (const newDomain of domains) {
+          await cache.delete("pods", `domain:${newDomain}`);
+        }
+      }
 
       logger.info("Custom domains updated", {
         podName,
