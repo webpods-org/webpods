@@ -93,7 +93,7 @@ router.post(
           error: {
             code: "INVALID_REQUEST",
             message: "Invalid client configuration",
-            details: validationResult.error.errors,
+            details: validationResult.error.issues,
           },
         });
         return;

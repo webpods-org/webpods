@@ -11,17 +11,17 @@
     "lint": "eslint src"
   },
   "dependencies": {
-    "@types/chai": "^5.0.1",
-    "@types/mocha": "^10.0.10",
-    "@types/node": "^22.10.10",
-    "chai": "^5.1.2",
-    "jsonwebtoken": "^9.0.2",
-    "mocha": "^11.0.1",
+    "@types/chai": "5.2.2",
+    "@types/mocha": "10.0.10",
+    "@types/node": "22.18.3",
+    "chai": "5.3.3",
+    "jsonwebtoken": "9.0.2",
+    "mocha": "11.7.2",
     "webpods-test-utils": "file:../webpods-test-utils"
   },
   "devDependencies": {
-    "@types/jsonwebtoken": "^9.0.7",
-    "tsx": "^4.19.2",
-    "typescript": "^5.7.3"
+    "@types/jsonwebtoken": "9.0.10",
+    "tsx": "4.20.5",
+    "typescript": "5.9.2"
   }
 }

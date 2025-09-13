@@ -68,7 +68,7 @@ export const ownerSchema = z.object({
   userId: z.string(),
 });
 
-export const linksSchema = z.record(z.string());
+export const linksSchema = z.record(z.string(), z.string());
 
 export const domainsSchema = z.object({
   domains: z.array(z.string()),

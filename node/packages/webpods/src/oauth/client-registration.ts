@@ -42,7 +42,7 @@ router.post("/register", async (req: Request, res: Response) => {
         error: {
           code: "INVALID_REQUEST",
           message: "Invalid registration request",
-          details: validationResult.error.errors,
+          details: validationResult.error.issues,
         },
       });
       return;
