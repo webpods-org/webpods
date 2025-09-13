@@ -220,7 +220,7 @@ Example headers:
 
 ### `GET https://{pod}.webpods.org/{stream}/{name}`
 
-Read a specific record.
+Read a specific record by name.
 
 **Headers:**
 
@@ -233,6 +233,51 @@ Read a specific record.
 - `X-Record-Hash`: Record hash
 - `X-Record-Timestamp`: Creation timestamp
 - Custom headers stored with the record (e.g., `cache-control`, `hello-world`)
+
+### `DELETE https://{pod}.webpods.org/{stream}/{name}`
+
+Delete a record (soft delete by default, or hard delete with purge parameter).
+
+**Headers:**
+
+- `Authorization: Bearer {jwt_token}`
+
+**Query Parameters:**
+
+- `purge=true` - Permanently erase content (hard delete) while preserving hash chain
+
+**Soft Delete (default):**
+
+- Creates a new deletion marker record with `deleted=true`
+- Record becomes invisible to normal queries
+- Original data preserved in history
+- External storage: removes name-based file, keeps hash-based file
+
+**Hard Delete (with `?purge=true`):**
+
+- Updates ALL records with this name to have empty content
+- Sets both `deleted=true` and `purged=true` flags
+- Preserves hash values for chain integrity
+- External storage: removes both name-based and hash-based files
+
+**Examples:**
+
+```bash
+# Soft delete (default)
+DELETE /blog/posts/my-post
+
+# Hard delete/purge (permanent)
+DELETE /blog/posts/my-post?purge=true
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "message": "Record deleted successfully"
+}
+```
 
 ### `GET https://{pod}.webpods.org/{stream}`
 
@@ -247,6 +292,9 @@ List records in a stream.
 - `format` - Response format: `json` (default) or `html`
 - `fields` - Comma-separated list of fields to return (e.g., `name,index,timestamp`)
 - `maxContentSize` - Maximum content size in bytes (truncates larger content)
+- `i` - Index query: single index (e.g., `i=5`) or range (e.g., `i=5:10`)
+
+**Note:** All index queries (`?i=`) return a JSON list response with records array, even for single index queries. This ensures consistent API response format.
 
 **Field Selection:**
 
@@ -286,6 +334,15 @@ GET /blog/posts?maxContentSize=1000
 
 # Combine field selection with content truncation
 GET /blog/posts?fields=name,content&maxContentSize=500
+
+# Get single record by index (returns a list with one record)
+GET /blog/posts?i=5
+
+# Get range of records by index
+GET /blog/posts?i=5:10
+
+# Get last record by negative index
+GET /blog/posts?i=-1
 ```
 
 **Response:**

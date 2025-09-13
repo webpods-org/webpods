@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "LOG_LEVEL=error mocha",
+    "test:grep": "LOG_LEVEL=error mocha --grep",
     "test:watch": "LOG_LEVEL=error mocha --watch",
     "build": "tsc --noEmit",
     "lint": "eslint src"

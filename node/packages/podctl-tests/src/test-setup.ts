@@ -2,7 +2,11 @@
  * Test setup for CLI integration tests
  */
 
-import { TestDatabase, createTestUser } from "webpods-test-utils";
+import {
+  TestDatabase,
+  createTestUser,
+  clearAllCache,
+} from "webpods-test-utils";
 import { sign } from "jsonwebtoken";
 import { createHash } from "crypto";
 import { CliTestServer } from "./cli-test-server.js";
@@ -34,12 +38,12 @@ function createTestJWT(userId: string, email: string): string {
  * Setup before all tests
  */
 export async function setupCliTests(): Promise<void> {
-  // Setup test database with a different name to avoid conflicts
-  testDb = new TestDatabase({ dbName: "webpodsdb_cli_test" });
+  // Setup test database
+  testDb = new TestDatabase({ dbName: "webpodsdb_test" });
   await testDb.setup();
 
-  // Start test server on a different port
-  testServer = new CliTestServer(3456, "webpodsdb_cli_test");
+  // Start test server
+  testServer = new CliTestServer(3000, "webpodsdb_test");
   await testServer.start();
 
   // Create a test user and token
@@ -73,6 +77,9 @@ export async function resetCliTestDb(): Promise<void> {
   await testDb
     .getDb()
     .none('TRUNCATE TABLE record, stream, pod, "user", identity CASCADE');
+
+  // Clear cache to prevent stale data between tests
+  await clearAllCache();
 
   // Recreate the test user
   testUser = await createTestUser(testDb.getDb(), {

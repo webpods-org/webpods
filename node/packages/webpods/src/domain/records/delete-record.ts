@@ -1,5 +1,5 @@
 /**
- * Soft delete a record by adding a tombstone record
+ * Soft delete a record by adding a deletion marker
  */
 
 import { DataContext } from "../data-context.js";
@@ -44,14 +44,13 @@ function mapRecordFromDb(row: RecordDbRow): StreamRecord {
 }
 
 /**
- * Soft delete a record by adding a tombstone record
- * The tombstone has a name like "original.deleted.timestamp"
+ * Soft delete a record by adding a deletion marker record
  *
  * @param ctx Data context
  * @param streamId Stream ID
  * @param recordName Record name to delete
  * @param userId User ID performing the deletion
- * @returns The created tombstone record
+ * @returns The created deletion record
  */
 export async function deleteRecord(
   ctx: DataContext,
@@ -61,8 +60,8 @@ export async function deleteRecord(
 ): Promise<Result<StreamRecord>> {
   try {
     return await ctx.db.tx(async (t) => {
-      // First check if the record exists and has external storage
-      const recordToDelete = await t.oneOrNone<RecordDbRow>(
+      // First get the latest record with this name to check if it's already deleted
+      const latestRecord = await t.oneOrNone<RecordDbRow>(
         `SELECT * FROM record
          WHERE stream_id = $(streamId)
            AND name = $(recordName)
@@ -71,8 +70,25 @@ export async function deleteRecord(
         { streamId, recordName },
       );
 
+      if (!latestRecord) {
+        return failure(
+          createError("RECORD_NOT_FOUND", `Record '${recordName}' not found`),
+        );
+      }
+
+      // If already deleted, do nothing (idempotent)
+      if (latestRecord.deleted) {
+        logger.info("Record already deleted", {
+          streamId,
+          recordName,
+        });
+        return success(mapRecordFromDb(latestRecord));
+      }
+
+      const recordToDelete = latestRecord;
+
       // If record has external storage, soft delete the name-based file
-      if (recordToDelete?.storage) {
+      if (recordToDelete.storage) {
         const adapter = getStorageAdapter();
         if (adapter) {
           // Get pod and stream info for deletion
@@ -117,16 +133,8 @@ export async function deleteRecord(
       const previousHash = lastRecord?.hash || null;
       const timestamp = new Date().toISOString();
 
-      // Create tombstone name with timestamp
-      const tombstoneName = `${recordName}.deleted.${Date.now()}`;
-
-      // Tombstone content
-      const content = JSON.stringify({
-        deleted: true,
-        originalName: recordName,
-        deletedAt: timestamp,
-        deletedBy: userId,
-      });
+      // Empty content for deletion marker
+      const content = "";
 
       // Get stream path to compute record path
       const stream = await t.one<{ path: string }>(
@@ -134,7 +142,7 @@ export async function deleteRecord(
         { streamId },
       );
 
-      const tombstonePath = `${stream.path}/${tombstoneName}`;
+      const recordPath = `${stream.path}/${recordName}`;
 
       // Calculate hashes and size
       const contentHash = calculateContentHash(content);
@@ -144,21 +152,21 @@ export async function deleteRecord(
         userId,
         timestamp,
       );
-      const size = Buffer.byteLength(content, "utf8");
+      const size = 0; // Empty content
 
-      // Insert tombstone record with path
-      const tombstone = await t.one<RecordDbRow>(
-        `INSERT INTO record (stream_id, index, content, content_type, size, name, path, content_hash, hash, previous_hash, user_id, created_at)
-         VALUES ($(streamId), $(index), $(content), $(contentType), $(size), $(name), $(path), $(contentHash), $(hash), $(previousHash), $(userId), $(createdAt))
+      // Insert deletion marker record with deleted=true
+      const deletionRecord = await t.one<RecordDbRow>(
+        `INSERT INTO record (stream_id, index, content, content_type, size, name, path, content_hash, hash, previous_hash, user_id, deleted, created_at)
+         VALUES ($(streamId), $(index), $(content), $(contentType), $(size), $(name), $(path), $(contentHash), $(hash), $(previousHash), $(userId), true, $(createdAt))
          RETURNING *`,
         {
           streamId,
           index,
           content,
-          contentType: "application/json",
+          contentType: "text/plain",
           size,
-          name: tombstoneName,
-          path: tombstonePath,
+          name: recordName,
+          path: recordPath,
           contentHash,
           hash,
           previousHash,
@@ -167,10 +175,9 @@ export async function deleteRecord(
         },
       );
 
-      logger.info("Record soft deleted with tombstone", {
+      logger.info("Record soft deleted", {
         streamId,
-        originalName: recordName,
-        tombstoneName,
+        recordName,
         index,
         userId,
       });
@@ -188,7 +195,7 @@ export async function deleteRecord(
         recordName,
       );
 
-      return success(mapRecordFromDb(tombstone));
+      return success(mapRecordFromDb(deletionRecord));
     });
   } catch (error: unknown) {
     logger.error("Failed to soft delete record", {

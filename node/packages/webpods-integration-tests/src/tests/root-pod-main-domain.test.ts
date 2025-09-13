@@ -247,7 +247,7 @@ describe("WebPods Root Pod Main Domain", () => {
       // Verify it's deleted
       const getResponse = await mainClient.get("/temp/item");
       expect(getResponse.status).to.equal(404);
-      expect(getResponse.data.error.code).to.equal("RECORD_DELETED");
+      expect(getResponse.data.error.code).to.equal("RECORD_NOT_FOUND");
     });
   });
 

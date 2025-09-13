@@ -112,13 +112,9 @@ describe("Unique Records Listing", () => {
         headers: { Authorization: `Bearer ${authToken}` },
       });
 
-      // Soft delete page-2
-      await podClient.post("/docs/page-2", JSON.stringify({ deleted: true }), {
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-          "Content-Type": "application/json",
-        },
-      });
+      // Soft delete page-2 using DELETE endpoint
+      podClient.setAuthToken(authToken);
+      await podClient.delete("/docs/page-2");
 
       // Get unique records
       const response = await podClient.get("/docs?unique=true");
@@ -148,17 +144,31 @@ describe("Unique Records Listing", () => {
         headers: { Authorization: `Bearer ${authToken}` },
       });
 
-      // Purge item-1
-      await podClient.post("/items/item-1", JSON.stringify({ purged: true }), {
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-          "Content-Type": "application/json",
-        },
-      });
+      // Purge item-1 using DELETE with purge=true
+      podClient.setAuthToken(authToken);
+      const deleteResponse = await podClient.delete("/items/item-1?purge=true");
+      expect(deleteResponse.status).to.equal(204); // No Content response for successful delete
 
       // Get unique records
       const response = await podClient.get("/items?unique=true");
       expect(response.status).to.equal(200);
+
+      // Debug output if test fails
+      if (response.data.records.length !== 1) {
+        console.error(
+          "Purge test failed - expected 1 record, got:",
+          response.data.records.length,
+        );
+        console.error(
+          "Records:",
+          response.data.records.map((r: any) => ({
+            name: r.name,
+            deleted: r.deleted,
+            purged: r.purged,
+          })),
+        );
+      }
+
       expect(response.data.records).to.have.length(1);
       expect(response.data.records[0].name).to.equal("item-2");
     });

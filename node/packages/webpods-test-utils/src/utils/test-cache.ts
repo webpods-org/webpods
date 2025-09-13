@@ -3,11 +3,12 @@
 /**
  * Clear all cache entries. Useful for ensuring test isolation.
  * Calls the test utility endpoint on the running test server.
+ * @param port - The port the test server is running on (default: 3000)
  */
-export async function clearAllCache(): Promise<void> {
+export async function clearAllCache(port: number = 3000): Promise<void> {
   try {
     const response = await fetch(
-      "http://localhost:3000/test-utils/clear-cache",
+      `http://localhost:${port}/test-utils/clear-cache`,
       {
         method: "POST",
         headers: {

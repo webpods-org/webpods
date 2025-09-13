@@ -87,63 +87,21 @@ export async function listUniqueRecords(
       }
     }
 
-    // Get all records with names (excluding empty names), ordered by index
-    const allRecords = await ctx.db.manyOrNone<RecordDbRow>(
-      `SELECT * FROM record
+    // Get the latest record for each unique name using DISTINCT ON
+    const latestRecords = await ctx.db.manyOrNone<RecordDbRow>(
+      `SELECT DISTINCT ON (name) *
+       FROM record
        WHERE stream_id = $(streamId)
          AND name IS NOT NULL
          AND name != ''
-       ORDER BY index ASC`,
+       ORDER BY name, index DESC`,
       { streamId },
     );
 
-    // Build map of latest record per name, excluding deleted
-    const latestByName = new Map<string, RecordDbRow>();
-
-    for (const record of allRecords) {
-      // Check if record is deleted/purged
-      let isDeleted = false;
-      if (record.content_type === "application/json") {
-        try {
-          const content = JSON.parse(record.content);
-          if (
-            content &&
-            typeof content === "object" &&
-            (content.deleted === true || content.purged === true)
-          ) {
-            isDeleted = true;
-          }
-        } catch {
-          // Not valid JSON, treat as normal record
-        }
-      }
-
-      if (isDeleted) {
-        // For deletion records, check if this is a tombstone or direct deletion
-        try {
-          const content = JSON.parse(record.content);
-          const originalName = content.originalName;
-          if (originalName) {
-            // This is a tombstone record - remove the original record name
-            latestByName.delete(originalName);
-          } else {
-            // This is a direct deletion of the record - remove from map
-            latestByName.delete(record.name!);
-          }
-        } catch {
-          // If we can't parse the content, fall back to removing current name
-          latestByName.delete(record.name!);
-        }
-      } else {
-        // Update with this record (latest wins)
-        latestByName.set(record.name!, record);
-      }
-    }
-
-    // Convert map to array and sort by index ascending
-    let uniqueRecords = Array.from(latestByName.values()).sort(
-      (a, b) => a.index - b.index,
-    );
+    // Filter out deleted/purged records in memory and sort by index
+    let uniqueRecords = latestRecords
+      .filter((record) => !record.deleted && !record.purged)
+      .sort((a, b) => a.index - b.index);
 
     // Apply pagination
     let actualAfter = after;
@@ -171,7 +129,7 @@ export async function listUniqueRecords(
       uniqueRecords = uniqueRecords.filter((r) => r.index > actualAfter);
     }
 
-    const total = latestByName.size;
+    const total = uniqueRecords.length;
     const hasMore = uniqueRecords.length > limit;
 
     if (hasMore) {

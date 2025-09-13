@@ -89,9 +89,9 @@ export async function listRecords(
     }
 
     // Cache miss - fetch from database
-    let query = `SELECT * FROM record 
-                  WHERE stream_id = $(streamId) 
-                    `;
+    // Note: We include ALL records, including deletion markers, as this is an append-only log
+    let query = `SELECT * FROM record
+                  WHERE stream_id = $(streamId)`;
     const params: Record<string, unknown> = {
       streamId,
       limit: limit + 1,
@@ -100,11 +100,10 @@ export async function listRecords(
     // Handle negative 'after' parameter
     let actualAfter = after;
     if (after !== undefined && after < 0) {
-      // Get total count to convert negative index (using normalized stream name)
+      // Get total count to convert negative index
       const countResult = await ctx.db.one<{ count: string }>(
-        `SELECT COUNT(*) as count FROM record 
-         WHERE stream_id = $(streamId) 
-           `,
+        `SELECT COUNT(*) as count FROM record
+         WHERE stream_id = $(streamId)`,
         { streamId },
       );
       const totalCount = parseInt(countResult.count);
@@ -128,9 +127,8 @@ export async function listRecords(
     const records = await ctx.db.manyOrNone<RecordDbRow>(query, params);
 
     const countResult = await ctx.db.one<{ count: string }>(
-      `SELECT COUNT(*) as count FROM record 
-       WHERE stream_id = $(streamId) 
-         `,
+      `SELECT COUNT(*) as count FROM record
+       WHERE stream_id = $(streamId)`,
       { streamId },
     );
 

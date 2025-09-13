@@ -22,7 +22,7 @@ export class CliTestHelper {
   private configDir: string;
   private server: string;
 
-  constructor(server = "http://localhost:3456") {
+  constructor(server = "http://localhost:3000") {
     // Path to the CLI entry point
     this.cliPath = path.resolve(__dirname, "../../podctl/dist/index.js");
     this.server = server;
