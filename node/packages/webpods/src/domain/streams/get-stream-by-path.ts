@@ -55,7 +55,7 @@ export async function getStreamByPath(
     // Check cache first
     const cache = getCache();
     const config = getConfig();
-    const cacheKey = cacheKeys.stream(podName, normalizedPath);
+    const cacheKey = cacheKeys.streamMeta(podName, normalizedPath);
 
     if (cache && config.cache?.pools?.streams?.enabled) {
       const cachedStream = await cache.get<Stream>("streams", cacheKey);

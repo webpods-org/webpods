@@ -6,7 +6,7 @@ import { DataContext } from "../data-context.js";
 import { Result, success } from "../../utils/result.js";
 import { RecordDbRow, StreamDbRow } from "../../db-types.js";
 import { createLogger } from "../../logger.js";
-import { getCache, getCacheConfig } from "../../cache/index.js";
+import { getCache, getCacheConfig, cacheKeys } from "../../cache/index.js";
 
 const logger = createLogger("webpods:domain:routing");
 
@@ -24,7 +24,7 @@ export async function resolveLink(
     // Check cache first
     const cache = getCache();
     if (cache) {
-      const cacheKey = `link:${podName}:${path}`;
+      const cacheKey = cacheKeys.link(podName, path);
       const cached = await cache.get("pods", cacheKey);
       if (cached !== undefined) {
         logger.debug("Link resolution found in cache", { podName, path });
@@ -91,7 +91,7 @@ export async function resolveLink(
     if (!links[path]) {
       // Cache the null result too
       if (cache) {
-        const cacheKey = `link:${podName}:${path}`;
+        const cacheKey = cacheKeys.link(podName, path);
         const cacheConfig = getCacheConfig();
         const ttl = cacheConfig?.pools?.pods?.ttlSeconds || 300;
         await cache.set("pods", cacheKey, null, ttl);
@@ -135,7 +135,7 @@ export async function resolveLink(
 
     // Cache the result
     if (cache) {
-      const cacheKey = `link:${podName}:${path}`;
+      const cacheKey = cacheKeys.link(podName, path);
       const cacheConfig = getCacheConfig();
       const ttl = cacheConfig?.pools?.pods?.ttlSeconds || 300;
       await cache.set("pods", cacheKey, result, ttl);

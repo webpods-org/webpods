@@ -7,7 +7,7 @@ import { Result, success, failure } from "../../utils/result.js";
 import { createError } from "../../utils/errors.js";
 import { StreamDbRow, PodDbRow, RecordDbRow } from "../../db-types.js";
 import { createLogger } from "../../logger.js";
-import { getCache, getCacheConfig } from "../../cache/index.js";
+import { getCache, getCacheConfig, cacheKeys } from "../../cache/index.js";
 import { createHash } from "crypto";
 
 const logger = createLogger("webpods:domain:pods");
@@ -170,7 +170,7 @@ export async function listPodStreams(
         )
         .digest("hex")
         .substring(0, 8);
-      cacheKey = `pod-streams:${podName}:${optionsHash}`;
+      cacheKey = cacheKeys.podStreams(podName, optionsHash);
 
       const cached = await cache.get("streams", cacheKey);
       if (cached !== undefined) {

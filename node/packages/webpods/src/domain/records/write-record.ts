@@ -235,8 +235,18 @@ export async function writeRecord(
         hash,
       });
 
+      // Get stream info for cache invalidation
+      const streamInfo = await t.one<{ pod_name: string; path: string }>(
+        `SELECT pod_name, path FROM stream WHERE id = $(streamId)`,
+        { streamId },
+      );
+
       // Invalidate caches
-      await cacheInvalidation.invalidateRecord(streamId.toString(), name);
+      await cacheInvalidation.invalidateRecord(
+        streamInfo.pod_name,
+        streamInfo.path,
+        name,
+      );
 
       return success(mapRecordFromDb(record));
     });

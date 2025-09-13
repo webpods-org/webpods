@@ -52,26 +52,18 @@ describe("WebPods Caching Layer", () => {
       await client.createStream(testStreamName, "public");
 
       // Access stream to cache it (just write a record)
-      const lookup1Start = Date.now();
       const write1 = await client.post(`/${testStreamName}/test1`, {
         test: "data1",
       });
-      const lookup1Time = Date.now() - lookup1Start;
 
       expect(write1.status).to.equal(201);
 
       // Second access - should use cached stream lookup
-      const lookup2Start = Date.now();
       const write2 = await client.post(`/${testStreamName}/test2`, {
         test: "data2",
       });
-      const lookup2Time = Date.now() - lookup2Start;
 
       expect(write2.status).to.equal(201);
-
-      console.log(
-        `      First write: ${lookup1Time}ms, Second write: ${lookup2Time}ms`,
-      );
     });
 
     it("should show cached stream permissions become stale after direct DB update", async () => {
@@ -116,24 +108,18 @@ describe("WebPods Caching Layer", () => {
       await client.createStream("list-stream-2", "private");
 
       // First list - should hit database
-      const list1Start = Date.now();
       const response1 = await client.get(`/.config/api/streams`);
-      const list1Time = Date.now() - list1Start;
 
       expect(response1.status).to.equal(200);
       expect(response1.data.pod).to.equal(testPodId);
       expect(response1.data.streams).to.be.an("array");
 
       // Second list - should hit cache
-      const list2Start = Date.now();
       const response2 = await client.get(`/.config/api/streams`);
-      const list2Time = Date.now() - list2Start;
 
       expect(response2.status).to.equal(200);
       expect(response2.data.pod).to.equal(testPodId);
       expect(response2.data.streams).to.be.an("array");
-
-      console.log(`      DB list: ${list1Time}ms, Cache list: ${list2Time}ms`);
     });
 
     it("should invalidate stream list cache on stream creation", async () => {
@@ -171,9 +157,7 @@ describe("WebPods Caching Layer", () => {
       await client.post(`/${streamName}/test-record`, recordContent);
 
       // First lookup - should hit database
-      const lookup1Start = Date.now();
       const response1 = await client.get(`/${streamName}/test-record`);
-      const lookup1Time = Date.now() - lookup1Start;
 
       expect(response1.status).to.equal(200);
       // Records return content directly, parse if it's JSON
@@ -184,9 +168,7 @@ describe("WebPods Caching Layer", () => {
       expect(content1).to.deep.equal(recordContent);
 
       // Second lookup - should hit cache
-      const lookup2Start = Date.now();
       const response2 = await client.get(`/${streamName}/test-record`);
-      const lookup2Time = Date.now() - lookup2Start;
 
       expect(response2.status).to.equal(200);
       // Records return content directly, parse if it's JSON
@@ -195,10 +177,6 @@ describe("WebPods Caching Layer", () => {
           ? JSON.parse(response2.data)
           : response2.data;
       expect(content2).to.deep.equal(recordContent);
-
-      console.log(
-        `      DB lookup: ${lookup1Time}ms, Cache lookup: ${lookup2Time}ms`,
-      );
     });
 
     it("should invalidate record cache on update", async () => {
@@ -234,9 +212,7 @@ describe("WebPods Caching Layer", () => {
       }
 
       // First list - should hit database
-      const list1Start = Date.now();
       const response1 = await client.get(`/${streamName}?limit=3`);
-      const list1Time = Date.now() - list1Start;
 
       expect(response1.status).to.equal(200);
       const records1 = Array.isArray(response1.data)
@@ -246,9 +222,7 @@ describe("WebPods Caching Layer", () => {
       expect(records1.length).to.be.at.most(3);
 
       // Second list with same params - should hit cache
-      const list2Start = Date.now();
       const response2 = await client.get(`/${streamName}?limit=3`);
-      const list2Time = Date.now() - list2Start;
 
       expect(response2.status).to.equal(200);
       const records2 = Array.isArray(response2.data)
@@ -256,8 +230,6 @@ describe("WebPods Caching Layer", () => {
         : response2.data.records;
       expect(records2).to.be.an("array");
       expect(records2.length).to.equal(records1.length);
-
-      console.log(`      DB list: ${list1Time}ms, Cache list: ${list2Time}ms`);
 
       // Different pagination params - should hit database again
       const response3 = await client.get(`/${streamName}?limit=2&after=1`);
@@ -272,9 +244,7 @@ describe("WebPods Caching Layer", () => {
       }
 
       // First unique list - should hit database
-      const list1Start = Date.now();
       const response1 = await client.get(`/${streamName}?unique=true`);
-      const list1Time = Date.now() - list1Start;
 
       expect(response1.status).to.equal(200);
       const records1 = Array.isArray(response1.data)
@@ -283,19 +253,13 @@ describe("WebPods Caching Layer", () => {
       expect(records1).to.be.an("array");
 
       // Second unique list - should hit cache
-      const list2Start = Date.now();
       const response2 = await client.get(`/${streamName}?unique=true`);
-      const list2Time = Date.now() - list2Start;
 
       expect(response2.status).to.equal(200);
       const records2 = Array.isArray(response2.data)
         ? response2.data
         : response2.data.records;
       expect(records2).to.be.an("array");
-
-      console.log(
-        `      DB unique list: ${list1Time}ms, Cache unique list: ${list2Time}ms`,
-      );
     });
 
     it("should invalidate record list cache on new record", async () => {
@@ -340,7 +304,6 @@ describe("WebPods Caching Layer", () => {
 
       // Record cache has 1 second TTL in test config
       // Wait for expiration
-      console.log("      Waiting 2 seconds for cache TTL expiration...");
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
       // Lookup again - should hit database (cache expired)
@@ -356,7 +319,6 @@ describe("WebPods Caching Layer", () => {
       await client.createStream(largeStreamName, "public");
 
       // Create 50 records (reduced from 100 for faster testing)
-      console.log("      Creating 50 test records...");
       for (let i = 0; i < 50; i++) {
         await client.post(`/${largeStreamName}/bulk-${i}`, {
           index: i,
@@ -464,12 +426,8 @@ describe("WebPods Caching Layer", () => {
       // Either way, this shows current behavior
       if (record2.status === 200) {
         // Cache returned stale data - expected when bypassing app layer
-        console.log("      Cache returned stale data (expected)");
       } else if (record2.status === 404) {
         // Cache was somehow invalidated or stream check failed
-        console.log(
-          "      Cache was invalidated or stream check prevented access",
-        );
       }
 
       // Wait for cache TTL to expire (1 second for single records in test config)
