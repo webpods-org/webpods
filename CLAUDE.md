@@ -2,10 +2,11 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with the WebPods codebase.
 
-## CRITICAL: NEVER ACT WITHOUT EXPLICIT USER APPROVAL
+## Critical Guidelines
+
+### NEVER ACT WITHOUT EXPLICIT USER APPROVAL
 
 **YOU MUST ALWAYS ASK FOR PERMISSION BEFORE:**
-
 - Making architectural decisions or changes
 - Implementing new features or functionality
 - Modifying APIs, interfaces, or data structures
@@ -14,25 +15,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with th
 
 **ONLY make changes AFTER the user explicitly approves.** When you identify issues or potential improvements, explain them clearly and wait for the user's decision. Do NOT assume what the user wants or make "helpful" changes without permission.
 
-## CRITICAL: FINISH DISCUSSIONS BEFORE WRITING CODE
+### FINISH DISCUSSIONS BEFORE WRITING CODE
 
 **IMPORTANT**: When the user asks a question or you're in the middle of a discussion, DO NOT jump to writing code. Always:
-
 1. **Complete the discussion first** - Understand the problem fully
 2. **Analyze and explain** - Work through the issue verbally
 3. **Get confirmation** - Ensure the user agrees with the approach
 4. **Only then write code** - After the user explicitly asks you to implement
 
-Do not write code while discussing or analyzing a problem unless the user specifically asks you to.
-
-## CRITICAL: NEVER USE MULTIEDIT
+### NEVER USE MULTIEDIT
 
 **NEVER use the MultiEdit tool.** It has caused issues in multiple projects. Always use individual Edit operations instead, even if it means more edits. This ensures better control and prevents unintended changes.
 
-## IMPORTANT: First Steps When Starting a Session
+## Session Startup & Task Management
+
+### First Steps When Starting a Session
 
 When you begin working on this project, you MUST:
-
 1. **Read this entire CLAUDE.md file** to understand the project structure and conventions
 2. **Check for ongoing tasks in `.todos/` directory** - Look for any in-progress task files
 3. **Read the key documentation files** in this order:
@@ -43,13 +42,13 @@ When you begin working on this project, you MUST:
 
 Only after reading these documents should you proceed with any implementation or analysis tasks.
 
-**IMPORTANT**: After every conversation compact/summary, you MUST re-read this CLAUDE.md file again as your first action. The conversation context gets compressed and critical project-specific instructions may be lost. Always start by reading CLAUDE.md after a compact.
+**IMPORTANT**: After every conversation compact/summary, you MUST re-read this CLAUDE.md file again as your first action.
 
-## Task Management with .todos Directory
+### Task Management with .todos Directory
 
-**IMPORTANT**: For major multi-step tasks that span sessions or require comprehensive tracking:
+**For major multi-step tasks that span sessions:**
 
-1. **Before starting a major task**, create a detailed task file in `.todos/` directory:
+1. **Before starting**, create a detailed task file in `.todos/` directory:
    - Filename format: `YYYY-MM-DD-task-name.md` (e.g., `2025-01-13-caching-implementation.md`)
    - Include ALL context, decisions, completed work, and remaining work
    - Write comprehensively so the task can be resumed in any future session
@@ -64,80 +63,70 @@ Only after reading these documents should you proceed with any implementation or
    - Any gotchas or special considerations
 
 3. **When resuming work**, always check `.todos/` first for in-progress tasks
-
 4. **Update the task file** as you make progress
-
 5. **Mark as complete** by renaming to `YYYY-MM-DD-task-name-COMPLETED.md`
 
-The `.todos/` directory is gitignored, so it won't clutter the repository but provides persistent task tracking across sessions.
+The `.todos/` directory is gitignored for persistent task tracking across sessions.
 
-## Project Context: Greenfield Development
+## Project Overview & Principles
 
-**IMPORTANT**: WebPods is a greenfield project with no legacy constraints. When working on this codebase:
+WebPods is a comprehensive API and platform for decentralized data management. For project overview, see [README.md](../README.md).
 
-- **No backward compatibility concerns** - There are no existing deployments or users to migrate
+### Greenfield Development Context
+
+**IMPORTANT**: WebPods is a greenfield project with no legacy constraints:
+- **No backward compatibility concerns** - No existing deployments or users to migrate
 - **No legacy code patterns** - All code should follow current best practices without compromise
-- **No migration paths needed** - Database schemas, APIs, and data structures can be designed optimally from the start
+- **No migration paths needed** - Database schemas, APIs, and data structures can be designed optimally
 - **Write code as if starting fresh** - Every implementation should be clean and modern
-- **No change tracking in comments** - Avoid comments like "changed from X to Y" or "previously this was..." since there is no "previous" state
+- **No change tracking in comments** - Avoid "changed from X to Y" since there is no "previous" state
 - **No deprecation warnings** - Nothing is deprecated because nothing is legacy
 
-This means you should:
+This means: Focus on clean, optimal implementations without worrying about existing systems. Design for the ideal case, not for compatibility.
 
-- Focus on clean, optimal implementations without worrying about existing systems
-- Design data structures and APIs for the ideal case, not for compatibility
-- Write code and comments as if everything is being written for the first time
-- Make architectural decisions based purely on technical merit
+### Documentation & Code Principles
 
-## Documentation Principles
-
-**IMPORTANT**: When writing or updating documentation:
-
+**Documentation Guidelines:**
 - Write as if the spec was designed from the beginning, not evolved over time
-- Avoid phrases like "now allows", "changed from", "previously was", "only X is allowed"
+- Avoid phrases like "now allows", "changed from", "previously was"
 - Present features and constraints as inherent design decisions
-- Documentation should be timeless - readable as a complete spec at any point
+- Be concise and technical - avoid promotional language, superlatives
+- Use active voice and include code examples
+- Keep README.md as single source of truth
 
-## Code Principles
-
-**NO BACKWARDS COMPATIBILITY**:
-
-- Do not write backwards compatibility code
-- Do not maintain legacy interfaces or environment variables
-- When refactoring, completely replace old implementations
-- Remove all deprecated code paths
-- The codebase should represent the current best design, not historical decisions
-
-## Project Structure
-
-The codebase follows a functional programming approach with these key directories:
-
-- `/node/packages/webpods/` - Main server implementation
-- `/node/packages/webpods-integration-tests/` - Integration test suite
-- `/database/webpods/migrations/` - Database migrations
-- `/docs/` - Technical documentation
+**Code Principles:**
+- **NO BACKWARDS COMPATIBILITY** - Do not write backwards compatibility code
+- **PREFER FUNCTIONS OVER CLASSES** - Export functions from modules when possible, use classes only when beneficial for stateful connections or complex state management
+- **NO DYNAMIC IMPORTS** - Always use static imports, never `await import()` or `import()` in the code
+- Use pure functions with explicit dependency injection and Result types for error handling
+- Prefer `type` over `interface` (use `interface` only for extensible contracts)
 
 ## Key Technical Decisions
 
 ### Security: Never Use npx
 
 **CRITICAL SECURITY REQUIREMENT**: NEVER use `npx` for any commands. This poses grave security risks by executing arbitrary code.
-
 - **ALWAYS use exact dependency versions** in package.json
 - **ALWAYS use local node_modules binaries** (e.g., `prettier`, `mocha`, `http-server`)
 - **NEVER use `npx prettier`** - use `prettier` from local dependencies
 - **NEVER use `npx mocha`** - use `mocha` from local dependencies
-- **NEVER use `npx http-server`** - add `http-server` as dependency and use directly
 
-**Exception**: The only acceptable `npx` usage is for one-time project initialization (e.g., `npx create-react-app`) when explicitly setting up new projects, but NEVER for ongoing development commands.
+**Exception**: Only acceptable `npx` usage is for one-time project initialization when explicitly setting up new projects.
 
-### Functional Programming First
+### Database Conventions
 
-- **PREFER FUNCTIONS OVER CLASSES** - Export functions from modules when possible
-- **Classes only when beneficial**: Use classes for stateful connections, complex state management
-- **Pure Functions**: Use explicit dependency injection
-- **Result Types**: Use Result<T> for error handling (no exceptions)
-- **Type over Interface**: Prefer `type` over `interface`
+- **PostgreSQL** with **pg-promise** for queries, **Knex.js** ONLY for migrations (in root package)
+- **Singular table names**: lowercase (e.g., `pod`, `stream`, `record`)
+- **Column names**: snake_case for all columns
+- **Reserved words**: Use double quotes for PostgreSQL reserved words (e.g., `"user"`)
+- **Always use named parameters**: `$(paramName)` not `$1`
+- **Always specify type parameters**: `db.one<UserDbRow>(...)`
+- **MIGRATION POLICY**: Never create new migration files. All schema changes go in `/database/webpods/migrations/20250810000000_initial_schema.js`
+
+**Query Optimization Guidelines**:
+- **Prefer simple separate queries over complex joins** when it only saves 1-3 database calls
+- **Use joins only to prevent N+1 query problems** (e.g., fetching data for many items in a loop)
+- **Prioritize code simplicity and readability** over minor performance optimizations
 
 ### ESM Modules
 
@@ -146,59 +135,9 @@ The codebase follows a functional programming approach with these key directorie
 - **Type: `"module"` in all package.json files**
 - **NO DYNAMIC IMPORTS**: Always use static imports. Never use `await import()` or `import()` in the code
 
-### Database Conventions
+## Essential Commands & Workflow
 
-- **PostgreSQL** with **pg-promise** for queries
-- **Knex.js** ONLY for migrations (in root package)
-- **Singular table names**: lowercase (e.g., `pod`, `stream`, `record`)
-- **Column names**: snake_case for all columns
-- **Reserved words**: Use double quotes for PostgreSQL reserved words (e.g., `"user"`)
-- **Always use named parameters**: `$(paramName)` not `$1`
-- **Always specify type parameters**: `db.one<UserDbRow>(...)`
-- **MIGRATION POLICY**: Never create new migration files. All schema changes go in `/database/webpods/migrations/20250810000000_initial_schema.js`
-
-### Query Optimization Guidelines
-
-- **Prefer simple separate queries over complex joins** when it only saves 1-3 database calls
-- **Use joins only to prevent N+1 query problems** (e.g., fetching data for many items in a loop)
-- **Prioritize code simplicity and readability** over minor performance optimizations
-- **Example**: Instead of a complex join to fetch owner record, use 3 simple queries:
-  1. Get config stream
-  2. Get owner stream (child of config)
-  3. Get owner record from owner stream
-- This approach makes the code easier to understand and maintain
-
-## Git Workflow
-
-### Git Safety Rules
-
-**CRITICAL GIT SAFETY RULES**:
-
-1. **NEVER use `git push --force` or `git push -f`** - Force pushing destroys history and can lose work permanently
-2. **ALL git push commands require EXPLICIT user authorization** - Never push to remote without the user explicitly asking
-3. **Use revert commits instead of force push** - To undo changes, create revert commits that preserve history
-4. **If you need to overwrite remote**, explain the consequences and get explicit confirmation first
-
-**IMPORTANT**: NEVER commit or push changes without explicit user instruction
-
-- Only run `git add`, `git commit`, or `git push` when the user explicitly asks
-- Common explicit instructions include: "commit", "push", "commit and push", "save to git"
-- If unsure, ask the user if they want to commit the changes
-- Always wait for user approval before making any git operations
-- **DO NOT** automatically commit or push after making changes
-- **DO NOT** commit/push even if you think the task is complete
-- The user will explicitly tell you when they want to commit/push
-
-When the user asks you to commit and push:
-
-1. Run `./scripts/format-all.sh` to format all files with Prettier
-2. Run `./scripts/lint-all.sh` to ensure code passes linting
-3. Follow the git commit guidelines in the main Claude system prompt
-4. Get explicit user confirmation before any `git push`
-
-## Essential Commands
-
-### Build Commands
+### Build & Development Commands
 
 ```bash
 # Build entire project (from root)
@@ -248,15 +187,47 @@ npm run seed:make seed_name
 npm run seed:run
 ```
 
+### Testing Commands
+
+**IMPORTANT**: The test database is automatically recreated for each test run. You do NOT need to run migrations manually for tests or create the test database.
+
+```bash
+# Run specific tests (fast)
+npm run test:grep -- "pattern to match"
+
+# Examples:
+npm run test:grep -- "should accept requests with valid auth token"
+npm run test:grep -- "OAuth"
+npm run test:grep -- "permission"
+```
+
+**IMPORTANT**: When running tests with mocha, always use `npm run test:grep -- "pattern"` from the root directory for specific tests. NEVER use `2>&1` redirection with mocha commands. Use `| tee` for output capture.
+
+### Git Workflow
+
+**CRITICAL GIT SAFETY RULES**:
+1. **NEVER use `git push --force` or `git push -f`** - Force pushing destroys history
+2. **ALL git push commands require EXPLICIT user authorization**
+3. **Use revert commits instead of force push** - To undo changes, create revert commits
+4. **If you need to overwrite remote**, explain consequences and get explicit confirmation
+
+**IMPORTANT**: NEVER commit, push, revert, or perform ANY git operations without explicit user permission.
+
+**NEW BRANCH REQUIREMENT**: ALL changes must be made on a new feature branch, never directly on main.
+
+When the user asks you to commit and push:
+1. Run `./scripts/format-all.sh` to format all files with Prettier
+2. Run `./scripts/lint-all.sh` to ensure code passes linting
+3. Follow the git commit guidelines in the main Claude system prompt
+4. Get explicit user confirmation before any `git push`
+
+**VERSION UPDATES**: Whenever committing changes, you MUST increment the patch version in `/node/packages/webpods/package.json`. For example, from 0.0.5 to 0.0.6.
+
 ## Core Architecture
 
-For detailed architecture information, see:
-
-- `/docs/architecture.md` - System design and component interaction
-- `/README.md` - API specification and examples
+For detailed architecture information, see `/docs/architecture.md` and `/README.md`.
 
 Key concepts:
-
 - **Pods**: Subdomains that act as namespaces
 - **Streams**: Append-only logs within pods (supports nested paths)
 - **Records**: Immutable entries with hash chains
@@ -267,7 +238,6 @@ Key concepts:
 #### Pagination with `after` Parameter
 
 The `after` parameter supports both positive and negative values:
-
 - **Positive values**: Skip records up to that index (`after=10` starts at index 11)
 - **Negative values**: Get the last N records (`after=-20` returns last 20 records)
 - Works with both regular listing and `unique=true` mode
@@ -275,7 +245,6 @@ The `after` parameter supports both positive and negative values:
 - If abs(negative value) > total count, returns all records
 
 Examples:
-
 ```bash
 ?after=-20           # Last 20 records
 ?after=-3&limit=2    # Last 3 records, but limited to 2
@@ -285,11 +254,29 @@ Examples:
 #### Record Limit Configuration
 
 The server enforces a maximum number of records per request:
-
 - **Default max**: 1000 records (configurable via `MAX_RECORD_LIMIT`)
 - **Behavior**: If `limit` exceeds max, it's silently capped (no error)
 - **Configuration**: Set in `config.json` under `rateLimits.maxRecordLimit` or via `MAX_RECORD_LIMIT` env var
 - **Testing**: Test config uses a low limit (10) for easier testing
+
+### Permission Checking
+
+Permission checks are done in-memory after fetching records:
+
+```typescript
+// Get ALL records from permission stream
+const records = await db("record")
+  .where("stream_id", streamId)
+  .orderBy("index", "asc");
+
+// Process in memory to find latest permission
+for (const record of records) {
+  const content = JSON.parse(record.content);
+  if (content.userId === userId) {
+    userPermission = content; // Last record wins
+  }
+}
+```
 
 ## Code Patterns
 
@@ -315,50 +302,11 @@ export async function doSomething(): Promise<Result<Data>> {
 }
 ```
 
-### Permission Checking
+## Testing & Development Optimization
 
-Permission checks are done in-memory after fetching records:
+### Test Output Strategy
 
-```typescript
-// Get ALL records from permission stream
-const records = await db("record")
-  .where("stream_id", streamId)
-  .orderBy("index", "asc");
-
-// Process in memory to find latest permission
-for (const record of records) {
-  const content = JSON.parse(record.content);
-  if (content.userId === userId) {
-    userPermission = content; // Last record wins
-  }
-}
-```
-
-## Testing
-
-### Test Database Management
-
-**IMPORTANT**: The test database is automatically recreated for each test run. You do NOT need to:
-
-- Run migrations manually for tests
-- Create or setup the test database
-- Worry about schema changes for tests
-
-The test infrastructure handles all of this automatically:
-
-1. **Before all tests**: The test database is completely recreated with the latest schema
-2. **After each test**: All tables are truncated to ensure test isolation
-3. **Schema changes**: Any changes to migrations are automatically applied when tests run
-
-This means:
-
-- When you add a new column (like `headers`), it will be included in the test database automatically
-- Each test starts with a clean database state
-- No manual database setup is required for testing
-
-### Test Output Strategy for Full Test Suites
-
-**IMPORTANT**: When running the full test suite (which takes 3+ minutes), use `tee` to both display output to the user AND save to a file:
+**For full test suites (3+ minutes)**, use `tee` to display output AND save to file:
 
 ```bash
 # Create .tests directory if it doesn't exist (gitignored)
@@ -367,28 +315,21 @@ mkdir -p .tests
 # Run full test suite with tee - shows output to user AND saves to file
 npm test | tee .tests/run-$(date +%s).txt
 
-# Then you can analyze the saved output multiple times without re-running tests:
+# Then analyze saved output without re-running tests:
 grep "failing" .tests/run-*.txt
 tail -50 .tests/run-*.txt
 grep -A10 "specific test name" .tests/run-*.txt
 ```
 
-**NEVER use plain redirection (`>` or `2>&1`) as it hides output from the user.** Always use `tee` so the user can see test progress in real-time while you also get a saved copy for analysis.
-
-This strategy prevents the need to re-run lengthy test suites when you need different information from the output. The `.tests/` directory is gitignored to keep test outputs from cluttering the repository.
-
-## Analysis and Documentation
+**NEVER use plain redirection (`>` or `2>&1`)** - use `tee` for real-time output visibility.
 
 ### Analysis Working Directory
 
-**IMPORTANT**: When performing long-running analysis, research, or documentation tasks, use the `.analysis/` directory as your working space:
+**For long-running analysis, research, or documentation tasks**, use `.analysis/` directory:
 
 ```bash
 # Create .analysis directory if it doesn't exist (gitignored)
 mkdir -p .analysis
-
-# Use for analysis outputs, reports, and working files
-cd .analysis
 
 # Examples of analysis work:
 # - Code complexity reports
@@ -400,104 +341,16 @@ cd .analysis
 # - Security audit reports
 ```
 
-**Benefits of using `.analysis/` directory:**
+Benefits: Keeps analysis artifacts separate from source code, allows iterative work without cluttering repository.
 
-- Keeps analysis artifacts separate from source code
-- Allows iterative work without cluttering the repository
-- Can save large analysis outputs without affecting git
-- Provides a consistent location for all analysis work
-- Enables saving intermediate results for complex multi-step analysis
+### Build & Lint Workflow
 
-**Common analysis patterns:**
+**ALWAYS follow this sequence:**
+1. Run `./scripts/lint-all.sh` first
+2. Run `./scripts/build.sh`
+3. **If build fails and you make changes**: You MUST run `./scripts/lint-all.sh` again before building
 
-```bash
-# Save analysis results with timestamps
-echo "Analysis results" > .analysis/api-analysis-$(date +%Y%m%d).md
-
-# Create subdirectories for different analysis types
-mkdir -p .analysis/performance
-mkdir -p .analysis/security
-mkdir -p .analysis/dependencies
-
-# Use for generating documentation
-npx typedoc --out .analysis/api-docs src/
-
-# Save database schema analysis
-pg_dump --schema-only webpodsdb > .analysis/schema-$(date +%Y%m%d).sql
-```
-
-The `.analysis/` directory is gitignored to prevent temporary analysis files from being committed to the repository.
-
-**Note**: This approach is NOT needed for selective test runs, which complete quickly:
-
-```bash
-# For specific tests, run directly without saving (they're fast)
-npm run test:grep -- "pattern to match"
-
-# Examples:
-npm run test:grep -- "should accept requests with valid auth token"
-npm run test:grep -- "OAuth"
-npm run test:grep -- "permission"
-```
-
-**IMPORTANT**: When running tests with mocha:
-
-- Always use `npm run test:grep -- "pattern"` from the root directory for specific tests
-- NEVER use `2>&1` redirection with mocha commands - it will cause errors
-- Use plain `npm test` or `npx mocha` without stderr redirection
-- If you need to capture output, use `| tee` or similar tools instead
-
-### Optimizing Build Speed During Debugging
-
-**TIP**: Use `./scripts/build.sh --no-format` during debugging sessions to skip prettier formatting. This:
-
-- Reduces build time significantly
-- Minimizes output that gets sent to the AI model (reducing token count)
-- Makes the debugging cycle faster
-
-Only use the standard `./scripts/build.sh` (with formatting) for final builds before committing.
-
-## Git Workflow
-
-**IMPORTANT**: NEVER commit, push, revert, or perform ANY git operations (including but not limited to: git checkout, git reset, git stash, git merge, git rebase) without explicit user permission. This includes never reverting changes unless explicitly asked by the user. When the user asks you to commit and push, follow the git commit guidelines in the main Claude system prompt.
-
-**NEW BRANCH REQUIREMENT**: ALL changes must be made on a new feature branch, never directly on main. When the user asks you to commit and push:
-
-1. **Always create a new branch** with a descriptive name (e.g., `organize-scripts`, `fix-auth-bug`, `add-feature-name`)
-2. **Make commits on the feature branch**
-3. **Push the feature branch to remote**
-4. **Never commit or push directly to main**
-
-**VERSION UPDATES**: Whenever committing changes, you MUST increment the patch version in `/node/packages/webpods/package.json`. For example, from 0.0.5 to 0.0.6. This ensures proper version tracking for all changes.
-
-## Environment Variables
-
-See `.env.example` for complete list of configuration options. Key variables:
-
-- `HOST` - Server bind address (default: 0.0.0.0)
-- `PORT` - Server bind port (default: 3000)
-- `PUBLIC_URL` - Public-facing URL for OAuth callbacks
-- `JWT_SECRET` - Required in production
-- `SESSION_SECRET` - Required for sessions
-- `DATABASE_URL` - PostgreSQL connection string
-- OAuth provider secrets (as referenced in config.json)
-
-## Debugging Tips
-
-1. **Pod resolution issues**: Check wildcard DNS configuration
-2. **Permission denied**: Trace through in-memory permission processing
-3. **Negative indexing**: Verify record count calculations
-4. **Content serving**: Check Content-Type headers
-5. **OAuth issues**: Verify callback URLs match provider configuration
-
-## Common Issues
-
-For troubleshooting common issues, refer to:
-
-- Wildcard DNS configuration
-- Permission stream processing (now done in-memory)
-- Content type handling
-- Hash chain verification
+**TIP**: Use `./scripts/build.sh --no-format` during debugging sessions to skip prettier formatting for faster builds.
 
 ## CLI Command Structure
 
@@ -547,10 +400,35 @@ podctl permission revoke my-pod my-stream user-id
 podctl permission list my-pod my-stream
 ```
 
-This structure ensures consistency and scalability across all CLI commands.
+## Environment Variables
+
+See `.env.example` for complete list of configuration options. Key variables:
+- `HOST` - Server bind address (default: 0.0.0.0)
+- `PORT` - Server bind port (default: 3000)
+- `PUBLIC_URL` - Public-facing URL for OAuth callbacks
+- `JWT_SECRET` - Required in production
+- `SESSION_SECRET` - Required for sessions
+- `DATABASE_URL` - PostgreSQL connection string
+- OAuth provider secrets (as referenced in config.json)
 
 ## Additional Resources
 
 - `/CODING-STANDARDS.md` - Detailed coding conventions
 - `/docs/api-examples.md` - API usage examples
 - `/docs/deployment.md` - Production deployment guide
+
+## Debugging Tips
+
+1. **Pod resolution issues**: Check wildcard DNS configuration
+2. **Permission denied**: Trace through in-memory permission processing
+3. **Negative indexing**: Verify record count calculations
+4. **Content serving**: Check Content-Type headers
+5. **OAuth issues**: Verify callback URLs match provider configuration
+
+## Common Issues
+
+For troubleshooting common issues, refer to:
+- Wildcard DNS configuration
+- Permission stream processing (now done in-memory)
+- Content type handling
+- Hash chain verification
