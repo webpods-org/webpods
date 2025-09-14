@@ -4,6 +4,9 @@
   "rateLimits": {
     "maxRecordLimit": 10000
   },
+  "cache": {
+    "enabled": true
+  },
   "oauth": {
     "defaultProvider": "github",
     "providers": {
