@@ -93,7 +93,6 @@ export async function up(knex) {
     
     table.unique(['stream_id', 'index']);
     table.index(['stream_id', 'index']);
-    table.index(['stream_id', 'name']);
     table.index(['stream_id', 'path']); // Index for fast path-based record lookups
     table.index('user_id');
     table.index('hash');
@@ -101,7 +100,7 @@ export async function up(knex) {
     table.index(['stream_id', 'purged']); // Index for efficient purge filtering
   });
 
-  // Add composite index for "get latest record by name" pattern - heavily used in read operations
+  // Add composite index for "get latest record by name" pattern - covers both name lookups and ordering
   await knex.raw('CREATE INDEX idx_record_stream_name_index_desc ON record (stream_id, name, index DESC)');
 
   // Custom domain mapping
