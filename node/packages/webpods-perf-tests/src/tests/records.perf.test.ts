@@ -41,7 +41,7 @@ describe("Record Operations Performance", function () {
     client.setAuthToken(authToken);
 
     // Pre-populate with some records for read tests
-    console.log("Populating test data...");
+    const startTime = Date.now();
     for (let i = 0; i < 1000; i++) {
       await client.post(`/${testStream}/record-${i}`, {
         id: i,
@@ -49,11 +49,11 @@ describe("Record Operations Performance", function () {
         timestamp: Date.now(),
       });
       recordCount++;
-      if (i % 100 === 0) {
-        console.log(`  Created ${i} records...`);
-      }
     }
-    console.log(`  Created ${recordCount} records total`);
+    const endTime = Date.now();
+    const duration = (endTime - startTime) / 1000;
+    const writesPerSec = (recordCount / duration).toFixed(0);
+    console.log(`Populated ${recordCount} records in ${duration.toFixed(1)}s. ${writesPerSec} writes/sec.`);
   });
 
   describe("Write Operations", () => {
@@ -79,7 +79,7 @@ describe("Record Operations Performance", function () {
 
       globalPerfReport.add(metrics);
       console.log(
-        `✓ Record writes: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
+        `      ✓ Record writes: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
       );
     });
 
@@ -103,7 +103,7 @@ describe("Record Operations Performance", function () {
 
       globalPerfReport.add(metrics);
       console.log(
-        `✓ External content writes: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
+        `      ✓ External content writes: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
       );
     });
 
@@ -130,7 +130,7 @@ describe("Record Operations Performance", function () {
 
       globalPerfReport.add(metrics);
       console.log(
-        `✓ Records with headers: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
+        `      ✓ Records with headers: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
       );
     });
   });
@@ -154,7 +154,7 @@ describe("Record Operations Performance", function () {
 
       globalPerfReport.add(metrics);
       console.log(
-        `✓ Individual record reads: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
+        `      ✓ Individual record reads: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
       );
     });
 
@@ -174,7 +174,7 @@ describe("Record Operations Performance", function () {
 
       globalPerfReport.add(metrics);
       console.log(
-        `✓ List 100 records: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
+        `      ✓ List 100 records: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
       );
     });
 
@@ -200,7 +200,7 @@ describe("Record Operations Performance", function () {
 
       globalPerfReport.add(metrics);
       console.log(
-        `✓ Paginated listing: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
+        `      ✓ Paginated listing: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
       );
     });
 
@@ -220,7 +220,7 @@ describe("Record Operations Performance", function () {
 
       globalPerfReport.add(metrics);
       console.log(
-        `✓ Unique records: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
+        `      ✓ Unique records: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
       );
     });
 
@@ -240,7 +240,7 @@ describe("Record Operations Performance", function () {
 
       globalPerfReport.add(metrics);
       console.log(
-        `✓ Last N records: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
+        `      ✓ Last N records: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
       );
     });
 
@@ -260,7 +260,7 @@ describe("Record Operations Performance", function () {
 
       globalPerfReport.add(metrics);
       console.log(
-        `✓ Field selection: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
+        `      ✓ Field selection: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
       );
     });
 
@@ -280,7 +280,7 @@ describe("Record Operations Performance", function () {
 
       globalPerfReport.add(metrics);
       console.log(
-        `✓ Content truncation: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
+        `      ✓ Content truncation: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
       );
     });
   });
@@ -331,7 +331,7 @@ describe("Record Operations Performance", function () {
 
       globalPerfReport.add(metrics);
       console.log(
-        `✓ Mixed operations: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
+        `      ✓ Mixed operations: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
       );
     });
   });
@@ -346,7 +346,7 @@ describe("Record Operations Performance", function () {
 
       if (response.status === 200 && response.data.valid) {
         console.log(
-          `✓ Hash chain verification (${recordCount} records): ${duration.toFixed(
+          `      ✓ Hash chain verification (${recordCount} records): ${duration.toFixed(
             2,
           )}ms`,
         );
@@ -367,7 +367,7 @@ describe("Record Operations Performance", function () {
           },
         });
       } else {
-        console.log(`⚠ Hash chain verification endpoint not available`);
+        console.log(`      ⚠ Hash chain verification endpoint not available`);
       }
     });
   });

@@ -66,8 +66,12 @@ afterEach(async function () {
 after(async function () {
   this.timeout(30000); // 30 seconds for teardown
 
-  // Print performance summary
-  console.log(globalPerfReport.getSummary());
+  // Save performance summary to file
+  const timestamp = Date.now();
+  const summaryFile = path.join(process.cwd(), ".tests", `perf-${timestamp}.txt`);
+  await fs.mkdir(path.dirname(summaryFile), { recursive: true });
+  await fs.writeFile(summaryFile, globalPerfReport.getSummary(), "utf8");
+  console.log(`\nPerformance summary saved to: ${summaryFile}`);
 
   // Stop server
   await testServer.stop();
