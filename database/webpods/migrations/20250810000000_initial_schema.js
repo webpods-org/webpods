@@ -93,13 +93,15 @@ export async function up(knex) {
     
     table.unique(['stream_id', 'index']);
     table.index(['stream_id', 'index']);
-    table.index(['stream_id', 'name']);
     table.index(['stream_id', 'path']); // Index for fast path-based record lookups
     table.index('user_id');
     table.index('hash');
     table.index(['stream_id', 'deleted']); // Index for efficient deletion filtering
     table.index(['stream_id', 'purged']); // Index for efficient purge filtering
   });
+
+  // Add composite index for "get latest record by name" pattern - covers both name lookups and ordering
+  await knex.raw('CREATE INDEX idx_record_stream_name_index_desc ON record (stream_id, name, index DESC)');
 
   // Custom domain mapping
   await knex.schema.createTable('custom_domain', (table) => {
@@ -221,7 +223,10 @@ export async function down(knex) {
   await knex.raw('DROP TRIGGER IF EXISTS update_identity_updated_at ON identity');
   await knex.raw('DROP TRIGGER IF EXISTS update_user_updated_at ON "user"');
   await knex.raw('DROP FUNCTION IF EXISTS update_updated_at_column');
-  
+
+  // Drop custom indexes
+  await knex.raw('DROP INDEX IF EXISTS idx_record_stream_name_index_desc');
+
   // Drop tables in reverse order
   await knex.schema.dropTableIfExists('oauth_client');
   await knex.schema.dropTableIfExists('oauth_state');
