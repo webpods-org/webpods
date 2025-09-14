@@ -24,13 +24,6 @@ describe("Record Operations Performance", function () {
   // Store the last performance result to log after test completion
   let lastPerfResult: string | null = null;
 
-  afterEach(function () {
-    if (lastPerfResult) {
-      logIndented(lastPerfResult, 12);
-      lastPerfResult = null;
-    }
-  });
-
   before(async function () {
     client = new TestHttpClient(baseUrl);
 
@@ -70,6 +63,12 @@ describe("Record Operations Performance", function () {
   });
 
   describe("Write Operations", () => {
+    afterEach(function () {
+      if (lastPerfResult) {
+        logIndented(lastPerfResult, 12);
+        lastPerfResult = null;
+      }
+    });
     it("should measure performance of writing individual records", async () => {
       // Pre-generate random data to avoid crypto overhead in the loop
       const randomData = crypto.randomBytes(256).toString("hex");
@@ -146,6 +145,12 @@ describe("Record Operations Performance", function () {
   });
 
   describe("Read Operations", () => {
+    afterEach(function () {
+      if (lastPerfResult) {
+        logIndented(lastPerfResult, 12);
+        lastPerfResult = null;
+      }
+    });
     it("should measure performance of reading individual records by name", async () => {
       let readCounter = 0;
       const metrics = await runPerfTest(
@@ -303,6 +308,12 @@ describe("Record Operations Performance", function () {
   });
 
   describe("Mixed Operations", () => {
+    afterEach(function () {
+      if (lastPerfResult) {
+        logIndented(lastPerfResult, 12);
+        lastPerfResult = null;
+      }
+    });
     it("should measure performance of mixed read/write operations", async () => {
       let operationCount = 0;
       let mixedReadCounter = 0;
@@ -355,6 +366,12 @@ describe("Record Operations Performance", function () {
   });
 
   describe("Verification Operations", () => {
+    afterEach(function () {
+      if (lastPerfResult) {
+        logIndented(lastPerfResult, 12);
+        lastPerfResult = null;
+      }
+    });
     it("should measure performance of hash chain verification", async () => {
       const timer = new PerfTimer();
 
