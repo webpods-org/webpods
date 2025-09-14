@@ -21,6 +21,16 @@ describe("Record Operations Performance", function () {
   const testStream = "perfrecords";
   let recordCount = 0;
 
+  // Store the last performance result to log after test completion
+  let lastPerfResult: string | null = null;
+
+  afterEach(function () {
+    if (lastPerfResult) {
+      logIndented(lastPerfResult, 12);
+      lastPerfResult = null;
+    }
+  });
+
   before(async function () {
     client = new TestHttpClient(baseUrl);
 
@@ -54,7 +64,9 @@ describe("Record Operations Performance", function () {
     const endTime = Date.now();
     const duration = (endTime - startTime) / 1000;
     const writesPerSec = (recordCount / duration).toFixed(0);
-    console.log(`Populated ${recordCount} records in ${duration.toFixed(1)}s. ${writesPerSec} writes/sec.`);
+    logIndented(
+      `Populated ${recordCount} records in ${duration.toFixed(1)}s. ${writesPerSec} writes/sec.`, 8
+    );
   });
 
   describe("Write Operations", () => {
@@ -79,7 +91,7 @@ describe("Record Operations Performance", function () {
       );
 
       globalPerfReport.add(metrics);
-      logIndented(`Record writes: ${metrics.opsPerSecond.toFixed(2)} ops/sec`, 12);
+      lastPerfResult = `Record writes: ${metrics.opsPerSecond.toFixed(2)} ops/sec`;
     });
 
     it("should measure performance of writing records with external content", async () => {
@@ -101,7 +113,7 @@ describe("Record Operations Performance", function () {
       );
 
       globalPerfReport.add(metrics);
-      logIndented(`External content writes: ${metrics.opsPerSecond.toFixed(2)} ops/sec`, 12);
+      lastPerfResult = `External content writes: ${metrics.opsPerSecond.toFixed(2)} ops/sec`;
     });
 
     it("should measure performance of writing records with custom headers", async () => {
@@ -126,7 +138,10 @@ describe("Record Operations Performance", function () {
       );
 
       globalPerfReport.add(metrics);
-      logIndented(`Records with headers: ${metrics.opsPerSecond.toFixed(2)} ops/sec`, 12);
+      logIndented(
+        `Records with headers: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
+        12,
+      );
     });
   });
 
@@ -148,7 +163,10 @@ describe("Record Operations Performance", function () {
       );
 
       globalPerfReport.add(metrics);
-      logIndented(`Individual record reads: ${metrics.opsPerSecond.toFixed(2)} ops/sec`, 12);
+      logIndented(
+        `Individual record reads: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
+        12,
+      );
     });
 
     it("should measure performance of listing records", async () => {
@@ -166,7 +184,10 @@ describe("Record Operations Performance", function () {
       );
 
       globalPerfReport.add(metrics);
-      logIndented(`List 100 records: ${metrics.opsPerSecond.toFixed(2)} ops/sec`, 12);
+      logIndented(
+        `List 100 records: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
+        12,
+      );
     });
 
     it("should measure performance of listing records with pagination", async () => {
@@ -190,7 +211,10 @@ describe("Record Operations Performance", function () {
       );
 
       globalPerfReport.add(metrics);
-      logIndented(`Paginated listing: ${metrics.opsPerSecond.toFixed(2)} ops/sec`, 12);
+      logIndented(
+        `Paginated listing: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
+        12,
+      );
     });
 
     it("should measure performance of listing unique records", async () => {
@@ -208,7 +232,10 @@ describe("Record Operations Performance", function () {
       );
 
       globalPerfReport.add(metrics);
-      logIndented(`Unique records: ${metrics.opsPerSecond.toFixed(2)} ops/sec`, 12);
+      logIndented(
+        `Unique records: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
+        12,
+      );
     });
 
     it("should measure performance of fetching last N records", async () => {
@@ -226,7 +253,10 @@ describe("Record Operations Performance", function () {
       );
 
       globalPerfReport.add(metrics);
-      logIndented(`Last N records: ${metrics.opsPerSecond.toFixed(2)} ops/sec`, 12);
+      logIndented(
+        `Last N records: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
+        12,
+      );
     });
 
     it("should measure performance of field selection", async () => {
@@ -244,7 +274,10 @@ describe("Record Operations Performance", function () {
       );
 
       globalPerfReport.add(metrics);
-      logIndented(`Field selection: ${metrics.opsPerSecond.toFixed(2)} ops/sec`, 12);
+      logIndented(
+        `Field selection: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
+        12,
+      );
     });
 
     it("should measure performance of content truncation", async () => {
@@ -262,7 +295,10 @@ describe("Record Operations Performance", function () {
       );
 
       globalPerfReport.add(metrics);
-      logIndented(`Content truncation: ${metrics.opsPerSecond.toFixed(2)} ops/sec`, 12);
+      logIndented(
+        `Content truncation: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
+        12,
+      );
     });
   });
 
@@ -311,7 +347,10 @@ describe("Record Operations Performance", function () {
       );
 
       globalPerfReport.add(metrics);
-      logIndented(`Mixed operations: ${metrics.opsPerSecond.toFixed(2)} ops/sec`, 12);
+      logIndented(
+        `Mixed operations: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
+        12,
+      );
     });
   });
 
@@ -324,9 +363,7 @@ describe("Record Operations Performance", function () {
       const duration = timer.stop();
 
       if (response.status === 200 && response.data.valid) {
-        logIndented(
-          `Hash chain verification (${recordCount} records): ${duration.toFixed(2)}ms`, 12
-        );
+        lastPerfResult = `Hash chain verification (${recordCount} records): ${duration.toFixed(2)}ms`;
 
         globalPerfReport.add({
           operation: "Hash Chain Verification",
@@ -344,7 +381,7 @@ describe("Record Operations Performance", function () {
           },
         });
       } else {
-        logIndented(`⚠ Hash chain verification endpoint not available`, 12);
+        lastPerfResult = `⚠ Hash chain verification endpoint not available`;
       }
     });
   });
