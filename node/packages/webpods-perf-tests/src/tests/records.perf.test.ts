@@ -3,6 +3,7 @@ import {
   createTestUser,
   createTestPod,
   generateTestWebPodsToken,
+  logIndented,
 } from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 import { runPerfTest, PerfTimer } from "../perf-utils.js";
@@ -78,9 +79,7 @@ describe("Record Operations Performance", function () {
       );
 
       globalPerfReport.add(metrics);
-      console.log(
-        `      ✓ Record writes: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
-      );
+      logIndented(`Record writes: ${metrics.opsPerSecond.toFixed(2)} ops/sec`, 12);
     });
 
     it("should measure performance of writing records with external content", async () => {
@@ -102,9 +101,7 @@ describe("Record Operations Performance", function () {
       );
 
       globalPerfReport.add(metrics);
-      console.log(
-        `      ✓ External content writes: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
-      );
+      logIndented(`External content writes: ${metrics.opsPerSecond.toFixed(2)} ops/sec`, 12);
     });
 
     it("should measure performance of writing records with custom headers", async () => {
@@ -129,9 +126,7 @@ describe("Record Operations Performance", function () {
       );
 
       globalPerfReport.add(metrics);
-      console.log(
-        `      ✓ Records with headers: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
-      );
+      logIndented(`Records with headers: ${metrics.opsPerSecond.toFixed(2)} ops/sec`, 12);
     });
   });
 
@@ -153,9 +148,7 @@ describe("Record Operations Performance", function () {
       );
 
       globalPerfReport.add(metrics);
-      console.log(
-        `      ✓ Individual record reads: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
-      );
+      logIndented(`Individual record reads: ${metrics.opsPerSecond.toFixed(2)} ops/sec`, 12);
     });
 
     it("should measure performance of listing records", async () => {
@@ -173,9 +166,7 @@ describe("Record Operations Performance", function () {
       );
 
       globalPerfReport.add(metrics);
-      console.log(
-        `      ✓ List 100 records: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
-      );
+      logIndented(`List 100 records: ${metrics.opsPerSecond.toFixed(2)} ops/sec`, 12);
     });
 
     it("should measure performance of listing records with pagination", async () => {
@@ -199,9 +190,7 @@ describe("Record Operations Performance", function () {
       );
 
       globalPerfReport.add(metrics);
-      console.log(
-        `      ✓ Paginated listing: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
-      );
+      logIndented(`Paginated listing: ${metrics.opsPerSecond.toFixed(2)} ops/sec`, 12);
     });
 
     it("should measure performance of listing unique records", async () => {
@@ -219,9 +208,7 @@ describe("Record Operations Performance", function () {
       );
 
       globalPerfReport.add(metrics);
-      console.log(
-        `      ✓ Unique records: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
-      );
+      logIndented(`Unique records: ${metrics.opsPerSecond.toFixed(2)} ops/sec`, 12);
     });
 
     it("should measure performance of fetching last N records", async () => {
@@ -239,9 +226,7 @@ describe("Record Operations Performance", function () {
       );
 
       globalPerfReport.add(metrics);
-      console.log(
-        `      ✓ Last N records: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
-      );
+      logIndented(`Last N records: ${metrics.opsPerSecond.toFixed(2)} ops/sec`, 12);
     });
 
     it("should measure performance of field selection", async () => {
@@ -259,9 +244,7 @@ describe("Record Operations Performance", function () {
       );
 
       globalPerfReport.add(metrics);
-      console.log(
-        `      ✓ Field selection: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
-      );
+      logIndented(`Field selection: ${metrics.opsPerSecond.toFixed(2)} ops/sec`, 12);
     });
 
     it("should measure performance of content truncation", async () => {
@@ -279,9 +262,7 @@ describe("Record Operations Performance", function () {
       );
 
       globalPerfReport.add(metrics);
-      console.log(
-        `      ✓ Content truncation: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
-      );
+      logIndented(`Content truncation: ${metrics.opsPerSecond.toFixed(2)} ops/sec`, 12);
     });
   });
 
@@ -330,9 +311,7 @@ describe("Record Operations Performance", function () {
       );
 
       globalPerfReport.add(metrics);
-      console.log(
-        `      ✓ Mixed operations: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
-      );
+      logIndented(`Mixed operations: ${metrics.opsPerSecond.toFixed(2)} ops/sec`, 12);
     });
   });
 
@@ -345,10 +324,8 @@ describe("Record Operations Performance", function () {
       const duration = timer.stop();
 
       if (response.status === 200 && response.data.valid) {
-        console.log(
-          `      ✓ Hash chain verification (${recordCount} records): ${duration.toFixed(
-            2,
-          )}ms`,
+        logIndented(
+          `Hash chain verification (${recordCount} records): ${duration.toFixed(2)}ms`, 12
         );
 
         globalPerfReport.add({
@@ -367,7 +344,7 @@ describe("Record Operations Performance", function () {
           },
         });
       } else {
-        console.log(`      ⚠ Hash chain verification endpoint not available`);
+        logIndented(`⚠ Hash chain verification endpoint not available`, 12);
       }
     });
   });
