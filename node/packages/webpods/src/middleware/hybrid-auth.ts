@@ -14,28 +14,18 @@ const logger = createLogger("webpods:auth:hybrid");
 /**
  * Extract token from request
  */
-function extractToken(req: Request, currentPod?: string): string | null {
-  // For pod requests, prefer pod_token cookie
-  let token = currentPod
-    ? (req as { cookies?: Record<string, string> }).cookies?.pod_token
-    : (req as { cookies?: Record<string, string> }).cookies?.token;
-
-  if (!token) {
-    token = (req as { cookies?: Record<string, string> }).cookies?.token; // Fallback to regular token
-  }
-
-  if (!token) {
-    const authHeader = req.headers.authorization;
-    if (authHeader) {
-      if (authHeader.startsWith("Bearer ")) {
-        token = authHeader.substring(7);
-      } else if (!authHeader.includes(" ")) {
-        token = authHeader;
-      }
+function extractToken(req: Request): string | null {
+  // Only extract token from Authorization header
+  const authHeader = req.headers.authorization;
+  if (authHeader) {
+    if (authHeader.startsWith("Bearer ")) {
+      return authHeader.substring(7);
+    } else if (!authHeader.includes(" ")) {
+      return authHeader;
     }
   }
 
-  return token || null;
+  return null;
 }
 
 /**
@@ -53,7 +43,7 @@ export async function authenticateHybrid(
 
   try {
     const currentPod = req.podName || undefined;
-    const token = extractToken(req, currentPod);
+    const token = extractToken(req);
 
     if (!token) {
       if (!res.headersSent) {
