@@ -255,9 +255,7 @@ router.get("/success", (req: Request, res: Response) => {
  * GET /auth/whoami
  */
 router.get("/whoami", async (req: Request, res: Response) => {
-  const token =
-    (req as RequestWithSession).cookies?.token ||
-    req.headers.authorization?.replace("Bearer ", "");
+  const token = req.headers.authorization?.replace("Bearer ", "");
 
   if (!token) {
     res.status(401).json({
