@@ -21,6 +21,8 @@ describe("Record Operations Performance", function () {
   const testStream = "perfrecords";
   let recordCount = 0;
 
+  // Store the last performance result to log after test completion
+  let lastPerfResult: string | null = null;
 
   before(async function () {
     client = new TestHttpClient(baseUrl);
@@ -56,11 +58,19 @@ describe("Record Operations Performance", function () {
     const duration = (endTime - startTime) / 1000;
     const writesPerSec = (recordCount / duration).toFixed(0);
     logIndented(
-      `Populated ${recordCount} records in ${duration.toFixed(1)}s. ${writesPerSec} writes/sec.`, 8
+      `Populated ${recordCount} records in ${duration.toFixed(1)}s. ${writesPerSec} writes/sec.`,
+      8,
     );
   });
 
   describe("Write Operations", () => {
+    afterEach(() => {
+      if (lastPerfResult) {
+        logIndented(lastPerfResult, 12);
+        lastPerfResult = null;
+      }
+    });
+
     it("should measure performance of writing individual records", async () => {
       // Pre-generate random data to avoid crypto overhead in the loop
       const randomData = crypto.randomBytes(256).toString("hex");
@@ -82,7 +92,7 @@ describe("Record Operations Performance", function () {
       );
 
       globalPerfReport.add(metrics);
-      logIndented(`Record writes: ${metrics.opsPerSecond.toFixed(2)} ops/sec`, 12);
+      lastPerfResult = `Record writes: ${metrics.opsPerSecond.toFixed(2)} ops/sec`;
     });
 
     it("should measure performance of writing records with external content", async () => {
@@ -104,7 +114,7 @@ describe("Record Operations Performance", function () {
       );
 
       globalPerfReport.add(metrics);
-      logIndented(`External content writes: ${metrics.opsPerSecond.toFixed(2)} ops/sec`, 12);
+      lastPerfResult = `External content writes: ${metrics.opsPerSecond.toFixed(2)} ops/sec`;
     });
 
     it("should measure performance of writing records with custom headers", async () => {
@@ -129,14 +139,18 @@ describe("Record Operations Performance", function () {
       );
 
       globalPerfReport.add(metrics);
-      logIndented(
-        `Records with headers: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
-        12,
-      );
+      lastPerfResult = `Records with headers: ${metrics.opsPerSecond.toFixed(2)} ops/sec`;
     });
   });
 
   describe("Read Operations", () => {
+    afterEach(() => {
+      if (lastPerfResult) {
+        logIndented(lastPerfResult, 12);
+        lastPerfResult = null;
+      }
+    });
+
     it("should measure performance of reading individual records by name", async () => {
       let readCounter = 0;
       const metrics = await runPerfTest(
@@ -154,10 +168,7 @@ describe("Record Operations Performance", function () {
       );
 
       globalPerfReport.add(metrics);
-      logIndented(
-        `Individual record reads: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
-        12,
-      );
+      lastPerfResult = `Individual record reads: ${metrics.opsPerSecond.toFixed(2)} ops/sec`;
     });
 
     it("should measure performance of listing records", async () => {
@@ -175,10 +186,7 @@ describe("Record Operations Performance", function () {
       );
 
       globalPerfReport.add(metrics);
-      logIndented(
-        `List 100 records: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
-        12,
-      );
+      lastPerfResult = `List 100 records: ${metrics.opsPerSecond.toFixed(2)} ops/sec`;
     });
 
     it("should measure performance of listing records with pagination", async () => {
@@ -202,10 +210,7 @@ describe("Record Operations Performance", function () {
       );
 
       globalPerfReport.add(metrics);
-      logIndented(
-        `Paginated listing: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
-        12,
-      );
+      lastPerfResult = `Paginated listing: ${metrics.opsPerSecond.toFixed(2)} ops/sec`;
     });
 
     it("should measure performance of listing unique records", async () => {
@@ -223,10 +228,7 @@ describe("Record Operations Performance", function () {
       );
 
       globalPerfReport.add(metrics);
-      logIndented(
-        `Unique records: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
-        12,
-      );
+      lastPerfResult = `Unique records: ${metrics.opsPerSecond.toFixed(2)} ops/sec`;
     });
 
     it("should measure performance of fetching last N records", async () => {
@@ -244,10 +246,7 @@ describe("Record Operations Performance", function () {
       );
 
       globalPerfReport.add(metrics);
-      logIndented(
-        `Last N records: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
-        12,
-      );
+      lastPerfResult = `Last N records: ${metrics.opsPerSecond.toFixed(2)} ops/sec`;
     });
 
     it("should measure performance of field selection", async () => {
@@ -265,10 +264,7 @@ describe("Record Operations Performance", function () {
       );
 
       globalPerfReport.add(metrics);
-      logIndented(
-        `Field selection: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
-        12,
-      );
+      lastPerfResult = `Field selection: ${metrics.opsPerSecond.toFixed(2)} ops/sec`;
     });
 
     it("should measure performance of content truncation", async () => {
@@ -286,14 +282,18 @@ describe("Record Operations Performance", function () {
       );
 
       globalPerfReport.add(metrics);
-      logIndented(
-        `Content truncation: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
-        12,
-      );
+      lastPerfResult = `Content truncation: ${metrics.opsPerSecond.toFixed(2)} ops/sec`;
     });
   });
 
   describe("Mixed Operations", () => {
+    afterEach(() => {
+      if (lastPerfResult) {
+        logIndented(lastPerfResult, 12);
+        lastPerfResult = null;
+      }
+    });
+
     it("should measure performance of mixed read/write operations", async () => {
       let operationCount = 0;
       let mixedReadCounter = 0;
@@ -338,14 +338,18 @@ describe("Record Operations Performance", function () {
       );
 
       globalPerfReport.add(metrics);
-      logIndented(
-        `Mixed operations: ${metrics.opsPerSecond.toFixed(2)} ops/sec`,
-        12,
-      );
+      lastPerfResult = `Mixed operations: ${metrics.opsPerSecond.toFixed(2)} ops/sec`;
     });
   });
 
   describe("Verification Operations", () => {
+    afterEach(() => {
+      if (lastPerfResult) {
+        logIndented(lastPerfResult, 12);
+        lastPerfResult = null;
+      }
+    });
+
     it("should measure performance of hash chain verification", async () => {
       const timer = new PerfTimer();
 
@@ -354,7 +358,7 @@ describe("Record Operations Performance", function () {
       const duration = timer.stop();
 
       if (response.status === 200 && response.data.valid) {
-        logIndented(`Hash chain verification (${recordCount} records): ${duration.toFixed(2)}ms`, 12);
+        lastPerfResult = `Hash chain verification (${recordCount} records): ${duration.toFixed(2)}ms`;
 
         globalPerfReport.add({
           operation: "Hash Chain Verification",
@@ -372,7 +376,7 @@ describe("Record Operations Performance", function () {
           },
         });
       } else {
-        logIndented(`⚠ Hash chain verification endpoint not available`, 12);
+        lastPerfResult = `⚠ Hash chain verification endpoint not available`;
       }
     });
   });

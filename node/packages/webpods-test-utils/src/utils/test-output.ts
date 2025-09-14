@@ -5,6 +5,6 @@
 /**
  * Log a message with specified indentation
  */
-export function logIndented(message: string, spaces: number): void {
-  console.log(`${' '.repeat(spaces)}${message}`);
+export function logIndented(message: string, spaces: number = 0): void {
+  console.log(`${" ".repeat(spaces)}${message}`);
 }

@@ -68,7 +68,11 @@ after(async function () {
 
   // Save performance summary to file
   const timestamp = Date.now();
-  const summaryFile = path.join(process.cwd(), ".tests", `perf-${timestamp}.txt`);
+  const summaryFile = path.join(
+    process.cwd(),
+    ".tests",
+    `perf-${timestamp}.txt`,
+  );
   await fs.mkdir(path.dirname(summaryFile), { recursive: true });
   await fs.writeFile(summaryFile, globalPerfReport.getSummary(), "utf8");
   console.log(`\nPerformance summary saved to: ${summaryFile}`);
