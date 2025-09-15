@@ -16,13 +16,47 @@ describe("WebPods Rate Limiting", () => {
   const testPodId = "rate-test";
   const baseUrl = `http://${testPodId}.localhost:3000`;
 
+  // Helper to get rate limit status via test utility
+  async function getRateLimitStatus(identifier: string, action: string) {
+    const testClient = new TestHttpClient("http://localhost:3000");
+    const response = await testClient.get(
+      `/test-utils/ratelimit/status?identifier=${identifier}&action=${action}`,
+    );
+    return response.data;
+  }
+
+  // Helper to set rate limit count via test utility
+  async function setRateLimitCount(
+    identifier: string,
+    action: string,
+    count: number,
+  ) {
+    const testClient = new TestHttpClient("http://localhost:3000");
+    const response = await testClient.post("/test-utils/ratelimit/set", {
+      identifier,
+      action,
+      count,
+    });
+    return response.data;
+  }
+
+  // Helper to reset rate limit via test utility
+  async function resetRateLimit(identifier: string, action?: string) {
+    const testClient = new TestHttpClient("http://localhost:3000");
+    const response = await testClient.post("/test-utils/ratelimit/reset", {
+      identifier,
+      action,
+    });
+    return response.data;
+  }
+
   beforeEach(async () => {
     // Create a new client instance for each test
     client = new TestHttpClient("http://localhost:3000");
     const db = testDb.getDb();
 
-    // Clear any existing rate limits to ensure test isolation
-    await db.none(`DELETE FROM rate_limit`);
+    // Note: Rate limits are now handled by the adapter and cleared
+    // automatically between tests via test environment reset
     const user = await createTestUser(db, {
       provider: "test-auth-provider-2",
       providerId: "ratelimit",
@@ -105,17 +139,13 @@ describe("WebPods Rate Limiting", () => {
       await client.post("/stream3/msg3", "Message 3");
       await client.post("/nested/stream4", "Message 4");
 
-      // Check rate limit record was created
-      const db = testDb.getDb();
-      const rateLimit = await db.oneOrNone(
-        `SELECT * FROM rate_limit WHERE identifier = $(identifier) AND action = $(action)`,
-        { identifier: userId, action: "write" },
-      );
+      // Check rate limit record using test utility
+      const status = await getRateLimitStatus(userId, "write");
 
-      expect(rateLimit).to.exist;
+      expect(status.enabled).to.be.true;
       // At least 4 writes (might be more due to other tests in same window)
-      expect(rateLimit.count).to.be.at.least(4);
-      expect(rateLimit.window_end).to.be.instanceOf(Date);
+      expect(status.count).to.be.at.least(4);
+      expect(status.resetAt).to.exist;
     });
 
     it("should track pod creation rate limits separately", async () => {
@@ -216,13 +246,13 @@ describe("WebPods Rate Limiting", () => {
         podTestUser.userId,
       );
 
-      // Check rate limit records
-      const podLimit = await db.oneOrNone(
-        `SELECT * FROM rate_limit WHERE identifier = $(identifier) AND action = $(action)`,
-        { identifier: podTestUser.userId, action: "pod_create" },
+      // Check rate limit records using test utility
+      const podLimit = await getRateLimitStatus(
+        podTestUser.userId,
+        "pod_create",
       );
 
-      expect(podLimit).to.exist;
+      expect(podLimit.enabled).to.be.true;
       expect(podLimit.count).to.equal(2);
 
       // Now test that we can create more pods up to the limit (10)
@@ -329,23 +359,23 @@ describe("WebPods Rate Limiting", () => {
       // Clear auth for anonymous requests
       client.clearAuthToken();
 
-      // Clear any existing IP-based rate limits to ensure clean test
-      const db = testDb.getDb();
-      await db.none(`DELETE FROM rate_limit WHERE identifier LIKE 'ip:%'`);
+      // Reset IP-based rate limits for clean test
+      // Note: IP could be ::1 or 127.0.0.1
+      await resetRateLimit("ip:127.0.0.1", "read");
+      await resetRateLimit("ip:::1", "read");
 
       // Make anonymous read requests
       await client.get("/public-data?i=0");
       await client.get("/public-data?i=1");
 
       // Check rate limit by IP
+      // Try both possible IP formats
+      let ipLimit = await getRateLimitStatus("ip:127.0.0.1", "read");
+      if (!ipLimit.enabled || ipLimit.count === 0) {
+        ipLimit = await getRateLimitStatus("ip:::1", "read");
+      }
 
-      // Find any IP-based rate limit (could be ::1 or 127.0.0.1)
-      const ipLimit = await db.oneOrNone(
-        `SELECT * FROM rate_limit WHERE identifier LIKE 'ip:%' AND action = $(action)`,
-        { action: "read" },
-      );
-
-      expect(ipLimit).to.exist;
+      expect(ipLimit.enabled).to.be.true;
       expect(ipLimit.count).to.equal(2);
     });
   });
@@ -471,34 +501,26 @@ describe("WebPods Rate Limiting", () => {
 
   describe("Rate Limit Enforcement", () => {
     it("should return 429 when rate limit is exceeded", async () => {
-      const db = testDb.getDb();
+      // Use test utility to set rate limit to exceeded state
+      // Set count to limit (1000) - this will max out the rate limit
+      const result = await setRateLimitCount(userId, "write", 1000);
 
-      // Calculate proper window boundaries (same as rate limit code)
-      const windowMs = 60 * 60 * 1000; // 1 hour
-      const now = Date.now();
-      const windowEnd = new Date(Math.ceil(now / windowMs) * windowMs);
-      const windowStart = new Date(windowEnd.getTime() - windowMs);
+      expect(result.count).to.equal(1000);
+      expect(result.remaining).to.equal(0);
 
-      // Set a rate limit that's already exceeded
-      await db.none(
-        `INSERT INTO rate_limit (identifier, action, count, window_start, window_end)
-         VALUES ($(identifier), $(action), $(count), $(windowStart), $(windowEnd))`,
-        {
-          identifier: userId, // Rate limiting uses user_id
-          action: "write",
-          count: 1001, // Over the default limit of 1000
-          windowStart,
-          windowEnd,
-        },
-      );
-
-      // Try to make another request (stream creation should be blocked)
-      await client.createStream("over-limit");
-      const response = await client.post("/over-limit/fail", "Should fail");
+      // Try to make another request (should be blocked)
+      // Note: createStream might succeed if it's counted separately as stream_create
+      // So we'll just do a direct write which should definitely fail
+      const response = await client.post("/stream1/should-fail", "Should fail");
 
       expect(response.status).to.equal(429);
       expect(response.data.error.code).to.equal("RATE_LIMIT_EXCEEDED");
       expect(response.data.error.message).to.include("Too many requests");
+
+      // Verify the count is still at 1000 (the failed request shouldn't increment)
+      const finalStatus = await getRateLimitStatus(userId, "write");
+      expect(finalStatus.count).to.equal(1000);
+      expect(finalStatus.remaining).to.equal(0);
     });
 
     it("should allow requests from different users independently", async () => {

@@ -17,6 +17,8 @@ export interface TestServerConfig {
   useMockOAuth?: boolean;
   mockOAuthPort?: number;
   configPath?: string; // Path to config.json file
+  cacheAdapter?: "in-memory" | "none"; // Cache adapter override
+  rateLimitAdapter?: "in-memory" | "postgres" | "none"; // Rate limit adapter override
 }
 
 export class TestServer {
@@ -33,6 +35,8 @@ export class TestServer {
       useMockOAuth: config.useMockOAuth !== false, // Default to true for tests
       mockOAuthPort: config.mockOAuthPort || 4567,
       configPath: config.configPath, // Use provided config path
+      cacheAdapter: config.cacheAdapter,
+      rateLimitAdapter: config.rateLimitAdapter,
     };
     this.logger = config.logger || consoleLogger;
   }
@@ -44,7 +48,7 @@ export class TestServer {
       await this.mockOAuth.start();
     }
 
-    const serverPath = path.join(__dirname, "../../../webpods/dist/index.js");
+    const serverPath = path.join(__dirname, "../../../webpods/dist/cli.js");
 
     // Path to test config file - use provided path or default to integration tests config
     const testConfigPath =
@@ -74,8 +78,21 @@ export class TestServer {
     };
 
     return new Promise((resolve, reject) => {
+      // Build command line arguments
+      const args = [serverPath, "--enable-test-utils"];
+
+      // Add cache adapter if specified
+      if (this.config.cacheAdapter) {
+        args.push("--cache-adapter", this.config.cacheAdapter);
+      }
+
+      // Add rate limit adapter if specified
+      if (this.config.rateLimitAdapter) {
+        args.push("--ratelimit-adapter", this.config.rateLimitAdapter);
+      }
+
       // Add --enable-test-utils flag for test server
-      this.process = spawn("node", [serverPath, "--enable-test-utils"], {
+      this.process = spawn("node", args, {
         env,
         stdio: ["pipe", "inherit", "inherit"], // stdin pipe, stdout/stderr inherit to see console logs
       });

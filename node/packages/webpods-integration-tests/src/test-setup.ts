@@ -23,10 +23,23 @@ export const testDb = new TestDatabase({
   dbName: "webpodsdb_test",
   logger: testLogger,
 });
+const cacheAdapter = process.env.TEST_CACHE_ADAPTER as
+  | "in-memory"
+  | "none"
+  | undefined;
+const rateLimitAdapter = process.env.TEST_RATELIMIT_ADAPTER as
+  | "in-memory"
+  | "postgres"
+  | "none"
+  | undefined;
+
 export const testServer = new TestServer({
   port: 3000,
   dbName: "webpodsdb_test",
   logger: testLogger,
+  // Allow overriding adapters via environment variables
+  cacheAdapter,
+  rateLimitAdapter,
 });
 // Note: Each test file should create its own TestHttpClient instance to avoid interference
 

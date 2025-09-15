@@ -1233,12 +1233,8 @@ describe("Cache Test Utilities - Comprehensive Tests", () => {
           client
             .post(`/${uniqueStreamName}/rec${i}`, { data: `data${i}` })
             .then(() => client.get(`/${uniqueStreamName}/rec${i}`))
-            .catch((err) => {
-              // Handle potential race conditions - just log and continue
-              console.log(
-                `Concurrent operation for rec${i} had conflict:`,
-                err.message,
-              );
+            .catch(() => {
+              // Handle potential race conditions - silently continue
               return null;
             }),
         );

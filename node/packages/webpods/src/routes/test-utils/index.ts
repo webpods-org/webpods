@@ -5,6 +5,7 @@
 
 import { Router, Request, Response, NextFunction } from "express";
 import { createCacheTestRouter } from "./cache.js";
+import rateLimitRouter from "./ratelimit.js";
 import { createLogger } from "../../logger.js";
 
 const logger = createLogger("test-utils");
@@ -81,6 +82,7 @@ export function createTestUtilsRouter(): Router {
       available: true,
       namespaces: {
         cache: "Cache testing utilities",
+        ratelimit: "Rate limit testing utilities",
         // Future namespaces can be added here
         // db: "Database testing utilities",
         // auth: "Authentication testing utilities",
@@ -96,6 +98,7 @@ export function createTestUtilsRouter(): Router {
 
   // Mount namespace routers
   router.use("/cache", createCacheTestRouter());
+  router.use("/ratelimit", rateLimitRouter);
 
   // Future namespace routers can be added here:
   // router.use("/db", createDbTestRouter());
@@ -109,7 +112,7 @@ export function createTestUtilsRouter(): Router {
       error: {
         code: "NOT_FOUND",
         message: "Unknown test utility endpoint",
-        availableNamespaces: ["cache"],
+        availableNamespaces: ["cache", "ratelimit"],
       },
     });
   });

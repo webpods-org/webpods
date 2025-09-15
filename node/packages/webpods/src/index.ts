@@ -125,6 +125,9 @@ export async function start() {
           | "in-memory"
           | "postgres";
         rateLimiterConfig.enabled = true;
+        logger.info(
+          `Rate limit adapter overridden to: ${rateLimitAdapterOverride}`,
+        );
       }
 
       // Only initialize if enabled

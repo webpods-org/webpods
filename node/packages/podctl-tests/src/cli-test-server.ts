@@ -12,10 +12,15 @@ export class CliTestServer {
   private process: ChildProcess | null = null;
   private port: number;
   private dbName: string;
+  private cacheAdapter?: string;
+  private rateLimitAdapter?: string;
 
   constructor(port = 3000, dbName = "webpodsdb_test") {
     this.port = port;
     this.dbName = dbName;
+    // Allow overriding adapters via environment variables
+    this.cacheAdapter = process.env.TEST_CACHE_ADAPTER;
+    this.rateLimitAdapter = process.env.TEST_RATELIMIT_ADAPTER;
   }
 
   public async start(): Promise<void> {
@@ -42,8 +47,21 @@ export class CliTestServer {
     };
 
     return new Promise((resolve, reject) => {
+      // Build command line arguments
+      const args = [serverPath, "--enable-test-utils"];
+
+      // Add cache adapter if specified
+      if (this.cacheAdapter) {
+        args.push("--cache-adapter", this.cacheAdapter);
+      }
+
+      // Add rate limit adapter if specified
+      if (this.rateLimitAdapter) {
+        args.push("--ratelimit-adapter", this.rateLimitAdapter);
+      }
+
       // Add --enable-test-utils flag for test server
-      this.process = spawn("node", [serverPath, "--enable-test-utils"], {
+      this.process = spawn("node", args, {
         env,
         stdio: ["pipe", "inherit", "inherit"], // stdin pipe, stdout/stderr inherit to see console logs
       });
