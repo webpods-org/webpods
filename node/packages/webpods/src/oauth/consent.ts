@@ -8,6 +8,7 @@ import { isTestModeAllowed } from "./test-mode-guard.js";
 import { getDb } from "../db/index.js";
 import { createLogger } from "../logger.js";
 import { getConfig } from "../config-loader.js";
+import { rateLimit } from "../middleware/ratelimit.js";
 
 const logger = createLogger("webpods:oauth:consent");
 const router = Router();
@@ -132,140 +133,146 @@ async function getUserOwnedPods(userId: string): Promise<string[]> {
  * Show consent page
  * GET /oauth/consent?consent_challenge=xxx
  */
-router.get("/consent", async (req: Request, res: Response) => {
-  const consentChallenge = req.query.consent_challenge as string;
+router.get(
+  "/consent",
+  rateLimit("read"),
+  async (req: Request, res: Response) => {
+    const consentChallenge = req.query.consent_challenge as string;
 
-  if (!consentChallenge) {
-    res.status(400).json({
-      error: {
-        code: "MISSING_CHALLENGE",
-        message: "consent_challenge parameter is required",
-      },
-    });
-    return;
-  }
+    if (!consentChallenge) {
+      res.status(400).json({
+        error: {
+          code: "MISSING_CHALLENGE",
+          message: "consent_challenge parameter is required",
+        },
+      });
+      return;
+    }
 
-  try {
-    const hydraAdmin = getHydraAdmin();
+    try {
+      const hydraAdmin = getHydraAdmin();
 
-    // Get consent request details
-    const { data: consentRequest } = await hydraAdmin.getOAuth2ConsentRequest({
-      consentChallenge,
-    });
+      // Get consent request details
+      const { data: consentRequest } = await hydraAdmin.getOAuth2ConsentRequest(
+        {
+          consentChallenge,
+        },
+      );
 
-    // Test mode: auto-accept consent (only in controlled environments)
-    if (req.headers["x-test-consent"]) {
-      if (!isTestModeAllowed(req)) {
-        // Test headers detected but not allowed
-        res.status(403).json({
-          error: {
-            code: "FORBIDDEN",
-            message: "Test mode is not enabled",
-          },
+      // Test mode: auto-accept consent (only in controlled environments)
+      if (req.headers["x-test-consent"]) {
+        if (!isTestModeAllowed(req)) {
+          // Test headers detected but not allowed
+          res.status(403).json({
+            error: {
+              code: "FORBIDDEN",
+              message: "Test mode is not enabled",
+            },
+          });
+          return;
+        }
+
+        logger.info("Test mode: auto-accepting consent");
+
+        const pods = Array.from(
+          parseRequestedPods(
+            req,
+            consentRequest,
+            consentRequest.requested_scope || [],
+          ),
+        );
+
+        logger.info("Parsed pods:", {
+          pods,
+          fullConsentRequest: JSON.stringify(consentRequest),
         });
+
+        // Generate audience URLs for each pod
+        const audience = pods.map((pod) => `https://${pod}.webpods.com`);
+
+        const config = getConfig();
+        const rememberForSeconds =
+          (config.oauth.rememberLongHours ?? 24) * 3600;
+        const { data: acceptResponse } =
+          await hydraAdmin.acceptOAuth2ConsentRequest({
+            consentChallenge,
+            acceptOAuth2ConsentRequest: {
+              grant_scope: consentRequest.requested_scope,
+              grant_access_token_audience: audience,
+              session: {
+                access_token: {
+                  ext: {
+                    pods,
+                  },
+                },
+              },
+              remember: true,
+              remember_for: rememberForSeconds,
+            },
+          });
+
+        res.redirect(acceptResponse.redirect_to!);
         return;
       }
 
-      logger.info("Test mode: auto-accepting consent");
+      // Check if we should skip consent (user already granted)
+      if (consentRequest.skip) {
+        const pods = Array.from(
+          parseRequestedPods(
+            req,
+            consentRequest,
+            consentRequest.requested_scope || [],
+          ),
+        );
 
-      const pods = Array.from(
-        parseRequestedPods(
-          req,
-          consentRequest,
-          consentRequest.requested_scope || [],
-        ),
-      );
+        // Generate audience URLs for each pod
+        const audience = pods.map((pod) => `https://${pod}.webpods.com`);
 
-      logger.info("Parsed pods:", {
-        pods,
-        fullConsentRequest: JSON.stringify(consentRequest),
-      });
-
-      // Generate audience URLs for each pod
-      const audience = pods.map((pod) => `https://${pod}.webpods.com`);
-
-      const config = getConfig();
-      const rememberForSeconds = (config.oauth.rememberLongHours ?? 24) * 3600;
-      const { data: acceptResponse } =
-        await hydraAdmin.acceptOAuth2ConsentRequest({
-          consentChallenge,
-          acceptOAuth2ConsentRequest: {
-            grant_scope: consentRequest.requested_scope,
-            grant_access_token_audience: audience,
-            session: {
-              access_token: {
-                ext: {
-                  pods,
+        const { data: acceptResponse } =
+          await hydraAdmin.acceptOAuth2ConsentRequest({
+            consentChallenge,
+            acceptOAuth2ConsentRequest: {
+              grant_scope: consentRequest.requested_scope,
+              grant_access_token_audience: audience,
+              session: {
+                access_token: {
+                  ext: {
+                    pods,
+                  },
                 },
               },
             },
-            remember: true,
-            remember_for: rememberForSeconds,
-          },
+          });
+
+        logger.info("Consent skipped (previously granted)", {
+          subject: consentRequest.subject,
+          redirectTo: acceptResponse.redirect_to,
         });
 
-      res.redirect(acceptResponse.redirect_to!);
-      return;
-    }
-
-    // Check if we should skip consent (user already granted)
-    if (consentRequest.skip) {
-      const pods = Array.from(
-        parseRequestedPods(
-          req,
-          consentRequest,
-          consentRequest.requested_scope || [],
-        ),
-      );
-
-      // Generate audience URLs for each pod
-      const audience = pods.map((pod) => `https://${pod}.webpods.com`);
-
-      const { data: acceptResponse } =
-        await hydraAdmin.acceptOAuth2ConsentRequest({
-          consentChallenge,
-          acceptOAuth2ConsentRequest: {
-            grant_scope: consentRequest.requested_scope,
-            grant_access_token_audience: audience,
-            session: {
-              access_token: {
-                ext: {
-                  pods,
-                },
-              },
-            },
-          },
-        });
-
-      logger.info("Consent skipped (previously granted)", {
-        subject: consentRequest.subject,
-        redirectTo: acceptResponse.redirect_to,
-      });
-
-      res.redirect(acceptResponse.redirect_to!);
-      return;
-    }
-
-    // Parse requested pod permissions
-    const requestedPods = parseRequestedPods(
-      req,
-      consentRequest,
-      consentRequest.requested_scope || [],
-    );
-
-    // Get pods owned by the user
-    const ownedPods = await getUserOwnedPods(consentRequest.subject!);
-
-    // Filter to only pods the user owns
-    const validPods = new Set<string>();
-    for (const podId of requestedPods) {
-      if (ownedPods.includes(podId)) {
-        validPods.add(podId);
+        res.redirect(acceptResponse.redirect_to!);
+        return;
       }
-    }
 
-    // Render consent page
-    const html = `
+      // Parse requested pod permissions
+      const requestedPods = parseRequestedPods(
+        req,
+        consentRequest,
+        consentRequest.requested_scope || [],
+      );
+
+      // Get pods owned by the user
+      const ownedPods = await getUserOwnedPods(consentRequest.subject!);
+
+      // Filter to only pods the user owns
+      const validPods = new Set<string>();
+      for (const podId of requestedPods) {
+        if (ownedPods.includes(podId)) {
+          validPods.add(podId);
+        }
+      }
+
+      // Render consent page
+      const html = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -413,122 +420,128 @@ router.get("/consent", async (req: Request, res: Response) => {
 </body>
 </html>`;
 
-    res.send(html);
-  } catch (error: unknown) {
-    logger.error("Consent handler error", {
-      error: (error as Error).message,
-      challenge: consentChallenge,
-    });
+      res.send(html);
+    } catch (error: unknown) {
+      logger.error("Consent handler error", {
+        error: (error as Error).message,
+        challenge: consentChallenge,
+      });
 
-    res.status(500).json({
-      error: {
-        code: "CONSENT_ERROR",
-        message: "Failed to process consent request",
-      },
-    });
-  }
-});
+      res.status(500).json({
+        error: {
+          code: "CONSENT_ERROR",
+          message: "Failed to process consent request",
+        },
+      });
+    }
+  },
+);
 
 /**
  * Handle consent decision
  * POST /oauth/consent
  */
-router.post("/consent", async (req: Request, res: Response) => {
-  const { challenge, action, scopes } = req.body;
+router.post(
+  "/consent",
+  rateLimit("write"),
+  async (req: Request, res: Response) => {
+    const { challenge, action, scopes } = req.body;
 
-  if (!challenge) {
-    res.status(400).json({
-      error: {
-        code: "MISSING_CHALLENGE",
-        message: "challenge parameter is required",
-      },
-    });
-    return;
-  }
-
-  try {
-    const hydraAdmin = getHydraAdmin();
-
-    if (action === "accept" && scopes) {
-      // Parse approved scopes
-      const approvedScopes = scopes.split(",").filter((s: string) => s);
-      // For POST consent, we need to parse from the approved scopes, not consentRequest
-      const pods: string[] = [];
-      for (const scope of approvedScopes) {
-        if (scope.startsWith("pod:")) {
-          const podId = scope.substring(4);
-          if (podId) pods.push(podId);
-        }
-      }
-
-      // Generate audience URLs for each pod
-      const audience = pods.map((pod) => `https://${pod}.webpods.com`);
-
-      // Accept consent
-      const config = getConfig();
-      const rememberForSeconds = (config.oauth.rememberLongHours ?? 24) * 3600;
-      const { data: acceptResponse } =
-        await hydraAdmin.acceptOAuth2ConsentRequest({
-          consentChallenge: challenge,
-          acceptOAuth2ConsentRequest: {
-            grant_scope: approvedScopes.concat(["openid", "offline"]),
-            grant_access_token_audience: audience,
-            session: {
-              access_token: {
-                ext: {
-                  pods,
-                },
-              },
-              id_token: {
-                ext: {
-                  pods,
-                },
-              },
-            },
-            remember: true,
-            remember_for: rememberForSeconds,
-          },
-        });
-
-      logger.info("Consent accepted", {
-        challenge,
-        pods,
-        redirectTo: acceptResponse.redirect_to,
+    if (!challenge) {
+      res.status(400).json({
+        error: {
+          code: "MISSING_CHALLENGE",
+          message: "challenge parameter is required",
+        },
       });
-
-      res.redirect(acceptResponse.redirect_to!);
-    } else {
-      // Deny consent
-      const { data: rejectResponse } =
-        await hydraAdmin.rejectOAuth2ConsentRequest({
-          consentChallenge: challenge,
-          rejectOAuth2Request: {
-            error: "access_denied",
-            error_description: "User denied access",
-          },
-        });
-
-      logger.info("Consent denied", {
-        challenge,
-        redirectTo: rejectResponse.redirect_to,
-      });
-
-      res.redirect(rejectResponse.redirect_to!);
+      return;
     }
-  } catch (error: unknown) {
-    logger.error("Consent decision error", {
-      error: (error as Error).message,
-      challenge,
-      action,
-    });
 
-    res.status(500).json({
-      error: {
-        code: "CONSENT_ERROR",
-        message: "Failed to process consent decision",
-      },
-    });
-  }
-});
+    try {
+      const hydraAdmin = getHydraAdmin();
+
+      if (action === "accept" && scopes) {
+        // Parse approved scopes
+        const approvedScopes = scopes.split(",").filter((s: string) => s);
+        // For POST consent, we need to parse from the approved scopes, not consentRequest
+        const pods: string[] = [];
+        for (const scope of approvedScopes) {
+          if (scope.startsWith("pod:")) {
+            const podId = scope.substring(4);
+            if (podId) pods.push(podId);
+          }
+        }
+
+        // Generate audience URLs for each pod
+        const audience = pods.map((pod) => `https://${pod}.webpods.com`);
+
+        // Accept consent
+        const config = getConfig();
+        const rememberForSeconds =
+          (config.oauth.rememberLongHours ?? 24) * 3600;
+        const { data: acceptResponse } =
+          await hydraAdmin.acceptOAuth2ConsentRequest({
+            consentChallenge: challenge,
+            acceptOAuth2ConsentRequest: {
+              grant_scope: approvedScopes.concat(["openid", "offline"]),
+              grant_access_token_audience: audience,
+              session: {
+                access_token: {
+                  ext: {
+                    pods,
+                  },
+                },
+                id_token: {
+                  ext: {
+                    pods,
+                  },
+                },
+              },
+              remember: true,
+              remember_for: rememberForSeconds,
+            },
+          });
+
+        logger.info("Consent accepted", {
+          challenge,
+          pods,
+          redirectTo: acceptResponse.redirect_to,
+        });
+
+        res.redirect(acceptResponse.redirect_to!);
+      } else {
+        // Deny consent
+        const { data: rejectResponse } =
+          await hydraAdmin.rejectOAuth2ConsentRequest({
+            consentChallenge: challenge,
+            rejectOAuth2Request: {
+              error: "access_denied",
+              error_description: "User denied access",
+            },
+          });
+
+        logger.info("Consent denied", {
+          challenge,
+          redirectTo: rejectResponse.redirect_to,
+        });
+
+        res.redirect(rejectResponse.redirect_to!);
+      }
+    } catch (error: unknown) {
+      logger.error("Consent decision error", {
+        error: (error as Error).message,
+        challenge,
+        action,
+      });
+
+      res.status(500).json({
+        error: {
+          code: "CONSENT_ERROR",
+          message: "Failed to process consent decision",
+        },
+      });
+    }
+  },
+);
 
 export default router;

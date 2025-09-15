@@ -13,6 +13,7 @@ import {
   CodedError,
 } from "./shared.js";
 import { getDb } from "../../db/index.js";
+import { rateLimit } from "../../middleware/ratelimit.js";
 import { getStreamById } from "../../domain/streams/get-stream-by-id.js";
 import { resolvePath } from "../../domain/resolution/resolve-path.js";
 import { deleteStream } from "../../domain/streams/delete-stream.js";
@@ -191,6 +192,6 @@ export const deleteHandler = async (
 
 export const deleteRoute = {
   path: "/*",
-  middleware: [extractPod, authenticate] as const,
+  middleware: [extractPod, authenticate, rateLimit("write")] as const,
   handler: deleteHandler,
 };

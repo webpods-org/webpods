@@ -8,6 +8,7 @@ import { isTestModeAllowed } from "./test-mode-guard.js";
 // Removed old auth imports - using Hydra OAuth only
 import { createLogger } from "../logger.js";
 import { getConfig } from "../config-loader.js";
+import { rateLimit } from "../middleware/ratelimit.js";
 
 const logger = createLogger("webpods:oauth:login");
 const router = Router();
@@ -16,7 +17,7 @@ const router = Router();
  * Handle Hydra login challenge
  * GET /oauth/login?login_challenge=xxx
  */
-router.get("/login", async (req: Request, res: Response) => {
+router.get("/login", rateLimit("read"), async (req: Request, res: Response) => {
   const loginChallenge = req.query.login_challenge as string;
 
   if (!loginChallenge) {

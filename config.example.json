@@ -88,6 +88,8 @@
     "sessionPruneIntervalMs": 3600000
   },
   "rateLimits": {
+    "enabled": true,
+    "adapter": "in-memory",
     "writes": 1000,
     "reads": 10000,
     "podCreate": 10,
@@ -96,7 +98,9 @@
     "windowMs": 3600000,
     "defaultQueryLimit": 100,
     "cliMaxOperationLimit": 1000,
-    "oauthClientDescriptionMaxLength": 50
+    "oauthClientDescriptionMaxLength": 50,
+    "cleanupIntervalMs": 60000,
+    "maxIdentifiers": 10000
   },
   "hydra": {
     "adminUrl": "http://localhost:4445",

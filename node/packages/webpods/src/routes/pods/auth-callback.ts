@@ -9,6 +9,7 @@ import {
   getConfig,
   createRouteLogger,
 } from "./shared.js";
+import { rateLimit } from "../../middleware/ratelimit.js";
 
 const logger = createRouteLogger("auth-callback");
 
@@ -58,6 +59,6 @@ export const authCallbackHandler = (req: ExpressRequest, res: Response) => {
 
 export const authCallbackRoute = {
   path: "/auth/callback",
-  middleware: [extractPod] as const,
+  middleware: [extractPod, rateLimit("read")] as const,
   handler: authCallbackHandler,
 };

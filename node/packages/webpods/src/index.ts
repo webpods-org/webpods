@@ -11,6 +11,11 @@ import { getConfig } from "./config-loader.js";
 import { getVersion } from "./version.js";
 import { getConfiguredProviders } from "./auth/oauth-config.js";
 import { initializeCache, shutdownCache } from "./cache/index.js";
+import {
+  initializeRateLimiter,
+  shutdownRateLimiter,
+} from "./ratelimit/index.js";
+import type { RateLimitConfig } from "./ratelimit/types.js";
 
 // Load environment variables (for secrets referenced in config.json)
 config();
@@ -48,18 +53,94 @@ export async function start() {
     }
 
     // Initialize cache if configured
-    if (appConfig.cache?.enabled) {
-      await initializeCache(appConfig.cache);
+    // Check for CLI/env override for cache adapter
+    const cacheAdapterOverride = process.env.CACHE_ADAPTER;
+    if (cacheAdapterOverride === "none") {
+      logger.info("Cache disabled via CLI/env override");
+    } else if (appConfig.cache?.enabled || cacheAdapterOverride) {
+      const cacheConfig = appConfig.cache || {
+        enabled: true,
+        adapter: "in-memory" as const,
+        pools: {
+          pods: { enabled: true, maxEntries: 1000, ttlSeconds: 300 },
+          streams: { enabled: true, maxEntries: 5000, ttlSeconds: 300 },
+          singleRecords: {
+            enabled: true,
+            maxEntries: 10000,
+            ttlSeconds: 60,
+            maxRecordSizeBytes: 10240,
+          },
+          recordLists: {
+            enabled: true,
+            maxQueries: 500,
+            ttlSeconds: 30,
+            maxResultSizeBytes: 52428800,
+            maxRecordsPerQuery: 1000,
+          },
+        },
+      };
+
+      // Override adapter if specified via CLI/env
+      if (cacheAdapterOverride && cacheAdapterOverride !== "none") {
+        cacheConfig.adapter = cacheAdapterOverride as "in-memory";
+        cacheConfig.enabled = true;
+      }
+
+      await initializeCache(cacheConfig);
       logger.info("Cache initialized", {
-        adapter: appConfig.cache.adapter,
-        pools: Object.keys(appConfig.cache.pools).filter(
+        adapter: cacheConfig.adapter,
+        overridden: !!cacheAdapterOverride,
+        pools: Object.keys(cacheConfig.pools).filter(
           (pool) =>
-            appConfig.cache!.pools[pool as keyof typeof appConfig.cache.pools]
-              .enabled,
+            cacheConfig.pools[pool as keyof typeof cacheConfig.pools].enabled,
         ),
       });
     } else {
       logger.info("Cache disabled");
+    }
+
+    // Initialize rate limiter
+    // Check for CLI/env override for rate limit adapter
+    const rateLimitAdapterOverride = process.env.RATELIMIT_ADAPTER;
+    if (rateLimitAdapterOverride === "none") {
+      logger.info("Rate limiting disabled via CLI/env override");
+    } else {
+      const rateLimiterConfig: RateLimitConfig = {
+        enabled: appConfig.rateLimits.enabled !== false, // Default to enabled
+        adapter: appConfig.rateLimits.adapter || "in-memory", // Default to in-memory
+        limits: {
+          reads: appConfig.rateLimits.reads,
+          writes: appConfig.rateLimits.writes,
+          podCreate: appConfig.rateLimits.podCreate,
+          streamCreate: appConfig.rateLimits.streamCreate,
+        },
+        windowMs: appConfig.rateLimits.windowMs || 3600000, // Default 1 hour
+        cleanupIntervalMs: appConfig.rateLimits.cleanupIntervalMs,
+        maxIdentifiers: appConfig.rateLimits.maxIdentifiers,
+      };
+
+      // Override adapter if specified via CLI/env
+      if (rateLimitAdapterOverride && rateLimitAdapterOverride !== "none") {
+        rateLimiterConfig.adapter = rateLimitAdapterOverride as
+          | "in-memory"
+          | "postgres";
+        rateLimiterConfig.enabled = true;
+        logger.info(
+          `Rate limit adapter overridden to: ${rateLimitAdapterOverride}`,
+        );
+      }
+
+      // Only initialize if enabled
+      if (rateLimiterConfig.enabled) {
+        await initializeRateLimiter(rateLimiterConfig);
+        logger.info("Rate limiter initialized", {
+          enabled: rateLimiterConfig.enabled,
+          adapter: rateLimiterConfig.adapter,
+          overridden: !!rateLimitAdapterOverride,
+        });
+      } else {
+        logger.info("Rate limiting disabled");
+      }
     }
 
     // Start PKCE state cleanup
@@ -90,6 +171,7 @@ export async function start() {
     process.on("SIGTERM", async () => {
       logger.info("SIGTERM received, shutting down gracefully");
       server.close(async () => {
+        await shutdownRateLimiter();
         await shutdownCache();
         await closeDb();
         process.exit(0);
@@ -99,6 +181,7 @@ export async function start() {
     process.on("SIGINT", async () => {
       logger.info("SIGINT received, shutting down gracefully");
       server.close(async () => {
+        await shutdownRateLimiter();
         await shutdownCache();
         await closeDb();
         process.exit(0);

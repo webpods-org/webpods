@@ -30,7 +30,7 @@ const pgp = pgPromise(
 
           // Assign a unique ID to this query
           const queryId = ++queryCounter;
-          (e as any).__queryId = queryId;
+          (e as unknown as { __queryId: number }).__queryId = queryId;
 
           // Store start time for this query
           queryTimings.set(queryId, Date.now());
@@ -49,7 +49,8 @@ const pgp = pgPromise(
             e.result && "rows" in e.result ? e.result.rows.length : 0;
 
           // Get the query ID from context
-          const queryId = (e.ctx as any).__queryId;
+          const queryId = (e.ctx as unknown as { __queryId?: number })
+            .__queryId;
           let duration = 0;
 
           if (queryId && queryTimings.has(queryId)) {

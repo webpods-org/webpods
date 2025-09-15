@@ -10,6 +10,7 @@ import {
   optionalAuth,
 } from "./shared.js";
 import { getConfig } from "../../config-loader.js";
+import { rateLimit } from "../../middleware/ratelimit.js";
 
 /**
  * Root path handler with .config/routing support
@@ -84,6 +85,11 @@ import { resolveLinks } from "../../middleware/resolve-links.js";
 
 export const rootRoute = {
   path: "/",
-  middleware: [extractPod, resolveLinks, optionalAuth] as const,
+  middleware: [
+    extractPod,
+    resolveLinks,
+    optionalAuth,
+    rateLimit("read"),
+  ] as const,
   handler: rootHandler,
 };

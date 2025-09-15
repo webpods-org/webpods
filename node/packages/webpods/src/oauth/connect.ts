@@ -13,6 +13,7 @@ import crypto from "crypto";
 import { getDb } from "../db/index.js";
 import { createLogger } from "../logger.js";
 import { getHydraPublicUrl } from "./hydra-client.js";
+import { rateLimit } from "../middleware/ratelimit.js";
 
 const logger = createLogger("webpods:oauth:connect");
 const router = Router();
@@ -41,7 +42,7 @@ interface OAuthClientDbRow {
  *
  * Redirects to Hydra OAuth with all necessary parameters
  */
-router.get("/", async (req: Request, res: Response) => {
+router.get("/", rateLimit("read"), async (req: Request, res: Response) => {
   const clientId = req.query.client_id as string;
 
   if (!clientId) {

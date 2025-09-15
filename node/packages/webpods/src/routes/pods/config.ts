@@ -13,6 +13,7 @@ import {
   domainsSchema,
   CodedError,
 } from "./shared.js";
+import { rateLimit } from "../../middleware/ratelimit.js";
 import { getDb } from "../../db/index.js";
 import { transferPodOwnership } from "../../domain/pods/transfer-pod-ownership.js";
 import { getPodOwner } from "../../domain/pods/get-pod-owner.js";
@@ -214,18 +215,18 @@ export const updateDomainsHandler = async (req: AuthRequest, res: Response) => {
 // Export route configurations
 export const transferOwnerRoute = {
   path: "/.config/owner",
-  middleware: [extractPod, authenticate] as const,
+  middleware: [extractPod, authenticate, rateLimit("write")] as const,
   handler: transferOwnerHandler,
 };
 
 export const updateRoutingRoute = {
   path: "/.config/routing",
-  middleware: [extractPod, authenticate] as const,
+  middleware: [extractPod, authenticate, rateLimit("write")] as const,
   handler: updateRoutingHandler,
 };
 
 export const updateDomainsRoute = {
   path: "/.config/domains",
-  middleware: [extractPod, authenticate] as const,
+  middleware: [extractPod, authenticate, rateLimit("write")] as const,
   handler: updateDomainsHandler,
 };

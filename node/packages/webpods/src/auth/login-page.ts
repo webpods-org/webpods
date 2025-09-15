@@ -5,6 +5,7 @@
 import { Router, Request, Response } from "express";
 import { getConfiguredProviders } from "./oauth-config.js";
 import { createLogger } from "../logger.js";
+import { rateLimit } from "../middleware/ratelimit.js";
 
 const logger = createLogger("webpods:auth:login");
 const router = Router();
@@ -13,7 +14,7 @@ const router = Router();
  * Login page with OAuth provider links
  * GET /login
  */
-router.get("/login", (req: Request, res: Response) => {
+router.get("/login", rateLimit("read"), (req: Request, res: Response) => {
   const providers = getConfiguredProviders();
   const redirect = (req.query.redirect as string) || "/";
 
