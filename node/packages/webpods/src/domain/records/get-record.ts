@@ -90,12 +90,20 @@ export async function getRecord(
 
     // Cache the record
     if (cache && config.cache?.pools?.singleRecords?.enabled && streamPath) {
-      // Check size limit
-      const size = cache.checkSize(mappedRecord);
+      // Use the record's size field directly to avoid JSON.stringify
+      const size = mappedRecord.size;
       if (size <= config.cache.pools.singleRecords.maxRecordSizeBytes) {
         const cacheKey = cacheKeys.recordData(podName, streamPath, name);
         const ttl = config.cache.pools.singleRecords.ttlSeconds;
-        await cache.set("singleRecords", cacheKey, mappedRecord, ttl);
+        // Pass approximate cache size: record size + overhead for metadata fields
+        const cacheSize = size + 200; // Add ~200 bytes for metadata fields
+        await cache.set(
+          "singleRecords",
+          cacheKey,
+          mappedRecord,
+          ttl,
+          cacheSize,
+        );
         logger.debug("Record cached", {
           streamId,
           name,

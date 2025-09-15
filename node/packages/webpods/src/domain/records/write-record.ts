@@ -87,9 +87,19 @@ export async function writeRecord(
         );
       }
 
-      // Get the previous record for hash chain
+      // First, lock the stream row to serialize writes to this stream
+      // This handles both empty streams (no records) and streams with existing records
+      await t.one<StreamDbRow>(
+        `SELECT * FROM stream
+         WHERE id = $(streamId)
+         FOR UPDATE`,
+        { streamId },
+      );
+
+      // Now safely get the previous record for hash chain
+      // No need for FOR UPDATE here since the stream lock serializes access
       const previousRecord = await t.oneOrNone<RecordDbRow>(
-        `SELECT * FROM record 
+        `SELECT * FROM record
          WHERE stream_id = $(streamId)
          ORDER BY index DESC
          LIMIT 1`,

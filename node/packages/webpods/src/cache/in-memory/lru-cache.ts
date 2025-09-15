@@ -9,7 +9,7 @@ type LRUNode<T> = {
 
 export type LRUCache<T = unknown> = {
   get: (key: string) => T | null;
-  set: (key: string, value: T, ttlSeconds: number) => void;
+  set: (key: string, value: T, ttlSeconds: number, size?: number) => void;
   delete: (key: string) => boolean;
   deletePattern: (pattern: string) => number;
   clear: (pattern?: string) => void;
@@ -112,8 +112,15 @@ export function createLRUCache<T>(maxEntries: number): LRUCache<T> {
       return node.entry.value;
     },
 
-    set(key: string, value: T, ttlSeconds: number): void {
-      const size = calculateSize(value);
+    set(
+      key: string,
+      value: T,
+      ttlSeconds: number,
+      providedSize?: number,
+    ): void {
+      // Use provided size if available, otherwise calculate it
+      const size =
+        providedSize !== undefined ? providedSize : calculateSize(value);
       const now = Date.now();
       const entry: CacheEntry<T> = {
         value,

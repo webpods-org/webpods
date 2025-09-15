@@ -113,6 +113,7 @@ export const inMemoryCacheAdapter: CacheAdapter = {
     key: CacheKey,
     value: T | null,
     ttlSeconds: number,
+    size?: number,
   ): Promise<void> {
     if (!pools || !config) return;
     if (!(pool in pools)) return;
@@ -120,7 +121,7 @@ export const inMemoryCacheAdapter: CacheAdapter = {
     const poolKey = pool as keyof CachePools;
     if (!shouldCache(poolKey, value, config)) return;
 
-    pools[poolKey].set(key, value, ttlSeconds);
+    pools[poolKey].set(key, value, ttlSeconds, size);
   },
 
   async delete(pool: string, key: CacheKey): Promise<boolean> {
@@ -151,6 +152,11 @@ export const inMemoryCacheAdapter: CacheAdapter = {
     }
   },
 
+  async clearPool(pool: string): Promise<void> {
+    if (!pools || !(pool in pools)) return;
+    pools[pool as keyof CachePools].clear();
+  },
+
   async getPoolStats(pool: string): Promise<CacheStats> {
     if (!pools || !(pool in pools)) {
       return {
@@ -179,5 +185,32 @@ export const inMemoryCacheAdapter: CacheAdapter = {
     // Use any pool's checkSize method (they're all the same)
     if (!pools) return 0;
     return pools.pods.checkSize(value);
+  },
+
+  async getKeys(pool: string, limit: number = 100): Promise<string[]> {
+    if (!pools || !(pool in pools)) return [];
+    const poolCache = pools[pool as keyof CachePools];
+    if (poolCache.getKeys) {
+      return poolCache.getKeys(limit);
+    }
+    return [];
+  },
+
+  async getEntryMetadata(
+    pool: string,
+    key: string,
+  ): Promise<{
+    exists: boolean;
+    size?: number;
+    hits?: number;
+    expiresAt?: number;
+    age?: number;
+  } | null> {
+    if (!pools || !(pool in pools)) return null;
+    const poolCache = pools[pool as keyof CachePools];
+    if (poolCache.getEntryMetadata) {
+      return poolCache.getEntryMetadata(key);
+    }
+    return null;
   },
 };

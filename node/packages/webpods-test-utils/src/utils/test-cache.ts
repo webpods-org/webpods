@@ -7,8 +7,9 @@
  */
 export async function clearAllCache(port: number = 3000): Promise<void> {
   try {
+    // Try the new endpoint first
     const response = await fetch(
-      `http://localhost:${port}/test-utils/clear-cache`,
+      `http://localhost:${port}/test-utils/cache/clear`,
       {
         method: "POST",
         headers: {
@@ -18,11 +19,24 @@ export async function clearAllCache(port: number = 3000): Promise<void> {
     );
 
     if (!response.ok) {
-      console.warn(
-        "Failed to clear cache:",
-        response.status,
-        response.statusText,
+      // Fallback to old endpoint for backwards compatibility
+      const fallbackResponse = await fetch(
+        `http://localhost:${port}/test-utils/clear-cache`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
       );
+
+      if (!fallbackResponse.ok) {
+        console.warn(
+          "Failed to clear cache:",
+          response.status,
+          response.statusText,
+        );
+      }
     }
   } catch (error) {
     // Silently fail if server is not running or endpoint doesn't exist

@@ -151,6 +151,7 @@ export async function listRecords(
 
       // Check if result should be cached based on size and record count
       if (result.records.length <= poolConfig.maxRecordsPerQuery) {
+        // Don't pre-calculate size for complex objects - let cache handle it
         const size = cache.checkSize(result);
         if (size <= poolConfig.maxResultSizeBytes) {
           const ttl = poolConfig.ttlSeconds;

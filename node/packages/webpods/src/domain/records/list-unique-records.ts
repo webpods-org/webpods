@@ -145,7 +145,7 @@ export async function listUniqueRecords(
     // Cache the result if we have a cache key and result is reasonable size
     if (cache && cacheKey) {
       // Check size before caching (don't cache large results)
-      const resultSize = JSON.stringify(result).length;
+      const resultSize = cache.checkSize(result);
       const cacheConfig = getCacheConfig();
       const ttl = cacheConfig?.pools?.recordLists?.ttlSeconds || 30;
       if (resultSize <= 52428800) {

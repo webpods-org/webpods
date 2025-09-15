@@ -19,12 +19,28 @@ type HierarchicalNode<T> = {
 
 export type LRUCache<T = unknown> = {
   get: (key: string) => T | null | undefined;
-  set: (key: string, value: T | null, ttlSeconds: number) => void;
+  set: (
+    key: string,
+    value: T | null,
+    ttlSeconds: number,
+    size?: number,
+  ) => void;
   delete: (key: string) => boolean;
   deletePattern: (pattern: string) => number;
   clear: (pattern?: string) => void;
   getStats: () => CacheStats;
   checkSize: (value: unknown) => number;
+  // Introspection methods (optional for implementations)
+  getAllKeys?: () => string[];
+  getKeys?: (limit?: number) => string[];
+  getKeysInNamespace?: (namespace: string) => string[];
+  getEntryMetadata?: (key: string) => {
+    exists: boolean;
+    size?: number;
+    hits?: number;
+    expiresAt?: number;
+    age?: number;
+  } | null;
 };
 
 export function createHierarchicalLRUCache<T>(maxEntries: number): LRUCache<T> {
@@ -212,15 +228,55 @@ export function createHierarchicalLRUCache<T>(maxEntries: number): LRUCache<T> {
     }
   }
 
+  // Collect all keys from a hierarchical node (for introspection)
+  function collectKeysFromNode(
+    node: HierarchicalNode<T>,
+    prefix: string = "",
+    result: string[] = [],
+  ): string[] {
+    // If this is a leaf node with data, add its key
+    if (node.isLeaf && node.lruNode) {
+      result.push(node.lruNode.key);
+    }
+
+    // Recursively collect from children
+    if (node.children) {
+      for (const [segment, childNode] of node.children.entries()) {
+        const childPrefix = prefix ? `${prefix}:${segment}` : segment;
+        collectKeysFromNode(childNode, childPrefix, result);
+      }
+    }
+
+    return result;
+  }
+
   // Parse pattern and find the branch to delete
   function parsePattern(pattern: string): {
     segments: string[];
     hasWildcard: boolean;
   } {
-    // Remove trailing wildcards
+    // Check if pattern contains wildcard
+    if (pattern.includes("*")) {
+      // Wildcard must be exactly ":*" at the end
+      if (!pattern.endsWith(":*")) {
+        throw new Error(
+          `Invalid cache pattern: "${pattern}". Wildcards must be in the format ':*' at the end (e.g., 'pod:test:*').`,
+        );
+      }
+
+      // Check for multiple wildcards (not allowed)
+      const wildcardCount = (pattern.match(/\*/g) || []).length;
+      if (wildcardCount > 1) {
+        throw new Error(
+          `Invalid cache pattern: "${pattern}". Only one wildcard is allowed.`,
+        );
+      }
+    }
+
+    // Remove trailing ":*" if present
     const cleanPattern = pattern.replace(/:\*$/, "");
     const segments = cleanPattern.split(":");
-    const hasWildcard = pattern.endsWith("*");
+    const hasWildcard = pattern.endsWith(":*");
 
     return { segments, hasWildcard };
   }
@@ -251,8 +307,15 @@ export function createHierarchicalLRUCache<T>(maxEntries: number): LRUCache<T> {
       return node.entry.value;
     },
 
-    set(key: string, value: T | null, ttlSeconds: number): void {
-      const size = calculateSize(value);
+    set(
+      key: string,
+      value: T | null,
+      ttlSeconds: number,
+      providedSize?: number,
+    ): void {
+      // Use provided size if available, otherwise calculate it
+      const size =
+        providedSize !== undefined ? providedSize : calculateSize(value);
       const now = Date.now();
       const entry: CacheEntry<T> = {
         value,
@@ -376,6 +439,53 @@ export function createHierarchicalLRUCache<T>(maxEntries: number): LRUCache<T> {
 
     checkSize(value: unknown): number {
       return calculateSize(value);
+    },
+
+    // Get all keys in the cache from flat cache (for testing/debugging)
+    getAllKeys(): string[] {
+      return Array.from(flatCache.keys());
+    },
+
+    // Get limited number of keys (for safety)
+    getKeys(limit: number = 100): string[] {
+      const keys: string[] = [];
+      let count = 0;
+      for (const key of flatCache.keys()) {
+        if (count >= limit) break;
+        keys.push(key);
+        count++;
+      }
+      return keys;
+    },
+
+    // Get keys matching a pattern from hierarchical tree
+    getKeysInNamespace(namespace: string): string[] {
+      const segments = namespace.split(":");
+      const node = navigateToNode(segments, false);
+      if (!node) return [];
+      return collectKeysFromNode(node);
+    },
+
+    // Get entry metadata without the value (for introspection)
+    getEntryMetadata(key: string): {
+      exists: boolean;
+      size?: number;
+      hits?: number;
+      expiresAt?: number;
+      age?: number;
+    } | null {
+      const node = flatCache.get(key);
+      if (!node) {
+        return { exists: false };
+      }
+      const now = Date.now();
+      return {
+        exists: true,
+        size: node.entry.size,
+        hits: node.entry.hits,
+        expiresAt: node.entry.expiresAt,
+        age: now - node.entry.createdAt,
+      };
     },
   };
 }

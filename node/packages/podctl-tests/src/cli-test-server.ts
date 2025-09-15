@@ -42,7 +42,8 @@ export class CliTestServer {
     };
 
     return new Promise((resolve, reject) => {
-      this.process = spawn("node", [serverPath], {
+      // Add --enable-test-utils flag for test server
+      this.process = spawn("node", [serverPath, "--enable-test-utils"], {
         env,
         stdio: "pipe",
       });
