@@ -4,7 +4,7 @@
 
 import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
-import { PodDbRow, RecordDbRow } from "../../db-types.js";
+import { PodDbRow } from "../../db-types.js";
 import { Pod } from "../../types.js";
 import { createLogger } from "../../logger.js";
 import { getCache, cacheKeys } from "../../cache/index.js";
@@ -18,7 +18,7 @@ const logger = createLogger("webpods:domain:pods");
 function mapPodFromDb(row: PodDbRow): Pod {
   return {
     name: row.name,
-    userId: "", // Will be populated from .config/owner stream
+    userId: row.owner_id || "", // Use owner_id directly from pod table
     metadata: row.metadata,
     createdAt: row.created_at,
     updatedAt: row.updated_at || row.created_at,
@@ -44,7 +44,7 @@ export async function getPod(
       logger.debug("Pod cache miss", { podName });
     }
 
-    // Cache miss - fetch from database
+    // Cache miss - fetch from database (now includes owner_id)
     const pod = await ctx.db.oneOrNone<PodDbRow>(
       `SELECT * FROM pod WHERE name = $(pod_name)`,
       { pod_name: podName },
@@ -54,48 +54,8 @@ export async function getPod(
       return failure(new Error("Pod not found"));
     }
 
-    // Get owner using separate queries
-    // Get .config stream
-    const configStream = await ctx.db.oneOrNone<{ id: string }>(
-      `SELECT id FROM stream 
-       WHERE pod_name = $(pod_name) 
-         AND name = '.config' 
-         AND parent_id IS NULL`,
-      { pod_name: pod.name },
-    );
-
-    let ownerRecord: RecordDbRow | null = null;
-    if (configStream) {
-      // Get owner stream (child of .config)
-      const ownerStream = await ctx.db.oneOrNone<{ id: string }>(
-        `SELECT id FROM stream 
-         WHERE parent_id = $(parent_id) 
-           AND name = 'owner'`,
-        { parent_id: configStream.id },
-      );
-
-      if (ownerStream) {
-        // Get owner record
-        ownerRecord = await ctx.db.oneOrNone<RecordDbRow>(
-          `SELECT * FROM record 
-           WHERE stream_id = $(stream_id)
-             AND name = 'owner'
-           ORDER BY index DESC
-           LIMIT 1`,
-          { stream_id: ownerStream.id },
-        );
-      }
-    }
-
+    // Map directly - owner_id is now on the pod table
     const mappedPod = mapPodFromDb(pod);
-    if (ownerRecord) {
-      try {
-        const content = JSON.parse(ownerRecord.content);
-        mappedPod.userId = content.userId || "";
-      } catch {
-        logger.warn("Failed to parse owner record", { podName });
-      }
-    }
 
     // Cache the result
     if (cache && config.cache?.pools?.pods?.enabled) {

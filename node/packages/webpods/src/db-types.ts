@@ -29,6 +29,7 @@ export type IdentityDbRow = {
 // Pod table
 export type PodDbRow = {
   name: string; // Primary key
+  owner_id?: string | null; // Pod owner - denormalized for performance
   metadata?: Record<string, unknown>; // JSONB
   created_at: Date;
   updated_at?: Date | null;

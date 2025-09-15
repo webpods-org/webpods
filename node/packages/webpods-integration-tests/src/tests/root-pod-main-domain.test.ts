@@ -93,8 +93,8 @@ describe("WebPods Root Pod Main Domain", () => {
       );
     }
 
-    // Configure links for clean URLs
-    const linksResponse = await rootClient.post("/.config/routing/routes", {
+    // Configure links for clean URLs using the routing API endpoint
+    const linksResponse = await rootClient.post("/.config/routing", {
       "/": "site/home",
       "/about": "site/about",
       "/status": "api/status",

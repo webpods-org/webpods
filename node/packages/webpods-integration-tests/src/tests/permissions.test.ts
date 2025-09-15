@@ -206,18 +206,20 @@ describe("WebPods Permissions", () => {
       });
       expect(response.status).to.equal(201);
 
-      // User2 is now owner and can update .config/ streams
+      // User2 is now owner and can update .config/ streams via API
       client.setAuthToken(user2Token);
-      // Post to create .config/routing stream and add content
-      const response2 = await client.post("/.config/routing/home", "homepage");
+      // Use the routing API endpoint to update routing configuration
+      const response2 = await client.post("/.config/routing", {
+        "/home": "homepage",
+        "/about": "about",
+      });
       expect(response2.status).to.equal(201);
 
       // User1 can no longer update .config/ streams
       client.setAuthToken(user1Token);
-      const response3 = await client.post(
-        "/.config/routing/about",
-        "about page",
-      );
+      const response3 = await client.post("/.config/routing", {
+        "/contact": "contact",
+      });
       expect(response3.status).to.equal(403);
     });
 

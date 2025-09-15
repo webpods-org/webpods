@@ -72,55 +72,13 @@ async function getUserOwnedPods(userId: string): Promise<string[]> {
   const db = getDb();
 
   try {
-    // Get all pods
-    const pods = await db.manyOrNone<{ name: string }>(`SELECT name FROM pod`);
+    // Get pods owned by this user directly using owner_id
+    const pods = await db.manyOrNone<{ name: string }>(
+      `SELECT name FROM pod WHERE owner_id = $(owner_id)`,
+      { owner_id: userId },
+    );
 
-    const ownedPods: string[] = [];
-
-    // Check ownership for each pod using simple queries
-    for (const pod of pods) {
-      // Get .config stream
-      const configStream = await db.oneOrNone<{ id: string }>(
-        `SELECT id FROM stream 
-         WHERE pod_name = $(pod_name) 
-           AND name = '.config' 
-           AND parent_id IS NULL`,
-        { pod_name: pod.name },
-      );
-
-      if (!configStream) continue;
-
-      // Get owner stream (child of .config)
-      const ownerStream = await db.oneOrNone<{ id: string }>(
-        `SELECT id FROM stream 
-         WHERE parent_id = $(parent_id) 
-           AND name = 'owner'`,
-        { parent_id: configStream.id },
-      );
-
-      if (!ownerStream) continue;
-
-      // Get latest owner record
-      const ownerRecord = await db.oneOrNone<{ content: string }>(
-        `SELECT content FROM record 
-         WHERE stream_id = $(stream_id)
-           AND name = 'owner'
-         ORDER BY index DESC
-         LIMIT 1`,
-        { stream_id: ownerStream.id },
-      );
-
-      if (ownerRecord) {
-        try {
-          const content = JSON.parse(ownerRecord.content);
-          if (content.userId === userId) {
-            ownedPods.push(pod.name);
-          }
-        } catch {
-          // Invalid JSON, skip
-        }
-      }
-    }
+    const ownedPods: string[] = pods.map((pod) => pod.name);
 
     return ownedPods;
   } catch (error) {
