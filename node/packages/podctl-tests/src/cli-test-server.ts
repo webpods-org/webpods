@@ -61,6 +61,14 @@ export class CliTestServer {
           started = true;
           // Server is ready immediately after this message
           resolve();
+
+          // After startup, relay all server output to console for debugging
+          this.process!.stdout?.on("data", (data) => {
+            process.stdout.write(data);
+          });
+          this.process!.stderr?.on("data", (data) => {
+            process.stderr.write(data);
+          });
         }
       };
 
