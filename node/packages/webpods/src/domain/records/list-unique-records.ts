@@ -148,8 +148,9 @@ export async function listUniqueRecords(
       const resultSize = cache.checkSize(result);
       const cacheConfig = getCacheConfig();
       const ttl = cacheConfig?.pools?.recordLists?.ttlSeconds || 30;
-      if (resultSize <= 52428800) {
-        // 50MB limit for unique record lists
+      const maxSize =
+        cacheConfig?.pools?.recordLists?.maxResultSizeBytes || 102400; // Default 100KB
+      if (resultSize <= maxSize) {
         await cache.set("recordLists", cacheKey, result, ttl);
       }
     }

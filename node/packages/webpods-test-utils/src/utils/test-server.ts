@@ -16,6 +16,7 @@ export interface TestServerConfig {
   logger?: Logger;
   useMockOAuth?: boolean;
   mockOAuthPort?: number;
+  configPath?: string; // Path to config.json file
 }
 
 export class TestServer {
@@ -31,6 +32,7 @@ export class TestServer {
       logger: config.logger,
       useMockOAuth: config.useMockOAuth !== false, // Default to true for tests
       mockOAuthPort: config.mockOAuthPort || 4567,
+      configPath: config.configPath, // Use provided config path
     };
     this.logger = config.logger || consoleLogger;
   }
@@ -44,11 +46,13 @@ export class TestServer {
 
     const serverPath = path.join(__dirname, "../../../webpods/dist/index.js");
 
-    // Path to test config file
-    const testConfigPath = path.join(
-      __dirname,
-      "../../../webpods-integration-tests/test-config.json",
-    );
+    // Path to test config file - use provided path or default to integration tests config
+    const testConfigPath =
+      this.config.configPath ||
+      path.join(
+        __dirname,
+        "../../../webpods-integration-tests/test-config.json",
+      );
 
     // Set environment variables (minimal now, config is in JSON)
     const env: any = {
