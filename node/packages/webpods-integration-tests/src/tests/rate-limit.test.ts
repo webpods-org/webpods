@@ -282,13 +282,10 @@ describe("WebPods Rate Limiting", () => {
       await client.post("/rate-stream-3/msg3", "Message 3");
       await client.post("/blog/first", "First post");
 
-      const db = testDb.getDb();
-      const streamLimit = await db.oneOrNone(
-        `SELECT * FROM rate_limit WHERE identifier = $(identifier) AND action = $(action)`,
-        { identifier: userId, action: "stream_create" },
-      );
+      // Use test utility to check rate limit
+      const streamLimit = await getRateLimitStatus(userId, "stream_create");
 
-      expect(streamLimit).to.exist;
+      expect(streamLimit.enabled).to.be.true;
       // At least 4 stream creations (might be more due to other tests in same window)
       expect(streamLimit.count).to.be.at.least(4);
     });
@@ -302,22 +299,17 @@ describe("WebPods Rate Limiting", () => {
       await client.post("/existing/second", "Second message");
       await client.post("/existing/third", "Third message");
 
-      const db = testDb.getDb();
-      const streamLimit = await db.oneOrNone(
-        `SELECT * FROM rate_limit WHERE identifier = $(identifier) AND action = $(action)`,
-        { identifier: userId, action: "stream_create" },
-      );
+      // Use test utility to check rate limit
+      const streamLimit = await getRateLimitStatus(userId, "stream_create");
 
       // Stream creation count depends on test order and hour window
       // Should be at least 1 (from this test) but could be more
-      expect(streamLimit).to.exist;
+      expect(streamLimit.enabled).to.be.true;
       expect(streamLimit.count).to.be.at.least(1);
 
       // But at least 3 writes were made
-      const writeLimit = await db.oneOrNone(
-        `SELECT * FROM rate_limit WHERE identifier = $(identifier) AND action = $(action)`,
-        { identifier: userId, action: "write" },
-      );
+      const writeLimit = await getRateLimitStatus(userId, "write");
+      expect(writeLimit.enabled).to.be.true;
       expect(writeLimit.count).to.be.at.least(3);
     });
   });
@@ -335,18 +327,12 @@ describe("WebPods Rate Limiting", () => {
       await client.get("/public-data?i=1");
       await client.get("/public-data"); // List all
 
-      // Check rate limit records
-      const db = testDb.getDb();
-      const writeLimit = await db.oneOrNone(
-        `SELECT * FROM rate_limit WHERE identifier = $(identifier) AND action = $(action)`,
-        { identifier: userId, action: "write" },
-      );
+      // Check rate limit records using test utilities
+      const writeLimit = await getRateLimitStatus(userId, "write");
+      const readLimit = await getRateLimitStatus(userId, "read");
 
-      const readLimit = await db.oneOrNone(
-        `SELECT * FROM rate_limit WHERE identifier = $(identifier) AND action = $(action)`,
-        { identifier: userId, action: "read" },
-      );
-
+      expect(writeLimit.enabled).to.be.true;
+      expect(readLimit.enabled).to.be.true;
       expect(writeLimit.count).to.equal(2); // Two writes in beforeEach
       expect(readLimit.count).to.equal(3); // Three reads
     });
@@ -382,6 +368,11 @@ describe("WebPods Rate Limiting", () => {
 
   describe("Rate Limit Windows", () => {
     it("should use hourly windows for rate limiting", async () => {
+      // Skip this test if not using PostgreSQL adapter
+      if (process.env.TEST_RATELIMIT_ADAPTER !== "postgres" && process.env.TEST_RATELIMIT_ADAPTER !== undefined) {
+        return; // Skip test for non-postgres adapters
+      }
+
       const db = testDb.getDb();
 
       // Make a request (stream auto-creates)
@@ -402,6 +393,11 @@ describe("WebPods Rate Limiting", () => {
     });
 
     it("should reset count when window expires", async () => {
+      // Skip this test if not using PostgreSQL adapter
+      if (process.env.TEST_RATELIMIT_ADAPTER !== "postgres" && process.env.TEST_RATELIMIT_ADAPTER !== undefined) {
+        return; // Skip test for non-postgres adapters
+      }
+
       const db = testDb.getDb();
       const now = new Date();
 
@@ -435,6 +431,11 @@ describe("WebPods Rate Limiting", () => {
     });
 
     it("should clean up old rate limit windows", async () => {
+      // Skip this test if not using PostgreSQL adapter
+      if (process.env.TEST_RATELIMIT_ADAPTER !== "postgres" && process.env.TEST_RATELIMIT_ADAPTER !== undefined) {
+        return; // Skip test for non-postgres adapters
+      }
+
       const db = testDb.getDb();
 
       // Insert multiple old windows
@@ -558,38 +559,14 @@ describe("WebPods Rate Limiting", () => {
       // Start with user1's token
       client.setAuthToken(token1);
 
-      // Calculate proper window boundaries - must match EXACTLY what the rate limit code uses
-      const windowMs = 60 * 60 * 1000;
-      const now = Date.now();
-      const windowEnd = new Date(Math.ceil(now / windowMs) * windowMs);
-      const windowStart = new Date(windowEnd.getTime() - windowMs);
+      // Use test utility to set user1 at limit
+      await setRateLimitCount(userId, "write", 1000);
 
-      // Clean up any existing rate limit records for user1
-      await db.none(
-        `DELETE FROM rate_limit WHERE identifier = $(identifier) AND action = $(action)`,
-        { identifier: userId, action: "write" },
-      );
-
-      // Set user1 at limit
-      await db.none(
-        `INSERT INTO rate_limit (identifier, action, count, window_start, window_end)
-         VALUES ($(identifier), $(action), $(count), $(windowStart), $(windowEnd))`,
-        {
-          identifier: userId, // Rate limiting uses user_id
-          action: "write",
-          count: 1000, // At the limit
-          windowStart,
-          windowEnd,
-        },
-      );
-
-      // Verify the rate limit was created
-      const rateLimit = await db.oneOrNone(
-        `SELECT * FROM rate_limit WHERE identifier = $(identifier) AND action = $(action) AND window_start = $(windowStart)`,
-        { identifier: userId, action: "write", windowStart },
-      );
-      expect(rateLimit).to.exist;
+      // Verify the rate limit was set
+      const rateLimit = await getRateLimitStatus(userId, "write");
+      expect(rateLimit.enabled).to.be.true;
       expect(rateLimit.count).to.equal(1000);
+      expect(rateLimit.remaining).to.equal(0);
 
       // User1 should be blocked (but create stream first)
       await client.createStream("user1-blocked");
@@ -597,10 +574,7 @@ describe("WebPods Rate Limiting", () => {
 
       // Check what happened to the rate limit after the request
       if (response1.status !== 429) {
-        const afterLimit = await db.manyOrNone(
-          `SELECT * FROM rate_limit WHERE identifier = $(identifier) AND action = $(action) ORDER BY window_start DESC`,
-          { identifier: userId, action: "write" },
-        );
+        const afterLimit = await getRateLimitStatus(userId, "write");
         throw new Error(
           `Expected 429 but got ${response1.status}. Rate limits after request: ${JSON.stringify(afterLimit, null, 2)}. Headers: ${JSON.stringify(response1.headers)}`,
         );
@@ -659,36 +633,14 @@ describe("WebPods Rate Limiting", () => {
       client.setBaseUrl(`http://${uniquePodId}.localhost:3000`);
       const testUserId = uniqueUser.userId;
 
-      // Calculate proper window boundaries
-      const windowMs = 60 * 60 * 1000;
-      const now = Date.now();
-      const windowEnd = new Date(Math.ceil(now / windowMs) * windowMs);
-      const windowStart = new Date(windowEnd.getTime() - windowMs);
+      // Use test utilities to set different counts for different actions
+      // Reset any existing rate limits for this user
+      await resetRateLimit(testUserId, "write");
+      await resetRateLimit(testUserId, "stream_create");
 
-      // Clear any existing rate limits for this user
-      await db.none(`DELETE FROM rate_limit WHERE identifier = $(identifier)`, {
-        identifier: testUserId,
-      });
-
-      // Set different counts for different actions
-      await db.none(
-        `INSERT INTO rate_limit (identifier, action, count, window_start, window_end)
-         VALUES 
-         ($(identifier1), $(action1), $(count1), $(windowStart1), $(windowEnd1)),
-         ($(identifier2), $(action2), $(count2), $(windowStart2), $(windowEnd2))`,
-        {
-          identifier1: testUserId, // Rate limiting uses user_id
-          action1: "stream_create", // Changed from pod_create since we're creating streams
-          count1: 98, // Leave room for 2 stream creations (stream-99, stream-100) since can-write is pre-created
-          windowStart1: windowStart,
-          windowEnd1: windowEnd,
-          identifier2: testUserId, // Rate limiting uses user_id
-          action2: "write",
-          count2: 100, // Well under the limit of 1000
-          windowStart2: windowStart,
-          windowEnd2: windowEnd,
-        },
-      );
+      // Set different counts for different actions using test utilities
+      await setRateLimitCount(testUserId, "write", 100); // Well under write limit (1000)
+      await setRateLimitCount(testUserId, "stream_create", 98); // Leave room for 2 stream creations
 
       // Can still write
       const writeResponse = await client.post("/can-write/msg", "Message");
