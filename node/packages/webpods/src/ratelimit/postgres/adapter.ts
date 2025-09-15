@@ -40,16 +40,16 @@ export const postgresRateLimiterAdapter: RateLimiterAdapter = {
 
     const db = getDb();
     const limit = getActionLimit(action, config.limits);
-    const windowMs = config.windowMs;
+    const windowMS = config.windowMS;
     const now = new Date();
-    const windowStart = new Date(now.getTime() - windowMs);
+    const windowStart = new Date(now.getTime() - windowMS);
 
     try {
       // Get or create window
       const windowEnd = new Date(
-        Math.ceil(now.getTime() / windowMs) * windowMs,
+        Math.ceil(now.getTime() / windowMS) * windowMS,
       );
-      const actualWindowStart = new Date(windowEnd.getTime() - windowMs);
+      const actualWindowStart = new Date(windowEnd.getTime() - windowMS);
 
       let rateLimitRecord = await db.oneOrNone<RateLimitDbRow>(
         `SELECT * FROM rate_limit
@@ -118,7 +118,7 @@ export const postgresRateLimiterAdapter: RateLimiterAdapter = {
         allowed: true,
         remaining: limit,
         limit,
-        resetAt: new Date(now.getTime() + windowMs),
+        resetAt: new Date(now.getTime() + windowMS),
       };
     }
   },
@@ -138,14 +138,14 @@ export const postgresRateLimiterAdapter: RateLimiterAdapter = {
 
     const db = getDb();
     const limit = getActionLimit(action, config.limits);
-    const windowMs = config.windowMs;
+    const windowMS = config.windowMS;
     const now = new Date();
 
     try {
       const windowEnd = new Date(
-        Math.ceil(now.getTime() / windowMs) * windowMs,
+        Math.ceil(now.getTime() / windowMS) * windowMS,
       );
-      const actualWindowStart = new Date(windowEnd.getTime() - windowMs);
+      const actualWindowStart = new Date(windowEnd.getTime() - windowMS);
 
       const rateLimitRecord = await db.oneOrNone<RateLimitDbRow>(
         `SELECT * FROM rate_limit
@@ -175,7 +175,7 @@ export const postgresRateLimiterAdapter: RateLimiterAdapter = {
         allowed: true,
         remaining: limit,
         limit,
-        resetAt: new Date(now.getTime() + windowMs),
+        resetAt: new Date(now.getTime() + windowMS),
       };
     }
   },

@@ -6,43 +6,25 @@ import type {
   RateLimitStats,
 } from "../types.js";
 import { getActionLimit } from "../types.js";
-import { SlidingWindowRateLimiter } from "./sliding-window.js";
+import { FixedWindowRateLimiter } from "./fixed-window.js";
 
-let rateLimiter: SlidingWindowRateLimiter | null = null;
+let rateLimiter: FixedWindowRateLimiter | null = null;
 let config: RateLimitConfig | null = null;
-let cleanupInterval: ReturnType<typeof setInterval> | null = null;
-
-function startCleanup(intervalMs: number): void {
-  if (cleanupInterval) return;
-
-  cleanupInterval = setInterval(() => {
-    if (rateLimiter) {
-      rateLimiter.cleanup();
-    }
-  }, intervalMs);
-}
-
-function stopCleanup(): void {
-  if (cleanupInterval) {
-    clearInterval(cleanupInterval);
-    cleanupInterval = null;
-  }
-}
 
 export const inMemoryRateLimiterAdapter: RateLimiterAdapter = {
   async initialize(cfg: RateLimitConfig): Promise<void> {
     config = cfg;
-    rateLimiter = new SlidingWindowRateLimiter(
-      cfg.windowMs,
+    rateLimiter = new FixedWindowRateLimiter(
+      cfg.windowMS,
       cfg.maxIdentifiers || 10000,
+      cfg.cleanupIntervalMS || 60000,
     );
 
-    // Start cleanup interval
-    startCleanup(cfg.cleanupIntervalMs || 60000);
+    // Note: FixedWindowRateLimiter handles cleanup internally
+    // No need for external cleanup interval
   },
 
   async shutdown(): Promise<void> {
-    stopCleanup();
     if (rateLimiter) {
       rateLimiter.clear();
       rateLimiter = null;
@@ -136,5 +118,11 @@ export const inMemoryRateLimiterAdapter: RateLimiterAdapter = {
   async getAllWindows() {
     if (!rateLimiter) return [];
     return rateLimiter.getAllWindows();
+  },
+
+  async cleanup() {
+    if (rateLimiter) {
+      rateLimiter.cleanup();
+    }
   },
 };

@@ -9,7 +9,7 @@ type IdentifierData = Map<RateLimitAction, WindowEntry[]>;
 
 export class SlidingWindowRateLimiter {
   private data: Map<string, IdentifierData> = new Map();
-  private windowMs: number;
+  private windowMS: number;
   private maxIdentifiers: number;
   private stats = {
     totalChecks: 0,
@@ -17,8 +17,8 @@ export class SlidingWindowRateLimiter {
     totalDenied: 0,
   };
 
-  constructor(windowMs: number, maxIdentifiers: number = 10000) {
-    this.windowMs = windowMs;
+  constructor(windowMS: number, maxIdentifiers: number = 10000) {
+    this.windowMS = windowMS;
     this.maxIdentifiers = maxIdentifiers;
   }
 
@@ -37,7 +37,7 @@ export class SlidingWindowRateLimiter {
   } {
     this.stats.totalChecks++;
     const now = Date.now();
-    const windowStart = now - this.windowMs;
+    const windowStart = now - this.windowMS;
 
     // Get or create identifier data
     let identifierData = this.data.get(identifier);
@@ -64,7 +64,7 @@ export class SlidingWindowRateLimiter {
     const currentCount = entries.reduce((sum, entry) => sum + entry.count, 0);
 
     // Calculate reset time (next window boundary)
-    const resetAt = new Date(now + this.windowMs);
+    const resetAt = new Date(now + this.windowMS);
 
     // Check if allowed
     const allowed = currentCount < limit;
@@ -103,13 +103,13 @@ export class SlidingWindowRateLimiter {
     currentCount: number;
   } {
     const now = Date.now();
-    const windowStart = now - this.windowMs;
+    const windowStart = now - this.windowMS;
 
     const identifierData = this.data.get(identifier);
     if (!identifierData) {
       return {
         remaining: limit,
-        resetAt: new Date(now + this.windowMs),
+        resetAt: new Date(now + this.windowMS),
         currentCount: 0,
       };
     }
@@ -124,7 +124,7 @@ export class SlidingWindowRateLimiter {
 
     return {
       remaining: Math.max(0, limit - currentCount),
-      resetAt: new Date(now + this.windowMs),
+      resetAt: new Date(now + this.windowMS),
       currentCount,
     };
   }
@@ -153,7 +153,7 @@ export class SlidingWindowRateLimiter {
    */
   cleanup(): void {
     const now = Date.now();
-    const windowStart = now - this.windowMs;
+    const windowStart = now - this.windowMS;
 
     for (const [identifier, identifierData] of this.data.entries()) {
       for (const [action, entries] of identifierData.entries()) {
@@ -211,7 +211,7 @@ export class SlidingWindowRateLimiter {
 
     // For sliding window, we calculate based on current time
     const now = Date.now();
-    const windowStart = new Date(now - this.windowMs);
+    const windowStart = new Date(now - this.windowMS);
     const windowEnd = new Date(now);
 
     return { windowStart, windowEnd };
@@ -263,7 +263,7 @@ export class SlidingWindowRateLimiter {
     }> = [];
 
     const now = Date.now();
-    const windowStart = now - this.windowMs;
+    const windowStart = now - this.windowMS;
 
     for (const [identifier, identifierData] of this.data.entries()) {
       for (const [action, entries] of identifierData.entries()) {

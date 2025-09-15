@@ -37,10 +37,10 @@ export type RateLimitConfig = {
   };
 
   // Window configuration
-  windowMs: number; // Window duration in milliseconds
+  windowMS: number; // Window duration in milliseconds
 
   // In-memory specific options
-  cleanupIntervalMs?: number; // How often to clean up expired windows (default: 60000)
+  cleanupIntervalMS?: number; // How often to clean up expired windows (default: 60000)
   maxIdentifiers?: number; // Max number of identifiers to track (default: 10000)
 };
 
@@ -54,8 +54,8 @@ export const defaultRateLimitConfig: RateLimitConfig = {
     podCreate: 10,
     streamCreate: 100,
   },
-  windowMs: 3600000, // 1 hour
-  cleanupIntervalMs: 60000, // 1 minute
+  windowMS: 3600000, // 1 hour
+  cleanupIntervalMS: 60000, // 1 minute
   maxIdentifiers: 10000,
 };
 

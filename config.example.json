@@ -64,7 +64,7 @@
     "pkceStateExpiryMinutes": 10,
     "rememberShortHours": 1,
     "rememberLongHours": 24,
-    "jwtCacheMaxAgeMs": 600000,
+    "jwtCacheMaxAgeMS": 600000,
     "jwtCacheRequestsPerMinute": 10
   },
   "server": {
@@ -85,7 +85,7 @@
     "jwtSecret": "$JWT_SECRET",
     "jwtExpiry": "24h",
     "sessionSecret": "$SESSION_SECRET",
-    "sessionPruneIntervalMs": 3600000
+    "sessionPruneIntervalMS": 3600000
   },
   "rateLimits": {
     "enabled": true,
@@ -95,11 +95,11 @@
     "podCreate": 10,
     "streamCreate": 100,
     "maxRecordLimit": 1000,
-    "windowMs": 3600000,
+    "windowMS": 3600000,
     "defaultQueryLimit": 100,
     "cliMaxOperationLimit": 1000,
     "oauthClientDescriptionMaxLength": 50,
-    "cleanupIntervalMs": 60000,
+    "cleanupIntervalMS": 60000,
     "maxIdentifiers": 10000
   },
   "hydra": {

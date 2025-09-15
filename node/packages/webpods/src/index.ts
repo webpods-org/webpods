@@ -114,8 +114,8 @@ export async function start() {
           podCreate: appConfig.rateLimits.podCreate,
           streamCreate: appConfig.rateLimits.streamCreate,
         },
-        windowMs: appConfig.rateLimits.windowMs || 3600000, // Default 1 hour
-        cleanupIntervalMs: appConfig.rateLimits.cleanupIntervalMs,
+        windowMS: appConfig.rateLimits.windowMS || 3600000, // Default 1 hour
+        cleanupIntervalMS: appConfig.rateLimits.cleanupIntervalMS,
         maxIdentifiers: appConfig.rateLimits.maxIdentifiers,
       };
 

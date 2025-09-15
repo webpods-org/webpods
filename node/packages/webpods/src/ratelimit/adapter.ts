@@ -50,6 +50,9 @@ export type RateLimiterAdapter = {
     }>
   >;
 
+  // Manual cleanup trigger (for testing)
+  cleanup?: () => Promise<void>;
+
   // Lifecycle
   initialize: (config: RateLimitConfig) => Promise<void>;
   shutdown: () => Promise<void>;

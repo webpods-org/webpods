@@ -82,7 +82,7 @@ router.get("/status", testModeOnly, async (req: Request, res: Response) => {
       remaining: status.remaining,
       limit: status.limit,
       resetAt: status.resetAt,
-      windowMs: config?.windowMs || 3600000,
+      windowMS: config?.windowMS || 3600000,
     });
   } catch (error) {
     logger.error("Failed to get rate limit status", { error });
@@ -397,5 +397,39 @@ router.get(
     }
   },
 );
+
+/**
+ * Manually trigger cleanup (for testing)
+ * POST /test-utils/ratelimit/cleanup
+ */
+router.post("/cleanup", testModeOnly, async (_req: Request, res: Response) => {
+  const rateLimiter = getRateLimiter();
+
+  // Check if the adapter has a cleanup method
+  if (!rateLimiter || !rateLimiter.cleanup) {
+    res.json({
+      success: false,
+      message: "Cleanup not supported by adapter",
+    });
+    return;
+  }
+
+  try {
+    // Call cleanup if available
+    await rateLimiter.cleanup();
+    res.json({
+      success: true,
+      message: "Cleanup triggered successfully",
+    });
+  } catch (error) {
+    logger.error("Failed to trigger cleanup", { error });
+    res.status(500).json({
+      error: {
+        code: "CLEANUP_ERROR",
+        message: "Failed to trigger cleanup",
+      },
+    });
+  }
+});
 
 export default router;

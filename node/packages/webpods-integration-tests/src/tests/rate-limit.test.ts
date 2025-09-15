@@ -452,8 +452,11 @@ describe("WebPods Rate Limiting", () => {
         return;
       }
 
-      // Make a new request (triggers cleanup, stream auto-creates)
+      // Make a new request (stream auto-creates)
       await client.post("/cleanup-trigger/new", "New message");
+
+      // Manually trigger cleanup for in-memory adapter
+      await testClient.post("/test-utils/ratelimit/cleanup");
 
       // Check all windows via test utility
       const windowsResponse = await testClient.get(
