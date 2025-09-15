@@ -245,4 +245,157 @@ router.post("/increment", testModeOnly, async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * Get window info for an identifier and action
+ * GET /test-utils/ratelimit/window-info
+ */
+router.get(
+  "/window-info",
+  testModeOnly,
+  async (req: Request, res: Response) => {
+    const identifier = req.query.identifier as string;
+    const action = req.query.action as RateLimitAction;
+
+    if (!identifier || !action) {
+      res.status(400).json({
+        error: {
+          code: "MISSING_PARAMS",
+          message: "identifier and action query parameters are required",
+        },
+      });
+      return;
+    }
+
+    const rateLimiter = getRateLimiter();
+    if (!rateLimiter || !rateLimiter.getWindowInfo) {
+      res.json({
+        success: false,
+        message: "Window info not supported by adapter",
+      });
+      return;
+    }
+
+    try {
+      const windowInfo = await rateLimiter.getWindowInfo(identifier, action);
+      if (!windowInfo) {
+        res.json({
+          success: false,
+          message: "No window found for identifier/action",
+        });
+        return;
+      }
+
+      res.json({
+        success: true,
+        ...windowInfo,
+      });
+    } catch (error) {
+      logger.error("Failed to get window info", { error });
+      res.status(500).json({
+        error: {
+          code: "WINDOW_INFO_ERROR",
+          message: "Failed to get window info",
+        },
+      });
+    }
+  },
+);
+
+/**
+ * Set window data for testing
+ * POST /test-utils/ratelimit/set-window
+ */
+router.post(
+  "/set-window",
+  testModeOnly,
+  async (req: Request, res: Response) => {
+    const { identifier, action, count, windowStart, windowEnd } = req.body;
+
+    if (
+      !identifier ||
+      !action ||
+      count === undefined ||
+      !windowStart ||
+      !windowEnd
+    ) {
+      res.status(400).json({
+        error: {
+          code: "MISSING_PARAMS",
+          message:
+            "identifier, action, count, windowStart, and windowEnd are required",
+        },
+      });
+      return;
+    }
+
+    const rateLimiter = getRateLimiter();
+    if (!rateLimiter || !rateLimiter.setWindow) {
+      res.status(400).json({
+        error: {
+          code: "NOT_SUPPORTED",
+          message: "Set window not supported by adapter",
+        },
+      });
+      return;
+    }
+
+    try {
+      await rateLimiter.setWindow(identifier, action, {
+        count,
+        windowStart: new Date(windowStart),
+        windowEnd: new Date(windowEnd),
+      });
+      res.json({
+        success: true,
+        message: "Window set successfully",
+      });
+    } catch (error) {
+      logger.error("Failed to set window", { error });
+      res.status(500).json({
+        error: {
+          code: "SET_WINDOW_ERROR",
+          message: "Failed to set window",
+        },
+      });
+    }
+  },
+);
+
+/**
+ * Get all rate limit windows
+ * GET /test-utils/ratelimit/all-windows
+ */
+router.get(
+  "/all-windows",
+  testModeOnly,
+  async (_req: Request, res: Response) => {
+    const rateLimiter = getRateLimiter();
+    if (!rateLimiter || !rateLimiter.getAllWindows) {
+      res.json({
+        success: false,
+        windows: [],
+        message: "Get all windows not supported by adapter",
+      });
+      return;
+    }
+
+    try {
+      const windows = await rateLimiter.getAllWindows();
+      res.json({
+        success: true,
+        windows,
+        count: windows.length,
+      });
+    } catch (error) {
+      logger.error("Failed to get all windows", { error });
+      res.status(500).json({
+        error: {
+          code: "GET_WINDOWS_ERROR",
+          message: "Failed to get all windows",
+        },
+      });
+    }
+  },
+);
+
 export default router;

@@ -195,4 +195,95 @@ export class SlidingWindowRateLimiter {
       totalDenied: 0,
     };
   }
+
+  /**
+   * Get window info for testing
+   */
+  getWindowInfo(
+    identifier: string,
+    action: RateLimitAction,
+  ): { windowStart: Date; windowEnd: Date } | null {
+    const identifierData = this.data.get(identifier);
+    if (!identifierData) return null;
+
+    const entries = identifierData.get(action);
+    if (!entries || entries.length === 0) return null;
+
+    // For sliding window, we calculate based on current time
+    const now = Date.now();
+    const windowStart = new Date(now - this.windowMs);
+    const windowEnd = new Date(now);
+
+    return { windowStart, windowEnd };
+  }
+
+  /**
+   * Set window data for testing
+   */
+  setWindow(
+    identifier: string,
+    action: RateLimitAction,
+    data: { count: number; windowStart: Date; windowEnd: Date },
+  ): void {
+    // Clear existing entries
+    let identifierData = this.data.get(identifier);
+    if (!identifierData) {
+      identifierData = new Map();
+      this.data.set(identifier, identifierData);
+    }
+
+    // Create entries based on the count and window times
+    const entries: WindowEntry[] = [];
+    const windowStartMs = data.windowStart.getTime();
+
+    // Distribute entries evenly across the window
+    for (let i = 0; i < data.count; i++) {
+      entries.push({ timestamp: windowStartMs + i * 1000, count: 1 }); // Spread by 1 second
+    }
+
+    identifierData.set(action, entries);
+  }
+
+  /**
+   * Get all windows for testing
+   */
+  getAllWindows(): Array<{
+    identifier: string;
+    action: RateLimitAction;
+    count: number;
+    windowStart: Date;
+    windowEnd: Date;
+  }> {
+    const results: Array<{
+      identifier: string;
+      action: RateLimitAction;
+      count: number;
+      windowStart: Date;
+      windowEnd: Date;
+    }> = [];
+
+    const now = Date.now();
+    const windowStart = now - this.windowMs;
+
+    for (const [identifier, identifierData] of this.data.entries()) {
+      for (const [action, entries] of identifierData.entries()) {
+        // Count valid entries within window
+        const validEntries = entries.filter(
+          (entry) => entry.timestamp > windowStart,
+        );
+
+        if (validEntries.length > 0) {
+          results.push({
+            identifier,
+            action,
+            count: validEntries.length,
+            windowStart: new Date(windowStart),
+            windowEnd: new Date(now),
+          });
+        }
+      }
+    }
+
+    return results;
+  }
 }

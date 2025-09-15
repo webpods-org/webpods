@@ -204,4 +204,93 @@ export const postgresRateLimiterAdapter: RateLimiterAdapter = {
       logger.error("Failed to reset rate limit", { error, identifier, action });
     }
   },
+
+  // Test-specific methods
+  async getWindowInfo(identifier: string, action: RateLimitAction) {
+    try {
+      const db = getDb();
+      const result = await db.oneOrNone<{
+        window_start: Date;
+        window_end: Date;
+      }>(
+        `SELECT window_start, window_end FROM rate_limit
+         WHERE identifier = $(identifier) AND action = $(action)
+         ORDER BY window_end DESC LIMIT 1`,
+        { identifier, action },
+      );
+
+      if (!result) {
+        return null;
+      }
+
+      return {
+        windowStart: result.window_start,
+        windowEnd: result.window_end,
+      };
+    } catch (error) {
+      logger.error("Failed to get window info", { error, identifier, action });
+      return null;
+    }
+  },
+
+  async setWindow(
+    identifier: string,
+    action: RateLimitAction,
+    data: { count: number; windowStart: Date; windowEnd: Date },
+  ) {
+    try {
+      const db = getDb();
+
+      // First delete any existing window
+      await db.none(
+        `DELETE FROM rate_limit
+         WHERE identifier = $(identifier) AND action = $(action)`,
+        { identifier, action },
+      );
+
+      // Insert the new window with specified values
+      await db.none(
+        `INSERT INTO rate_limit (identifier, action, count, window_start, window_end)
+         VALUES ($(identifier), $(action), $(count), $(windowStart), $(windowEnd))`,
+        {
+          identifier,
+          action,
+          count: data.count,
+          windowStart: data.windowStart,
+          windowEnd: data.windowEnd,
+        },
+      );
+
+      logger.debug("Rate limit window set", { identifier, action, data });
+    } catch (error) {
+      logger.error("Failed to set window", { error, identifier, action });
+      throw error;
+    }
+  },
+
+  async getAllWindows() {
+    try {
+      const db = getDb();
+      const results = await db.manyOrNone<{
+        identifier: string;
+        action: RateLimitAction;
+        count: number;
+        window_start: Date;
+        window_end: Date;
+      }>(
+        `SELECT identifier, action, count, window_start, window_end FROM rate_limit`,
+      );
+
+      return results.map((r) => ({
+        identifier: r.identifier,
+        action: r.action,
+        count: r.count,
+        windowStart: r.window_start,
+        windowEnd: r.window_end,
+      }));
+    } catch (error) {
+      logger.error("Failed to get all windows", { error });
+      return [];
+    }
+  },
 };
