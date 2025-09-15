@@ -234,11 +234,11 @@ export class SlidingWindowRateLimiter {
 
     // Create entries based on the count and window times
     const entries: WindowEntry[] = [];
-    const windowStartMs = data.windowStart.getTime();
+    const windowStartMS = data.windowStart.getTime();
 
     // Distribute entries evenly across the window
     for (let i = 0; i < data.count; i++) {
-      entries.push({ timestamp: windowStartMs + i * 1000, count: 1 }); // Spread by 1 second
+      entries.push({ timestamp: windowStartMS + i * 1000, count: 1 }); // Spread by 1 second
     }
 
     identifierData.set(action, entries);

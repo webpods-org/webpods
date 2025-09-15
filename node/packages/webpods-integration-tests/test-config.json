@@ -54,7 +54,7 @@
     "sessionSecret": "test-session-secret"
   },
   "rateLimits": {
-    "adapter": "postgres",
+    "adapter": "in-memory",
     "writes": 1000,
     "reads": 10000,
     "podCreate": 10,
