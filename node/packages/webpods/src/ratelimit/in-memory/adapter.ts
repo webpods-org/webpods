@@ -117,4 +117,24 @@ export const inMemoryRateLimiterAdapter: RateLimiterAdapter = {
 
     return rateLimiter.getStats();
   },
+
+  // Test-specific methods
+  async getWindowInfo(identifier: string, action: RateLimitAction) {
+    if (!rateLimiter) return null;
+    return rateLimiter.getWindowInfo(identifier, action);
+  },
+
+  async setWindow(
+    identifier: string,
+    action: RateLimitAction,
+    data: { count: number; windowStart: Date; windowEnd: Date },
+  ) {
+    if (!rateLimiter) return;
+    rateLimiter.setWindow(identifier, action, data);
+  },
+
+  async getAllWindows() {
+    if (!rateLimiter) return [];
+    return rateLimiter.getAllWindows();
+  },
 };

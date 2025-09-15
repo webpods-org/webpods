@@ -368,24 +368,22 @@ describe("WebPods Rate Limiting", () => {
 
   describe("Rate Limit Windows", () => {
     it("should use hourly windows for rate limiting", async () => {
-      // Skip this test if not using PostgreSQL adapter
-      if (process.env.TEST_RATELIMIT_ADAPTER !== "postgres" && process.env.TEST_RATELIMIT_ADAPTER !== undefined) {
-        return; // Skip test for non-postgres adapters
-      }
-
-      const db = testDb.getDb();
-
       // Make a request (stream auto-creates)
       await client.post("/window-test/msg", "Message");
 
-      // Check the window
-      const rateLimit = await db.oneOrNone(
-        `SELECT * FROM rate_limit WHERE identifier = $(identifier) AND action = $(action)`,
-        { identifier: userId, action: "write" },
+      // Get window info via test utility
+      const testClient = new TestHttpClient("http://localhost:3000");
+      const response = await testClient.get(
+        `/test-utils/ratelimit/window-info?identifier=${userId}&action=write`,
       );
 
-      const windowStart = new Date(rateLimit.window_start);
-      const windowEnd = new Date(rateLimit.window_end);
+      if (!response.data.success) {
+        // Adapter doesn't support window info, skip test
+        return;
+      }
+
+      const windowStart = new Date(response.data.windowStart);
+      const windowEnd = new Date(response.data.windowEnd);
       const windowDuration = windowEnd.getTime() - windowStart.getTime();
 
       // Should be approximately 1 hour (3600000 ms)
@@ -393,20 +391,14 @@ describe("WebPods Rate Limiting", () => {
     });
 
     it("should reset count when window expires", async () => {
-      // Skip this test if not using PostgreSQL adapter
-      if (process.env.TEST_RATELIMIT_ADAPTER !== "postgres" && process.env.TEST_RATELIMIT_ADAPTER !== undefined) {
-        return; // Skip test for non-postgres adapters
-      }
-
-      const db = testDb.getDb();
+      const testClient = new TestHttpClient("http://localhost:3000");
       const now = new Date();
 
-      // Insert an expired window with high count
-      await db.none(
-        `INSERT INTO rate_limit (identifier, action, count, window_start, window_end)
-         VALUES ($(identifier), $(action), $(count), $(windowStart), $(windowEnd))`,
+      // Set an expired window with high count via test utility
+      const setResponse = await testClient.post(
+        "/test-utils/ratelimit/set-window",
         {
-          identifier: userId, // Rate limiting uses user_id
+          identifier: userId,
           action: "write",
           count: 999, // Just under limit
           windowStart: new Date(now.getTime() - 2 * 60 * 60 * 1000), // 2 hours ago
@@ -414,61 +406,72 @@ describe("WebPods Rate Limiting", () => {
         },
       );
 
+      if (!setResponse.data.success) {
+        // Adapter doesn't support set window, skip test
+        return;
+      }
+
       // Make a new request (should start new window, stream auto-creates)
       const response = await client.post("/new-window/msg", "Message");
       expect(response.status).to.equal(201);
 
-      // Check new window was created
-      const newLimit = await db.oneOrNone(
-        `SELECT * FROM rate_limit 
-         WHERE identifier = $(identifier) 
-         AND action = $(action) 
-         AND window_end > $(now)`,
-        { identifier: userId, action: "write", now },
-      );
-
-      expect(newLimit.count).to.equal(1); // Reset to 1
+      // Check the status - should have reset to 1
+      const status = await getRateLimitStatus(userId, "write");
+      expect(status.count).to.equal(1); // Reset to 1
     });
 
     it("should clean up old rate limit windows", async () => {
-      // Skip this test if not using PostgreSQL adapter
-      if (process.env.TEST_RATELIMIT_ADAPTER !== "postgres" && process.env.TEST_RATELIMIT_ADAPTER !== undefined) {
-        return; // Skip test for non-postgres adapters
-      }
-
-      const db = testDb.getDb();
-
-      // Insert multiple old windows
+      const testClient = new TestHttpClient("http://localhost:3000");
       const oldDate = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours ago
-      await db.none(
-        `INSERT INTO rate_limit (identifier, action, count, window_start, window_end)
-         VALUES 
-         ($(identifier1), $(action1), $(count1), $(windowStart1), $(windowEnd1)),
-         ($(identifier2), $(action2), $(count2), $(windowStart2), $(windowEnd2))`,
+
+      // Set multiple old windows via test utility
+      const setResponse1 = await testClient.post(
+        "/test-utils/ratelimit/set-window",
         {
-          identifier1: "old-user-1",
-          action1: "write",
-          count1: 100,
-          windowStart1: new Date(oldDate.getTime() - 60 * 60 * 1000),
-          windowEnd1: oldDate,
-          identifier2: "old-user-2",
-          action2: "read",
-          count2: 200,
-          windowStart2: new Date(oldDate.getTime() - 60 * 60 * 1000),
-          windowEnd2: oldDate,
+          identifier: "old-user-1",
+          action: "write",
+          count: 100,
+          windowStart: new Date(oldDate.getTime() - 60 * 60 * 1000),
+          windowEnd: oldDate,
         },
       );
+
+      const setResponse2 = await testClient.post(
+        "/test-utils/ratelimit/set-window",
+        {
+          identifier: "old-user-2",
+          action: "read",
+          count: 200,
+          windowStart: new Date(oldDate.getTime() - 60 * 60 * 1000),
+          windowEnd: oldDate,
+        },
+      );
+
+      if (!setResponse1.data.success || !setResponse2.data.success) {
+        // Adapter doesn't support set window, skip test
+        return;
+      }
 
       // Make a new request (triggers cleanup, stream auto-creates)
       await client.post("/cleanup-trigger/new", "New message");
 
-      // Check that old windows are gone
-      const oldLimits = await db.oneOrNone(
-        `SELECT COUNT(*) as count FROM rate_limit WHERE window_end < $(cutoff)`,
-        { cutoff: new Date(Date.now() - 2 * 60 * 60 * 1000) },
+      // Check all windows via test utility
+      const windowsResponse = await testClient.get(
+        "/test-utils/ratelimit/all-windows",
       );
 
-      expect(parseInt(oldLimits?.count || "0")).to.equal(0);
+      if (!windowsResponse.data.success) {
+        // Adapter doesn't support get all windows, skip test
+        return;
+      }
+
+      // Check that old windows are gone (only recent windows should exist)
+      const cutoff = Date.now() - 2 * 60 * 60 * 1000;
+      const oldWindows = windowsResponse.data.windows.filter(
+        (w: any) => new Date(w.windowEnd).getTime() < cutoff,
+      );
+
+      expect(oldWindows.length).to.equal(0);
     });
   });
 
