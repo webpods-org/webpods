@@ -15,7 +15,6 @@ import { getVersion } from "./version.js";
 import { isMainDomain, isSubdomainOf } from "./utils.js";
 import { isBinaryContentType } from "./utils/content-type-detection.js";
 import { getDb } from "./db/index.js";
-import { clearAllCache } from "./cache/index.js";
 import authRouter from "./auth/routes.js";
 import loginRouter from "./auth/login-page.js";
 import oauthRouter from "./oauth/routes.js";
@@ -23,6 +22,7 @@ import connectRouter from "./oauth/connect.js";
 import oauthClientsApi from "./api/oauth-clients.js";
 import podsApi from "./api/pods.js";
 import podsRouter from "./routes/pods/index.js";
+import { createTestUtilsRouter } from "./routes/test-utils/index.js";
 
 const logger = createLogger("webpods");
 
@@ -104,30 +104,21 @@ export function createApp(): Express {
     });
   });
 
-  // Test utility endpoint for clearing cache (test mode only)
-  if (process.env.NODE_ENV === "test") {
-    app.post("/test-utils/clear-cache", async (req, res) => {
-      // Only allow on localhost in test mode
-      const clientIP = req.ip || req.connection.remoteAddress || "";
-      const isLocalhost =
-        ["127.0.0.1", "::1", "localhost"].includes(clientIP) ||
-        clientIP.startsWith("127.") ||
-        clientIP === "::ffff:127.0.0.1" ||
-        clientIP.startsWith("::ffff:127.");
+  // Test utilities router (only when explicitly enabled)
+  const enableTestUtils =
+    process.argv.includes("--enable-test-utils") ||
+    process.env.ENABLE_TEST_UTILS === "true";
 
-      if (!isLocalhost) {
-        res.status(403).json({
-          error: {
-            code: "FORBIDDEN",
-            message: "Test utilities only available on localhost",
-          },
-        });
-        return;
-      }
+  if (enableTestUtils) {
+    logger.warn("Test utilities enabled via --enable-test-utils flag");
+    logger.warn(
+      "DO NOT USE IN PRODUCTION - Test utilities provide cache and system access",
+    );
 
-      await clearAllCache();
-      res.json({ success: true, message: "Cache cleared" });
-    });
+    const testUtilsRouter = createTestUtilsRouter();
+    app.use("/test-utils", testUtilsRouter);
+
+    logger.info("Test utilities available at /test-utils/health");
   }
 
   // Login page (main domain only)
