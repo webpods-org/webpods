@@ -38,9 +38,9 @@ export async function linksSet(argv: Arguments) {
     // Add or update the link
     linksData[path] = target;
 
-    // POST to /.config/routing endpoint
+    // POST to /.config/routing API endpoint
     const response = await client.post(
-      `/.config/routing/routes`,
+      `/.config/routing`,
       JSON.stringify(linksData),
       {
         headers: {
@@ -156,9 +156,9 @@ export async function linksRemove(argv: Arguments) {
       // Remove the specified path
       delete currentLinks[path];
 
-      // Write updated links back
+      // Write updated links back using API endpoint
       const response = await client.post(
-        `/.config/routing/routes`,
+        `/.config/routing`,
         JSON.stringify(currentLinks),
         {
           headers: {

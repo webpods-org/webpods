@@ -43,8 +43,8 @@ describe("WebPods Root Pod", () => {
       await client.post("/pages/about", "<h1>About WebPods</h1>");
       await client.post("/api/data", JSON.stringify({ version: "1.0" }));
 
-      // Configure links
-      await client.post("/.config/routing/routes", {
+      // Configure links using the routing API endpoint
+      await client.post("/.config/routing", {
         "/": "pages/home",
         "/about": "pages/about",
       });

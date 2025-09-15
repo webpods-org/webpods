@@ -57,6 +57,36 @@ export const postHandler = async (
     const fullPath = req.path.substring(1); // Remove leading /
     const db = getDb();
 
+    // DOUBLE PROTECTION: Explicitly block writes to protected .config streams
+    // These streams should ONLY be modified through their specific API endpoints
+    const PROTECTED_CONFIG_STREAMS = [
+      { path: ".config/owner", endpoint: "POST /.config/owner" },
+      { path: ".config/routing", endpoint: "POST /.config/routing" },
+      { path: ".config/domains", endpoint: "POST /.config/domains" },
+    ];
+
+    // Block ALL writes to protected streams and their children
+    for (const protectedStream of PROTECTED_CONFIG_STREAMS) {
+      if (
+        fullPath === protectedStream.path ||
+        fullPath.startsWith(protectedStream.path + "/")
+      ) {
+        logger.warn("BLOCKED: Attempt to write to protected config stream", {
+          fullPath,
+          protectedPath: protectedStream.path,
+          podName: req.podName,
+          userId: req.auth?.user_id,
+        });
+        res.status(403).json({
+          error: {
+            code: "FORBIDDEN",
+            message: `Direct writes to ${protectedStream.path} are not allowed. Use ${protectedStream.endpoint} API endpoint instead.`,
+          },
+        });
+        return;
+      }
+    }
+
     // Check if this is a POST with empty body to create a stream
     const isEmptyBody =
       !req.body ||

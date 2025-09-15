@@ -467,7 +467,8 @@ describe("WebPods Stream Operations", () => {
         "/blog": "blog?i=-10:-1",
       };
 
-      const response = await client.post("/.config/routing/routes", links);
+      // Use the routing API endpoint instead of direct write
+      const response = await client.post("/.config/routing", links);
       expect(response.status).to.equal(201);
 
       // Verify links work - now returns JSON list since ?i=-1 returns a list

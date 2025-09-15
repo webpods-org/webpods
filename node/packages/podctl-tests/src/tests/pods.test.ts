@@ -105,14 +105,18 @@ describe("CLI Pod Commands", function () {
 
   describe("list command", () => {
     beforeEach(async () => {
-      // Create test pods with owner stream
+      // Create test pods with owner_id set
       for (const podName of ["pod-1", "pod-2", "pod-3"]) {
-        // Create pod
+        // Create pod with owner_id
         await testDb
           .getDb()
-          .none("INSERT INTO pod (name, created_at) VALUES ($(name), NOW())", {
-            name: podName,
-          });
+          .none(
+            "INSERT INTO pod (name, owner_id, created_at) VALUES ($(name), $(owner_id), NOW())",
+            {
+              name: podName,
+              owner_id: testUser.userId,
+            },
+          );
 
         // Create .config/owner stream using the new helper
         await createOwnerConfig(

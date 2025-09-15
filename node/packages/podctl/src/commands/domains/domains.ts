@@ -60,10 +60,10 @@ export async function domainAdd(argv: Arguments) {
       return;
     }
 
-    // Add new domain - send updated full list
+    // Add new domain - send updated full list via API endpoint
     currentDomains.push(domain);
     const response = await client.post(
-      `/.config/domains/domains`,
+      `/.config/domains`,
       JSON.stringify({ domains: currentDomains }),
       {
         headers: {
@@ -157,11 +157,11 @@ export async function domainRemove(argv: Arguments) {
       process.exit(1);
     }
 
-    // Remove the domain from the list and send updated full list
+    // Remove the domain from the list and send updated full list via API endpoint
     const updatedDomains = currentDomains.filter((d) => d !== domain);
 
     const response = await client.post(
-      `/.config/domains/domains`,
+      `/.config/domains`,
       JSON.stringify({ domains: updatedDomains }),
       {
         headers: {
