@@ -6,7 +6,6 @@ import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
 import { createError } from "../../utils/errors.js";
 import { RecordDbRow } from "../../db-types.js";
-import { StreamRecord } from "../../types.js";
 import { calculateContentHash, calculateRecordHash } from "../../utils.js";
 import { createLogger } from "../../logger.js";
 import { getStorageAdapter } from "../../storage-adapters/index.js";
@@ -16,30 +15,28 @@ import { cacheInvalidation } from "../../cache/index.js";
 const logger = createLogger("webpods:domain:records");
 
 /**
- * Map database row to domain type
+ * Minimal result type for delete operations
  */
-function mapRecordFromDb(row: RecordDbRow): StreamRecord {
+export type DeleteRecordResult = {
+  id: number;
+  index: number;
+  hash: string;
+  previousHash: string | null;
+  name: string;
+};
+
+/**
+ * Map database row to minimal delete result
+ */
+function mapToDeleteResult(
+  row: Pick<RecordDbRow, "id" | "index" | "hash" | "previous_hash" | "name">,
+): DeleteRecordResult {
   return {
     id: row.id || 0,
-    streamId: row.stream_id,
     index: row.index,
-    content: row.content,
-    contentType: row.content_type,
-    isBinary: row.is_binary,
-    size: row.size,
-    name: row.name,
-    path: row.path,
-    contentHash: row.content_hash,
     hash: row.hash,
     previousHash: row.previous_hash || null,
-    userId: row.user_id,
-    storage: row.storage || null,
-    headers: row.headers,
-    metadata: undefined,
-    createdAt:
-      typeof row.created_at === "string"
-        ? new Date(row.created_at)
-        : row.created_at,
+    name: row.name,
   };
 }
 
@@ -57,12 +54,16 @@ export async function deleteRecord(
   streamId: number,
   recordName: string,
   userId: string,
-): Promise<Result<StreamRecord>> {
+): Promise<Result<DeleteRecordResult>> {
   try {
     return await ctx.db.tx(async (t) => {
       // First get the latest record with this name to check if it's already deleted
-      const latestRecord = await t.oneOrNone<RecordDbRow>(
-        `SELECT * FROM record
+      // We need several fields but NOT the large content field
+      const latestRecord = await t.oneOrNone<Omit<RecordDbRow, "content">>(
+        `SELECT id, stream_id, index, content_type, is_binary, size, name, path,
+                content_hash, hash, previous_hash, user_id, storage, headers,
+                deleted, purged, created_at
+         FROM record
          WHERE stream_id = $(streamId)
            AND name = $(recordName)
          ORDER BY index DESC
@@ -82,7 +83,14 @@ export async function deleteRecord(
           streamId,
           recordName,
         });
-        return success(mapRecordFromDb(latestRecord));
+        // Return minimal result for already deleted record
+        return success({
+          id: latestRecord.id || 0,
+          index: latestRecord.index,
+          hash: latestRecord.hash,
+          previousHash: latestRecord.previous_hash || null,
+          name: latestRecord.name,
+        });
       }
 
       const recordToDelete = latestRecord;
@@ -131,8 +139,8 @@ export async function deleteRecord(
 
       // Get the last record to calculate the next index and hash chain
       // No need for FOR UPDATE here since the stream lock serializes access
-      const lastRecord = await t.oneOrNone<RecordDbRow>(
-        `SELECT * FROM record
+      const lastRecord = await t.oneOrNone<Pick<RecordDbRow, "index" | "hash">>(
+        `SELECT index, hash FROM record
          WHERE stream_id = $(streamId)
          ORDER BY index DESC
          LIMIT 1`,
@@ -165,10 +173,13 @@ export async function deleteRecord(
       const size = 0; // Empty content
 
       // Insert deletion marker record with deleted=true
-      const deletionRecord = await t.one<RecordDbRow>(
+      // Only fetch the fields we need for the result
+      const deletionRecord = await t.one<
+        Pick<RecordDbRow, "id" | "index" | "hash" | "previous_hash" | "name">
+      >(
         `INSERT INTO record (stream_id, index, content, content_type, size, name, path, content_hash, hash, previous_hash, user_id, deleted, created_at)
          VALUES ($(streamId), $(index), $(content), $(contentType), $(size), $(name), $(path), $(contentHash), $(hash), $(previousHash), $(userId), true, $(createdAt))
-         RETURNING *`,
+         RETURNING id, index, hash, previous_hash, name`,
         {
           streamId,
           index,
@@ -205,7 +216,7 @@ export async function deleteRecord(
         recordName,
       );
 
-      return success(mapRecordFromDb(deletionRecord));
+      return success(mapToDeleteResult(deletionRecord));
     });
   } catch (error: unknown) {
     logger.error("Failed to soft delete record", {

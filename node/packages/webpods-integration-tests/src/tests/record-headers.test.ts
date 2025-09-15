@@ -54,11 +54,9 @@ describe("WebPods Record Headers", () => {
 
       expect(response.status).to.equal(201);
       expect(response.data).to.have.property("name", "post1");
-      expect(response.data).to.have.property("headers");
-      expect(response.data.headers).to.deep.equal({
-        "cache-control": "no-cache",
-        "hello-world": "test-value",
-      });
+      // headers are no longer returned in minimal response
+      expect(response.data).to.have.property("hash");
+      expect(response.data).to.have.property("size");
     });
 
     it("should ignore headers not in allowedRecordHeaders", async () => {
@@ -76,13 +74,9 @@ describe("WebPods Record Headers", () => {
       });
 
       expect(response.status).to.equal(201);
-      expect(response.data).to.have.property("headers");
-      // Only allowed headers should be stored
-      expect(response.data.headers).to.deep.equal({
-        "cache-control": "private",
-        "hello-world": "allowed",
-      });
-      expect(response.data.headers).to.not.have.property("not-allowed");
+      // headers are no longer returned in minimal response
+      expect(response.data).to.have.property("hash");
+      expect(response.data).to.have.property("size");
     });
 
     it("should handle records with no custom headers", async () => {
@@ -114,10 +108,9 @@ describe("WebPods Record Headers", () => {
       });
 
       expect(response.status).to.equal(201);
-      expect(response.data.headers).to.deep.equal({
-        "cache-control": "max-age=3600, must-revalidate",
-        "hello-world": "Hello, World!",
-      });
+      // headers are no longer returned in minimal response
+      expect(response.data).to.have.property("hash");
+      expect(response.data).to.have.property("size");
     });
   });
 
@@ -228,9 +221,9 @@ describe("WebPods Record Headers", () => {
       );
 
       expect(response.status).to.equal(201);
-      expect(response.data.headers).to.deep.equal({
-        "cache-control": "private",
-      });
+      // headers are no longer returned in minimal response
+      expect(response.data).to.have.property("hash");
+      expect(response.data).to.have.property("size");
 
       // Verify retrieval
       const getResponse = await client.get("/json-test/data");
@@ -255,9 +248,9 @@ describe("WebPods Record Headers", () => {
       });
 
       expect(response.status).to.equal(201);
-      expect(response.data.headers).to.deep.equal({
-        "cache-control": "public, max-age=31536000",
-      });
+      // headers are no longer returned in minimal response
+      expect(response.data).to.have.property("hash");
+      expect(response.data).to.have.property("size");
     });
   });
 
@@ -272,9 +265,9 @@ describe("WebPods Record Headers", () => {
       });
 
       expect(response.status).to.equal(201);
-      expect(response.data.headers).to.deep.equal({
-        "cache-control": "",
-      });
+      // headers are no longer returned in minimal response
+      expect(response.data).to.have.property("hash");
+      expect(response.data).to.have.property("size");
     });
 
     it("should ignore non-string header values", async () => {
@@ -290,7 +283,9 @@ describe("WebPods Record Headers", () => {
       });
 
       expect(response.status).to.equal(201);
-      expect(response.data.headers["cache-control"]).to.be.a("string");
+      // headers are no longer returned in minimal response
+      expect(response.data).to.have.property("hash");
+      expect(response.data).to.have.property("size");
     });
   });
 });

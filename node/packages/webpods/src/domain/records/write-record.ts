@@ -6,7 +6,6 @@ import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
 import { createError } from "../../utils/errors.js";
 import { RecordDbRow, StreamDbRow } from "../../db-types.js";
-import { StreamRecord } from "../../types.js";
 import { calculateContentHash, calculateRecordHash } from "../../utils.js";
 import { createLogger } from "../../logger.js";
 import { isValidRecordName } from "../../utils/stream-utils.js";
@@ -19,33 +18,14 @@ import { cacheInvalidation } from "../../cache/index.js";
 
 const logger = createLogger("webpods:domain:records");
 
-/**
- * Map database row to domain type
- */
-function mapRecordFromDb(row: RecordDbRow): StreamRecord {
-  return {
-    id: row.id || 0,
-    streamId: row.stream_id,
-    index: row.index,
-    content: row.content,
-    contentType: row.content_type,
-    isBinary: row.is_binary,
-    size: row.size,
-    name: row.name,
-    path: row.path,
-    contentHash: row.content_hash,
-    hash: row.hash,
-    previousHash: row.previous_hash || null,
-    userId: row.user_id,
-    storage: row.storage || null,
-    headers: row.headers,
-    metadata: undefined,
-    createdAt:
-      typeof row.created_at === "string"
-        ? new Date(row.created_at)
-        : row.created_at,
-  };
-}
+export type WriteRecordResult = {
+  id: number;
+  index: number;
+  hash: string;
+  previousHash: string | null;
+  name: string;
+  size: number;
+};
 
 export async function writeRecord(
   ctx: DataContext,
@@ -56,7 +36,7 @@ export async function writeRecord(
   name: string,
   useExternalStorage?: boolean,
   headers?: Record<string, string>,
-): Promise<Result<StreamRecord>> {
+): Promise<Result<WriteRecordResult>> {
   // Validate record name (no slashes allowed)
   if (!isValidRecordName(name)) {
     return failure(
@@ -98,8 +78,10 @@ export async function writeRecord(
 
       // Now safely get the previous record for hash chain
       // No need for FOR UPDATE here since the stream lock serializes access
-      const previousRecord = await t.oneOrNone<RecordDbRow>(
-        `SELECT * FROM record
+      const previousRecord = await t.oneOrNone<
+        Pick<RecordDbRow, "index" | "hash">
+      >(
+        `SELECT index, hash FROM record
          WHERE stream_id = $(streamId)
          ORDER BY index DESC
          LIMIT 1`,
@@ -258,7 +240,15 @@ export async function writeRecord(
         name,
       );
 
-      return success(mapRecordFromDb(record));
+      // Return minimal metadata - client already knows what was written
+      return success({
+        id: record.id,
+        index,
+        hash,
+        previousHash,
+        name,
+        size,
+      });
     });
   } catch (error: unknown) {
     logger.error("Failed to write record", { error, streamId });
