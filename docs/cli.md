@@ -678,6 +678,181 @@ podctl config list
 # format: json
 ```
 
+## Link Commands
+
+### `podctl link set`
+
+Create a link/redirect from one stream to another.
+
+```bash
+podctl link set my-pod /old/path /new/path
+
+# Output: Link created from /old/path to /new/path
+```
+
+**Arguments:**
+
+- `POD` - Pod name
+- `SOURCE` - Source stream path
+- `TARGET` - Target stream path
+
+### `podctl link list`
+
+List all links in a pod.
+
+```bash
+podctl link list my-pod
+
+# Output:
+# SOURCE         TARGET           CREATED
+# /old/api       /v2/api          2024-01-15T10:30:00Z
+# /legacy        /current         2024-01-14T09:20:00Z
+```
+
+**Arguments:**
+
+- `POD` - Pod name
+
+**Options:**
+
+- `--json` - Output as JSON
+
+### `podctl link remove`
+
+Remove a link.
+
+```bash
+podctl link remove my-pod /old/path
+
+# Output: Link removed
+```
+
+**Arguments:**
+
+- `POD` - Pod name
+- `SOURCE` - Source stream path
+
+**Options:**
+
+- `--force` - Skip confirmation
+
+## OAuth Client Commands
+
+### `podctl oauth register`
+
+Register a new OAuth client application.
+
+```bash
+podctl oauth register "My Application" \
+  --redirect-uri https://myapp.com/callback \
+  --scope "openid offline pod:read pod:write"
+
+# Output:
+# OAuth client registered successfully
+# Client ID: abc123xyz
+# Client Secret: secret789xyz
+# Save these credentials securely!
+```
+
+**Arguments:**
+
+- `NAME` - Application name
+
+**Options:**
+
+- `--redirect-uri URI` - Redirect URI (can be specified multiple times)
+- `--scope SCOPE` - OAuth scopes
+- `--grant-type TYPE` - Grant types (default: authorization_code,refresh_token)
+- `--logo-uri URI` - Application logo URL
+- `--client-uri URI` - Application homepage URL
+- `--policy-uri URI` - Privacy policy URL
+- `--tos-uri URI` - Terms of service URL
+
+### `podctl oauth list`
+
+List your registered OAuth clients.
+
+```bash
+podctl oauth list
+
+# Output:
+# CLIENT_ID    NAME                CREATED
+# abc123xyz    My Application      2024-01-15T10:30:00Z
+# def456abc    Test App            2024-01-14T09:20:00Z
+```
+
+**Options:**
+
+- `--json` - Output as JSON
+- `--verbose` - Show additional details
+
+### `podctl oauth info`
+
+Get detailed information about an OAuth client.
+
+```bash
+podctl oauth info abc123xyz
+
+# Output:
+# Client ID: abc123xyz
+# Name: My Application
+# Redirect URIs: https://myapp.com/callback
+# Scope: openid offline pod:read pod:write
+# Grant Types: authorization_code, refresh_token
+# Created: 2024-01-15T10:30:00Z
+```
+
+**Arguments:**
+
+- `CLIENT_ID` - OAuth client ID
+
+### `podctl oauth delete`
+
+Delete an OAuth client.
+
+```bash
+podctl oauth delete abc123xyz
+
+# Confirmation prompt:
+# Delete OAuth client 'My Application'? (y/N): y
+# OAuth client deleted
+
+# Skip confirmation
+podctl oauth delete abc123xyz --force
+```
+
+**Arguments:**
+
+- `CLIENT_ID` - OAuth client ID
+
+**Options:**
+
+- `--force` - Skip confirmation
+
+## Rate Limit Commands
+
+### `podctl limit info`
+
+Get current rate limit information.
+
+```bash
+podctl limit info
+
+# Output:
+# Rate Limits:
+# Requests per minute: 60
+# Requests remaining: 45
+# Reset at: 2024-01-15T10:31:00Z
+# Max record size: 10MB
+# Max records per request: 1000
+# Pod creation per hour: 10
+# Pods created this hour: 2
+```
+
+**Options:**
+
+- `--json` - Output as JSON
+
 ## Global Options
 
 These options work with all commands:

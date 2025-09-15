@@ -2,18 +2,18 @@
 
 **Build append-only applications with cryptographic verification using just HTTP and subdomains.**
 
-WebPods turns subdomains into personal data stores with immutable, hash-chained records. Perfect for audit logs, event streams, content versioning, and any application requiring tamper-proof data.
+WebPods turns subdomains into personal data stores with immutable, hash-chained records. Suitable for audit logs, event streams, content versioning, and applications requiring tamper-proof data.
 
-## What You Can Build
+## Use Cases
 
-- 🔍 **Audit Trails** - Immutable logs with cryptographic proof of integrity
-- 📝 **Blogging Platforms** - Content with built-in version history and authorship
-- 📊 **IoT Data Collection** - Append-only sensor data streams with timestamps
-- 🔐 **Secure Backups** - Tamper-evident data storage with hash verification
-- 🤝 **Collaborative Apps** - Multi-user data with clear ownership and permissions
-- 📈 **Event Sourcing** - Natural fit for event-driven architectures
-- 🏦 **Financial Records** - Immutable transaction logs with cryptographic proofs
-- 📜 **Document Versioning** - Track every change with hash-chained history
+- **Audit Trails** - Immutable logs with cryptographic proof of integrity
+- **Blogging Platforms** - Content with built-in version history and authorship
+- **IoT Data Collection** - Append-only sensor data streams with timestamps
+- **Secure Backups** - Tamper-evident data storage with hash verification
+- **Collaborative Apps** - Multi-user data with clear ownership and permissions
+- **Event Sourcing** - Natural fit for event-driven architectures
+- **Financial Records** - Immutable transaction logs with cryptographic proofs
+- **Document Versioning** - Track every change with hash-chained history
 
 ## Quick Example
 
@@ -43,7 +43,7 @@ curl https://alice.webpods.org/blog/posts/1
 }
 ```
 
-That's it! You now have a cryptographically-verified, append-only data store at `alice.webpods.org`.
+You now have a cryptographically-verified, append-only data store at `alice.webpods.org`.
 
 ## Core Concepts
 
@@ -353,6 +353,20 @@ podctl permission grant POD PATH USER
 podctl permission revoke POD PATH USER
 podctl permission list POD PATH
 
+# Links (aliases/redirects)
+podctl link set POD SOURCE TARGET
+podctl link list POD
+podctl link remove POD SOURCE
+
+# OAuth clients
+podctl oauth register NAME --redirect-uri URL
+podctl oauth list
+podctl oauth info CLIENT_ID
+podctl oauth delete CLIENT_ID
+
+# Rate limits
+podctl limit info
+
 # Profiles (multiple servers)
 podctl profile add NAME --server URL
 podctl profile use NAME
@@ -544,35 +558,35 @@ See [examples documentation](docs/examples.md) for more use cases including cont
 
 ## Key Features
 
-### 🔐 Cryptographic Integrity
+### Cryptographic Integrity
 
 Every record contains a SHA-256 hash of the previous record, creating an immutable chain. Tampering with any historical record breaks the chain and is immediately detectable.
 
-### 🌐 HTTP-Native API
+### HTTP-Native API
 
 No special protocols, libraries, or clients required. Everything works over standard HTTP/HTTPS. Each pod gets its own subdomain for data isolation.
 
-### 📝 Append-Only Guarantees
+### Append-Only Guarantees
 
-Records can never be modified after creation. Deletions only mark records as deleted without removing them. Perfect for audit trails, compliance, and event sourcing.
+Records can never be modified after creation. Deletions only mark records as deleted without removing them. Designed for audit trails, compliance, and event sourcing.
 
-### 🔑 Flexible Permissions
+### Flexible Permissions
 
 Fine-grained access control per stream. Public streams allow anonymous reads. Private streams require authentication. Custom permissions grant specific users access.
 
-### 🚀 Simple Scaling
+### Simple Scaling
 
 Pods are independent namespaces. Scale horizontally by adding servers. Use DNS to route pods to different servers. No complex sharding required.
 
-### 🔌 OAuth 2.0 for Apps
+### OAuth 2.0 for Apps
 
 Full OAuth 2.0 and OpenID Connect support through Ory Hydra. Third-party developers can build applications that interact with user pods after obtaining consent.
 
-### 📦 Multiple Data Formats
+### Multiple Data Formats
 
 Store JSON, plain text, or binary data. Content-Type headers are preserved. Large content can be streamed.
 
-### ⚡ Efficient Queries
+### Efficient Queries
 
 Pagination with positive/negative offsets. Unique record filtering for configuration use cases. Field selection to reduce bandwidth. Range queries for time-series data.
 
