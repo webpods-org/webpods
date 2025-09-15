@@ -12,6 +12,7 @@
     "test:integration": "cd node/packages/webpods-integration-tests && npm test",
     "test:cli": "cd node/packages/podctl-tests && npm test",
     "test:perf": "cd node/packages/webpods-perf-tests && npm test",
+    "test:perf:nocache": "cd node/packages/webpods-perf-tests && npm run test:nocache",
     "migrate:all": "./scripts/db-all.sh migrate:latest",
     "migrate:all:rollback": "./scripts/db-all.sh migrate:rollback",
     "migrate:all:status": "./scripts/db-all.sh migrate:status",

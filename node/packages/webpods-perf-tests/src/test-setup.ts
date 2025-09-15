@@ -10,16 +10,21 @@ import { fileURLToPath } from "url";
 import { promises as fs } from "fs";
 import { PerfReport } from "./perf-utils.js";
 
+/* global before, after, afterEach */
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Ensure test mode is enabled for this process
 process.env.NODE_ENV = "test";
 process.env.WEBPODS_TEST_MODE = "enabled";
 
-// Set config path for the test process itself (not just the server)
-process.env.WEBPODS_CONFIG_PATH = path.join(__dirname, "../test-config.json");
+// Test configuration - use env var if provided, otherwise default config
+const configFileName = process.env.WEBPODS_CONFIG_PATH || "test-config.json";
+const perfTestConfigPath = path.join(__dirname, "..", configFileName);
 
-// Test configuration
+// Set config path for the test process itself (not just the server)
+process.env.WEBPODS_CONFIG_PATH = perfTestConfigPath;
+
 export const testDb = new TestDatabase({
   dbName: "webpodsdb_test",
   logger: testLogger,
@@ -28,6 +33,7 @@ export const testServer = new TestServer({
   port: 3000,
   dbName: "webpodsdb_test",
   logger: testLogger,
+  configPath: perfTestConfigPath, // Use performance test config
 });
 
 // Global performance report
@@ -37,7 +43,23 @@ export const globalPerfReport = new PerfReport();
 before(async function () {
   this.timeout(60000); // 60 seconds for setup
 
-  console.log("\n🚀 Starting WebPods Performance Tests...\n");
+  testLogger.info("Starting WebPods Performance Tests");
+
+  // Read and display cache configuration only when disabled
+  try {
+    const configContent = await fs.readFile(perfTestConfigPath, "utf-8");
+    const config = JSON.parse(configContent);
+    const cacheEnabled = config.cache?.enabled || false;
+
+    // Only log when cache is disabled - use console.warn to ensure it shows
+    if (!cacheEnabled) {
+      // eslint-disable-next-line no-console
+      console.warn("\n⚠️  Cache Configuration: DISABLED\n");
+    }
+  } catch {
+    // eslint-disable-next-line no-console
+    console.warn("\n⚠️  Could not read cache configuration\n");
+  }
 
   // Clear test media directory
   const testMediaDir = path.join(process.cwd(), ".tests", "media");
@@ -75,7 +97,7 @@ after(async function () {
   );
   await fs.mkdir(path.dirname(summaryFile), { recursive: true });
   await fs.writeFile(summaryFile, globalPerfReport.getSummary(), "utf8");
-  console.log(`\nPerformance summary saved to: ${summaryFile}`);
+  testLogger.info(`Performance summary saved to: ${summaryFile}`);
 
   // Stop server
   await testServer.stop();

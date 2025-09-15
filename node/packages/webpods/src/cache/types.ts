@@ -88,7 +88,7 @@ export const defaultCacheConfig: CacheConfig = {
     recordLists: {
       enabled: true,
       maxQueries: 500,
-      maxResultSizeBytes: 102400, // 100KB
+      maxResultSizeBytes: 52428800, // 50MB - for unique record lists
       maxRecordsPerQuery: 1000,
       ttlSeconds: 30, // 30 seconds
     },

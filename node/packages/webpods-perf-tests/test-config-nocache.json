@@ -46,7 +46,7 @@
     "publicUrl": "http://localhost:4444"
   },
   "cache": {
-    "enabled": true,
+    "enabled": false,
     "adapter": "in-memory",
     "pools": {
       "pods": {
