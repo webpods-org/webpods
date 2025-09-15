@@ -8,6 +8,7 @@ import crypto from "crypto";
 import { getDb } from "../db/index.js";
 import { getHydraAdmin } from "../oauth/hydra-client.js";
 import { requireWebPodsJWT } from "../middleware/webpods-jwt.js";
+import { rateLimit } from "../middleware/ratelimit.js";
 import { createLogger } from "../logger.js";
 
 const logger = createLogger("webpods:api:oauth-clients");
@@ -81,6 +82,7 @@ function generateClientSecret(): string {
 router.post(
   "/clients",
   requireWebPodsJWT,
+  rateLimit("write"),
   async (req: Request, res: Response) => {
     try {
       const userId = req.user!.id;
@@ -247,6 +249,7 @@ router.post(
 router.get(
   "/clients",
   requireWebPodsJWT,
+  rateLimit("read"),
   async (req: Request, res: Response) => {
     try {
       const userId = req.user!.id;
@@ -300,6 +303,7 @@ router.get(
 router.get(
   "/clients/:clientId",
   requireWebPodsJWT,
+  rateLimit("read"),
   async (req: Request, res: Response) => {
     try {
       const userId = req.user!.id;
@@ -359,6 +363,7 @@ router.get(
 router.delete(
   "/clients/:clientId",
   requireWebPodsJWT,
+  rateLimit("write"),
   async (req: Request, res: Response) => {
     try {
       const userId = req.user!.id;

@@ -82,6 +82,8 @@ export interface AuthConfig {
 }
 
 export interface RateLimitsConfig {
+  enabled?: boolean; // Enable/disable rate limiting
+  adapter?: "in-memory" | "postgres" | "redis"; // Rate limiter adapter
   writes: number;
   reads: number;
   podCreate: number;
@@ -91,6 +93,8 @@ export interface RateLimitsConfig {
   defaultQueryLimit?: number;
   cliMaxOperationLimit?: number;
   oauthClientDescriptionMaxLength?: number;
+  cleanupIntervalMs?: number; // For in-memory adapter
+  maxIdentifiers?: number; // For in-memory adapter
 }
 
 export interface HydraConfig {

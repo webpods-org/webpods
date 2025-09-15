@@ -23,7 +23,7 @@ import { writeRecord } from "../../domain/records/write-record.js";
 import { writeResultToResponse } from "../../domain/records/record-to-response.js";
 import { canWrite } from "../../domain/permissions/can-write.js";
 import { getPodOwner } from "../../domain/pods/get-pod-owner.js";
-import { checkRateLimit } from "../../domain/ratelimit/check-rate-limit.js";
+import { getRateLimiter } from "../../ratelimit/index.js";
 
 const logger = createRouteLogger("post");
 
@@ -122,20 +122,22 @@ export const postHandler = async (
       }
 
       // Check rate limit for stream creation
-      const streamLimitResult = await checkRateLimit(
-        { db },
-        req.auth.user_id,
-        "stream_create",
-      );
+      const rateLimiter = getRateLimiter();
+      if (rateLimiter) {
+        const streamLimitResult = await rateLimiter.checkAndIncrement(
+          req.auth.user_id,
+          "stream_create",
+        );
 
-      if (!streamLimitResult.success || !streamLimitResult.data.allowed) {
-        res.status(429).json({
-          error: {
-            code: "RATE_LIMIT_EXCEEDED",
-            message: "Too many streams created",
-          },
-        });
-        return;
+        if (!streamLimitResult.allowed) {
+          res.status(429).json({
+            error: {
+              code: "RATE_LIMIT_EXCEEDED",
+              message: "Too many streams created",
+            },
+          });
+          return;
+        }
       }
 
       // Create the stream hierarchy
@@ -154,7 +156,7 @@ export const postHandler = async (
         return;
       }
 
-      // Note: stream_create rate limit was already incremented by checkRateLimit above
+      // Note: stream_create rate limit was already incremented above
 
       res.status(201).json({ success: true });
       return;
@@ -241,20 +243,22 @@ export const postHandler = async (
     if (!resolutionResult.success) {
       // Stream doesn't exist, need to create it
       // Check rate limit before creating
-      const streamLimitResult = await checkRateLimit(
-        { db },
-        req.auth.user_id,
-        "stream_create",
-      );
+      const rateLimiter = getRateLimiter();
+      if (rateLimiter) {
+        const streamLimitResult = await rateLimiter.checkAndIncrement(
+          req.auth.user_id,
+          "stream_create",
+        );
 
-      if (!streamLimitResult.success || !streamLimitResult.data.allowed) {
-        res.status(429).json({
-          error: {
-            code: "RATE_LIMIT_EXCEEDED",
-            message: "Too many streams created",
-          },
-        });
-        return;
+        if (!streamLimitResult.allowed) {
+          res.status(429).json({
+            error: {
+              code: "RATE_LIMIT_EXCEEDED",
+              message: "Too many streams created",
+            },
+          });
+          return;
+        }
       }
 
       // Create the stream hierarchy
@@ -336,7 +340,7 @@ export const postHandler = async (
       return;
     }
 
-    // Note: stream_create rate limit was already incremented by checkRateLimit above
+    // Note: stream_create rate limit was already incremented above if stream was created
 
     // Check if this is a .config/* stream - only pod owner can write to these
     if (resolvedStreamPath.startsWith(".config/")) {

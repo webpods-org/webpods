@@ -23,6 +23,7 @@ import oauthClientsApi from "./api/oauth-clients.js";
 import podsApi from "./api/pods.js";
 import podsRouter from "./routes/pods/index.js";
 import { createTestUtilsRouter } from "./routes/test-utils/index.js";
+import { rateLimit } from "./middleware/ratelimit.js";
 
 const logger = createLogger("webpods");
 
@@ -64,7 +65,7 @@ export function createApp(): Express {
   app.use(sessionMiddleware);
 
   // Health check endpoint (main domain only)
-  app.get("/health", async (req, res) => {
+  app.get("/health", rateLimit("read"), async (req, res) => {
     // Only allow health checks on main domain
     const hostname = req.hostname || req.headers.host?.split(":")[0] || "";
     const mainDomain = config.server.public?.hostname || "localhost";

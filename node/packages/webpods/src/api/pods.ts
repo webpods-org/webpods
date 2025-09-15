@@ -31,49 +31,54 @@ const createPodSchema = z.object({
  * List all pods owned by the authenticated user
  * GET /api/pods
  */
-router.get("/", authenticateHybrid, async (req: AuthRequest, res: Response) => {
-  if (!req.auth) {
-    res.status(401).json({
-      error: {
-        code: "UNAUTHORIZED",
-        message: "Authentication required",
-      },
-    });
-    return;
-  }
+router.get(
+  "/",
+  authenticateHybrid,
+  rateLimit("read"),
+  async (req: AuthRequest, res: Response) => {
+    if (!req.auth) {
+      res.status(401).json({
+        error: {
+          code: "UNAUTHORIZED",
+          message: "Authentication required",
+        },
+      });
+      return;
+    }
 
-  const db = getDb();
-  const result = await listUserPods({ db }, req.auth.user_id);
+    const db = getDb();
+    const result = await listUserPods({ db }, req.auth.user_id);
 
-  if (!result.success) {
-    logger.error("Failed to list pods", {
+    if (!result.success) {
+      logger.error("Failed to list pods", {
+        userId: req.auth.user_id,
+        error: result.error,
+      });
+      res.status(500).json({
+        error: {
+          code: "INTERNAL_ERROR",
+          message: "Failed to list pods",
+        },
+      });
+      return;
+    }
+
+    // Map to expected API format
+    const apiPods = result.data.map((pod) => ({
+      name: pod.name,
+      id: pod.name, // Use name as ID for backwards compatibility
+      created_at: pod.created_at,
+      metadata: pod.metadata,
+    }));
+
+    logger.info("Listed pods for user", {
       userId: req.auth.user_id,
-      error: result.error,
+      count: apiPods.length,
     });
-    res.status(500).json({
-      error: {
-        code: "INTERNAL_ERROR",
-        message: "Failed to list pods",
-      },
-    });
-    return;
-  }
 
-  // Map to expected API format
-  const apiPods = result.data.map((pod) => ({
-    name: pod.name,
-    id: pod.name, // Use name as ID for backwards compatibility
-    created_at: pod.created_at,
-    metadata: pod.metadata,
-  }));
-
-  logger.info("Listed pods for user", {
-    userId: req.auth.user_id,
-    count: apiPods.length,
-  });
-
-  res.json(apiPods);
-});
+    res.json(apiPods);
+  },
+);
 
 /**
  * Create a new pod

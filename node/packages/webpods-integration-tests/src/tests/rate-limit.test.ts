@@ -329,12 +329,15 @@ describe("WebPods Rate Limiting", () => {
       // Clear auth for anonymous requests
       client.clearAuthToken();
 
+      // Clear any existing IP-based rate limits to ensure clean test
+      const db = testDb.getDb();
+      await db.none(`DELETE FROM rate_limit WHERE identifier LIKE 'ip:%'`);
+
       // Make anonymous read requests
       await client.get("/public-data?i=0");
       await client.get("/public-data?i=1");
 
       // Check rate limit by IP
-      const db = testDb.getDb();
 
       // Find any IP-based rate limit (could be ::1 or 127.0.0.1)
       const ipLimit = await db.oneOrNone(

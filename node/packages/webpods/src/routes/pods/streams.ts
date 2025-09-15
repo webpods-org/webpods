@@ -3,6 +3,7 @@
  */
 
 import { Response, AuthRequest, extractPod } from "./shared.js";
+import { rateLimit } from "../../middleware/ratelimit.js";
 import { getDb } from "../../db/index.js";
 import { listPodStreams } from "../../domain/pods/list-pod-streams.js";
 
@@ -60,6 +61,6 @@ export const listStreamsHandler = async (req: AuthRequest, res: Response) => {
 
 export const listStreamsRoute = {
   path: "/.config/api/streams",
-  middleware: [extractPod] as const,
+  middleware: [extractPod, rateLimit("read")] as const,
   handler: listStreamsHandler,
 };
