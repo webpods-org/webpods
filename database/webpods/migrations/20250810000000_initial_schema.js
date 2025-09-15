@@ -38,9 +38,11 @@ export async function up(knex) {
   // Pod table - represents subdomains (e.g., alice.webpods.org)
   await knex.schema.createTable('pod', (table) => {
     table.string('name', 63).primary(); // DNS subdomain limit - name is now the primary key
+    table.uuid('owner_id').references('id').inTable('user').onDelete('RESTRICT'); // Pod owner - denormalized for performance
     table.jsonb('metadata').defaultTo('{}');
     table.timestamp('created_at').defaultTo(knex.fn.now());
     table.timestamp('updated_at').notNullable().defaultTo(knex.fn.now());
+    table.index('owner_id'); // Index for efficient owner lookups
   });
 
   // Stream table - represents hierarchical streams within pods (like directories)

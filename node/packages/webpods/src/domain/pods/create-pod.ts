@@ -61,6 +61,7 @@ export async function createPod(
       // Create pod with snake_case parameters
       const podParams = {
         name: podName,
+        owner_id: userId, // Set owner_id directly on pod
         created_at: new Date(),
       };
 

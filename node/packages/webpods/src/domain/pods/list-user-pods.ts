@@ -35,61 +35,18 @@ export async function listUserPods(
       }
     }
 
-    // Get all pods first
+    // Get pods owned by this user directly using owner_id
     const pods = await ctx.db.manyOrNone<PodDbRow>(
-      `SELECT * FROM pod ORDER BY created_at DESC`,
+      `SELECT * FROM pod WHERE owner_id = $(owner_id) ORDER BY created_at DESC`,
+      { owner_id: userId },
     );
 
-    // Check ownership for each pod using separate queries
-    const userPods: UserPod[] = [];
-
-    for (const pod of pods) {
-      // Get .config stream
-      const configStream = await ctx.db.oneOrNone<{ id: string }>(
-        `SELECT id FROM stream 
-         WHERE pod_name = $(pod_name) 
-           AND name = '.config' 
-           AND parent_id IS NULL`,
-        { pod_name: pod.name },
-      );
-
-      if (!configStream) continue;
-
-      // Get owner stream (child of .config)
-      const ownerStream = await ctx.db.oneOrNone<{ id: string }>(
-        `SELECT id FROM stream 
-         WHERE parent_id = $(parent_id) 
-           AND name = 'owner'`,
-        { parent_id: configStream.id },
-      );
-
-      if (!ownerStream) continue;
-
-      // Get owner record
-      const ownerRecord = await ctx.db.oneOrNone<{ content: string }>(
-        `SELECT content FROM record 
-         WHERE stream_id = $(stream_id)
-           AND name = 'owner'
-         ORDER BY index DESC
-         LIMIT 1`,
-        { stream_id: ownerStream.id },
-      );
-
-      if (ownerRecord) {
-        try {
-          const content = JSON.parse(ownerRecord.content);
-          if (content.userId === userId) {
-            userPods.push({
-              name: pod.name,
-              created_at: pod.created_at,
-              metadata: pod.metadata || {},
-            });
-          }
-        } catch {
-          // Invalid JSON, skip
-        }
-      }
-    }
+    // Map to UserPod format
+    const userPods: UserPod[] = pods.map((pod) => ({
+      name: pod.name,
+      created_at: pod.created_at,
+      metadata: pod.metadata || {},
+    }));
 
     logger.info("Listed pods for user", {
       userId,
