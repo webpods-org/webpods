@@ -82,7 +82,7 @@ router.get("/status", testModeOnly, async (req: Request, res: Response) => {
       remaining: status.remaining,
       limit: status.limit,
       resetAt: status.resetAt,
-      windowMs: config?.windowMs || 3600000,
+      windowMS: config?.windowMS || 3600000,
     });
   } catch (error) {
     logger.error("Failed to get rate limit status", { error });

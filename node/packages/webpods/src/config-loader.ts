@@ -43,7 +43,7 @@ export interface OAuthConfig {
   pkceStateExpiryMinutes?: number;
   rememberShortHours?: number;
   rememberLongHours?: number;
-  jwtCacheMaxAgeMs?: number;
+  jwtCacheMaxAgeMS?: number;
   jwtCacheRequestsPerMinute?: number;
 }
 
@@ -78,7 +78,7 @@ export interface AuthConfig {
   jwtSecret: string;
   jwtExpiry: string;
   sessionSecret: string;
-  sessionPruneIntervalMs?: number;
+  sessionPruneIntervalMS?: number;
 }
 
 export interface RateLimitsConfig {
@@ -89,11 +89,11 @@ export interface RateLimitsConfig {
   podCreate: number;
   streamCreate: number;
   maxRecordLimit: number; // Maximum records that can be fetched in a single request
-  windowMs?: number;
+  windowMS?: number;
   defaultQueryLimit?: number;
   cliMaxOperationLimit?: number;
   oauthClientDescriptionMaxLength?: number;
-  cleanupIntervalMs?: number; // For in-memory adapter
+  cleanupIntervalMS?: number; // For in-memory adapter
   maxIdentifiers?: number; // For in-memory adapter
 }
 
@@ -303,7 +303,7 @@ function resolveEnvVars(obj: unknown, path: string[] = []): unknown {
         case "rateLimits.maxRecordLimit":
           defaultValue = 1000; // Default max records per request
           break;
-        case "rateLimits.windowMs":
+        case "rateLimits.windowMS":
           defaultValue = 3600000; // 1 hour in milliseconds
           break;
         case "rateLimits.defaultQueryLimit":
@@ -324,13 +324,13 @@ function resolveEnvVars(obj: unknown, path: string[] = []): unknown {
         case "oauth.rememberLongHours":
           defaultValue = 24;
           break;
-        case "oauth.jwtCacheMaxAgeMs":
+        case "oauth.jwtCacheMaxAgeMS":
           defaultValue = 600000; // 10 minutes
           break;
         case "oauth.jwtCacheRequestsPerMinute":
           defaultValue = 10;
           break;
-        case "auth.sessionPruneIntervalMs":
+        case "auth.sessionPruneIntervalMS":
           defaultValue = 3600000; // 1 hour
           break;
         case "hydra.adminUrl":

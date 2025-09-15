@@ -13,7 +13,7 @@ type WindowData = {
 export class FixedWindowRateLimiter {
   // Map key format: "identifier:action:windowStart"
   private windows: Map<string, WindowData> = new Map();
-  private windowMs: number;
+  private windowMS: number;
   private maxIdentifiers: number;
   private stats = {
     totalChecks: 0,
@@ -24,11 +24,11 @@ export class FixedWindowRateLimiter {
   private cleanupInterval: number;
 
   constructor(
-    windowMs: number,
+    windowMS: number,
     maxIdentifiers: number = 10000,
     cleanupIntervalMs: number = 60000, // Clean every minute by default
   ) {
-    this.windowMs = windowMs;
+    this.windowMS = windowMS;
     this.maxIdentifiers = maxIdentifiers;
     this.cleanupInterval = cleanupIntervalMs;
   }
@@ -51,8 +51,8 @@ export class FixedWindowRateLimiter {
     const now = Date.now();
 
     // Calculate window boundaries (matching PostgreSQL logic)
-    const windowEnd = Math.ceil(now / this.windowMs) * this.windowMs;
-    const windowStart = windowEnd - this.windowMs;
+    const windowEnd = Math.ceil(now / this.windowMS) * this.windowMS;
+    const windowStart = windowEnd - this.windowMS;
     const key = `${identifier}:${action}:${windowStart}`;
 
     // Periodic cleanup
@@ -113,8 +113,8 @@ export class FixedWindowRateLimiter {
     currentCount: number;
   } {
     const now = Date.now();
-    const windowEnd = Math.ceil(now / this.windowMs) * this.windowMs;
-    const windowStart = windowEnd - this.windowMs;
+    const windowEnd = Math.ceil(now / this.windowMS) * this.windowMS;
+    const windowStart = windowEnd - this.windowMS;
     const key = `${identifier}:${action}:${windowStart}`;
 
     const windowData = this.windows.get(key);
@@ -155,7 +155,7 @@ export class FixedWindowRateLimiter {
    */
   cleanup(): void {
     const now = Date.now();
-    const cutoff = now - this.windowMs; // Remove windows older than one window period
+    const cutoff = now - this.windowMS; // Remove windows older than one window period
 
     for (const [key, data] of this.windows) {
       if (data.windowEnd < cutoff) {
@@ -196,8 +196,8 @@ export class FixedWindowRateLimiter {
     action: RateLimitAction,
   ): { windowStart: Date; windowEnd: Date } | null {
     const now = Date.now();
-    const windowEnd = Math.ceil(now / this.windowMs) * this.windowMs;
-    const windowStart = windowEnd - this.windowMs;
+    const windowEnd = Math.ceil(now / this.windowMS) * this.windowMS;
+    const windowStart = windowEnd - this.windowMS;
     const key = `${identifier}:${action}:${windowStart}`;
 
     const windowData = this.windows.get(key);

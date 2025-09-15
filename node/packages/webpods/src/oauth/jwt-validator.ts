@@ -17,7 +17,7 @@ function createJwksClient() {
   return jwksClient({
     jwksUri: getJwksUrl(),
     cache: true,
-    cacheMaxAge: config.oauth.jwtCacheMaxAgeMs ?? 600000, // 10 minutes default
+    cacheMaxAge: config.oauth.jwtCacheMaxAgeMS ?? 600000, // 10 minutes default
     rateLimit: true,
     jwksRequestsPerMinute: config.oauth.jwtCacheRequestsPerMinute ?? 10,
   });

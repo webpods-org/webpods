@@ -15,9 +15,9 @@ export const inMemoryRateLimiterAdapter: RateLimiterAdapter = {
   async initialize(cfg: RateLimitConfig): Promise<void> {
     config = cfg;
     rateLimiter = new FixedWindowRateLimiter(
-      cfg.windowMs,
+      cfg.windowMS,
       cfg.maxIdentifiers || 10000,
-      cfg.cleanupIntervalMs || 60000,
+      cfg.cleanupIntervalMS || 60000,
     );
 
     // Note: FixedWindowRateLimiter handles cleanup internally
