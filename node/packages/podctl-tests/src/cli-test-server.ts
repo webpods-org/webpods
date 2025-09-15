@@ -37,7 +37,7 @@ export class CliTestServer {
       JWT_SECRET: "test-secret-key",
       SESSION_SECRET: "test-session-secret",
       PORT: String(this.port),
-      LOG_LEVEL: "info", // Need info level to see startup message
+      LOG_LEVEL: process.env.LOG_LEVEL || "error", // Inherit from parent process
       DOMAIN: "localhost",
     };
 
