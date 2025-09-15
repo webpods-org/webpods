@@ -696,17 +696,6 @@ HOST=0.0.0.0
 PUBLIC_URL=https://webpods.org
 MAX_RECORD_SIZE=10485760  # 10MB
 MAX_RECORD_LIMIT=1000
-
-# Cache and Rate Limiting Adapters (CLI overrides)
-# Can be set via CLI flags or environment variables
-# --cache-adapter in-memory|none
-# --ratelimit-adapter in-memory|postgres|none
-CACHE_ADAPTER=in-memory      # or none to disable
-RATELIMIT_ADAPTER=in-memory  # or postgres or none
-
-# Testing with different adapters
-TEST_CACHE_ADAPTER=in-memory     # Override cache adapter for tests
-TEST_RATELIMIT_ADAPTER=postgres  # Override rate limit adapter for tests
 ```
 
 See [deployment guide](docs/deployment.md) for complete configuration options.

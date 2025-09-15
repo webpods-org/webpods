@@ -209,6 +209,31 @@ Common use cases:
 - `content-encoding`: Specify compression or encoding
 - Custom application headers for metadata
 
+### Advanced Configuration
+
+#### Cache and Rate Limiting Adapters
+
+WebPods supports different adapters for caching and rate limiting that can be configured via CLI flags or environment variables:
+
+```bash
+# CLI flags (override config file)
+webpods --cache-adapter in-memory --ratelimit-adapter postgres
+
+# Environment variables
+CACHE_ADAPTER=in-memory      # Options: in-memory, none
+RATELIMIT_ADAPTER=postgres   # Options: in-memory, postgres, none
+```
+
+For testing with different adapter combinations:
+
+```bash
+# Run tests with specific adapters
+TEST_CACHE_ADAPTER=in-memory TEST_RATELIMIT_ADAPTER=in-memory npm test
+
+# Disable caching for debugging
+TEST_CACHE_ADAPTER=none npm run test:grep -- "specific test"
+```
+
 ## Reverse Proxy Setup
 
 ### Nginx Configuration
