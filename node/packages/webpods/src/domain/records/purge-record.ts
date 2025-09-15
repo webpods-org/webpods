@@ -31,8 +31,8 @@ export async function purgeRecord(
 ): Promise<Result<{ rowsAffected: number }>> {
   try {
     // First check if any record exists with this name
-    const latestRecord = await ctx.db.oneOrNone<RecordDbRow>(
-      `SELECT * FROM record
+    const latestRecord = await ctx.db.oneOrNone<Pick<RecordDbRow, "deleted">>(
+      `SELECT deleted FROM record
        WHERE stream_id = $(streamId)
          AND name = $(recordName)
        ORDER BY index DESC
@@ -50,8 +50,10 @@ export async function purgeRecord(
     }
 
     // Find the last record with external storage info (skip deletion markers)
-    const recordWithStorage = await ctx.db.oneOrNone<RecordDbRow>(
-      `SELECT * FROM record
+    const recordWithStorage = await ctx.db.oneOrNone<
+      Pick<RecordDbRow, "storage" | "content_hash">
+    >(
+      `SELECT storage, content_hash FROM record
        WHERE stream_id = $(streamId)
          AND name = $(recordName)
          AND storage IS NOT NULL

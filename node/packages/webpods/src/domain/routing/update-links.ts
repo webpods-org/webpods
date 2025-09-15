@@ -84,8 +84,10 @@ export async function updateLinks(
       }
 
       // Get previous record for hash chain
-      const previousRecord = await t.oneOrNone<RecordDbRow>(
-        `SELECT * FROM record
+      const previousRecord = await t.oneOrNone<
+        Pick<RecordDbRow, "index" | "hash">
+      >(
+        `SELECT index, hash FROM record
          WHERE stream_id = $(stream_id)
          ORDER BY index DESC
          LIMIT 1`,

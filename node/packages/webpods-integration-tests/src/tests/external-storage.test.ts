@@ -80,7 +80,9 @@ describe("WebPods External Storage", () => {
 
       expect(response.status).to.equal(201);
       expect(response.data).to.have.property("name", "tiny");
-      expect(response.data).to.have.property("contentType", "text/plain");
+      // contentType is no longer returned in minimal response
+      expect(response.data).to.have.property("hash");
+      expect(response.data).to.have.property("size");
 
       // Verify it's served from database (no redirect)
       const getResponse = await client.get("/images/small/tiny");

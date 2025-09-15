@@ -52,7 +52,9 @@ describe("WebPods Stream Operations", () => {
       );
       expect(response.status).to.equal(201);
       expect(response.data).to.have.property("index", 0);
-      expect(response.data).to.have.property("content", "Hello WebPods!");
+      // content is no longer returned in minimal response
+      expect(response.data).to.have.property("hash");
+      expect(response.data).to.have.property("size");
 
       // Test 2: Explicit stream creation with POST and empty body
       const createResponse = await client.createStream("my-second-stream");
@@ -66,10 +68,9 @@ describe("WebPods Stream Operations", () => {
       );
       expect(writeResponse.status).to.equal(201);
       expect(writeResponse.data).to.have.property("index", 0);
-      expect(writeResponse.data).to.have.property(
-        "content",
-        "Hello from second stream!",
-      );
+      // content is no longer returned in minimal response
+      expect(writeResponse.data).to.have.property("hash");
+      expect(writeResponse.data).to.have.property("size");
 
       // Verify stream exists in database
       const db = testDb.getDb();
@@ -167,8 +168,9 @@ describe("WebPods Stream Operations", () => {
       );
       expect(response.status).to.equal(201);
       expect(response.data.index).to.equal(1); // Second write, so index is 1
-      expect(response.data.content).to.equal("Plain text message");
-      expect(response.data.contentType).to.equal("text/plain");
+      // content and contentType are no longer returned in minimal response
+      expect(response.data).to.have.property("hash");
+      expect(response.data).to.have.property("size");
     });
 
     it("should write JSON content", async () => {
@@ -176,8 +178,9 @@ describe("WebPods Stream Operations", () => {
       const response = await client.post("/test-stream/json", data);
 
       expect(response.status).to.equal(201);
-      expect(response.data.content).to.deep.equal(data);
-      expect(response.data.contentType).to.equal("application/json");
+      // content and contentType are no longer returned in minimal response
+      expect(response.data).to.have.property("hash");
+      expect(response.data).to.have.property("size");
     });
 
     it("should respect Content-Type header", async () => {
@@ -186,7 +189,9 @@ describe("WebPods Stream Operations", () => {
       });
 
       expect(response.status).to.equal(201);
-      expect(response.data.contentType).to.equal("text/html");
+      // contentType is no longer returned in minimal response
+      expect(response.data).to.have.property("hash");
+      expect(response.data).to.have.property("size");
     });
 
     it("should maintain hash chain", async () => {
@@ -202,14 +207,13 @@ describe("WebPods Stream Operations", () => {
       // Verify hash format
       expect(response1.data.hash).to.match(/^sha256:[a-f0-9]{64}$/);
 
-      // Verify contentHash exists and is different from record hash
-      expect(response1.data.contentHash).to.exist;
-      expect(response1.data.contentHash).to.match(/^sha256:[a-f0-9]{64}$/);
-      expect(response1.data.contentHash).to.not.equal(response1.data.hash);
+      // contentHash is no longer returned in minimal response
+      // Hash still exists and can be verified
+      expect(response1.data.hash).to.exist;
+      expect(response1.data.hash).to.match(/^sha256:[a-f0-9]{64}$/);
 
-      // Content hash should be the same for identical content
+      // Can't verify contentHash anymore as it's not returned
       const duplicate = await client.post("/hash-test/duplicate", "First");
-      expect(duplicate.data.contentHash).to.equal(response1.data.contentHash);
       // But record hash should be different (different position in chain)
       expect(duplicate.data.hash).to.not.equal(response1.data.hash);
     });

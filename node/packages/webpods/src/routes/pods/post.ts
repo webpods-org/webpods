@@ -20,7 +20,7 @@ import { createStreamHierarchy } from "../../domain/streams/create-stream-hierar
 import { updateStreamPermission } from "../../domain/streams/update-stream-permission.js";
 import { resolvePathForWrite } from "../../domain/resolution/resolve-path.js";
 import { writeRecord } from "../../domain/records/write-record.js";
-import { recordToResponse } from "../../domain/records/record-to-response.js";
+import { writeResultToResponse } from "../../domain/records/record-to-response.js";
 import { canWrite } from "../../domain/permissions/can-write.js";
 import { getPodOwner } from "../../domain/pods/get-pod-owner.js";
 import { checkRateLimit } from "../../domain/ratelimit/check-rate-limit.js";
@@ -456,7 +456,7 @@ export const postHandler = async (
 
     res
       .status(201)
-      .json(recordToResponse(recordResult.data, resolvedStreamPath));
+      .json(writeResultToResponse(recordResult.data, resolvedStreamPath));
   } catch (error) {
     if (error instanceof z.ZodError) {
       res.status(400).json({

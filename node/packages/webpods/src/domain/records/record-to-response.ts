@@ -4,6 +4,8 @@
 
 import { StreamRecord, StreamRecordResponse } from "../../types.js";
 import { getStorageAdapter } from "../../storage-adapters/index.js";
+import type { WriteRecordResult } from "./write-record.js";
+import type { DeleteRecordResult } from "./delete-record.js";
 
 export interface RecordResponseOptions {
   fields?: string[];
@@ -173,4 +175,47 @@ export function recordToFilteredResponse(
 
   // No field filtering, return all fields
   return fullResponse;
+}
+
+/**
+ * Convert a write result to a minimal response format
+ */
+export function writeResultToResponse(
+  result: WriteRecordResult,
+  streamPath: string,
+): Partial<StreamRecordResponse> {
+  // Combine stream path with record name for full path
+  const fullPath = streamPath.endsWith("/")
+    ? `${streamPath}${result.name}`
+    : `${streamPath}/${result.name}`;
+
+  return {
+    index: result.index,
+    name: result.name,
+    path: fullPath,
+    hash: result.hash,
+    previousHash: result.previousHash,
+    size: result.size,
+  };
+}
+
+/**
+ * Convert a delete result to a minimal response format
+ */
+export function deleteResultToResponse(
+  result: DeleteRecordResult,
+  streamPath: string,
+): Partial<StreamRecordResponse> {
+  // Combine stream path with record name for full path
+  const fullPath = streamPath.endsWith("/")
+    ? `${streamPath}${result.name}`
+    : `${streamPath}/${result.name}`;
+
+  return {
+    index: result.index,
+    name: result.name,
+    path: fullPath,
+    hash: result.hash,
+    previousHash: result.previousHash,
+  };
 }

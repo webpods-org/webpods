@@ -124,11 +124,13 @@ describe("WebPods Authentication", () => {
         "authenticated content",
       );
 
-      // Check server response
+      // Check server response - minimal fields only
 
       expect(response.status).to.equal(201);
       expect(response.data).to.have.property("index", 0);
-      expect(response.data).to.have.property("userId", userId);
+      expect(response.data).to.have.property("name", "auth");
+      expect(response.data).to.have.property("hash");
+      expect(response.data).to.have.property("size");
     });
 
     it("should reject invalid OAuth token", async () => {
@@ -235,9 +237,11 @@ describe("WebPods Authentication", () => {
       });
 
       expect(response.status).to.equal(201);
-      expect(response.data.userId).to.equal(userId);
+      // userId is no longer returned in minimal response
+      expect(response.data).to.have.property("name", "data");
+      expect(response.data).to.have.property("hash");
 
-      // Verify in database
+      // Verify userId is stored in database
       const db = testDb.getDb();
       const pod = await db.oneOrNone(
         `SELECT * FROM pod WHERE name = $(podId)`,

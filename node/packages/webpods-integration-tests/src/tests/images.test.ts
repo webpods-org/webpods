@@ -68,11 +68,10 @@ describe("WebPods Image Support", () => {
       }
       expect(response.status).to.equal(201);
       expect(response.data).to.have.property("index", 0);
-      expect(response.data).to.have.property("contentType", "text/plain");
       expect(response.data).to.have.property("name", "main-logo");
       expect(response.data).to.have.property("hash");
-      expect(response.data).to.have.property("contentHash");
-      expect(response.data).to.have.property("content", testPngDataUrl);
+      expect(response.data).to.have.property("size");
+      // content and contentType are no longer returned in minimal response
     });
 
     it("should store base64 string as text when sent with text content type", async () => {
@@ -91,8 +90,10 @@ describe("WebPods Image Support", () => {
       );
 
       expect(response.status).to.equal(201);
-      expect(response.data).to.have.property("contentType", "text/plain");
-      expect(response.data).to.have.property("content", testPngBase64);
+      // contentType is no longer returned in minimal response
+      expect(response.data).to.have.property("hash");
+      expect(response.data).to.have.property("size");
+      // content is no longer returned in minimal response
     });
 
     it("should upload SVG as text", async () => {
@@ -108,8 +109,10 @@ describe("WebPods Image Support", () => {
         console.error("SVG upload failed:", response.status, response.data);
       }
       expect(response.status).to.equal(201);
-      expect(response.data).to.have.property("contentType", "image/svg+xml");
-      expect(response.data).to.have.property("content", testSvg);
+      // contentType is no longer returned in minimal response
+      expect(response.data).to.have.property("hash");
+      expect(response.data).to.have.property("size");
+      // content is no longer returned in minimal response
     });
 
     it("should store text with any content type", async () => {
@@ -124,7 +127,8 @@ describe("WebPods Image Support", () => {
       expect(response.status).to.equal(201);
       // Even though we sent Content-Type: image/png, the actual stored content type
       // depends on how Express parsed it (likely as raw Buffer due to image/* type)
-      expect(response.data).to.have.property("content");
+      // content is no longer returned in minimal response
+      expect(response.data).to.have.property("size");
     });
 
     it("should reject content exceeding size limit", async () => {
@@ -157,8 +161,10 @@ describe("WebPods Image Support", () => {
       const response = await client.post("/photos/test/sample", jpegDataUrl);
 
       expect(response.status).to.equal(201);
-      expect(response.data).to.have.property("contentType", "text/plain");
-      expect(response.data).to.have.property("content", jpegDataUrl);
+      // contentType is no longer returned in minimal response
+      expect(response.data).to.have.property("hash");
+      expect(response.data).to.have.property("size");
+      // content is no longer returned in minimal response
     });
   });
 
@@ -272,8 +278,10 @@ describe("WebPods Image Support", () => {
       const response = await client.post("/modern/image", webpDataUrl);
 
       expect(response.status).to.equal(201);
-      expect(response.data).to.have.property("contentType", "text/plain");
-      expect(response.data).to.have.property("content", webpDataUrl);
+      // contentType is no longer returned in minimal response
+      expect(response.data).to.have.property("hash");
+      expect(response.data).to.have.property("size");
+      // content is no longer returned in minimal response
     });
 
     it("should store GIF data URL as text", async () => {
@@ -287,8 +295,10 @@ describe("WebPods Image Support", () => {
       const response = await client.post("/animations/test", gifDataUrl);
 
       expect(response.status).to.equal(201);
-      expect(response.data).to.have.property("contentType", "text/plain");
-      expect(response.data).to.have.property("content", gifDataUrl);
+      // contentType is no longer returned in minimal response
+      expect(response.data).to.have.property("hash");
+      expect(response.data).to.have.property("size");
+      // content is no longer returned in minimal response
     });
 
     it("should store ICO data URL as text", async () => {
@@ -302,8 +312,10 @@ describe("WebPods Image Support", () => {
       const response = await client.post("/favicon/icon", icoDataUrl);
 
       expect(response.status).to.equal(201);
-      expect(response.data).to.have.property("contentType", "text/plain");
-      expect(response.data).to.have.property("content", icoDataUrl);
+      // contentType is no longer returned in minimal response
+      expect(response.data).to.have.property("hash");
+      expect(response.data).to.have.property("size");
+      // content is no longer returned in minimal response
     });
   });
 });

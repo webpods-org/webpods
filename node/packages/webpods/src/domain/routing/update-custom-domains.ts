@@ -128,8 +128,8 @@ export async function updateCustomDomains(
       }
 
       // Get the last record for hash chain
-      const lastRecord = await t.oneOrNone<RecordDbRow>(
-        `SELECT * FROM record
+      const lastRecord = await t.oneOrNone<Pick<RecordDbRow, "index" | "hash">>(
+        `SELECT index, hash FROM record
          WHERE stream_id = $(stream_id)
          ORDER BY index DESC
          LIMIT 1`,
