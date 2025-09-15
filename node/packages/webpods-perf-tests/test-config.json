@@ -35,6 +35,7 @@
     "sessionSecret": "test-session-secret"
   },
   "rateLimits": {
+    "adapter": "in-memory",
     "writes": 1000000,
     "reads": 1000000,
     "podCreate": 1000000,

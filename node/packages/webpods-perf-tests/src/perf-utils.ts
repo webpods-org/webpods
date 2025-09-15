@@ -101,7 +101,7 @@ export async function runPerfTest(
   options: PerfTestOptions,
 ): Promise<PerfMetrics> {
   const timer = new PerfTimer();
-  const targetDurationMs = options.duration * 1000;
+  const targetDurationMS = options.duration * 1000;
   const warmupIterations = options.warmupIterations ?? 10;
 
   // Warmup phase
@@ -122,7 +122,7 @@ export async function runPerfTest(
     ? process.memoryUsage().heapUsed
     : 0;
 
-  while (performance.now() - startTime < targetDurationMs) {
+  while (performance.now() - startTime < targetDurationMS) {
     timer.start();
     await testFn();
     timer.stop();

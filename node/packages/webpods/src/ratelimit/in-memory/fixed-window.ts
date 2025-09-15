@@ -26,11 +26,11 @@ export class FixedWindowRateLimiter {
   constructor(
     windowMS: number,
     maxIdentifiers: number = 10000,
-    cleanupIntervalMs: number = 60000, // Clean every minute by default
+    cleanupIntervalMS: number = 60000, // Clean every minute by default
   ) {
     this.windowMS = windowMS;
     this.maxIdentifiers = maxIdentifiers;
-    this.cleanupInterval = cleanupIntervalMs;
+    this.cleanupInterval = cleanupIntervalMS;
   }
 
   /**
