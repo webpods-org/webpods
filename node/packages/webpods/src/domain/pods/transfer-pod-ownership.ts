@@ -131,8 +131,12 @@ export async function transferPodOwnership(
 
       // Update owner_id in pod table for fast lookups
       await t.none(
-        `UPDATE pod SET owner_id = $(owner_id), updated_at = NOW() WHERE name = $(pod_name)`,
-        { owner_id: toUserId, pod_name: podName },
+        `UPDATE pod SET owner_id = $(owner_id), updated_at = $(updated_at) WHERE name = $(pod_name)`,
+        {
+          owner_id: toUserId,
+          pod_name: podName,
+          updated_at: new Date().toISOString(),
+        },
       );
 
       // Invalidate pod cache since owner has changed

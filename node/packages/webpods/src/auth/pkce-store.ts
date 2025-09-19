@@ -55,17 +55,18 @@ export async function retrievePKCEState(
 ): Promise<PKCEState | null> {
   const db = getDb();
 
+  const now = new Date().toISOString();
   const row = await db.oneOrNone<{
     state: string;
     code_verifier: string;
     pod: string | null;
     redirect_uri: string | null;
   }>(
-    `SELECT state, code_verifier, pod, redirect_uri 
-     FROM oauth_state 
-     WHERE state = $(state) 
-       AND expires_at > NOW()`,
-    { state },
+    `SELECT state, code_verifier, pod, redirect_uri
+     FROM oauth_state
+     WHERE state = $(state)
+       AND expires_at > $(now)`,
+    { state, now },
   );
 
   if (!row) {
@@ -107,9 +108,10 @@ export function generatePKCE(): {
 export async function cleanupExpiredStates(): Promise<void> {
   const db = getDb();
 
+  const now = new Date().toISOString();
   const result = await db.result(
-    `DELETE FROM oauth_state WHERE expires_at < NOW()`,
-    [],
+    `DELETE FROM oauth_state WHERE expires_at < $(now)`,
+    { now },
     (r) => r.rowCount,
   );
 

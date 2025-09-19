@@ -77,14 +77,16 @@ export async function getUserSessions(userId: string): Promise<
 > {
   const db = getDb();
 
+  const now = new Date().toISOString();
   const sessions = await db.manyOrNone<{
     sid: string;
     sess: Record<string, unknown>;
     expire: Date;
   }>(
-    `SELECT sid, sess, expire 
-     FROM session 
-     WHERE expire > NOW()`,
+    `SELECT sid, sess, expire
+     FROM session
+     WHERE expire > $(now)`,
+    { now },
   );
 
   // Filter sessions that belong to the user
@@ -150,9 +152,10 @@ export async function revokeUserSessions(userId: string): Promise<number> {
 export async function cleanupExpiredSessions(): Promise<number> {
   const db = getDb();
 
+  const now = new Date().toISOString();
   const result = await db.result(
-    `DELETE FROM session WHERE expire < NOW()`,
-    [],
+    `DELETE FROM session WHERE expire < $(now)`,
+    { now },
     (r) => r.rowCount,
   );
 
