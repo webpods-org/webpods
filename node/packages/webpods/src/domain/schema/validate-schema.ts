@@ -151,11 +151,12 @@ export async function updateSchemaFlag(
     // streamPath is like "api/articles/.config" so we need to remove "/.config"
     const parentPath = streamPath.replace("/.config", "");
 
+    const now = Date.now();
     await ctx.db.none(
-      `UPDATE stream 
-       SET has_schema = $(hasSchema)
+      `UPDATE stream
+       SET has_schema = $(hasSchema), updated_at = $(updatedAt)
        WHERE pod_name = $(podName) AND path = $(parentPath)`,
-      { podName, parentPath, hasSchema: hasActiveSchema },
+      { podName, parentPath, hasSchema: hasActiveSchema, updatedAt: now },
     );
 
     // Clear cache for this stream

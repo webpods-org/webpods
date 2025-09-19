@@ -18,7 +18,7 @@ function mapUserFromDb(row: UserDbRow): User {
   return {
     id: row.id,
     createdAt: row.created_at,
-    updatedAt: row.updated_at || row.created_at,
+    updatedAt: row.updated_at,
   };
 }
 
@@ -30,9 +30,9 @@ function mapIdentityFromDb(row: IdentityDbRow): Identity {
     providerId: row.provider_id,
     email: row.email || null,
     name: row.name || null,
-    metadata: row.metadata,
+    metadata: JSON.parse(row.metadata),
     createdAt: row.created_at,
-    updatedAt: row.updated_at || row.created_at,
+    updatedAt: row.updated_at,
   };
 }
 
@@ -77,7 +77,7 @@ export async function findOrCreateUser(
         const updateParams = {
           email: email,
           name: name,
-          updated_at: new Date(),
+          updated_at: Date.now(),
         };
 
         await ctx.db.none(
@@ -117,10 +117,11 @@ export async function findOrCreateUser(
         logger.info("Linking new provider to existing user");
       } else {
         // Create new user with snake_case parameters
+        const now = Date.now();
         const userParams = {
           id: crypto.randomUUID(),
-          created_at: new Date(),
-          updated_at: null,
+          created_at: now,
+          updated_at: now,
         };
 
         const newUserRow = await t.one<UserDbRow>(
@@ -134,6 +135,7 @@ export async function findOrCreateUser(
       }
 
       // Create identity with snake_case parameters
+      const now = Date.now();
       const identityParams = {
         id: crypto.randomUUID(),
         user_id: userId,
@@ -141,9 +143,9 @@ export async function findOrCreateUser(
         provider_id: providerId,
         email: email || null,
         name: name || null,
-        metadata: profile,
-        created_at: new Date(),
-        updated_at: null,
+        metadata: JSON.stringify(profile),
+        created_at: now,
+        updated_at: now,
       };
 
       const identityRow = await t.one<IdentityDbRow>(

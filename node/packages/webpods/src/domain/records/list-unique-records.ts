@@ -30,12 +30,9 @@ function mapRecordFromDb(row: RecordDbRow): StreamRecord {
     previousHash: row.previous_hash || null,
     userId: row.user_id,
     storage: row.storage || null,
-    headers: row.headers,
+    headers: JSON.parse(row.headers),
     metadata: undefined,
-    createdAt:
-      typeof row.created_at === "string"
-        ? new Date(row.created_at)
-        : row.created_at,
+    createdAt: row.created_at,
   };
 }
 

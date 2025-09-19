@@ -149,7 +149,7 @@ export async function deleteRecord(
 
       const index = (lastRecord?.index ?? -1) + 1;
       const previousHash = lastRecord?.hash || null;
-      const timestamp = new Date().toISOString();
+      const timestamp = Date.now();
 
       // Empty content for deletion marker
       const content = "";
@@ -177,8 +177,8 @@ export async function deleteRecord(
       const deletionRecord = await t.one<
         Pick<RecordDbRow, "id" | "index" | "hash" | "previous_hash" | "name">
       >(
-        `INSERT INTO record (stream_id, index, content, content_type, size, name, path, content_hash, hash, previous_hash, user_id, deleted, created_at)
-         VALUES ($(streamId), $(index), $(content), $(contentType), $(size), $(name), $(path), $(contentHash), $(hash), $(previousHash), $(userId), true, $(createdAt))
+        `INSERT INTO record (stream_id, index, content, content_type, is_binary, size, name, path, content_hash, hash, previous_hash, user_id, headers, deleted, purged, created_at)
+         VALUES ($(streamId), $(index), $(content), $(contentType), false, $(size), $(name), $(path), $(contentHash), $(hash), $(previousHash), $(userId), '{}', true, false, $(createdAt))
          RETURNING id, index, hash, previous_hash, name`,
         {
           streamId,

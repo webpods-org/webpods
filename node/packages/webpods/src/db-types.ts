@@ -9,8 +9,8 @@ export type InsertRow<T> = Omit<T, "id">;
 // User table - container for multiple identities
 export type UserDbRow = {
   id: string;
-  created_at: Date;
-  updated_at?: Date | null;
+  created_at: number; // BIGINT timestamp
+  updated_at: number; // BIGINT timestamp
 };
 
 // Identity table - OAuth provider identities
@@ -21,18 +21,18 @@ export type IdentityDbRow = {
   provider_id: string;
   email?: string | null;
   name?: string | null;
-  metadata?: Record<string, unknown>; // JSONB
-  created_at: Date;
-  updated_at?: Date | null;
+  metadata: string; // TEXT storing JSON
+  created_at: number; // BIGINT timestamp
+  updated_at: number; // BIGINT timestamp
 };
 
 // Pod table
 export type PodDbRow = {
   name: string; // Primary key
   owner_id?: string | null; // Pod owner - denormalized for performance
-  metadata?: Record<string, unknown>; // JSONB
-  created_at: Date;
-  updated_at?: Date | null;
+  metadata: string; // TEXT storing JSON
+  created_at: number; // BIGINT timestamp
+  updated_at: number; // BIGINT timestamp
 };
 
 // Stream table - hierarchical streams (like directories)
@@ -44,10 +44,10 @@ export type StreamDbRow = {
   parent_id?: number | null; // References parent stream.id (bigint)
   user_id: string;
   access_permission: string;
-  has_schema?: boolean; // Whether this stream has validation schema
-  metadata?: Record<string, unknown>; // JSONB
-  created_at: Date;
-  updated_at?: Date | null;
+  has_schema: boolean; // Whether this stream has validation schema
+  metadata: string; // TEXT storing JSON
+  created_at: number; // BIGINT timestamp
+  updated_at: number; // BIGINT timestamp
 };
 
 // Record table - files within streams
@@ -66,17 +66,17 @@ export type RecordDbRow = {
   previous_hash?: string | null;
   user_id: string; // References user.id
   storage?: string | null; // External storage location (adapter-specific format)
-  headers?: Record<string, string>; // User-provided headers (JSONB)
+  headers: string; // TEXT storing JSON
   deleted: boolean; // Soft delete flag
   purged: boolean; // Hard delete flag
-  created_at: Date | string; // Can be string when inserting
+  created_at: number; // BIGINT timestamp
 };
 
-// Session table
+// Session table (managed by connect-pg-simple)
 export type SessionDbRow = {
   sid: string;
-  sess: Record<string, unknown>; // JSON
-  expire: Date;
+  sess: Record<string, unknown>; // JSONB
+  expire: Date; // TIMESTAMP
 };
 
 // OAuth state table
@@ -85,7 +85,8 @@ export type OAuthStateDbRow = {
   code_verifier: string;
   pod?: string | null;
   redirect_uri?: string | null;
-  expires_at: Date;
+  created_at: number; // BIGINT timestamp
+  expires_at: number; // BIGINT timestamp
 };
 
 // Rate limit table
@@ -94,8 +95,8 @@ export type RateLimitDbRow = {
   identifier: string;
   action: string;
   count: number;
-  window_start: Date;
-  window_end: Date;
+  window_start: number; // BIGINT timestamp
+  window_end: number; // BIGINT timestamp
 };
 
 // Custom domain table
@@ -105,8 +106,8 @@ export type CustomDomainDbRow = {
   domain: string;
   verified: boolean;
   ssl_provisioned: boolean;
-  created_at: Date;
-  updated_at?: Date | null;
+  created_at: number; // BIGINT timestamp
+  updated_at: number; // BIGINT timestamp
 };
 
 // OAuth client table
@@ -116,13 +117,13 @@ export type OAuthClientDbRow = {
   client_id: string;
   client_name: string;
   client_secret?: string | null;
-  redirect_uris: string[];
-  requested_pods: string[];
-  grant_types: string[];
-  response_types: string[];
+  redirect_uris: string; // TEXT storing JSON array
+  requested_pods: string; // TEXT storing JSON array
+  grant_types: string; // TEXT storing JSON array
+  response_types: string; // TEXT storing JSON array
   token_endpoint_auth_method: string;
   scope: string;
-  metadata?: Record<string, unknown>; // JSONB
-  created_at: Date;
-  updated_at?: Date | null;
+  metadata: string; // TEXT storing JSON
+  created_at: number; // BIGINT timestamp
+  updated_at: number; // BIGINT timestamp
 };

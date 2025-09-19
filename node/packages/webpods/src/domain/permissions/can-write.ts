@@ -150,10 +150,10 @@ export async function canWrite(
       parentId: parentStream.parent_id || null,
       userId: parentStream.user_id,
       accessPermission: parentStream.access_permission,
-      metadata: parentStream.metadata,
-      hasSchema: parentStream.has_schema || false,
+      metadata: JSON.parse(parentStream.metadata),
+      hasSchema: parentStream.has_schema,
       createdAt: parentStream.created_at,
-      updatedAt: parentStream.updated_at || parentStream.created_at,
+      updatedAt: parentStream.updated_at,
     };
 
     const parentPermission = await checkStreamPermission(

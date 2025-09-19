@@ -21,15 +21,15 @@ interface OAuthClientDbRow {
   client_id: string;
   client_name: string;
   client_secret: string | null;
-  redirect_uris: string[];
-  requested_pods: string[];
-  grant_types: string[];
-  response_types: string[];
+  redirect_uris: string; // TEXT storing JSON array
+  requested_pods: string; // TEXT storing JSON array
+  grant_types: string; // TEXT storing JSON array
+  response_types: string; // TEXT storing JSON array
   token_endpoint_auth_method: string;
   scope: string;
-  metadata: Record<string, unknown>;
-  created_at: Date;
-  updated_at: Date;
+  metadata: string; // TEXT storing JSON
+  created_at: number; // BIGINT timestamp
+  updated_at: number; // BIGINT timestamp
 }
 
 // Validation schema for client creation
@@ -135,6 +135,7 @@ router.post(
         logger.info("Created OAuth client in Hydra");
 
         // Store client in our database
+        const now = Date.now();
         const clientRecord = await db.one<OAuthClientDbRow>(
           `INSERT INTO oauth_client (
           user_id,
@@ -147,7 +148,9 @@ router.post(
           response_types,
           token_endpoint_auth_method,
           scope,
-          metadata
+          metadata,
+          created_at,
+          updated_at
         ) VALUES (
           $(user_id),
           $(client_id),
@@ -159,20 +162,24 @@ router.post(
           $(response_types),
           $(token_endpoint_auth_method),
           $(scope),
-          $(metadata)
+          $(metadata),
+          $(created_at),
+          $(updated_at)
         ) RETURNING *`,
           {
             user_id: userId,
             client_id: clientId,
             client_name: clientData.client_name,
             client_secret: clientSecret,
-            redirect_uris: clientData.redirect_uris,
-            requested_pods: clientData.requested_pods,
-            grant_types: clientData.grant_types,
-            response_types: clientData.response_types,
+            redirect_uris: JSON.stringify(clientData.redirect_uris),
+            requested_pods: JSON.stringify(clientData.requested_pods),
+            grant_types: JSON.stringify(clientData.grant_types),
+            response_types: JSON.stringify(clientData.response_types),
             token_endpoint_auth_method: clientData.token_endpoint_auth_method,
             scope: clientData.scope,
             metadata: JSON.stringify({}),
+            created_at: now,
+            updated_at: now,
           },
         );
 
@@ -267,9 +274,9 @@ router.get(
         id: client.id,
         client_id: client.client_id,
         client_name: client.client_name,
-        redirect_uris: client.redirect_uris,
-        grant_types: client.grant_types,
-        response_types: client.response_types,
+        redirect_uris: JSON.parse(client.redirect_uris),
+        grant_types: JSON.parse(client.grant_types),
+        response_types: JSON.parse(client.response_types),
         token_endpoint_auth_method: client.token_endpoint_auth_method,
         scope: client.scope,
         created_at: client.created_at,
@@ -331,9 +338,9 @@ router.get(
         id: client.id,
         client_id: client.client_id,
         client_name: client.client_name,
-        redirect_uris: client.redirect_uris,
-        grant_types: client.grant_types,
-        response_types: client.response_types,
+        redirect_uris: JSON.parse(client.redirect_uris),
+        grant_types: JSON.parse(client.grant_types),
+        response_types: JSON.parse(client.response_types),
         token_endpoint_auth_method: client.token_endpoint_auth_method,
         scope: client.scope,
         created_at: client.created_at,

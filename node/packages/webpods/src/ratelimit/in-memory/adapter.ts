@@ -42,7 +42,7 @@ export const inMemoryRateLimiterAdapter: RateLimiterAdapter = {
         allowed: true,
         remaining: 1000,
         limit: 1000,
-        resetAt: new Date(Date.now() + 3600000),
+        resetAt: Date.now() + 3600000,
       };
     }
 
@@ -67,7 +67,7 @@ export const inMemoryRateLimiterAdapter: RateLimiterAdapter = {
         allowed: true,
         remaining: 1000,
         limit: 1000,
-        resetAt: new Date(Date.now() + 3600000),
+        resetAt: Date.now() + 3600000,
       };
     }
 
@@ -109,7 +109,7 @@ export const inMemoryRateLimiterAdapter: RateLimiterAdapter = {
   async setWindow(
     identifier: string,
     action: RateLimitAction,
-    data: { count: number; windowStart: Date; windowEnd: Date },
+    data: { count: number; windowStart: number; windowEnd: number },
   ) {
     if (!rateLimiter) return;
     rateLimiter.setWindow(identifier, action, data);

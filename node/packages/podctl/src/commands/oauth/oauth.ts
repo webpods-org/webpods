@@ -156,7 +156,7 @@ export async function oauthList(options: {
         clients.forEach((client) => {
           output.print(`${client.client_name.padEnd(20)} ${client.client_id}`);
           output.print(
-            `  Created: ${new Date(client.created_at).toLocaleDateString()}`,
+            `  Created: ${new Date(parseInt(client.created_at, 10)).toLocaleDateString()}`,
           );
           output.print(`  Redirect: ${client.redirect_uris[0]}`);
           if (client.requested_pods.length > 0) {
@@ -327,7 +327,7 @@ export async function oauthInfo(options: {
         output.print(`Client ID:      ${client.client_id}`);
         output.print(`Name:           ${client.client_name}`);
         output.print(
-          `Created:        ${new Date(client.created_at).toLocaleString()}`,
+          `Created:        ${new Date(parseInt(client.created_at, 10)).toLocaleString()}`,
         );
         output.print(`Redirect URIs:  ${client.redirect_uris.join(", ")}`);
         output.print(

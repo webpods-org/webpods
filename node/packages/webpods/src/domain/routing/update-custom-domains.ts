@@ -111,6 +111,7 @@ export async function updateCustomDomains(
         }
       } else {
         // Create the stream with hierarchical structure
+        const now = Date.now();
         const streamParams = {
           pod_name: podName,
           name: "domains",
@@ -118,7 +119,10 @@ export async function updateCustomDomains(
           parent_id: configStream.id,
           user_id: userId,
           access_permission: "private",
-          created_at: new Date(),
+          has_schema: false,
+          metadata: "{}",
+          created_at: now,
+          updated_at: now,
         };
 
         domainsStream = await t.one<StreamDbRow>(
@@ -140,7 +144,7 @@ export async function updateCustomDomains(
       const previousHash = lastRecord?.hash || null;
 
       // Store the complete list of domains in a single record
-      const timestamp = new Date().toISOString();
+      const timestamp = Date.now();
       const content = { domains };
       const contentHash = calculateContentHash(content);
       const hash = calculateRecordHash(
@@ -157,6 +161,7 @@ export async function updateCustomDomains(
         index: index,
         content: contentString,
         content_type: "application/json",
+        is_binary: false,
         size: size,
         name: `domains`,
         path: `.config/domains/domains`,
@@ -164,6 +169,9 @@ export async function updateCustomDomains(
         hash: hash,
         previous_hash: previousHash,
         user_id: userId,
+        headers: JSON.stringify({}),
+        deleted: false,
+        purged: false,
         created_at: timestamp,
       };
 

@@ -73,9 +73,13 @@ describe("CLI Stream Sync and Download Commands", function () {
     // Create test pod directly in database
     await testDb
       .getDb()
-      .none("INSERT INTO pod (name, created_at) VALUES ($(name), NOW())", {
-        name: testPodName,
-      });
+      .none(
+        "INSERT INTO pod (name, created_at, updated_at, metadata) VALUES ($(name), $(now), $(now), '{}')",
+        {
+          name: testPodName,
+          now: Date.now(),
+        },
+      );
 
     // Set up owner config
     await createOwnerConfig(

@@ -31,8 +31,8 @@ export interface StreamInfo {
   accessPermission: string;
 
   // Timestamps
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: number;
+  updatedAt: number;
 
   // Metadata
   metadata: Record<string, unknown>;
@@ -40,8 +40,8 @@ export interface StreamInfo {
   // Optional: Record counts
   recordCount?: number;
   lastRecordIndex?: number;
-  firstRecordAt?: Date | null;
-  lastRecordAt?: Date | null;
+  firstRecordAt?: number | null;
+  lastRecordAt?: number | null;
 
   // Optional: Hash info
   hashChainValid?: boolean;
@@ -279,10 +279,10 @@ export async function listPodStreams(
 
         // Timestamps
         createdAt: stream.created_at,
-        updatedAt: stream.updated_at || stream.created_at,
+        updatedAt: stream.updated_at,
 
         // Metadata
-        metadata: stream.metadata || {},
+        metadata: stream.metadata ? JSON.parse(stream.metadata) : {},
       };
 
       // Add record counts if requested
@@ -297,31 +297,33 @@ export async function listPodStreams(
           // Get last record index
           const lastRecord = await ctx.db.oneOrNone<{
             index: number;
-            created_at: Date;
+            created_at: string;
           }>(
-            `SELECT index, created_at FROM record 
-             WHERE stream_id = $(streamId) 
+            `SELECT index, created_at FROM record
+             WHERE stream_id = $(streamId)
              ORDER BY index DESC LIMIT 1`,
             { streamId: stream.id },
           );
 
           if (lastRecord) {
             streamInfo.lastRecordIndex = lastRecord.index;
-            streamInfo.lastRecordAt = lastRecord.created_at;
+            streamInfo.lastRecordAt = parseInt(lastRecord.created_at, 10);
           } else {
             streamInfo.lastRecordIndex = -1;
             streamInfo.lastRecordAt = null;
           }
 
           // Get first record timestamp
-          const firstRecord = await ctx.db.oneOrNone<{ created_at: Date }>(
-            `SELECT created_at FROM record 
+          const firstRecord = await ctx.db.oneOrNone<{ created_at: string }>(
+            `SELECT created_at FROM record
              WHERE stream_id = $(streamId) 
              ORDER BY index ASC LIMIT 1`,
             { streamId: stream.id },
           );
 
-          streamInfo.firstRecordAt = firstRecord?.created_at || null;
+          streamInfo.firstRecordAt = firstRecord?.created_at
+            ? parseInt(firstRecord.created_at, 10)
+            : null;
         } else {
           streamInfo.lastRecordIndex = -1;
           streamInfo.firstRecordAt = null;

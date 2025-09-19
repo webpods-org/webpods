@@ -111,10 +111,11 @@ describe("CLI Pod Commands", function () {
         await testDb
           .getDb()
           .none(
-            "INSERT INTO pod (name, owner_id, created_at) VALUES ($(name), $(owner_id), NOW())",
+            "INSERT INTO pod (name, owner_id, created_at, updated_at, metadata) VALUES ($(name), $(owner_id), $(now), $(now), '{}')",
             {
               name: podName,
               owner_id: testUser.userId,
+              now: Date.now(),
             },
           );
 
@@ -174,9 +175,13 @@ describe("CLI Pod Commands", function () {
       // Create test pod with owner stream
       await testDb
         .getDb()
-        .none("INSERT INTO pod (name, created_at) VALUES ($(name), NOW())", {
-          name: "test-pod",
-        });
+        .none(
+          "INSERT INTO pod (name, created_at, updated_at, metadata) VALUES ($(name), $(now), $(now), '{}')",
+          {
+            name: "test-pod",
+            now: Date.now(),
+          },
+        );
 
       // Create .config/owner stream using the new helper
       await createOwnerConfig(
@@ -228,9 +233,13 @@ describe("CLI Pod Commands", function () {
       // Create test pod with owner stream
       await testDb
         .getDb()
-        .none("INSERT INTO pod (name, created_at) VALUES ($(name), NOW())", {
-          name: "test-pod",
-        });
+        .none(
+          "INSERT INTO pod (name, created_at, updated_at, metadata) VALUES ($(name), $(now), $(now), '{}')",
+          {
+            name: "test-pod",
+            now: Date.now(),
+          },
+        );
 
       // Create .config/owner stream using the new helper
       await createOwnerConfig(
@@ -279,23 +288,26 @@ describe("CLI Pod Commands", function () {
     it("should only allow owner to delete pod", async () => {
       // Create another user with identity
       const otherUserId = randomUUID();
+      const now = Date.now();
       await testDb
         .getDb()
         .none(
-          'INSERT INTO "user" (id, created_at, updated_at) VALUES ($(id), NOW(), NOW())',
-          { id: otherUserId },
+          'INSERT INTO "user" (id, created_at, updated_at) VALUES ($(id), $(now), $(now))',
+          { id: otherUserId, now },
         );
       await testDb
         .getDb()
         .none(
-          "INSERT INTO identity (id, user_id, provider, provider_id, email, name, created_at, updated_at) VALUES ($(id), $(userId), $(provider), $(providerId), $(email), $(name), NOW(), NOW())",
+          "INSERT INTO identity (id, user_id, provider, provider_id, email, name, metadata, created_at, updated_at) VALUES ($(id), $(userId), $(provider), $(providerId), $(email), $(name), $(metadata), $(now), $(now))",
           {
             id: randomUUID(),
             userId: otherUserId,
             provider: "test-provider",
             providerId: randomUUID(),
+            now,
             email: "other@example.com",
             name: "Other User",
+            metadata: "{}",
           },
         );
       const otherToken = cli.createTestToken(otherUserId, "other@example.com");

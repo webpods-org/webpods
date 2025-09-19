@@ -44,9 +44,13 @@ describe("CLI Record Commands", function () {
 
     await testDb
       .getDb()
-      .none("INSERT INTO pod (name, created_at) VALUES ($(name), NOW())", {
-        name: testPodName,
-      });
+      .none(
+        "INSERT INTO pod (name, created_at, updated_at, metadata) VALUES ($(name), $(now), $(now), '{}')",
+        {
+          name: testPodName,
+          now: Date.now(),
+        },
+      );
 
     // Create owner config for the pod
     await createOwnerConfig(
@@ -223,7 +227,11 @@ describe("CLI Record Commands", function () {
       );
 
       expect(record).to.not.be.null;
-      expect(record.headers).to.deep.equal({
+      const headers =
+        typeof record.headers === "string"
+          ? JSON.parse(record.headers)
+          : record.headers;
+      expect(headers).to.deep.equal({
         "cache-control": "no-cache",
         "hello-world": "test-value",
       });
@@ -271,7 +279,11 @@ describe("CLI Record Commands", function () {
       );
 
       expect(record).to.not.be.null;
-      expect(record.headers).to.deep.equal({
+      const headers =
+        typeof record.headers === "string"
+          ? JSON.parse(record.headers)
+          : record.headers;
+      expect(headers).to.deep.equal({
         "cache-control": "max-age=3600, must-revalidate",
       });
     });
@@ -322,7 +334,11 @@ describe("CLI Record Commands", function () {
       );
 
       expect(record).to.not.be.null;
-      expect(record.headers).to.deep.equal({
+      const headers =
+        typeof record.headers === "string"
+          ? JSON.parse(record.headers)
+          : record.headers;
+      expect(headers).to.deep.equal({
         "cache-control": "private",
         "hello-world": "greeting",
         "x-custom": "custom-value",

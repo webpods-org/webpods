@@ -571,16 +571,17 @@ describe("WebPods Authentication", () => {
       // Simulate OAuth user creation with metadata in identity
       const userId = crypto.randomUUID();
       const identityId = crypto.randomUUID();
+      const now = Date.now();
 
       await db.none(
-        `INSERT INTO "user" (id, created_at, updated_at) 
-         VALUES ($(userId), NOW(), NOW())`,
-        { userId },
+        `INSERT INTO "user" (id, created_at, updated_at)
+         VALUES ($(userId), $(now), $(now))`,
+        { userId, now },
       );
 
       const identity = await db.one(
         `INSERT INTO identity (id, user_id, provider, provider_id, email, name, metadata, created_at, updated_at)
-         VALUES ($(identityId), $(userId), $(provider), $(providerId), $(email), $(name), $(metadata), NOW(), NOW())
+         VALUES ($(identityId), $(userId), $(provider), $(providerId), $(email), $(name), $(metadata), $(now), $(now))
          RETURNING *`,
         {
           identityId,
@@ -594,10 +595,17 @@ describe("WebPods Authentication", () => {
             bio: "Developer",
             location: "San Francisco",
           }),
+          now,
         },
       );
 
-      expect(identity.metadata).to.deep.equal({
+      // metadata is stored as TEXT (JSON string) in database
+      const metadata =
+        typeof identity.metadata === "string"
+          ? JSON.parse(identity.metadata)
+          : identity.metadata;
+
+      expect(metadata).to.deep.equal({
         avatar_url: "https://example.com/avatar.jpg",
         bio: "Developer",
         location: "San Francisco",

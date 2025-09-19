@@ -40,11 +40,16 @@ describe("CLI Transfer Command", function () {
 
     // Create a test pod
     testPodName = `test-pod-${Date.now()}`;
+    const now = Date.now();
     await testDb
       .getDb()
-      .none("INSERT INTO pod (name, created_at) VALUES ($(name), NOW())", {
-        name: testPodName,
-      });
+      .none(
+        "INSERT INTO pod (name, created_at, updated_at, metadata) VALUES ($(name), $(now), $(now), '{}')",
+        {
+          name: testPodName,
+          now,
+        },
+      );
 
     // Create .config/owner stream for pod ownership
     await createOwnerConfig(
@@ -59,15 +64,15 @@ describe("CLI Transfer Command", function () {
     await testDb
       .getDb()
       .none(
-        'INSERT INTO "user" (id, created_at, updated_at) VALUES ($(id), NOW(), NOW())',
-        { id: newOwnerId },
+        'INSERT INTO "user" (id, created_at, updated_at) VALUES ($(id), $(now), $(now))',
+        { id: newOwnerId, now },
       );
 
     // Create identity for new owner
     await testDb
       .getDb()
       .none(
-        "INSERT INTO identity (id, user_id, provider, provider_id, email, name, created_at, updated_at) VALUES ($(id), $(userId), $(provider), $(providerId), $(email), $(name), NOW(), NOW())",
+        "INSERT INTO identity (id, user_id, provider, provider_id, email, name, metadata, created_at, updated_at) VALUES ($(id), $(userId), $(provider), $(providerId), $(email), $(name), $(metadata), $(now), $(now))",
         {
           id: randomUUID(),
           userId: newOwnerId,
@@ -75,6 +80,8 @@ describe("CLI Transfer Command", function () {
           providerId: randomUUID(),
           email: "newowner@example.com",
           name: "New Owner",
+          metadata: "{}",
+          now,
         },
       );
 
@@ -155,8 +162,8 @@ describe("CLI Transfer Command", function () {
       await testDb
         .getDb()
         .none(
-          'INSERT INTO "user" (id, created_at, updated_at) VALUES ($(id), NOW(), NOW())',
-          { id: otherUserId },
+          'INSERT INTO "user" (id, created_at, updated_at) VALUES ($(id), $(now), $(now))',
+          { id: otherUserId, now: Date.now() },
         );
       const otherToken = cli.createTestToken(otherUserId, "other@example.com");
 
@@ -261,13 +268,14 @@ describe("CLI Transfer Command", function () {
 
       // Create a stream with new owner's user_id (should succeed)
       await testDb.getDb().none(
-        `INSERT INTO stream (pod_name, name, path, parent_id, user_id, access_permission, created_at) 
-         VALUES ($(podName), $(streamName), $(path), NULL, $(userId), 'public', NOW())`,
+        `INSERT INTO stream (pod_name, name, path, parent_id, user_id, access_permission, created_at, updated_at, metadata, has_schema)
+         VALUES ($(podName), $(streamName), $(path), NULL, $(userId), 'public', $(now), $(now), '{}', false)`,
         {
           podName: testPodName,
           streamName: "new-owner-stream",
           path: "new-owner-stream",
           userId: newOwnerId,
+          now: Date.now(),
         },
       );
 

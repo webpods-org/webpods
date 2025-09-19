@@ -25,10 +25,10 @@ function mapStreamFromDb(row: StreamDbRow): Stream {
     parentId: row.parent_id || null,
     userId: row.user_id,
     accessPermission: row.access_permission,
-    metadata: row.metadata,
-    hasSchema: row.has_schema || false,
+    metadata: JSON.parse(row.metadata),
+    hasSchema: row.has_schema,
     createdAt: row.created_at,
-    updatedAt: row.updated_at || row.created_at,
+    updatedAt: row.updated_at,
   };
 }
 

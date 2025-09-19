@@ -48,7 +48,10 @@ export async function updateLinks(
           parent_id: null,
           user_id: userId,
           access_permission: "private",
-          created_at: new Date(),
+          metadata: JSON.stringify({}),
+          has_schema: false,
+          created_at: Date.now(),
+          updated_at: Date.now(),
         };
 
         configStream = await t.one<StreamDbRow>(
@@ -74,7 +77,10 @@ export async function updateLinks(
           parent_id: configStream.id,
           user_id: userId,
           access_permission: "private",
-          created_at: new Date(),
+          metadata: JSON.stringify({}),
+          has_schema: false,
+          created_at: Date.now(),
+          updated_at: Date.now(),
         };
 
         routingStream = await t.one<StreamDbRow>(
@@ -96,7 +102,7 @@ export async function updateLinks(
 
       const index = (previousRecord?.index ?? -1) + 1;
       const previousHash = previousRecord?.hash || null;
-      const timestamp = new Date().toISOString();
+      const timestamp = Date.now();
 
       // Calculate hash
       const contentHash = calculateContentHash(links);
@@ -115,6 +121,7 @@ export async function updateLinks(
         index: index,
         content: contentString,
         content_type: "application/json",
+        is_binary: false,
         size: size,
         name: "routes",
         path: ".config/routing/routes",
@@ -122,6 +129,9 @@ export async function updateLinks(
         hash: hash,
         previous_hash: previousHash,
         user_id: userId,
+        headers: JSON.stringify({}),
+        deleted: false,
+        purged: false,
         created_at: timestamp,
       };
 

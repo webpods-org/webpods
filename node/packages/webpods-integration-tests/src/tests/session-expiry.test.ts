@@ -21,7 +21,7 @@ describe("Session Expiry and Cleanup", () => {
   async function cleanupExpiredStates(): Promise<number> {
     const result = await db.result(
       `DELETE FROM oauth_state WHERE expires_at < $(now)`,
-      { now: new Date() },
+      { now: Date.now() },
     );
     return result.rowCount;
   }
@@ -168,28 +168,30 @@ describe("Session Expiry and Cleanup", () => {
 
   describe("PKCE State Expiry", () => {
     it("should identify expired PKCE states", async () => {
-      const now = new Date();
-      const expired = new Date(now.getTime() - 1000);
-      const future = new Date(now.getTime() + 600000); // 10 minutes
+      const now = Date.now();
+      const expired = now - 1000;
+      const future = now + 600000; // 10 minutes
 
       // Insert expired state
       await db.none(
-        `INSERT INTO oauth_state (state, code_verifier, expires_at) 
-         VALUES ($(state), $(codeVerifier), $(expiresAt))`,
+        `INSERT INTO oauth_state (state, code_verifier, created_at, expires_at)
+         VALUES ($(state), $(codeVerifier), $(createdAt), $(expiresAt))`,
         {
           state: "expired-state",
           codeVerifier: "verifier1",
+          createdAt: expired,
           expiresAt: expired,
         },
       );
 
       // Insert valid state
       await db.none(
-        `INSERT INTO oauth_state (state, code_verifier, expires_at) 
-         VALUES ($(state), $(codeVerifier), $(expiresAt))`,
+        `INSERT INTO oauth_state (state, code_verifier, created_at, expires_at)
+         VALUES ($(state), $(codeVerifier), $(createdAt), $(expiresAt))`,
         {
           state: "valid-state",
           codeVerifier: "verifier2",
+          createdAt: now,
           expiresAt: future,
         },
       );
@@ -205,25 +207,28 @@ describe("Session Expiry and Cleanup", () => {
     });
 
     it("should cleanup expired PKCE states", async () => {
-      const now = new Date();
-      const expired = new Date(now.getTime() - 1000);
-      const future = new Date(now.getTime() + 600000);
+      const now = Date.now();
+      const expired = now - 1000;
+      const future = now + 600000;
 
       // Insert states
       await db.none(
-        `INSERT INTO oauth_state (state, code_verifier, expires_at) VALUES 
-         ($(state1), $(verifier1), $(expires1)),
-         ($(state2), $(verifier2), $(expires2)),
-         ($(state3), $(verifier3), $(expires3))`,
+        `INSERT INTO oauth_state (state, code_verifier, created_at, expires_at) VALUES
+         ($(state1), $(verifier1), $(created1), $(expires1)),
+         ($(state2), $(verifier2), $(created2), $(expires2)),
+         ($(state3), $(verifier3), $(created3), $(expires3))`,
         {
           state1: "expired-1",
           verifier1: "v1",
+          created1: expired,
           expires1: expired,
           state2: "expired-2",
           verifier2: "v2",
+          created2: expired,
           expires2: expired,
           state3: "valid-1",
           verifier3: "v3",
+          created3: now,
           expires3: future,
         },
       );
@@ -240,21 +245,23 @@ describe("Session Expiry and Cleanup", () => {
     });
 
     it("should enforce 10-minute TTL for PKCE states", async () => {
-      const now = new Date();
-      const nineMinutes = new Date(now.getTime() + 9 * 60 * 1000);
-      const elevenMinutes = new Date(now.getTime() + 11 * 60 * 1000);
+      const now = Date.now();
+      const nineMinutes = now + 9 * 60 * 1000;
+      const elevenMinutes = now + 11 * 60 * 1000;
 
       await db.none(
-        `INSERT INTO oauth_state (state, code_verifier, expires_at, pod) VALUES 
-         ($(state1), $(verifier1), $(expires1), $(pod1)),
-         ($(state2), $(verifier2), $(expires2), $(pod2))`,
+        `INSERT INTO oauth_state (state, code_verifier, created_at, expires_at, pod) VALUES
+         ($(state1), $(verifier1), $(created1), $(expires1), $(pod1)),
+         ($(state2), $(verifier2), $(created2), $(expires2), $(pod2))`,
         {
           state1: "within-ttl",
           verifier1: "verifier1",
+          created1: now,
           expires1: nineMinutes,
           pod1: "alice",
           state2: "beyond-ttl",
           verifier2: "verifier2",
+          created2: now,
           expires2: elevenMinutes,
           pod2: "bob",
         },
@@ -276,8 +283,7 @@ describe("Session Expiry and Cleanup", () => {
       expect(beyondTTL).to.exist;
 
       // Verify TTL is properly set (should be close to 10 minutes)
-      const ttlMinutes =
-        (withinTTL!.expires_at.getTime() - now.getTime()) / 60000;
+      const ttlMinutes = (Number(withinTTL!.expires_at) - now) / 60000;
       expect(ttlMinutes).to.be.lessThan(10);
       expect(ttlMinutes).to.be.greaterThan(8);
     });
@@ -321,20 +327,23 @@ describe("Session Expiry and Cleanup", () => {
       );
 
       await db.none(
-        `INSERT INTO oauth_state (state, code_verifier, expires_at) VALUES 
-         ($(state1), $(verifier1), $(expires1)),
-         ($(state2), $(verifier2), $(expires2)),
-         ($(state3), $(verifier3), $(expires3))`,
+        `INSERT INTO oauth_state (state, code_verifier, created_at, expires_at) VALUES
+         ($(state1), $(verifier1), $(created1), $(expires1)),
+         ($(state2), $(verifier2), $(created2), $(expires2)),
+         ($(state3), $(verifier3), $(created3), $(expires3))`,
         {
           state1: "st1",
           verifier1: "v1",
-          expires1: new Date(now.getTime() - 1000),
+          created1: now.getTime() - 1000,
+          expires1: now.getTime() - 1000,
           state2: "st2",
           verifier2: "v2",
-          expires2: new Date(now.getTime() + 1000),
+          created2: now.getTime(),
+          expires2: now.getTime() + 1000,
           state3: "st3",
           verifier3: "v3",
-          expires3: new Date(now.getTime() - 2000),
+          created3: now.getTime() - 2000,
+          expires3: now.getTime() - 2000,
         },
       );
 

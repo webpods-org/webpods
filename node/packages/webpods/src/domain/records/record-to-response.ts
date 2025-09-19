@@ -65,7 +65,7 @@ export function recordToResponse(
     previousHash: record.previousHash,
     userId: record.userId,
     headers: record.headers,
-    timestamp: record.createdAt.toISOString(),
+    timestamp: record.createdAt,
   };
 
   if (contentUrl) {
@@ -141,7 +141,7 @@ export function recordToFilteredResponse(
     previousHash: record.previousHash,
     userId: record.userId,
     headers: record.headers,
-    timestamp: record.createdAt.toISOString(),
+    timestamp: record.createdAt,
   };
 
   if (contentUrl) {

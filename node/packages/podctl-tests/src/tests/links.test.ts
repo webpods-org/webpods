@@ -38,9 +38,13 @@ describe("CLI Links Commands", function () {
     testPodName = `test-pod-${Date.now()}`;
     await testDb
       .getDb()
-      .none("INSERT INTO pod (name, created_at) VALUES ($(name), NOW())", {
-        name: testPodName,
-      });
+      .none(
+        "INSERT INTO pod (name, created_at, updated_at, metadata) VALUES ($(name), $(now), $(now), '{}')",
+        {
+          name: testPodName,
+          now: Date.now(),
+        },
+      );
 
     // Create .config/owner stream for pod ownership
     await createOwnerConfig(
@@ -140,9 +144,13 @@ describe("CLI Links Commands", function () {
       const emptyPodName = `empty-pod-${Date.now()}`;
       await testDb
         .getDb()
-        .none("INSERT INTO pod (name, created_at) VALUES ($(name), NOW())", {
-          name: emptyPodName,
-        });
+        .none(
+          "INSERT INTO pod (name, created_at, updated_at, metadata) VALUES ($(name), $(now), $(now), '{}')",
+          {
+            name: emptyPodName,
+            now: Date.now(),
+          },
+        );
 
       const result = await cli.exec(["link", "list", emptyPodName], {
         token: testToken,

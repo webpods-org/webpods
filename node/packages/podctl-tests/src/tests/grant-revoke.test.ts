@@ -37,21 +37,27 @@ describe("CLI Grant/Revoke Commands", function () {
 
     // Create a test pod
     testPodName = `test-pod-${Date.now()}`;
+    const now = Date.now();
     await testDb
       .getDb()
-      .none("INSERT INTO pod (name, created_at) VALUES ($(name), NOW())", {
-        name: testPodName,
-      });
+      .none(
+        "INSERT INTO pod (name, created_at, updated_at, metadata) VALUES ($(name), $(now), $(now), '{}')",
+        {
+          name: testPodName,
+          now,
+        },
+      );
 
     // Create the permissions stream (required for grant/revoke to work)
     await testDb.getDb().none(
-      `INSERT INTO stream (pod_name, name, path, parent_id, user_id, access_permission, created_at) 
-         VALUES ($(podName), $(streamName), $(path), NULL, $(userId), 'public', NOW())`,
+      `INSERT INTO stream (pod_name, name, path, parent_id, user_id, access_permission, created_at, updated_at, metadata, has_schema)
+         VALUES ($(podName), $(streamName), $(path), NULL, $(userId), 'public', $(now), $(now), '{}', false)`,
       {
         podName: testPodName,
         streamName: "team-permissions",
         path: "team-permissions",
         userId: testUser.userId,
+        now,
       },
     );
 
@@ -60,8 +66,8 @@ describe("CLI Grant/Revoke Commands", function () {
     await testDb
       .getDb()
       .none(
-        'INSERT INTO "user" (id, created_at, updated_at) VALUES ($(id), NOW(), NOW())',
-        { id: otherUserId },
+        'INSERT INTO "user" (id, created_at, updated_at) VALUES ($(id), $(now), $(now))',
+        { id: otherUserId, now },
       );
   });
 

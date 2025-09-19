@@ -19,9 +19,9 @@ function mapPodFromDb(row: PodDbRow): Pod {
   return {
     name: row.name,
     userId: row.owner_id || "", // Use owner_id directly from pod table
-    metadata: row.metadata,
+    metadata: JSON.parse(row.metadata),
     createdAt: row.created_at,
-    updatedAt: row.updated_at || row.created_at,
+    updatedAt: row.updated_at,
   };
 }
 

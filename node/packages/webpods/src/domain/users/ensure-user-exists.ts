@@ -17,7 +17,7 @@ function mapUserFromDb(row: UserDbRow): User {
   return {
     id: row.id,
     createdAt: row.created_at,
-    updatedAt: row.updated_at || row.created_at,
+    updatedAt: row.updated_at,
   };
 }
 
