@@ -25,10 +25,10 @@ export function mapStreamFromDb(row: StreamDbRow): Stream {
     parentId: row.parent_id || null,
     userId: row.user_id,
     accessPermission: row.access_permission,
-    metadata: row.metadata,
-    hasSchema: row.has_schema || false,
+    metadata: JSON.parse(row.metadata),
+    hasSchema: row.has_schema,
     createdAt: row.created_at,
-    updatedAt: row.updated_at || row.created_at,
+    updatedAt: row.updated_at,
   };
 }
 
@@ -157,9 +157,10 @@ export async function createStream(
     }
 
     // Create new stream with path
+    const now = Date.now();
     const stream = await ctx.db.one<StreamDbRow>(
-      `INSERT INTO stream (pod_name, name, path, parent_id, user_id, access_permission)
-       VALUES ($(podName), $(name), $(path), $(parentId), $(userId), $(accessPermission))
+      `INSERT INTO stream (pod_name, name, path, parent_id, user_id, access_permission, has_schema, metadata, created_at, updated_at)
+       VALUES ($(podName), $(name), $(path), $(parentId), $(userId), $(accessPermission), $(hasSchema), $(metadata), $(createdAt), $(updatedAt))
        RETURNING *`,
       {
         podName,
@@ -168,6 +169,10 @@ export async function createStream(
         parentId,
         userId,
         accessPermission,
+        hasSchema: false,
+        metadata: JSON.stringify({}),
+        createdAt: now,
+        updatedAt: now,
       },
     );
 

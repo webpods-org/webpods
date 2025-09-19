@@ -12,7 +12,7 @@ const logger = createLogger("webpods:domain:pods");
 
 export interface UserPod {
   name: string;
-  created_at: Date;
+  created_at: number;
   metadata: Record<string, unknown>;
 }
 
@@ -45,7 +45,7 @@ export async function listUserPods(
     const userPods: UserPod[] = pods.map((pod) => ({
       name: pod.name,
       created_at: pod.created_at,
-      metadata: pod.metadata || {},
+      metadata: pod.metadata ? JSON.parse(pod.metadata) : {},
     }));
 
     logger.info("Listed pods for user", {

@@ -13,22 +13,22 @@
 export async function up(knex) {
   // User table - container for multiple identities
   await knex.schema.createTable('user', (table) => {
-    table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
-    table.timestamp('created_at').defaultTo(knex.fn.now());
-    table.timestamp('updated_at').notNullable().defaultTo(knex.fn.now());
+    table.uuid('id').primary().notNullable();
+    table.bigint('created_at').notNullable();
+    table.bigint('updated_at').notNullable();
   });
 
   // Identity table - stores OAuth provider identities
   await knex.schema.createTable('identity', (table) => {
-    table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
+    table.uuid('id').primary().notNullable();
     table.uuid('user_id').references('id').inTable('user').onDelete('CASCADE');
     table.string('provider', 50).notNullable(); // OAuth provider ID from config.json
     table.string('provider_id', 255).notNullable(); // ID from the provider
     table.string('email', 255);
     table.string('name', 255);
-    table.jsonb('metadata').defaultTo('{}');
-    table.timestamp('created_at').defaultTo(knex.fn.now());
-    table.timestamp('updated_at').notNullable().defaultTo(knex.fn.now());
+    table.text('metadata').notNullable();
+    table.bigint('created_at').notNullable();
+    table.bigint('updated_at').notNullable();
     
     table.unique(['provider', 'provider_id']);
     table.index('user_id');
@@ -39,9 +39,9 @@ export async function up(knex) {
   await knex.schema.createTable('pod', (table) => {
     table.string('name', 63).primary(); // DNS subdomain limit - name is now the primary key
     table.uuid('owner_id').references('id').inTable('user').onDelete('RESTRICT'); // Pod owner - denormalized for performance
-    table.jsonb('metadata').defaultTo('{}');
-    table.timestamp('created_at').defaultTo(knex.fn.now());
-    table.timestamp('updated_at').notNullable().defaultTo(knex.fn.now());
+    table.text('metadata').notNullable();
+    table.bigint('created_at').notNullable();
+    table.bigint('updated_at').notNullable();
     table.index('owner_id'); // Index for efficient owner lookups
   });
 
@@ -53,11 +53,11 @@ export async function up(knex) {
     table.string('path', 2048).notNullable(); // Full path for O(1) lookups
     table.bigint('parent_id').references('id').inTable('stream').onDelete('CASCADE'); // Parent stream
     table.uuid('user_id').references('id').inTable('user').onDelete('RESTRICT');
-    table.string('access_permission', 500).defaultTo('public');
-    table.boolean('has_schema').defaultTo(false); // Whether this stream has validation schema
-    table.jsonb('metadata').defaultTo('{}');
-    table.timestamp('created_at').defaultTo(knex.fn.now());
-    table.timestamp('updated_at').notNullable().defaultTo(knex.fn.now());
+    table.string('access_permission', 500).notNullable();
+    table.boolean('has_schema').notNullable(); // Whether this stream has validation schema
+    table.text('metadata').notNullable();
+    table.bigint('created_at').notNullable();
+    table.bigint('updated_at').notNullable();
     
     // Can't have two streams with same name in same parent within a pod
     table.unique(['pod_name', 'parent_id', 'name']);
@@ -77,9 +77,9 @@ export async function up(knex) {
     table.bigIncrements('id').primary();
     table.bigint('stream_id').references('id').inTable('stream').onDelete('CASCADE');
     table.integer('index').notNullable(); // Position in stream (0-based)
-    table.text('content').notNullable().defaultTo(''); // Can be text or JSON
-    table.string('content_type', 100).defaultTo('text/plain');
-    table.boolean('is_binary').notNullable().defaultTo(false); // Whether content is base64-encoded binary
+    table.text('content').notNullable(); // Can be text or JSON
+    table.string('content_type', 100).notNullable();
+    table.boolean('is_binary').notNullable(); // Whether content is base64-encoded binary
     table.bigint('size').notNullable(); // Content size in bytes
     table.string('name', 256).notNullable(); // Required name (no slashes - like a filename)
     table.string('path', 2048).notNullable(); // Full path including record name for O(1) lookups
@@ -88,10 +88,10 @@ export async function up(knex) {
     table.string('previous_hash', 100); // NULL for first record
     table.uuid('user_id').references('id').inTable('user').onDelete('RESTRICT'); // User who created the record
     table.text('storage'); // External storage location (adapter-specific format)
-    table.jsonb('headers').defaultTo('{}'); // User-provided headers
-    table.boolean('deleted').notNullable().defaultTo(false); // Soft delete flag
-    table.boolean('purged').notNullable().defaultTo(false); // Hard delete flag
-    table.timestamp('created_at').defaultTo(knex.fn.now());
+    table.text('headers').notNullable(); // User-provided headers
+    table.boolean('deleted').notNullable(); // Soft delete flag
+    table.boolean('purged').notNullable(); // Hard delete flag
+    table.bigint('created_at').notNullable();
     
     table.unique(['stream_id', 'index']);
     table.index(['stream_id', 'index']);
@@ -110,10 +110,10 @@ export async function up(knex) {
     table.bigIncrements('id').primary();
     table.string('pod_name', 63).references('name').inTable('pod').onDelete('CASCADE');
     table.string('domain', 255).unique().notNullable();
-    table.boolean('verified').defaultTo(false); // CNAME verification status
-    table.boolean('ssl_provisioned').defaultTo(false);
-    table.timestamp('created_at').defaultTo(knex.fn.now());
-    table.timestamp('updated_at').notNullable().defaultTo(knex.fn.now());
+    table.boolean('verified').notNullable(); // CNAME verification status
+    table.boolean('ssl_provisioned').notNullable();
+    table.bigint('created_at').notNullable();
+    table.bigint('updated_at').notNullable();
     
     table.index('domain');
     table.index('pod_name');
@@ -124,15 +124,15 @@ export async function up(knex) {
     table.bigIncrements('id').primary();
     table.string('identifier', 255).notNullable(); // user_id or ip_address
     table.string('action', 50).notNullable(); // 'write', 'read', 'pod_create', 'stream_create'
-    table.integer('count').defaultTo(0);
-    table.timestamp('window_start').notNullable();
-    table.timestamp('window_end').notNullable();
+    table.integer('count').notNullable();
+    table.bigint('window_start').notNullable();
+    table.bigint('window_end').notNullable();
     
     table.unique(['identifier', 'action', 'window_start']);
     table.index(['identifier', 'action', 'window_end']);
   });
 
-  // Session storage for SSO
+  // Session storage for SSO (connect-pg-simple expects timestamp)
   await knex.schema.createTable('session', (table) => {
     table.string('sid').primary(); // Session ID
     table.jsonb('sess').notNullable(); // Session data
@@ -143,12 +143,12 @@ export async function up(knex) {
 
   // PKCE state storage for OAuth flows
   await knex.schema.createTable('oauth_state', (table) => {
-    table.string('state').primary(); // State parameter
+    table.string('state').primary().notNullable(); // State parameter
     table.string('code_verifier', 128).notNullable(); // PKCE code verifier
     table.string('pod', 63); // Optional pod for pod-specific auth
     table.text('redirect_uri'); // Where to redirect after auth
-    table.timestamp('created_at').defaultTo(knex.fn.now());
-    table.timestamp('expires_at').notNullable(); // TTL for state
+    table.bigint('created_at').notNullable();
+    table.bigint('expires_at').notNullable(); // TTL for state
     
     table.index('expires_at'); // For cleanup of expired states
   });
@@ -160,72 +160,24 @@ export async function up(knex) {
     table.string('client_id', 255).unique().notNullable(); // Unique client identifier
     table.string('client_name', 255).notNullable(); // Display name
     table.string('client_secret', 255); // NULL for public clients (SPAs)
-    table.specificType('redirect_uris', 'text[]').notNullable(); // Array of allowed redirect URIs
-    table.specificType('requested_pods', 'text[]').notNullable(); // Array of pods the client needs access to
-    table.specificType('grant_types', 'text[]').defaultTo(knex.raw("ARRAY['authorization_code','refresh_token']::text[]"));
-    table.specificType('response_types', 'text[]').defaultTo(knex.raw("ARRAY['code']::text[]"));
-    table.string('token_endpoint_auth_method', 50).defaultTo('client_secret_basic');
-    table.string('scope', 500).defaultTo('openid offline pod:read pod:write');
-    table.jsonb('metadata').defaultTo('{}'); // Additional client metadata
-    table.timestamp('created_at').defaultTo(knex.fn.now());
-    table.timestamp('updated_at').notNullable().defaultTo(knex.fn.now());
+    table.text('redirect_uris').notNullable(); // Array of allowed redirect URIs stored as JSON
+    table.text('requested_pods').notNullable(); // Array of pods the client needs access to stored as JSON
+    table.text('grant_types').notNullable(); // Array stored as JSON
+    table.text('response_types').notNullable(); // Array stored as JSON
+    table.string('token_endpoint_auth_method', 50).notNullable();
+    table.string('scope', 500).notNullable();
+    table.text('metadata').notNullable(); // Additional client metadata
+    table.bigint('created_at').notNullable();
+    table.bigint('updated_at').notNullable();
     
     table.index('user_id');
     table.index('client_id');
   });
 
-  // Update triggers for updated_at columns
-  await knex.raw(`
-    CREATE OR REPLACE FUNCTION update_updated_at_column()
-    RETURNS TRIGGER AS $$
-    BEGIN
-      NEW.updated_at = NOW();
-      RETURN NEW;
-    END;
-    $$ language 'plpgsql';
-  `);
-
-  await knex.raw(`
-    CREATE TRIGGER update_user_updated_at BEFORE UPDATE ON "user"
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-  `);
-
-  await knex.raw(`
-    CREATE TRIGGER update_identity_updated_at BEFORE UPDATE ON identity
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-  `);
-
-  await knex.raw(`
-    CREATE TRIGGER update_pod_updated_at BEFORE UPDATE ON pod
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-  `);
-
-  await knex.raw(`
-    CREATE TRIGGER update_stream_updated_at BEFORE UPDATE ON stream
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-  `);
-
-  await knex.raw(`
-    CREATE TRIGGER update_custom_domain_updated_at BEFORE UPDATE ON custom_domain
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-  `);
-
-  await knex.raw(`
-    CREATE TRIGGER update_oauth_client_updated_at BEFORE UPDATE ON oauth_client
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-  `);
+  // No triggers - all timestamps handled in application layer
 }
 
 export async function down(knex) {
-  // Drop triggers
-  await knex.raw('DROP TRIGGER IF EXISTS update_oauth_client_updated_at ON oauth_client');
-  await knex.raw('DROP TRIGGER IF EXISTS update_custom_domain_updated_at ON custom_domain');
-  await knex.raw('DROP TRIGGER IF EXISTS update_stream_updated_at ON stream');
-  await knex.raw('DROP TRIGGER IF EXISTS update_pod_updated_at ON pod');
-  await knex.raw('DROP TRIGGER IF EXISTS update_identity_updated_at ON identity');
-  await knex.raw('DROP TRIGGER IF EXISTS update_user_updated_at ON "user"');
-  await knex.raw('DROP FUNCTION IF EXISTS update_updated_at_column');
-
   // Drop custom indexes
   await knex.raw('DROP INDEX IF EXISTS idx_record_stream_name_index_desc');
 

@@ -31,16 +31,17 @@ export async function createTestUser(
   const name = options?.name || "Test User";
 
   // Create user
+  const now = Date.now();
   await db.none(
-    `INSERT INTO "user" (id, created_at, updated_at) 
-     VALUES ($(userId), NOW(), NOW())`,
-    { userId },
+    `INSERT INTO "user" (id, created_at, updated_at)
+     VALUES ($(userId), $(now), $(now))`,
+    { userId, now },
   );
 
   // Create identity
   await db.none(
-    `INSERT INTO identity (id, user_id, provider, provider_id, email, name, created_at, updated_at) 
-     VALUES ($(identityId), $(userId), $(provider), $(providerId), $(email), $(name), NOW(), NOW())`,
+    `INSERT INTO identity (id, user_id, provider, provider_id, email, name, metadata, created_at, updated_at)
+     VALUES ($(identityId), $(userId), $(provider), $(providerId), $(email), $(name), '{}', $(now), $(now))`,
     {
       identityId,
       userId,
@@ -48,6 +49,7 @@ export async function createTestUser(
       providerId,
       email,
       name,
+      now,
     },
   );
 
@@ -69,27 +71,28 @@ export async function createTestPod(
   podName: string,
   ownerId: string,
 ): Promise<void> {
+  const now = Date.now();
   // Create pod
   await db.none(
-    `INSERT INTO pod (name, created_at, updated_at) 
-     VALUES ($(podName), NOW(), NOW())`,
-    { podName },
+    `INSERT INTO pod (name, owner_id, metadata, created_at, updated_at)
+     VALUES ($(podName), $(ownerId), '{}', $(now), $(now))`,
+    { podName, ownerId, now },
   );
 
   // Create .config stream first (parent)
   const configStream = await db.one(
-    `INSERT INTO stream (pod_name, name, path, parent_id, user_id, access_permission, created_at, updated_at)
-     VALUES ($(podName), '.config', '.config', NULL, $(ownerId), 'private', NOW(), NOW())
+    `INSERT INTO stream (pod_name, name, path, parent_id, user_id, access_permission, metadata, has_schema, created_at, updated_at)
+     VALUES ($(podName), '.config', '.config', NULL, $(ownerId), 'private', '{}', false, $(now), $(now))
      RETURNING id`,
-    { podName, ownerId },
+    { podName, ownerId, now },
   );
 
   // Create owner stream under .config
   const ownerStream = await db.one(
-    `INSERT INTO stream (pod_name, name, path, parent_id, user_id, access_permission, created_at, updated_at)
-     VALUES ($(podName), 'owner', '.config/owner', $(parentId), $(ownerId), 'private', NOW(), NOW())
+    `INSERT INTO stream (pod_name, name, path, parent_id, user_id, access_permission, metadata, has_schema, created_at, updated_at)
+     VALUES ($(podName), 'owner', '.config/owner', $(parentId), $(ownerId), 'private', '{}', false, $(now), $(now))
      RETURNING id`,
-    { podName, parentId: configStream.id, ownerId },
+    { podName, parentId: configStream.id, ownerId, now },
   );
 
   // Add ownership record
@@ -97,14 +100,13 @@ export async function createTestPod(
   const content = JSON.stringify(ownerObj);
   const contentHash =
     "sha256:" + crypto.createHash("sha256").update(content).digest("hex");
-  const timestamp = new Date().toISOString();
 
   // Calculate record hash (previousHash + contentHash + userId + timestamp)
   const hashData = JSON.stringify({
     previous_hash: null,
     content_hash: contentHash,
     user_id: ownerId,
-    timestamp: timestamp,
+    timestamp: now,
   });
   const hash =
     "sha256:" + crypto.createHash("sha256").update(hashData).digest("hex");
@@ -112,8 +114,8 @@ export async function createTestPod(
   const size = Buffer.byteLength(content, "utf8");
 
   await db.none(
-    `INSERT INTO record (stream_id, index, content, content_type, size, name, path, content_hash, hash, previous_hash, user_id, created_at)
-     VALUES ($(streamId), 0, $(content), 'application/json', $(size), 'owner', '.config/owner/owner', $(contentHash), $(hash), NULL, $(ownerId), $(timestamp))`,
+    `INSERT INTO record (stream_id, index, content, content_type, is_binary, size, name, path, content_hash, hash, previous_hash, user_id, headers, deleted, purged, created_at)
+     VALUES ($(streamId), 0, $(content), 'application/json', false, $(size), 'owner', '.config/owner/owner', $(contentHash), $(hash), NULL, $(ownerId), '{}', false, false, $(now))`,
     {
       streamId: ownerStream.id,
       content,
@@ -121,7 +123,7 @@ export async function createTestPod(
       contentHash,
       hash,
       ownerId,
-      timestamp,
+      now,
     },
   );
 }

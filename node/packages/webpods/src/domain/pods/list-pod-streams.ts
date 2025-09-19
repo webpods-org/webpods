@@ -278,11 +278,11 @@ export async function listPodStreams(
         accessPermission: stream.access_permission,
 
         // Timestamps
-        createdAt: stream.created_at,
-        updatedAt: stream.updated_at || stream.created_at,
+        createdAt: new Date(stream.created_at),
+        updatedAt: new Date(stream.updated_at),
 
         // Metadata
-        metadata: stream.metadata || {},
+        metadata: stream.metadata ? JSON.parse(stream.metadata) : {},
       };
 
       // Add record counts if requested

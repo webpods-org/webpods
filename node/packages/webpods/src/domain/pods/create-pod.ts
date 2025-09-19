@@ -25,9 +25,9 @@ function mapPodFromDb(row: PodDbRow): Pod {
   return {
     name: row.name,
     userId: "", // Will be populated from .config/owner stream
-    metadata: row.metadata,
+    metadata: JSON.parse(row.metadata),
     createdAt: row.created_at,
-    updatedAt: row.updated_at || row.created_at,
+    updatedAt: row.updated_at,
   };
 }
 
@@ -59,10 +59,13 @@ export async function createPod(
       }
 
       // Create pod with snake_case parameters
+      const now = Date.now();
       const podParams = {
         name: podName,
         owner_id: userId, // Set owner_id directly on pod
-        created_at: new Date(),
+        metadata: JSON.stringify({}),
+        created_at: now,
+        updated_at: now,
       };
 
       const pod = await t.one<PodDbRow>(
@@ -78,7 +81,10 @@ export async function createPod(
         parent_id: null,
         user_id: userId,
         access_permission: "private",
-        created_at: new Date(),
+        has_schema: false,
+        metadata: JSON.stringify({}),
+        created_at: now,
+        updated_at: now,
       };
 
       const configStream = await t.one<StreamDbRow>(
@@ -94,7 +100,10 @@ export async function createPod(
         parent_id: configStream.id,
         user_id: userId,
         access_permission: "private",
-        created_at: new Date(),
+        has_schema: false,
+        metadata: JSON.stringify({}),
+        created_at: now,
+        updated_at: now,
       };
 
       const ownerStream = await t.one<StreamDbRow>(
@@ -104,9 +113,8 @@ export async function createPod(
 
       // Write initial owner record with snake_case parameters
       const ownerContent = { userId };
-      const timestamp = new Date().toISOString();
       const contentHash = calculateContentHash(ownerContent);
-      const hash = calculateRecordHash(null, contentHash, userId, timestamp);
+      const hash = calculateRecordHash(null, contentHash, userId, now);
       const contentString = JSON.stringify(ownerContent);
       const size = Buffer.byteLength(contentString, "utf8");
 
@@ -115,6 +123,7 @@ export async function createPod(
         index: 0,
         content: contentString,
         content_type: "application/json",
+        is_binary: false,
         size: size,
         name: "owner",
         path: ".config/owner/owner",
@@ -122,7 +131,10 @@ export async function createPod(
         hash: hash,
         previous_hash: null,
         user_id: userId,
-        created_at: timestamp,
+        headers: JSON.stringify({}),
+        deleted: false,
+        purged: false,
+        created_at: now,
       };
 
       await t.none(sql.insert("record", recordParams), recordParams);

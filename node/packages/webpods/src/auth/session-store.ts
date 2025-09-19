@@ -77,7 +77,7 @@ export async function getUserSessions(userId: string): Promise<
 > {
   const db = getDb();
 
-  const now = new Date().toISOString();
+  const now = new Date();
   const sessions = await db.manyOrNone<{
     sid: string;
     sess: Record<string, unknown>;
@@ -92,15 +92,17 @@ export async function getUserSessions(userId: string): Promise<
   // Filter sessions that belong to the user
   const userSessions = [];
   for (const session of sessions) {
-    const sessionData =
-      typeof session.sess === "string"
-        ? JSON.parse(session.sess)
-        : session.sess;
+    const sessionData = session.sess as any;
 
     if (sessionData.user?.id === userId) {
       userSessions.push({
         id: session.sid,
-        user: sessionData.user,
+        user: sessionData.user as {
+          id: string;
+          email?: string;
+          name?: string;
+          provider?: string;
+        },
         createdAt: sessionData.cookie?.originalMaxAge
           ? new Date(
               session.expire.getTime() - sessionData.cookie.originalMaxAge,
@@ -152,7 +154,7 @@ export async function revokeUserSessions(userId: string): Promise<number> {
 export async function cleanupExpiredSessions(): Promise<number> {
   const db = getDb();
 
-  const now = new Date().toISOString();
+  const now = new Date();
   const result = await db.result(
     `DELETE FROM session WHERE expire < $(now)`,
     { now },

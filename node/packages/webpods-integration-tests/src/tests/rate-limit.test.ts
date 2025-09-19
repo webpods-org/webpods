@@ -116,10 +116,11 @@ describe("WebPods Rate Limiting", () => {
       );
 
       if (!existing) {
+        const now = Date.now();
         await db.none(
-          `INSERT INTO stream (pod_name, name, path, parent_id, user_id, access_permission, created_at)
-           VALUES ($(podName), $(streamName), $(streamName), NULL, $(userId), 'public', NOW())`,
-          { podName: testPodId, streamName, userId },
+          `INSERT INTO stream (pod_name, name, path, parent_id, user_id, access_permission, metadata, has_schema, created_at, updated_at)
+           VALUES ($(podName), $(streamName), $(streamName), NULL, $(userId), 'public', '{}', false, $(now), $(now))`,
+          { podName: testPodId, streamName, userId, now },
         );
       }
     }

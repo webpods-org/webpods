@@ -25,13 +25,14 @@ export async function updateStreamPermission(
     }
 
     // Update the stream's access permission
+    const now = Date.now();
     const updated = await ctx.db.oneOrNone<StreamDbRow>(
-      `UPDATE stream 
+      `UPDATE stream
        SET access_permission = $(accessPermission),
-           updated_at = CURRENT_TIMESTAMP
+           updated_at = $(updatedAt)
        WHERE id = $(streamId)
        RETURNING *`,
-      { streamId, accessPermission },
+      { streamId, accessPermission, updatedAt: now },
     );
 
     if (!updated) {

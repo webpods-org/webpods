@@ -75,11 +75,21 @@ router.get("/", rateLimit("read"), async (req: Request, res: Response) => {
       return;
     }
 
+    // Parse JSON fields stored as TEXT
+    const redirect_uris =
+      typeof client.redirect_uris === "string"
+        ? JSON.parse(client.redirect_uris)
+        : client.redirect_uris;
+    const requested_pods =
+      typeof client.requested_pods === "string"
+        ? JSON.parse(client.requested_pods)
+        : client.requested_pods;
+
     // Generate CSRF state with pods
     const nonce = crypto.randomBytes(16).toString("hex");
     const stateData = {
       nonce,
-      pods: client.requested_pods,
+      pods: requested_pods,
       client_id: clientId,
     };
     const state = Buffer.from(JSON.stringify(stateData)).toString("base64");
@@ -90,7 +100,7 @@ router.get("/", rateLimit("read"), async (req: Request, res: Response) => {
     // Construct Hydra OAuth authorization URL
     const hydraUrl = new URL(`${hydraPublicUrl}/oauth2/auth`);
     hydraUrl.searchParams.set("client_id", clientId);
-    hydraUrl.searchParams.set("redirect_uri", client.redirect_uris[0] || ""); // Use first redirect URI
+    hydraUrl.searchParams.set("redirect_uri", redirect_uris[0] || ""); // Use first redirect URI
     hydraUrl.searchParams.set("response_type", "code");
     hydraUrl.searchParams.set(
       "scope",
@@ -101,8 +111,8 @@ router.get("/", rateLimit("read"), async (req: Request, res: Response) => {
     logger.info("Redirecting to Hydra OAuth", {
       clientId,
       clientName: client.client_name,
-      requestedPods: client.requested_pods,
-      redirectUri: client.redirect_uris[0],
+      requestedPods: requested_pods,
+      redirectUri: redirect_uris[0],
     });
 
     // Redirect to Hydra

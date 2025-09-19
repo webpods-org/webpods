@@ -97,7 +97,7 @@ export async function transferPodOwnership(
 
       const index = (previousRecord?.index ?? -1) + 1;
       const previousHash = previousRecord?.hash || null;
-      const timestamp = new Date().toISOString();
+      const timestamp = Date.now();
 
       // Create new owner record
       const newOwnerContent = { userId: toUserId };
@@ -117,6 +117,7 @@ export async function transferPodOwnership(
         index: index,
         content: contentString,
         content_type: "application/json",
+        is_binary: false,
         size: size,
         name: "owner",
         path: `${ownerStream.path}/owner`,
@@ -124,6 +125,9 @@ export async function transferPodOwnership(
         hash: hash,
         previous_hash: previousHash,
         user_id: fromUserId,
+        headers: JSON.stringify({}),
+        deleted: false,
+        purged: false,
         created_at: timestamp,
       };
 
@@ -135,7 +139,7 @@ export async function transferPodOwnership(
         {
           owner_id: toUserId,
           pod_name: podName,
-          updated_at: new Date().toISOString(),
+          updated_at: Date.now(),
         },
       );
 

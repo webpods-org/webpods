@@ -373,7 +373,7 @@ export const getHandler = async (
       res.setHeader("X-Hash", record.hash);
       res.setHeader("X-Previous-Hash", record.previousHash || "");
       res.setHeader("X-Author", record.userId);
-      res.setHeader("X-Timestamp", record.createdAt.toISOString());
+      res.setHeader("X-Timestamp", record.createdAt.toString());
 
       // Add custom headers if present
       if (record.headers) {
@@ -509,7 +509,7 @@ export const getHandler = async (
           childStreams.push({
             name: childStream.name,
             path: childPathResult.data,
-            createdAt: childStream.createdAt.toISOString(),
+            createdAt: childStream.createdAt,
           });
         }
       }

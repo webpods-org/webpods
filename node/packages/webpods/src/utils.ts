@@ -96,7 +96,7 @@ export function calculateRecordHash(
   previousHash: string | null,
   contentHash: string,
   userId: string,
-  timestamp: string,
+  timestamp: number,
 ): string {
   const data = JSON.stringify({
     previous_hash: previousHash,

@@ -90,7 +90,7 @@ export async function writeRecord(
 
       const index = (previousRecord?.index ?? -1) + 1;
       const previousHash = previousRecord?.hash || null;
-      const timestamp = new Date().toISOString();
+      const now = Date.now();
 
       // Detect if content is binary (Buffer) or text (String)
       const isBinary = Buffer.isBuffer(content);
@@ -121,12 +121,7 @@ export async function writeRecord(
       const contentHash = calculateContentHash(storedContent);
 
       // Calculate record hash with all parameters
-      const hash = calculateRecordHash(
-        previousHash,
-        contentHash,
-        userId,
-        timestamp,
-      );
+      const hash = calculateRecordHash(previousHash, contentHash, userId, now);
 
       // Get stream path to compute record path
       const stream = await t.one<StreamDbRow>(
@@ -198,8 +193,8 @@ export async function writeRecord(
 
       // Insert new record with path and size
       const record = await t.one<RecordDbRow>(
-        `INSERT INTO record (stream_id, index, content, content_type, is_binary, size, name, path, content_hash, hash, previous_hash, user_id, storage, headers, created_at)
-         VALUES ($(streamId), $(index), $(content), $(contentType), $(isBinary), $(size), $(name), $(path), $(contentHash), $(hash), $(previousHash), $(userId), $(storage), $(headers), $(createdAt))
+        `INSERT INTO record (stream_id, index, content, content_type, is_binary, size, name, path, content_hash, hash, previous_hash, user_id, storage, headers, deleted, purged, created_at)
+         VALUES ($(streamId), $(index), $(content), $(contentType), $(isBinary), $(size), $(name), $(path), $(contentHash), $(hash), $(previousHash), $(userId), $(storage), $(headers), $(deleted), $(purged), $(createdAt))
          RETURNING *`,
         {
           streamId,
@@ -215,8 +210,10 @@ export async function writeRecord(
           previousHash,
           userId,
           storage: storageLocation,
-          headers: headers || {},
-          createdAt: timestamp,
+          headers: JSON.stringify(headers || {}),
+          deleted: false,
+          purged: false,
+          createdAt: now,
         },
       );
 

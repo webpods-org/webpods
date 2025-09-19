@@ -29,17 +29,18 @@ export async function storePKCEState(
 
   const config = getConfig();
   const ttlMinutes = config.oauth.pkceStateExpiryMinutes ?? 10;
-  const expiresAt = new Date();
-  expiresAt.setMinutes(expiresAt.getMinutes() + ttlMinutes);
+  const now = Date.now();
+  const expiresAt = now + ttlMinutes * 60 * 1000;
 
   await db.none(
-    `INSERT INTO oauth_state (state, code_verifier, pod, redirect_uri, expires_at)
-     VALUES ($(state), $(codeVerifier), $(pod), $(redirectUri), $(expiresAt))`,
+    `INSERT INTO oauth_state (state, code_verifier, pod, redirect_uri, created_at, expires_at)
+     VALUES ($(state), $(codeVerifier), $(pod), $(redirectUri), $(createdAt), $(expiresAt))`,
     {
       state,
       codeVerifier,
       pod: pod || null,
       redirectUri: redirect || null,
+      createdAt: now,
       expiresAt,
     },
   );
@@ -55,7 +56,7 @@ export async function retrievePKCEState(
 ): Promise<PKCEState | null> {
   const db = getDb();
 
-  const now = new Date().toISOString();
+  const now = Date.now();
   const row = await db.oneOrNone<{
     state: string;
     code_verifier: string;
@@ -108,7 +109,7 @@ export function generatePKCE(): {
 export async function cleanupExpiredStates(): Promise<void> {
   const db = getDb();
 
-  const now = new Date().toISOString();
+  const now = Date.now();
   const result = await db.result(
     `DELETE FROM oauth_state WHERE expires_at < $(now)`,
     { now },

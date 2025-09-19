@@ -24,8 +24,8 @@ export function failure(error: DomainError): Result<never> {
 // Database entities
 export interface User {
   id: string;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: number;
+  updatedAt: number;
 }
 
 export interface Identity {
@@ -36,16 +36,16 @@ export interface Identity {
   email: string | null;
   name: string | null;
   metadata?: Record<string, unknown>;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: number;
+  updatedAt: number;
 }
 
 export interface Pod {
   name: string; // Primary key - Subdomain (e.g., 'alice')
   userId: string; // Owner ID from .config/owner stream
   metadata?: Record<string, unknown>;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: number;
+  updatedAt: number;
 }
 
 export interface Stream {
@@ -58,8 +58,8 @@ export interface Stream {
   accessPermission: string; // 'public', 'private', or '/streamname'
   metadata?: Record<string, unknown>;
   hasSchema: boolean; // Whether this stream has validation schema
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: number;
+  updatedAt: number;
 }
 
 export interface StreamRecord {
@@ -79,7 +79,7 @@ export interface StreamRecord {
   storage?: string | null; // External storage location (adapter-specific format)
   headers?: Record<string, string>; // User-provided headers
   metadata?: Record<string, unknown>;
-  createdAt: Date;
+  createdAt: number;
 }
 
 export interface CustomDomain {
@@ -87,8 +87,8 @@ export interface CustomDomain {
   podName: string;
   domain: string;
   sslProvisioned: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: number;
+  updatedAt: number;
 }
 
 export interface RateLimit {
@@ -96,8 +96,8 @@ export interface RateLimit {
   key: string; // userId or ipAddress
   action: "read" | "write" | "pod_create" | "stream_create";
   count: number;
-  windowStart: Date;
-  windowEnd: Date;
+  windowStart: number;
+  windowEnd: number;
 }
 
 // API types
@@ -113,14 +113,14 @@ export interface StreamRecordResponse {
   previousHash: string | null;
   userId: string;
   headers?: Record<string, string>; // User-provided headers
-  timestamp: string;
+  timestamp: number;
   contentUrl?: string; // URL for externally stored content
 }
 
 export interface StreamInfo {
   name: string;
   path: string; // Full path to this stream (e.g., "/blog/posts")
-  createdAt: string;
+  createdAt: number;
 }
 
 export interface StreamListResponse {
