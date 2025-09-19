@@ -43,9 +43,13 @@ describe("CLI Field Selection and Content Truncation", function () {
 
     await testDb
       .getDb()
-      .none("INSERT INTO pod (name, created_at) VALUES ($(name), NOW())", {
-        name: testPodName,
-      });
+      .none(
+        "INSERT INTO pod (name, created_at, updated_at, metadata) VALUES ($(name), $(now), $(now), '{}')",
+        {
+          name: testPodName,
+          now: Date.now(),
+        },
+      );
 
     // Create owner config for the pod
     await createOwnerConfig(

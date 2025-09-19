@@ -66,9 +66,10 @@ export async function createTestStream(
       currentStreamId = existing.id;
     } else {
       // Create the stream with path
+      const now = Date.now();
       const result: { id: number } = await db.one(
-        `INSERT INTO stream (pod_name, name, path, parent_id, user_id, access_permission, created_at)
-         VALUES ($(podName), $(name), $(path), $(parentId), $(userId), $(accessPermission), $(timestamp))
+        `INSERT INTO stream (pod_name, name, path, parent_id, user_id, access_permission, created_at, updated_at, metadata, has_schema)
+         VALUES ($(podName), $(name), $(path), $(parentId), $(userId), $(accessPermission), $(timestamp), $(timestamp), '{}', false)
          RETURNING id`,
         {
           podName,
@@ -77,7 +78,7 @@ export async function createTestStream(
           parentId,
           userId,
           accessPermission,
-          timestamp: Date.now(),
+          timestamp: now,
         },
       );
       currentStreamId = result.id;
@@ -133,8 +134,8 @@ export async function createTestRecord(
   const hash = `sha256:${createHash("sha256").update(hashInput).digest("hex")}`;
 
   await db.none(
-    `INSERT INTO record (stream_id, name, path, content, content_type, content_hash, hash, previous_hash, user_id, index, size, deleted, purged, created_at)
-     VALUES ($(streamId), $(name), $(path), $(content), $(contentType), $(contentHash), $(hash), $(previousHash), $(userId), $(index), $(size), $(deleted), $(purged), $(timestamp))`,
+    `INSERT INTO record (stream_id, name, path, content, content_type, content_hash, hash, previous_hash, user_id, index, size, deleted, purged, is_binary, headers, created_at)
+     VALUES ($(streamId), $(name), $(path), $(content), $(contentType), $(contentHash), $(hash), $(previousHash), $(userId), $(index), $(size), $(deleted), $(purged), $(isBinary), $(headers), $(timestamp))`,
     {
       streamId,
       name,
@@ -149,6 +150,8 @@ export async function createTestRecord(
       size,
       deleted: false,
       purged: false,
+      isBinary: false,
+      headers: "{}",
       timestamp: Date.now(),
     },
   );

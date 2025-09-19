@@ -38,9 +38,13 @@ describe("CLI Schema Commands", () => {
     // Create test pod
     await testDb
       .getDb()
-      .none(`INSERT INTO pod (name, created_at) VALUES ($(podName), NOW())`, {
-        podName: testPodName,
-      });
+      .none(
+        `INSERT INTO pod (name, created_at, updated_at, metadata) VALUES ($(podName), $(now), $(now), '{}')`,
+        {
+          podName: testPodName,
+          now: Date.now(),
+        },
+      );
   });
 
   describe("schema enable command", () => {

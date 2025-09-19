@@ -7,6 +7,7 @@ import connectPgSimple from "connect-pg-simple";
 import { getDb } from "../db/index.js";
 import { createLogger } from "../logger.js";
 import { getConfig } from "../config-loader.js";
+import type { SessionData } from "../types.js";
 
 const logger = createLogger("webpods:auth:session");
 const PgSession = connectPgSimple(session);
@@ -92,7 +93,7 @@ export async function getUserSessions(userId: string): Promise<
   // Filter sessions that belong to the user
   const userSessions = [];
   for (const session of sessions) {
-    const sessionData = session.sess as any;
+    const sessionData = session.sess as SessionData;
 
     if (sessionData.user?.id === userId) {
       userSessions.push({

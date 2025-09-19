@@ -111,6 +111,7 @@ export async function updateCustomDomains(
         }
       } else {
         // Create the stream with hierarchical structure
+        const now = Date.now();
         const streamParams = {
           pod_name: podName,
           name: "domains",
@@ -118,8 +119,10 @@ export async function updateCustomDomains(
           parent_id: configStream.id,
           user_id: userId,
           access_permission: "private",
-          created_at: Date.now(),
-          updated_at: Date.now(),
+          has_schema: false,
+          metadata: "{}",
+          created_at: now,
+          updated_at: now,
         };
 
         domainsStream = await t.one<StreamDbRow>(

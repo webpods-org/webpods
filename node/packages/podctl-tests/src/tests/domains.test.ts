@@ -38,9 +38,13 @@ describe("CLI Domain Commands", function () {
     testPodName = `test-pod-${Date.now()}`;
     await testDb
       .getDb()
-      .none("INSERT INTO pod (name, created_at) VALUES ($(name), NOW())", {
-        name: testPodName,
-      });
+      .none(
+        "INSERT INTO pod (name, created_at, updated_at, metadata) VALUES ($(name), $(now), $(now), '{}')",
+        {
+          name: testPodName,
+          now: Date.now(),
+        },
+      );
 
     // Create .config/owner stream for pod ownership using the new helper
     await createOwnerConfig(
@@ -167,9 +171,13 @@ describe("CLI Domain Commands", function () {
       const emptyPodName = `empty-pod-${Date.now()}`;
       await testDb
         .getDb()
-        .none("INSERT INTO pod (name, created_at) VALUES ($(name), NOW())", {
-          name: emptyPodName,
-        });
+        .none(
+          "INSERT INTO pod (name, created_at, updated_at, metadata) VALUES ($(name), $(now), $(now), '{}')",
+          {
+            name: emptyPodName,
+            now: Date.now(),
+          },
+        );
 
       const result = await cli.exec(["domain", "list", emptyPodName], {
         token: testToken,
