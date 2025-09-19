@@ -342,8 +342,8 @@ router.post(
     try {
       await rateLimiter.setWindow(identifier, action, {
         count,
-        windowStart: new Date(windowStart),
-        windowEnd: new Date(windowEnd),
+        windowStart: windowStart,
+        windowEnd: windowEnd,
       });
       res.json({
         success: true,

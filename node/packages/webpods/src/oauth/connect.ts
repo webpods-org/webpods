@@ -32,8 +32,8 @@ interface OAuthClientDbRow {
   token_endpoint_auth_method: string;
   scope: string;
   metadata: Record<string, unknown>;
-  created_at: Date;
-  updated_at: Date;
+  created_at: string;
+  updated_at: string;
 }
 
 /**

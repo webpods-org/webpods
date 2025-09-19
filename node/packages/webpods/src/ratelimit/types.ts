@@ -4,7 +4,7 @@ export type RateLimitResult = {
   allowed: boolean;
   remaining: number;
   limit: number;
-  resetAt: Date;
+  resetAt: number; // Unix timestamp in milliseconds
 };
 
 export type RateLimitStats = {

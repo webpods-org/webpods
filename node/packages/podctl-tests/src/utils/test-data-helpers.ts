@@ -77,7 +77,7 @@ export async function createTestStream(
           parentId,
           userId,
           accessPermission,
-          timestamp: new Date(),
+          timestamp: Date.now(),
         },
       );
       currentStreamId = result.id;
@@ -149,7 +149,7 @@ export async function createTestRecord(
       size,
       deleted: false,
       purged: false,
-      timestamp: new Date(),
+      timestamp: Date.now(),
     },
   );
 }

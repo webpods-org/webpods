@@ -44,7 +44,10 @@ export function rateLimit(action: RateLimitAction) {
           // Set rate limit headers (lowercase for consistency with HTTP/2 and fetch)
           res.setHeader("x-ratelimit-limit", result.limit.toString());
           res.setHeader("x-ratelimit-remaining", result.remaining.toString());
-          res.setHeader("x-ratelimit-reset", result.resetAt.toISOString());
+          res.setHeader(
+            "x-ratelimit-reset",
+            new Date(result.resetAt).toISOString(),
+          );
         } catch (headerError) {
           // Silently ignore header setting errors - this can happen during re-routing
           // when response is being sent between the headersSent check and setHeader call

@@ -32,7 +32,7 @@ export class SlidingWindowRateLimiter {
   ): {
     allowed: boolean;
     remaining: number;
-    resetAt: Date;
+    resetAt: number;
     currentCount: number;
   } {
     this.stats.totalChecks++;
@@ -64,7 +64,7 @@ export class SlidingWindowRateLimiter {
     const currentCount = entries.reduce((sum, entry) => sum + entry.count, 0);
 
     // Calculate reset time (next window boundary)
-    const resetAt = new Date(now + this.windowMS);
+    const resetAt = now + this.windowMS;
 
     // Check if allowed
     const allowed = currentCount < limit;
@@ -99,7 +99,7 @@ export class SlidingWindowRateLimiter {
     limit: number,
   ): {
     remaining: number;
-    resetAt: Date;
+    resetAt: number;
     currentCount: number;
   } {
     const now = Date.now();
@@ -109,7 +109,7 @@ export class SlidingWindowRateLimiter {
     if (!identifierData) {
       return {
         remaining: limit,
-        resetAt: new Date(now + this.windowMS),
+        resetAt: now + this.windowMS,
         currentCount: 0,
       };
     }
@@ -124,7 +124,7 @@ export class SlidingWindowRateLimiter {
 
     return {
       remaining: Math.max(0, limit - currentCount),
-      resetAt: new Date(now + this.windowMS),
+      resetAt: now + this.windowMS,
       currentCount,
     };
   }
@@ -202,7 +202,7 @@ export class SlidingWindowRateLimiter {
   getWindowInfo(
     identifier: string,
     action: RateLimitAction,
-  ): { windowStart: Date; windowEnd: Date } | null {
+  ): { windowStart: number; windowEnd: number } | null {
     const identifierData = this.data.get(identifier);
     if (!identifierData) return null;
 
@@ -211,8 +211,8 @@ export class SlidingWindowRateLimiter {
 
     // For sliding window, we calculate based on current time
     const now = Date.now();
-    const windowStart = new Date(now - this.windowMS);
-    const windowEnd = new Date(now);
+    const windowStart = now - this.windowMS;
+    const windowEnd = now;
 
     return { windowStart, windowEnd };
   }
@@ -223,7 +223,7 @@ export class SlidingWindowRateLimiter {
   setWindow(
     identifier: string,
     action: RateLimitAction,
-    data: { count: number; windowStart: Date; windowEnd: Date },
+    data: { count: number; windowStart: number; windowEnd: number },
   ): void {
     // Clear existing entries
     let identifierData = this.data.get(identifier);
@@ -234,7 +234,7 @@ export class SlidingWindowRateLimiter {
 
     // Create entries based on the count and window times
     const entries: WindowEntry[] = [];
-    const windowStartMS = data.windowStart.getTime();
+    const windowStartMS = data.windowStart;
 
     // Distribute entries evenly across the window
     for (let i = 0; i < data.count; i++) {
@@ -251,15 +251,15 @@ export class SlidingWindowRateLimiter {
     identifier: string;
     action: RateLimitAction;
     count: number;
-    windowStart: Date;
-    windowEnd: Date;
+    windowStart: number;
+    windowEnd: number;
   }> {
     const results: Array<{
       identifier: string;
       action: RateLimitAction;
       count: number;
-      windowStart: Date;
-      windowEnd: Date;
+      windowStart: number;
+      windowEnd: number;
     }> = [];
 
     const now = Date.now();
@@ -277,8 +277,8 @@ export class SlidingWindowRateLimiter {
             identifier,
             action,
             count: validEntries.length,
-            windowStart: new Date(windowStart),
-            windowEnd: new Date(now),
+            windowStart: windowStart,
+            windowEnd: now,
           });
         }
       }

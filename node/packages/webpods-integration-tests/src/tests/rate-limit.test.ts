@@ -383,9 +383,9 @@ describe("WebPods Rate Limiting", () => {
         return;
       }
 
-      const windowStart = new Date(response.data.windowStart);
-      const windowEnd = new Date(response.data.windowEnd);
-      const windowDuration = windowEnd.getTime() - windowStart.getTime();
+      const windowStart = response.data.windowStart;
+      const windowEnd = response.data.windowEnd;
+      const windowDuration = windowEnd - windowStart;
 
       // Should be approximately 1 hour (3600000 ms)
       expect(windowDuration).to.be.closeTo(3600000, 1000);
@@ -393,7 +393,7 @@ describe("WebPods Rate Limiting", () => {
 
     it("should reset count when window expires", async () => {
       const testClient = new TestHttpClient("http://localhost:3000");
-      const now = new Date();
+      const now = Date.now();
 
       // Set an expired window with high count via test utility
       const setResponse = await testClient.post(
@@ -402,8 +402,8 @@ describe("WebPods Rate Limiting", () => {
           identifier: userId,
           action: "write",
           count: 999, // Just under limit
-          windowStart: new Date(now.getTime() - 2 * 60 * 60 * 1000), // 2 hours ago
-          windowEnd: new Date(now.getTime() - 60 * 60 * 1000), // 1 hour ago
+          windowStart: now - 2 * 60 * 60 * 1000, // 2 hours ago
+          windowEnd: now - 60 * 60 * 1000, // 1 hour ago
         },
       );
 
@@ -423,7 +423,7 @@ describe("WebPods Rate Limiting", () => {
 
     it("should clean up old rate limit windows", async () => {
       const testClient = new TestHttpClient("http://localhost:3000");
-      const oldDate = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours ago
+      const oldDate = Date.now() - 24 * 60 * 60 * 1000; // 24 hours ago
 
       // Set multiple old windows via test utility
       const setResponse1 = await testClient.post(
@@ -432,7 +432,7 @@ describe("WebPods Rate Limiting", () => {
           identifier: "old-user-1",
           action: "write",
           count: 100,
-          windowStart: new Date(oldDate.getTime() - 60 * 60 * 1000),
+          windowStart: oldDate - 60 * 60 * 1000,
           windowEnd: oldDate,
         },
       );
@@ -443,7 +443,7 @@ describe("WebPods Rate Limiting", () => {
           identifier: "old-user-2",
           action: "read",
           count: 200,
-          windowStart: new Date(oldDate.getTime() - 60 * 60 * 1000),
+          windowStart: oldDate - 60 * 60 * 1000,
           windowEnd: oldDate,
         },
       );
@@ -472,7 +472,7 @@ describe("WebPods Rate Limiting", () => {
       // Check that old windows are gone (only recent windows should exist)
       const cutoff = Date.now() - 2 * 60 * 60 * 1000;
       const oldWindows = windowsResponse.data.windows.filter(
-        (w: any) => new Date(w.windowEnd).getTime() < cutoff,
+        (w: any) => w.windowEnd < cutoff,
       );
 
       expect(oldWindows.length).to.equal(0);
@@ -547,11 +547,13 @@ describe("WebPods Rate Limiting", () => {
       await createTestPod(db, user2PodId, user2.userId);
 
       // Pre-create streams for user2's pod
+      const now = Date.now();
       await db.none(
-        `INSERT INTO stream (pod_name, name, path, parent_id, user_id, access_permission, created_at)
-         VALUES ($(podName), $(streamName), $(streamName), NULL, $(userId), 'public', NOW())`,
+        `INSERT INTO stream (pod_name, name, path, parent_id, user_id, access_permission, created_at, updated_at, metadata, has_schema)
+         VALUES ($(podName), $(streamName), $(streamName), NULL, $(userId), 'public', $(now), $(now), '{}', false)`,
         {
           podName: user2PodId,
+          now,
           streamName: "user2-allowed",
           userId: user2.userId,
         },
@@ -621,13 +623,15 @@ describe("WebPods Rate Limiting", () => {
       await createTestPod(db, uniquePodId, uniqueUser.userId);
 
       // Pre-create ONLY the can-write stream (stream-99, stream-100, stream-101 need to be created during test)
+      const streamNow = Date.now();
       await db.none(
-        `INSERT INTO stream (pod_name, name, path, parent_id, user_id, access_permission, created_at)
-         VALUES ($(podName), $(streamName), $(streamName), NULL, $(userId), 'public', NOW())`,
+        `INSERT INTO stream (pod_name, name, path, parent_id, user_id, access_permission, created_at, updated_at, metadata, has_schema)
+         VALUES ($(podName), $(streamName), $(streamName), NULL, $(userId), 'public', $(streamNow), $(streamNow), '{}', false)`,
         {
           podName: uniquePodId,
           streamName: "can-write",
           userId: uniqueUser.userId,
+          streamNow,
         },
       );
 

@@ -70,7 +70,7 @@ export async function checkRateLimit(
       allowed: true,
       remaining: 1000,
       limit: 1000,
-      resetAt: new Date(Date.now() + 3600000),
+      resetAt: Date.now() + 3600000,
     };
   }
 

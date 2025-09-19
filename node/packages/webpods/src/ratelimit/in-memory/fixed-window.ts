@@ -44,7 +44,7 @@ export class FixedWindowRateLimiter {
   ): {
     allowed: boolean;
     remaining: number;
-    resetAt: Date;
+    resetAt: number;
     currentCount: number;
   } {
     this.stats.totalChecks++;
@@ -94,7 +94,7 @@ export class FixedWindowRateLimiter {
     return {
       allowed,
       remaining,
-      resetAt: new Date(windowEnd),
+      resetAt: windowEnd,
       currentCount: windowData.count,
     };
   }
@@ -109,7 +109,7 @@ export class FixedWindowRateLimiter {
     limit: number,
   ): {
     remaining: number;
-    resetAt: Date;
+    resetAt: number;
     currentCount: number;
   } {
     const now = Date.now();
@@ -123,7 +123,7 @@ export class FixedWindowRateLimiter {
 
     return {
       remaining,
-      resetAt: new Date(windowEnd),
+      resetAt: windowEnd,
       currentCount,
     };
   }
@@ -194,7 +194,7 @@ export class FixedWindowRateLimiter {
   getWindowInfo(
     identifier: string,
     action: RateLimitAction,
-  ): { windowStart: Date; windowEnd: Date } | null {
+  ): { windowStart: number; windowEnd: number } | null {
     const now = Date.now();
     const windowEnd = Math.ceil(now / this.windowMS) * this.windowMS;
     const windowStart = windowEnd - this.windowMS;
@@ -204,8 +204,8 @@ export class FixedWindowRateLimiter {
     if (!windowData) return null;
 
     return {
-      windowStart: new Date(windowData.windowStart),
-      windowEnd: new Date(windowData.windowEnd),
+      windowStart: windowData.windowStart,
+      windowEnd: windowData.windowEnd,
     };
   }
 
@@ -215,13 +215,13 @@ export class FixedWindowRateLimiter {
   setWindow(
     identifier: string,
     action: RateLimitAction,
-    data: { count: number; windowStart: Date; windowEnd: Date },
+    data: { count: number; windowStart: number; windowEnd: number },
   ): void {
-    const key = `${identifier}:${action}:${data.windowStart.getTime()}`;
+    const key = `${identifier}:${action}:${data.windowStart}`;
     this.windows.set(key, {
       count: data.count,
-      windowStart: data.windowStart.getTime(),
-      windowEnd: data.windowEnd.getTime(),
+      windowStart: data.windowStart,
+      windowEnd: data.windowEnd,
     });
   }
 
@@ -232,15 +232,15 @@ export class FixedWindowRateLimiter {
     identifier: string;
     action: RateLimitAction;
     count: number;
-    windowStart: Date;
-    windowEnd: Date;
+    windowStart: number;
+    windowEnd: number;
   }> {
     const results: Array<{
       identifier: string;
       action: RateLimitAction;
       count: number;
-      windowStart: Date;
-      windowEnd: Date;
+      windowStart: number;
+      windowEnd: number;
     }> = [];
 
     for (const [key, data] of this.windows) {
@@ -251,8 +251,8 @@ export class FixedWindowRateLimiter {
           identifier: parts[0],
           action: parts[1] as RateLimitAction,
           count: data.count,
-          windowStart: new Date(data.windowStart),
-          windowEnd: new Date(data.windowEnd),
+          windowStart: data.windowStart,
+          windowEnd: data.windowEnd,
         });
       }
     }

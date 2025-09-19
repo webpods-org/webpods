@@ -34,22 +34,20 @@ export const postgresRateLimiterAdapter: RateLimiterAdapter = {
         allowed: true,
         remaining: 1000,
         limit: 1000,
-        resetAt: new Date(Date.now() + 3600000),
+        resetAt: Date.now() + 3600000,
       };
     }
 
     const db = getDb();
     const limit = getActionLimit(action, config.limits);
     const windowMS = config.windowMS;
-    const now = new Date();
-    const windowStart = new Date(now.getTime() - windowMS);
+    const now = Date.now();
+    const windowStart = now - windowMS;
 
     try {
       // Get or create window
-      const windowEnd = new Date(
-        Math.ceil(now.getTime() / windowMS) * windowMS,
-      );
-      const actualWindowStart = new Date(windowEnd.getTime() - windowMS);
+      const windowEnd = Math.ceil(now / windowMS) * windowMS;
+      const actualWindowStart = windowEnd - windowMS;
 
       let rateLimitRecord = await db.oneOrNone<RateLimitDbRow>(
         `SELECT * FROM rate_limit
@@ -118,7 +116,7 @@ export const postgresRateLimiterAdapter: RateLimiterAdapter = {
         allowed: true,
         remaining: limit,
         limit,
-        resetAt: new Date(now.getTime() + windowMS),
+        resetAt: now + windowMS,
       };
     }
   },
@@ -132,20 +130,18 @@ export const postgresRateLimiterAdapter: RateLimiterAdapter = {
         allowed: true,
         remaining: 1000,
         limit: 1000,
-        resetAt: new Date(Date.now() + 3600000),
+        resetAt: Date.now() + 3600000,
       };
     }
 
     const db = getDb();
     const limit = getActionLimit(action, config.limits);
     const windowMS = config.windowMS;
-    const now = new Date();
+    const now = Date.now();
 
     try {
-      const windowEnd = new Date(
-        Math.ceil(now.getTime() / windowMS) * windowMS,
-      );
-      const actualWindowStart = new Date(windowEnd.getTime() - windowMS);
+      const windowEnd = Math.ceil(now / windowMS) * windowMS;
+      const actualWindowStart = windowEnd - windowMS;
 
       const rateLimitRecord = await db.oneOrNone<RateLimitDbRow>(
         `SELECT * FROM rate_limit
@@ -175,7 +171,7 @@ export const postgresRateLimiterAdapter: RateLimiterAdapter = {
         allowed: true,
         remaining: limit,
         limit,
-        resetAt: new Date(now.getTime() + windowMS),
+        resetAt: now + windowMS,
       };
     }
   },
@@ -210,8 +206,8 @@ export const postgresRateLimiterAdapter: RateLimiterAdapter = {
     try {
       const db = getDb();
       const result = await db.oneOrNone<{
-        window_start: Date;
-        window_end: Date;
+        window_start: number;
+        window_end: number;
       }>(
         `SELECT window_start, window_end FROM rate_limit
          WHERE identifier = $(identifier) AND action = $(action)
@@ -236,7 +232,7 @@ export const postgresRateLimiterAdapter: RateLimiterAdapter = {
   async setWindow(
     identifier: string,
     action: RateLimitAction,
-    data: { count: number; windowStart: Date; windowEnd: Date },
+    data: { count: number; windowStart: number; windowEnd: number },
   ) {
     try {
       const db = getDb();
@@ -275,8 +271,8 @@ export const postgresRateLimiterAdapter: RateLimiterAdapter = {
         identifier: string;
         action: RateLimitAction;
         count: number;
-        window_start: Date;
-        window_end: Date;
+        window_start: number;
+        window_end: number;
       }>(
         `SELECT identifier, action, count, window_start, window_end FROM rate_limit`,
       );
