@@ -126,7 +126,11 @@ export async function listRecordsRecursive(
                 .skip(p.offset)
                 .take(p.limit)
                 .select((r) => r),
-            { streamIds: readableStreamIds, offset: actualAfter, limit: limit + 1 },
+            {
+              streamIds: readableStreamIds,
+              offset: actualAfter,
+              limit: limit + 1,
+            },
           )
         : await executeSelect(
             ctx.db,

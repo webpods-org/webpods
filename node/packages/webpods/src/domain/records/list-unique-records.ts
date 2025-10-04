@@ -4,12 +4,16 @@
 
 import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
-import { RecordDbRow, StreamDbRow } from "../../db-types.js";
+import { RecordDbRow } from "../../db-types.js";
 import { StreamRecord } from "../../types.js";
 import { createLogger } from "../../logger.js";
 import { getCache, getCacheConfig, cacheKeys } from "../../cache/index.js";
+import { createContext, from } from "@webpods/tinqer";
+import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:records");
+const dbContext = createContext<DatabaseSchema>();
 
 /**
  * Map database row to domain type
@@ -53,10 +57,16 @@ export async function listUniqueRecords(
 
     if (cache) {
       // Get stream path for cache key generation
-      const stream = await ctx.db.oneOrNone<StreamDbRow>(
-        `SELECT path FROM stream WHERE id = $(streamId)`,
+      const streams = await executeSelect(
+        ctx.db,
+        (p: { streamId: number }) =>
+          from(dbContext, "stream")
+            .where((s) => s.id === p.streamId)
+            .select((s) => ({ path: s.path })),
         { streamId },
       );
+
+      const stream = streams[0] || null;
 
       if (stream) {
         streamPath = stream.path;
@@ -85,6 +95,7 @@ export async function listUniqueRecords(
     }
 
     // Get the latest record for each unique name using DISTINCT ON
+    // Note: Using raw SQL because DISTINCT ON with specific ordering is PostgreSQL-specific
     const latestRecords = await ctx.db.manyOrNone<RecordDbRow>(
       `SELECT DISTINCT ON (name) *
        FROM record
@@ -104,17 +115,17 @@ export async function listUniqueRecords(
     let actualAfter = after;
     if (after !== undefined && after < 0) {
       // Get total count to convert negative index
-      const totalCount = await ctx.db
-        .one<{
-          count: string;
-        }>(
-          `SELECT COUNT(*) as count FROM record WHERE stream_id = $(streamId) `,
-          { streamId },
-        )
-        .then((r) => parseInt(r.count));
+      const totalCount = await executeSelect(
+        ctx.db,
+        (p: { streamId: number }) =>
+          from(dbContext, "record")
+            .where((r) => r.stream_id === p.streamId)
+            .count(),
+        { streamId },
+      );
 
       // after=-3 means "get the last 3 records", so we skip totalCount-3 records
-      actualAfter = totalCount + after - 1;
+      actualAfter = Number(totalCount) + after - 1;
 
       // If still negative, start from beginning
       if (actualAfter < 0) {
