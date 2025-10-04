@@ -5,17 +5,20 @@
 import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
 import { createError } from "../../utils/errors.js";
-import { StreamDbRow } from "../../db-types.js";
 import { Stream } from "../../types.js";
 import { createLogger } from "../../logger.js";
 import { getCache, getCacheConfig, cacheKeys } from "../../cache/index.js";
+import { createContext, from } from "@webpods/tinqer";
+import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:streams");
+const dbContext = createContext<DatabaseSchema>();
 
 /**
  * Map database row to domain type
  */
-function mapStreamFromDb(row: StreamDbRow): Stream {
+function mapStreamFromDb(row: DatabaseSchema["stream"]): Stream {
   return {
     id: row.id,
     podName: row.pod_name,
@@ -55,19 +58,27 @@ export async function listChildStreams(
       }
     }
 
-    const query = parentId
-      ? `SELECT * FROM stream
-         WHERE pod_name = $(podName)
-           AND parent_id = $(parentId)
-         ORDER BY name ASC`
-      : `SELECT * FROM stream
-         WHERE pod_name = $(podName)
-           AND parent_id IS NULL
-         ORDER BY name ASC`;
-
-    const params = parentId ? { podName, parentId } : { podName };
-
-    const streams = await ctx.db.manyOrNone<StreamDbRow>(query, params);
+    const streams = parentId
+      ? await executeSelect(
+          ctx.db,
+          (p: { podName: string; parentId: number }) =>
+            from(dbContext, "stream")
+              .where(
+                (s) => s.pod_name === p.podName && s.parent_id === p.parentId,
+              )
+              .orderBy((s) => s.name)
+              .select((s) => s),
+          { podName, parentId },
+        )
+      : await executeSelect(
+          ctx.db,
+          (p: { podName: string }) =>
+            from(dbContext, "stream")
+              .where((s) => s.pod_name === p.podName && s.parent_id === null)
+              .orderBy((s) => s.name)
+              .select((s) => s),
+          { podName },
+        );
 
     logger.debug("Listed child streams", {
       podName,
@@ -126,18 +137,25 @@ export async function countChildStreams(
       }
     }
 
-    const query = parentId
-      ? `SELECT COUNT(*) as count FROM stream
-         WHERE pod_name = $(podName)
-           AND parent_id = $(parentId)`
-      : `SELECT COUNT(*) as count FROM stream
-         WHERE pod_name = $(podName)
-           AND parent_id IS NULL`;
-
-    const params = parentId ? { podName, parentId } : { podName };
-
-    const result = await ctx.db.one<{ count: string }>(query, params);
-    const count = parseInt(result.count);
+    const count = parentId
+      ? await executeSelect(
+          ctx.db,
+          (p: { podName: string; parentId: number }) =>
+            from(dbContext, "stream")
+              .where(
+                (s) => s.pod_name === p.podName && s.parent_id === p.parentId,
+              )
+              .count(),
+          { podName, parentId },
+        )
+      : await executeSelect(
+          ctx.db,
+          (p: { podName: string }) =>
+            from(dbContext, "stream")
+              .where((s) => s.pod_name === p.podName && s.parent_id === null)
+              .count(),
+          { podName },
+        );
 
     // Cache the result
     if (cache) {

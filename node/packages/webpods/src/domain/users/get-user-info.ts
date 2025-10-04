@@ -6,18 +6,15 @@ import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
 import { createLogger } from "../../logger.js";
 import { getCache, getCacheConfig, cacheKeys } from "../../cache/index.js";
+import { createContext, from } from "@webpods/tinqer";
+import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:users");
+const dbContext = createContext<DatabaseSchema>();
 
 export interface UserInfo {
   user_id: string;
-  email: string | null;
-  name: string | null;
-  provider: string | null;
-}
-
-interface UserIdentityRow {
-  id: string;
   email: string | null;
   name: string | null;
   provider: string | null;
@@ -39,15 +36,33 @@ export async function getUserInfo(
       }
     }
 
-    // Get user with identity info
-    const userInfo = await ctx.db.oneOrNone<UserIdentityRow>(
-      `SELECT u.id, i.email, i.name, i.provider 
-       FROM "user" u 
-       LEFT JOIN identity i ON i.user_id = u.id 
-       WHERE u.id = $(userId) 
-       LIMIT 1`,
+    // Get user with identity info using Tinqer LEFT JOIN
+    const userInfos = await executeSelect(
+      ctx.db,
+      (p: { userId: string }) =>
+        from(dbContext, "user")
+          .groupJoin(
+            from(dbContext, "identity"),
+            (u) => u.id,
+            (i) => i.user_id,
+            (u, identities) => ({ u, identities }),
+          )
+          .selectMany(
+            (g) => g.identities.defaultIfEmpty(),
+            (g, i) => ({ user: g.u, identity: i }),
+          )
+          .where((row) => row.user.id === p.userId)
+          .take(1)
+          .select((row) => ({
+            id: row.user.id,
+            email: row.identity ? row.identity.email : null,
+            name: row.identity ? row.identity.name : null,
+            provider: row.identity ? row.identity.provider : null,
+          })),
       { userId },
     );
+
+    const userInfo = userInfos[0] || null;
 
     if (!userInfo) {
       logger.warn("User not found", { userId });
@@ -56,9 +71,9 @@ export async function getUserInfo(
 
     const result: UserInfo = {
       user_id: userInfo.id,
-      email: userInfo.email,
-      name: userInfo.name,
-      provider: userInfo.provider,
+      email: userInfo.email || null,
+      name: userInfo.name || null,
+      provider: userInfo.provider || null,
     };
 
     // Cache the result

@@ -5,17 +5,20 @@
 import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
 import { createError } from "../../utils/errors.js";
-import { StreamDbRow } from "../../db-types.js";
 import { Stream } from "../../types.js";
 import { createLogger } from "../../logger.js";
 import { getCache, getCacheConfig, cacheKeys } from "../../cache/index.js";
+import { createContext, from } from "@webpods/tinqer";
+import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:streams");
+const dbContext = createContext<DatabaseSchema>();
 
 /**
  * Map database row to domain type
  */
-function mapStreamFromDb(row: StreamDbRow): Stream {
+function mapStreamFromDb(row: DatabaseSchema["stream"]): Stream {
   return {
     id: row.id,
     podName: row.pod_name,
@@ -52,10 +55,16 @@ export async function getStreamById(
       }
     }
 
-    const stream = await ctx.db.oneOrNone<StreamDbRow>(
-      `SELECT * FROM stream WHERE id = $(id)`,
+    const streams = await executeSelect(
+      ctx.db,
+      (p: { id: number }) =>
+        from(dbContext, "stream")
+          .where((s) => s.id === p.id)
+          .select((s) => s),
       { id: streamId },
     );
+
+    const stream = streams[0] || null;
 
     if (!stream) {
       logger.debug("Stream not found by ID", { streamId });
