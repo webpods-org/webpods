@@ -8,8 +8,12 @@ import { UserDbRow, IdentityDbRow } from "../../db-types.js";
 import { User, Identity, OAuthProvider, OAuthUserInfo } from "../../types.js";
 import { createLogger } from "../../logger.js";
 import { sql } from "../../db/index.js";
+import { createContext, from, updateTable } from "@webpods/tinqer";
+import { executeSelect, executeUpdate } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:users");
+const dbContext = createContext<DatabaseSchema>();
 
 /**
  * Map database row to domain type
@@ -52,39 +56,66 @@ export async function findOrCreateUser(
 
   try {
     // First check if we have an identity for this provider
-    const existingIdentityRow = await ctx.db.oneOrNone<IdentityDbRow>(
-      `SELECT * FROM identity 
-       WHERE provider = $(provider) AND provider_id = $(provider_id)`,
+    const existingIdentityRows = await executeSelect(
+      ctx.db,
+      (p: { provider: string; provider_id: string }) =>
+        from(dbContext, "identity")
+          .where(
+            (i) => i.provider === p.provider && i.provider_id === p.provider_id,
+          )
+          .select((i) => i),
       { provider: provider.provider, provider_id: providerId },
     );
+
+    const existingIdentityRow = existingIdentityRows[0] || null;
 
     if (existingIdentityRow) {
       const existingIdentity = mapIdentityFromDb(existingIdentityRow);
 
       // Get the associated user
-      const userRow = await ctx.db.one<UserDbRow>(
-        `SELECT * FROM "user" WHERE id = $(user_id)`,
+      const userRows = await executeSelect(
+        ctx.db,
+        (p: { user_id: string }) =>
+          from(dbContext, "user")
+            .where((u) => u.id === p.user_id)
+            .select((u) => u),
         { user_id: existingIdentity.userId },
       );
 
-      const user = mapUserFromDb(userRow);
+      if (!userRows[0]) {
+        return failure(new Error("User not found"));
+      }
+
+      const user = mapUserFromDb(userRows[0]);
 
       // Update identity info if changed
       if (
         (email && email !== existingIdentityRow.email) ||
         (name && name !== existingIdentityRow.name)
       ) {
-        const updateParams = {
-          email: email,
-          name: name,
-          updated_at: Date.now(),
-        };
-
-        await ctx.db.none(
-          `${sql.update("identity", updateParams)}
-           WHERE provider = $(provider) AND provider_id = $(provider_id)`,
+        await executeUpdate(
+          ctx.db,
+          (p: {
+            email: string;
+            name: string;
+            updated_at: number;
+            provider: string;
+            provider_id: string;
+          }) =>
+            updateTable(dbContext, "identity")
+              .set(() => ({
+                email: p.email,
+                name: p.name,
+                updated_at: p.updated_at,
+              }))
+              .where(
+                (i) =>
+                  i.provider === p.provider && i.provider_id === p.provider_id,
+              ),
           {
-            ...updateParams,
+            email: email,
+            name: name,
+            updated_at: Date.now(),
             provider: provider.provider,
             provider_id: providerId,
           },

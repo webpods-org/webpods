@@ -12,6 +12,9 @@ import { canRead } from "../permissions/can-read.js";
 
 const logger = createLogger("webpods:domain:records");
 
+// Note: This file uses complex PostgreSQL-specific queries (CTEs, DISTINCT ON with multiple columns)
+// that are not yet supported by Tinqer, so we keep raw SQL for the main queries
+
 /**
  * Map database row to domain type
  */
