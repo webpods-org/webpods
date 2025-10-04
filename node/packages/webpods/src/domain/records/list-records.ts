@@ -4,18 +4,21 @@
 
 import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
-import { RecordDbRow } from "../../db-types.js";
 import { StreamRecord } from "../../types.js";
 import { createLogger } from "../../logger.js";
 import { getCache, cacheKeys } from "../../cache/index.js";
 import { getConfig } from "../../config-loader.js";
+import { createContext, from } from "@webpods/tinqer";
+import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:records");
+const dbContext = createContext<DatabaseSchema>();
 
 /**
  * Map database row to domain type
  */
-function mapRecordFromDb(row: RecordDbRow): StreamRecord {
+function mapRecordFromDb(row: DatabaseSchema["record"]): StreamRecord {
   return {
     id: row.id || 0,
     streamId: row.stream_id,
@@ -57,12 +60,16 @@ export async function listRecords(
     // Get stream path if not provided (needed for cache keys)
     let actualStreamPath = streamPath;
     if (!actualStreamPath) {
-      const streamInfo = await ctx.db.oneOrNone<{ path: string }>(
-        `SELECT path FROM stream WHERE id = $(streamId)`,
+      const streamInfo = await executeSelect(
+        ctx.db,
+        (p: { streamId: number }) =>
+          from(dbContext, "stream")
+            .where((s) => s.id === p.streamId)
+            .select((s) => ({ path: s.path })),
         { streamId },
       );
-      if (streamInfo) {
-        actualStreamPath = streamInfo.path;
+      if (streamInfo[0]) {
+        actualStreamPath = streamInfo[0].path;
       }
     }
 
@@ -87,23 +94,20 @@ export async function listRecords(
 
     // Cache miss - fetch from database
     // Note: We include ALL records, including deletion markers, as this is an append-only log
-    let query = `SELECT * FROM record
-                  WHERE stream_id = $(streamId)`;
-    const params: Record<string, unknown> = {
-      streamId,
-      limit: limit + 1,
-    };
 
     // Handle negative 'after' parameter
     let actualAfter = after;
     if (after !== undefined && after < 0) {
       // Get total count to convert negative index
-      const countResult = await ctx.db.one<{ count: string }>(
-        `SELECT COUNT(*) as count FROM record
-         WHERE stream_id = $(streamId)`,
+      const countResult = await executeSelect(
+        ctx.db,
+        (p: { streamId: number }) =>
+          from(dbContext, "record")
+            .where((r) => r.stream_id === p.streamId)
+            .count(),
         { streamId },
       );
-      const totalCount = parseInt(countResult.count);
+      const totalCount = Number(countResult);
       // after=-3 means "get the last 3 records", so we skip totalCount-3 records
       // This means we want records after index (totalCount + after - 1)
       actualAfter = totalCount + after - 1; // e.g., 5 + (-3) - 1 = 1, so index > 1 gives indices 2,3,4
@@ -114,22 +118,40 @@ export async function listRecords(
       }
     }
 
-    if (actualAfter !== undefined) {
-      query += ` AND index > $(after)`;
-      params.after = actualAfter;
-    }
+    // Fetch records
+    const records =
+      actualAfter !== undefined
+        ? await executeSelect(
+            ctx.db,
+            (p: { streamId: number; after: number; limit: number }) =>
+              from(dbContext, "record")
+                .where((r) => r.stream_id === p.streamId && r.index > p.after)
+                .orderBy((r) => r.index)
+                .take(p.limit)
+                .select((r) => r),
+            { streamId, after: actualAfter, limit: limit + 1 },
+          )
+        : await executeSelect(
+            ctx.db,
+            (p: { streamId: number; limit: number }) =>
+              from(dbContext, "record")
+                .where((r) => r.stream_id === p.streamId)
+                .orderBy((r) => r.index)
+                .take(p.limit)
+                .select((r) => r),
+            { streamId, limit: limit + 1 },
+          );
 
-    query += ` ORDER BY index ASC LIMIT $(limit)`;
-
-    const records = await ctx.db.manyOrNone<RecordDbRow>(query, params);
-
-    const countResult = await ctx.db.one<{ count: string }>(
-      `SELECT COUNT(*) as count FROM record
-       WHERE stream_id = $(streamId)`,
+    const countResult = await executeSelect(
+      ctx.db,
+      (p: { streamId: number }) =>
+        from(dbContext, "record")
+          .where((r) => r.stream_id === p.streamId)
+          .count(),
       { streamId },
     );
 
-    const total = parseInt(countResult.count);
+    const total = Number(countResult);
     const hasMore = records.length > limit;
 
     if (hasMore) {

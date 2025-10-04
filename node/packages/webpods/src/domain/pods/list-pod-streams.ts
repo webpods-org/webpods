@@ -5,12 +5,16 @@
 import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
 import { createError } from "../../utils/errors.js";
-import { StreamDbRow, PodDbRow, RecordDbRow } from "../../db-types.js";
+import { StreamDbRow } from "../../db-types.js";
 import { createLogger } from "../../logger.js";
 import { getCache, getCacheConfig, cacheKeys } from "../../cache/index.js";
 import { createHash } from "crypto";
+import { createContext, from } from "@webpods/tinqer";
+import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:pods");
+const dbContext = createContext<DatabaseSchema>();
 
 export interface StreamInfo {
   // Core identification
@@ -117,10 +121,17 @@ async function validateHashChain(
   streamId: number,
 ): Promise<boolean> {
   try {
-    const records = await ctx.db.manyOrNone<RecordDbRow>(
-      `SELECT hash, previous_hash, index FROM record
-       WHERE stream_id = $(streamId)
-       ORDER BY index ASC`,
+    const records = await executeSelect(
+      ctx.db,
+      (p: { streamId: number }) =>
+        from(dbContext, "record")
+          .where((r) => r.stream_id === p.streamId)
+          .orderBy((r) => r.index)
+          .select((r) => ({
+            hash: r.hash,
+            previous_hash: r.previous_hash,
+            index: r.index,
+          })),
       { streamId },
     );
 
@@ -179,20 +190,30 @@ export async function listPodStreams(
       }
     }
 
-    const pod = await ctx.db.oneOrNone<PodDbRow>(
-      `SELECT * FROM pod WHERE name = $(pod_name)`,
+    const podResults = await executeSelect(
+      ctx.db,
+      (p: { pod_name: string }) =>
+        from(dbContext, "pod")
+          .where((pod) => pod.name === p.pod_name)
+          .select((pod) => pod),
       { pod_name: podName },
     );
+
+    const pod = podResults[0] || null;
 
     if (!pod) {
       return failure(createError("POD_NOT_FOUND", "Pod not found"));
     }
 
     // Get all streams for the pod
-    const allStreams = await ctx.db.manyOrNone<StreamDbRow>(
-      `SELECT * FROM stream 
-       WHERE pod_name = $(pod_name)
-       ORDER BY parent_id ASC NULLS FIRST, name ASC`,
+    const allStreams = await executeSelect(
+      ctx.db,
+      (p: { pod_name: string }) =>
+        from(dbContext, "stream")
+          .where((s) => s.pod_name === p.pod_name)
+          .orderBy((s) => s.parent_id)
+          .thenBy((s) => s.name)
+          .select((s) => s),
       { pod_name: pod.name },
     );
 
@@ -287,43 +308,54 @@ export async function listPodStreams(
 
       // Add record counts if requested
       if (options.includeRecordCounts) {
-        const countResult = await ctx.db.one<{ count: string }>(
-          `SELECT COUNT(*) as count FROM record WHERE stream_id = $(streamId)`,
+        const countResult = await executeSelect(
+          ctx.db,
+          (p: { streamId: number }) =>
+            from(dbContext, "record")
+              .where((r) => r.stream_id === p.streamId)
+              .count(),
           { streamId: stream.id },
         );
-        streamInfo.recordCount = parseInt(countResult.count, 10);
+        streamInfo.recordCount = Number(countResult);
 
         if (streamInfo.recordCount > 0) {
           // Get last record index
-          const lastRecord = await ctx.db.oneOrNone<{
-            index: number;
-            created_at: string;
-          }>(
-            `SELECT index, created_at FROM record
-             WHERE stream_id = $(streamId)
-             ORDER BY index DESC LIMIT 1`,
+          const lastRecordResults = await executeSelect(
+            ctx.db,
+            (p: { streamId: number }) =>
+              from(dbContext, "record")
+                .where((r) => r.stream_id === p.streamId)
+                .orderByDescending((r) => r.index)
+                .take(1)
+                .select((r) => ({ index: r.index, created_at: r.created_at })),
             { streamId: stream.id },
           );
 
+          const lastRecord = lastRecordResults[0] || null;
+
           if (lastRecord) {
             streamInfo.lastRecordIndex = lastRecord.index;
-            streamInfo.lastRecordAt = parseInt(lastRecord.created_at, 10);
+            streamInfo.lastRecordAt = lastRecord.created_at;
           } else {
             streamInfo.lastRecordIndex = -1;
             streamInfo.lastRecordAt = null;
           }
 
           // Get first record timestamp
-          const firstRecord = await ctx.db.oneOrNone<{ created_at: string }>(
-            `SELECT created_at FROM record
-             WHERE stream_id = $(streamId) 
-             ORDER BY index ASC LIMIT 1`,
+          const firstRecordResults = await executeSelect(
+            ctx.db,
+            (p: { streamId: number }) =>
+              from(dbContext, "record")
+                .where((r) => r.stream_id === p.streamId)
+                .orderBy((r) => r.index)
+                .take(1)
+                .select((r) => ({ created_at: r.created_at })),
             { streamId: stream.id },
           );
 
-          streamInfo.firstRecordAt = firstRecord?.created_at
-            ? parseInt(firstRecord.created_at, 10)
-            : null;
+          const firstRecord = firstRecordResults[0] || null;
+
+          streamInfo.firstRecordAt = firstRecord?.created_at || null;
         } else {
           streamInfo.lastRecordIndex = -1;
           streamInfo.firstRecordAt = null;
@@ -333,12 +365,18 @@ export async function listPodStreams(
 
       // Add hash info if requested
       if (options.includeHashes) {
-        const lastRecord = await ctx.db.oneOrNone<{ hash: string }>(
-          `SELECT hash FROM record 
-           WHERE stream_id = $(streamId) 
-           ORDER BY index DESC LIMIT 1`,
+        const lastRecordResults = await executeSelect(
+          ctx.db,
+          (p: { streamId: number }) =>
+            from(dbContext, "record")
+              .where((r) => r.stream_id === p.streamId)
+              .orderByDescending((r) => r.index)
+              .take(1)
+              .select((r) => ({ hash: r.hash })),
           { streamId: stream.id },
         );
+
+        const lastRecord = lastRecordResults[0] || null;
 
         streamInfo.lastHash = lastRecord?.hash || null;
         streamInfo.hashChainValid = await validateHashChain(ctx, stream.id);
