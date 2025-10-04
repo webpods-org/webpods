@@ -4,11 +4,14 @@
 
 import { DataContext } from "../data-context.js";
 import { Result, success } from "../../utils/result.js";
-import { RecordDbRow, StreamDbRow } from "../../db-types.js";
 import { createLogger } from "../../logger.js";
 import { getCache, getCacheConfig, cacheKeys } from "../../cache/index.js";
+import { createContext, from } from "@webpods/tinqer";
+import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:routing");
+const dbContext = createContext<DatabaseSchema>();
 
 interface LinkMapping {
   streamPath: string;
@@ -33,50 +36,69 @@ export async function resolveLink(
     }
 
     // Get .config stream
-    const configStream = await ctx.db.oneOrNone<StreamDbRow>(
-      `SELECT id FROM stream 
-       WHERE pod_name = $(pod_name) 
-         AND name = '.config' 
-         AND parent_id IS NULL`,
+    const configStreamResults = await executeSelect(
+      ctx.db,
+      (p: { pod_name: string }) =>
+        from(dbContext, "stream")
+          .where(
+            (s) =>
+              s.pod_name === p.pod_name &&
+              s.name === ".config" &&
+              s.parent_id === null,
+          )
+          .select((s) => ({ id: s.id })),
       { pod_name: podName },
     );
+
+    const configStream = configStreamResults[0] || null;
 
     if (!configStream) {
       return success(null);
     }
 
     // Get routing stream (child of .config)
-    const routingStream = await ctx.db.oneOrNone<StreamDbRow>(
-      `SELECT id FROM stream 
-       WHERE parent_id = $(parent_id) 
-         AND name = 'routing'`,
+    const routingStreamResults = await executeSelect(
+      ctx.db,
+      (p: { parent_id: number }) =>
+        from(dbContext, "stream")
+          .where((s) => s.parent_id === p.parent_id && s.name === "routing")
+          .select((s) => ({ id: s.id })),
       { parent_id: configStream.id },
     );
+
+    const routingStream = routingStreamResults[0] || null;
 
     if (!routingStream) {
       return success(null);
     }
 
     // Get the routing record named "routes" (or latest unnamed for backward compatibility)
-    let record = await ctx.db.oneOrNone<RecordDbRow>(
-      `SELECT * FROM record 
-       WHERE stream_id = $(stream_id)
-         AND name = 'routes'
-       ORDER BY created_at DESC
-       LIMIT 1`,
+    const recordResults = await executeSelect(
+      ctx.db,
+      (p: { stream_id: number }) =>
+        from(dbContext, "record")
+          .where((r) => r.stream_id === p.stream_id && r.name === "routes")
+          .orderByDescending((r) => r.created_at)
+          .take(1)
+          .select((r) => r),
       { stream_id: routingStream.id },
     );
 
+    let record = recordResults[0] || null;
+
     // Fallback to latest unnamed record for backward compatibility
     if (!record) {
-      record = await ctx.db.oneOrNone<RecordDbRow>(
-        `SELECT * FROM record 
-         WHERE stream_id = $(stream_id)
-           AND name IS NULL
-         ORDER BY created_at DESC
-         LIMIT 1`,
+      const unnamedResults = await executeSelect(
+        ctx.db,
+        (p: { stream_id: number }) =>
+          from(dbContext, "record")
+            .where((r) => r.stream_id === p.stream_id && r.name === null)
+            .orderByDescending((r) => r.created_at)
+            .take(1)
+            .select((r) => r),
         { stream_id: routingStream.id },
       );
+      record = unnamedResults[0] || null;
     }
 
     if (!record) {
