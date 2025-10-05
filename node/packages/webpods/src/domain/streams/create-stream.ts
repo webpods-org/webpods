@@ -56,34 +56,19 @@ export async function createStream(
 
   try {
     // Check if stream already exists with same name in same parent
-    const existingStreams =
-      parentId === null
-        ? await executeSelect(
-            ctx.db,
-            (p: { podName: string; name: string }) =>
-              from(dbContext, "stream")
-                .where(
-                  (s) =>
-                    s.pod_name === p.podName &&
-                    s.name === p.name &&
-                    s.parent_id === null,
-                )
-                .select((s) => s),
-            { podName, name: streamName },
+    const existingStreams = await executeSelect(
+      ctx.db,
+      (p: { podName: string; name: string; parentId: number | null }) =>
+        from(dbContext, "stream")
+          .where(
+            (s) =>
+              s.pod_name === p.podName &&
+              s.name === p.name &&
+              s.parent_id === p.parentId,
           )
-        : await executeSelect(
-            ctx.db,
-            (p: { podName: string; name: string; parentId: number }) =>
-              from(dbContext, "stream")
-                .where(
-                  (s) =>
-                    s.pod_name === p.podName &&
-                    s.name === p.name &&
-                    s.parent_id === p.parentId,
-                )
-                .select((s) => s),
-            { podName, name: streamName, parentId },
-          );
+          .select((s) => s),
+      { podName, name: streamName, parentId },
+    );
 
     const existingStream = existingStreams[0] || null;
 
