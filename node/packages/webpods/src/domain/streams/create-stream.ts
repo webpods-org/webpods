@@ -4,14 +4,18 @@
 
 import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
-import { StreamDbRow, RecordDbRow } from "../../db-types.js";
+import { StreamDbRow } from "../../db-types.js";
 import { Stream } from "../../types.js";
 import { createLogger } from "../../logger.js";
 import { createError } from "../../utils/errors.js";
 import { isValidStreamName } from "../../utils/stream-utils.js";
 import { getCache, cacheKeys } from "../../cache/index.js";
+import { createContext, from, insertInto } from "@webpods/tinqer";
+import { executeSelect, executeInsert } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:streams");
+const dbContext = createContext<DatabaseSchema>();
 
 /**
  * Map database row to domain type
@@ -52,13 +56,36 @@ export async function createStream(
 
   try {
     // Check if stream already exists with same name in same parent
-    const existingStream = await ctx.db.oneOrNone<StreamDbRow>(
-      `SELECT * FROM stream 
-       WHERE pod_name = $(podName) 
-         AND name = $(name)
-         AND (parent_id = $(parentId) OR (parent_id IS NULL AND $(parentId)::bigint IS NULL))`,
-      { podName, name: streamName, parentId },
-    );
+    const existingStreams =
+      parentId === null
+        ? await executeSelect(
+            ctx.db,
+            (p: { podName: string; name: string }) =>
+              from(dbContext, "stream")
+                .where(
+                  (s) =>
+                    s.pod_name === p.podName &&
+                    s.name === p.name &&
+                    s.parent_id === null,
+                )
+                .select((s) => s),
+            { podName, name: streamName },
+          )
+        : await executeSelect(
+            ctx.db,
+            (p: { podName: string; name: string; parentId: number }) =>
+              from(dbContext, "stream")
+                .where(
+                  (s) =>
+                    s.pod_name === p.podName &&
+                    s.name === p.name &&
+                    s.parent_id === p.parentId,
+                )
+                .select((s) => s),
+            { podName, name: streamName, parentId },
+          );
+
+    const existingStream = existingStreams[0] || null;
 
     if (existingStream) {
       return failure(
@@ -68,13 +95,17 @@ export async function createStream(
 
     // Check if a record with the same name exists in the parent stream
     if (parentId) {
-      const existingRecord = await ctx.db.oneOrNone<RecordDbRow>(
-        `SELECT * FROM record 
-         WHERE stream_id = $(parentId) 
-           AND name = $(name)
-         LIMIT 1`,
+      const existingRecords = await executeSelect(
+        ctx.db,
+        (p: { parentId: number; name: string }) =>
+          from(dbContext, "record")
+            .where((r) => r.stream_id === p.parentId && r.name === p.name)
+            .take(1)
+            .select((r) => r),
         { parentId, name: streamName },
       );
+
+      const existingRecord = existingRecords[0] || null;
 
       if (existingRecord) {
         return failure(
@@ -102,14 +133,18 @@ export async function createStream(
     );
 
     if (ownerStream) {
-      const ownerRecord = await ctx.db.oneOrNone<RecordDbRow>(
-        `SELECT * FROM record
-         WHERE stream_id = $(streamId)
-           AND name = 'owner'
-         ORDER BY index DESC
-         LIMIT 1`,
+      const ownerRecords = await executeSelect(
+        ctx.db,
+        (p: { streamId: number }) =>
+          from(dbContext, "record")
+            .where((r) => r.stream_id === p.streamId && r.name === "owner")
+            .orderByDescending((r) => r.index)
+            .take(1)
+            .select((r) => r),
         { streamId: ownerStream.id },
       );
+
+      const ownerRecord = ownerRecords[0] || null;
 
       if (ownerRecord) {
         try {
@@ -141,10 +176,17 @@ export async function createStream(
     let fullPath: string;
     if (parentId) {
       // Get parent path to build full path
-      const parentStream = await ctx.db.oneOrNone<StreamDbRow>(
-        `SELECT path FROM stream WHERE id = $(parentId)`,
+      const parentStreams = await executeSelect(
+        ctx.db,
+        (p: { parentId: number }) =>
+          from(dbContext, "stream")
+            .where((s) => s.id === p.parentId)
+            .select((s) => ({ path: s.path })),
         { parentId },
       );
+
+      const parentStream = parentStreams[0] || null;
+
       if (!parentStream) {
         return failure(
           createError("PARENT_NOT_FOUND", "Parent stream not found"),
@@ -158,10 +200,34 @@ export async function createStream(
 
     // Create new stream with path
     const now = Date.now();
-    const stream = await ctx.db.one<StreamDbRow>(
-      `INSERT INTO stream (pod_name, name, path, parent_id, user_id, access_permission, has_schema, metadata, created_at, updated_at)
-       VALUES ($(podName), $(name), $(path), $(parentId), $(userId), $(accessPermission), $(hasSchema), $(metadata), $(createdAt), $(updatedAt))
-       RETURNING *`,
+    const streams = await executeInsert(
+      ctx.db,
+      (p: {
+        podName: string;
+        name: string;
+        path: string;
+        parentId: number | null;
+        userId: string;
+        accessPermission: string;
+        hasSchema: boolean;
+        metadata: string;
+        createdAt: number;
+        updatedAt: number;
+      }) =>
+        insertInto(dbContext, "stream")
+          .values({
+            pod_name: p.podName,
+            name: p.name,
+            path: p.path,
+            parent_id: p.parentId,
+            user_id: p.userId,
+            access_permission: p.accessPermission,
+            has_schema: p.hasSchema,
+            metadata: p.metadata,
+            created_at: p.createdAt,
+            updated_at: p.updatedAt,
+          })
+          .returning((s) => s),
       {
         podName,
         name: streamName,
@@ -175,6 +241,11 @@ export async function createStream(
         updatedAt: now,
       },
     );
+
+    const stream = streams[0];
+    if (!stream) {
+      return failure(createError("CREATE_ERROR", "Failed to create stream"));
+    }
 
     logger.info("Stream created", {
       podName: stream.pod_name,
@@ -217,7 +288,8 @@ export async function createStream(
     return success(mapStreamFromDb(stream));
   } catch (error: unknown) {
     logger.error("Failed to create stream", {
-      error,
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
       podName,
       streamName,
     });

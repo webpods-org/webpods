@@ -126,7 +126,7 @@ export async function purgeRecord(
       ctx.db,
       (p: { streamId: number; recordName: string; contentHash: string }) =>
         updateTable(dbContext, "record")
-          .set(() => ({
+          .set({
             content: "",
             content_type: "text/plain",
             content_hash: p.contentHash,
@@ -134,7 +134,7 @@ export async function purgeRecord(
             storage: null,
             deleted: true,
             purged: true,
-          }))
+          })
           .where((r) => r.stream_id === p.streamId && r.name === p.recordName),
       {
         streamId,

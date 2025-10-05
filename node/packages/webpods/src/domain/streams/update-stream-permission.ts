@@ -5,11 +5,14 @@
 import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
 import { createError } from "../../utils/errors.js";
-import { StreamDbRow } from "../../db-types.js";
 import { createLogger } from "../../logger.js";
 import { cacheInvalidation, getCache, cacheKeys } from "../../cache/index.js";
+import { createContext, from, updateTable } from "@webpods/tinqer";
+import { executeSelect, executeUpdate } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:streams");
+const dbContext = createContext<DatabaseSchema>();
 
 export async function updateStreamPermission(
   ctx: DataContext,
@@ -26,33 +29,49 @@ export async function updateStreamPermission(
 
     // Update the stream's access permission
     const now = Date.now();
-    const updated = await ctx.db.oneOrNone<StreamDbRow>(
-      `UPDATE stream
-       SET access_permission = $(accessPermission),
-           updated_at = $(updatedAt)
-       WHERE id = $(streamId)
-       RETURNING *`,
+    const rowsAffected = await executeUpdate(
+      ctx.db,
+      (p: { streamId: number; accessPermission: string; updatedAt: number }) =>
+        updateTable(dbContext, "stream")
+          .set({
+            access_permission: p.accessPermission,
+            updated_at: p.updatedAt,
+          })
+          .where((s) => s.id === p.streamId),
       { streamId, accessPermission, updatedAt: now },
     );
 
-    if (!updated) {
+    if (rowsAffected === 0) {
       return failure(createError("STREAM_NOT_FOUND", "Stream not found"));
     }
 
-    logger.debug("Updated stream permission", {
-      streamId,
-      accessPermission,
-      podName: updated.pod_name,
-      streamName: updated.name,
-    });
+    // Get stream info for cache invalidation
+    const streamInfo = await executeSelect(
+      ctx.db,
+      (p: { streamId: number }) =>
+        from(dbContext, "stream")
+          .where((s) => s.id === p.streamId)
+          .select((s) => ({ pod_name: s.pod_name, path: s.path })),
+      { streamId },
+    );
 
-    // Invalidate stream cache since permission changed
-    await cacheInvalidation.invalidateStream(updated.pod_name, updated.path);
+    const updated = streamInfo[0] || null;
 
-    // Also invalidate the streamById cache entry
-    const cache = getCache();
-    if (cache) {
-      await cache.delete("streams", cacheKeys.streamById(streamId));
+    if (updated) {
+      logger.debug("Updated stream permission", {
+        streamId,
+        accessPermission,
+        podName: updated.pod_name,
+      });
+
+      // Invalidate stream cache since permission changed
+      await cacheInvalidation.invalidateStream(updated.pod_name, updated.path);
+
+      // Also invalidate the streamById cache entry
+      const cache = getCache();
+      if (cache) {
+        await cache.delete("streams", cacheKeys.streamById(streamId));
+      }
     }
 
     return success({ updated: true });

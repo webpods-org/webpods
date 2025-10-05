@@ -5,11 +5,13 @@
 import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
 import { createLogger } from "../../logger.js";
-import { sql } from "../../db/index.js";
 import { cacheInvalidation } from "../../cache/index.js";
-import { StreamDbRow } from "../../db-types.js";
+import { createContext, from, updateTable } from "@webpods/tinqer";
+import { executeSelect, executeUpdate } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:streams");
+const dbContext = createContext<DatabaseSchema>();
 
 export async function updateStreamPermissions(
   ctx: DataContext,
@@ -19,22 +21,36 @@ export async function updateStreamPermissions(
 ): Promise<Result<void>> {
   try {
     // Get affected streams before update for cache invalidation
-    const affectedStreams = await ctx.db.manyOrNone<StreamDbRow>(
-      `SELECT * FROM stream
-       WHERE pod_name = $(pod_name)
-         AND name = $(name)`,
-      { pod_name: podName, name: streamName },
+    const affectedStreams = await executeSelect(
+      ctx.db,
+      (p: { podName: string; name: string }) =>
+        from(dbContext, "stream")
+          .where((s) => s.pod_name === p.podName && s.name === p.name)
+          .select((s) => ({ path: s.path })),
+      { podName, name: streamName },
     );
 
-    const params = {
-      access_permission: accessPermission,
-    };
-
-    await ctx.db.none(
-      `${sql.update("stream", params)}
-       WHERE pod_name = $(pod_name)
-         AND name = $(name)`,
-      { ...params, pod_name: podName, name: streamName },
+    const now = Date.now();
+    await executeUpdate(
+      ctx.db,
+      (p: {
+        accessPermission: string;
+        updatedAt: number;
+        podName: string;
+        name: string;
+      }) =>
+        updateTable(dbContext, "stream")
+          .set({
+            access_permission: p.accessPermission,
+            updated_at: p.updatedAt,
+          })
+          .where((s) => s.pod_name === p.podName && s.name === p.name),
+      {
+        accessPermission,
+        updatedAt: now,
+        podName,
+        name: streamName,
+      },
     );
 
     // Invalidate caches for all affected streams

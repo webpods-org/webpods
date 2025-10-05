@@ -9,11 +9,13 @@ import { StreamRecord } from "../../types.js";
 import { createLogger } from "../../logger.js";
 import { getStreamsWithPrefix } from "../streams/get-streams-with-prefix.js";
 import { canRead } from "../permissions/can-read.js";
+import { createContext, from, createQueryHelpers } from "@webpods/tinqer";
+import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:records");
-
-// Note: This file uses complex PostgreSQL-specific queries (CTEs, DISTINCT ON with multiple columns)
-// that are not yet supported by Tinqer, so we keep raw SQL for the main queries
+const dbContext = createContext<DatabaseSchema>();
+const helpers = createQueryHelpers();
 
 /**
  * Map database row to domain type
@@ -87,27 +89,32 @@ export async function listUniqueRecordsRecursive(
       });
     }
 
-    // Step 3: Use efficient query to get all unique records
-    // This uses a single query with DISTINCT ON to get latest version of each named record PER STREAM
-
-    // First, get total count of unique records
+    // Step 3: Get total count of unique records using ROW_NUMBER window function
     // For recursive unique, we want the latest record with each name FROM EACH STREAM
-    const countResult = await ctx.db.one<{ count: string }>(
-      `WITH latest_records AS (
-        SELECT DISTINCT ON (stream_id, name) *
-        FROM record
-        WHERE stream_id = ANY($(streamIds)::bigint[])
-          AND name IS NOT NULL
-          AND name != ''
-        ORDER BY stream_id, name, index DESC
-      )
-      SELECT COUNT(*) as count FROM latest_records`,
-      {
-        streamIds: readableStreamIds,
-      },
+    const totalCount = await executeSelect(
+      ctx.db,
+      (p: { streamIds: number[] }, h = helpers) =>
+        from(dbContext, "record")
+          .where(
+            (r) =>
+              p.streamIds.includes(r.stream_id) &&
+              r.name !== null &&
+              r.name !== "",
+          )
+          .select((r) => ({
+            rn: h
+              .window(r)
+              .partitionBy(
+                (row) => row.stream_id,
+                (row) => row.name,
+              )
+              .orderByDescending((row) => row.index)
+              .rowNumber(),
+          }))
+          .where((r) => r.rn === 1)
+          .count(),
+      { streamIds: readableStreamIds },
     );
-
-    const totalCount = parseInt(countResult.count);
 
     // Handle negative 'after' parameter
     let actualAfter = after;
@@ -119,34 +126,44 @@ export async function listUniqueRecordsRecursive(
       }
     }
 
-    // Now get the actual records with pagination
-    // Note: We'll filter deleted records in memory since content is TEXT not JSONB
-    let query = `
-      WITH latest_records AS (
-        SELECT DISTINCT ON (stream_id, name) *
-        FROM record
-        WHERE stream_id = ANY($(streamIds)::bigint[])
-          AND name IS NOT NULL
-          AND name != ''
-        ORDER BY stream_id, name, index DESC
-      )
-      SELECT * FROM latest_records
-      ORDER BY index ASC`;
+    // Now get the actual records with pagination using ROW_NUMBER window function
+    const actualOffset = actualAfter ?? 0;
+    const actualLimit = limit + 1;
 
-    // Add pagination
-    const params: Record<string, unknown> = {
-      streamIds: readableStreamIds,
-      limit: limit + 1, // Get one extra to check hasMore
-    };
-
-    if (actualAfter !== undefined && actualAfter >= 0) {
-      query += ` OFFSET $(offset)`;
-      params.offset = actualAfter;
-    }
-
-    query += ` LIMIT $(limit)`;
-
-    const records = await ctx.db.manyOrNone<RecordDbRow>(query, params);
+    const records = await executeSelect(
+      ctx.db,
+      (
+        p: { streamIds: number[]; limit: number; offset: number },
+        h = helpers,
+      ) =>
+        from(dbContext, "record")
+          .where(
+            (r) =>
+              p.streamIds.includes(r.stream_id) &&
+              r.name !== null &&
+              r.name !== "",
+          )
+          .select((r) => ({
+            ...r,
+            rn: h
+              .window(r)
+              .partitionBy(
+                (row) => row.stream_id,
+                (row) => row.name,
+              )
+              .orderByDescending((row) => row.index)
+              .rowNumber(),
+          }))
+          .where((r) => r.rn === 1)
+          .orderBy((r) => r.index)
+          .skip(p.offset)
+          .take(p.limit),
+      {
+        streamIds: readableStreamIds,
+        limit: actualLimit,
+        offset: actualOffset,
+      },
+    );
 
     // Filter out deleted records using the deleted/purged columns
     const filteredRecords = records.filter((record) => {
@@ -175,12 +192,17 @@ export async function listUniqueRecordsRecursive(
     });
   } catch (error: unknown) {
     logger.error("Failed to list unique records recursively", {
-      error,
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
       podName,
       streamPath,
       limit,
       after,
     });
-    return failure(new Error("Failed to list unique records recursively"));
+    return failure(
+      error instanceof Error
+        ? error
+        : new Error("Failed to list unique records recursively"),
+    );
   }
 }

@@ -6,8 +6,8 @@ import Ajv from "ajv";
 import type { DataContext } from "../data-context.js";
 import type { Result, Stream } from "../../types.js";
 import { StreamDbRow } from "../../db-types.js";
-import { createContext, updateTable } from "@webpods/tinqer";
-import { executeUpdate } from "@webpods/tinqer-sql-pg-promise";
+import { createContext, from, updateTable } from "@webpods/tinqer";
+import { executeSelect, executeUpdate } from "@webpods/tinqer-sql-pg-promise";
 import type { DatabaseSchema } from "../../db/schema.js";
 
 const dbContext = createContext<DatabaseSchema>();
@@ -54,17 +54,29 @@ export async function validateAgainstSchema(
 
   try {
     // Get the latest schema record (record named "schema" in the .config stream)
-    // Note: Using raw SQL because of JOIN with specific conditions
-    const schemaRecord = await ctx.db.oneOrNone(
-      `SELECT r.* FROM record r
-       INNER JOIN stream s ON r.stream_id = s.id
-       WHERE s.pod_name = $(podName)
-         AND s.path = $(configStreamPath)
-         AND r.name = 'schema'
-       ORDER BY r.index DESC
-       LIMIT 1`,
+    const schemaRecords = await executeSelect(
+      ctx.db,
+      (p: { podName: string; configStreamPath: string }) =>
+        from(dbContext, "record")
+          .join(
+            from(dbContext, "stream"),
+            (r) => r.stream_id,
+            (s) => s.id,
+            (r, s) => ({ record: r, stream: s }),
+          )
+          .where(
+            (row) =>
+              row.stream.pod_name === p.podName &&
+              row.stream.path === p.configStreamPath &&
+              row.record.name === "schema",
+          )
+          .orderByDescending((row) => row.record.index)
+          .take(1)
+          .select((row) => row.record),
       { podName, configStreamPath },
     );
+
+    const schemaRecord = schemaRecords[0] || null;
 
     if (!schemaRecord) {
       // Schema flag is set but no schema found - allow the write
@@ -167,10 +179,10 @@ export async function updateSchemaFlag(
         updatedAt: number;
       }) =>
         updateTable(dbContext, "stream")
-          .set(() => ({
+          .set({
             has_schema: p.hasSchema,
             updated_at: p.updatedAt,
-          }))
+          })
           .where((s) => s.pod_name === p.podName && s.path === p.parentPath),
       { podName, parentPath, hasSchema: hasActiveSchema, updatedAt: now },
     );

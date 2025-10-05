@@ -103,11 +103,11 @@ export async function findOrCreateUser(
             provider_id: string;
           }) =>
             updateTable(dbContext, "identity")
-              .set(() => ({
+              .set({
                 email: p.email,
                 name: p.name,
                 updated_at: p.updated_at,
-              }))
+              })
               .where(
                 (i) =>
                   i.provider === p.provider && i.provider_id === p.provider_id,

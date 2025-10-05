@@ -8,12 +8,13 @@ import { RecordDbRow } from "../../db-types.js";
 import { StreamRecord } from "../../types.js";
 import { createLogger } from "../../logger.js";
 import { getCache, getCacheConfig, cacheKeys } from "../../cache/index.js";
-import { createContext, from } from "@webpods/tinqer";
+import { createContext, from, createQueryHelpers } from "@webpods/tinqer";
 import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
 import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:records");
 const dbContext = createContext<DatabaseSchema>();
+const helpers = createQueryHelpers();
 
 /**
  * Map database row to domain type
@@ -94,15 +95,25 @@ export async function listUniqueRecords(
       }
     }
 
-    // Get the latest record for each unique name using DISTINCT ON
-    // Note: Using raw SQL because DISTINCT ON with specific ordering is PostgreSQL-specific
-    const latestRecords = await ctx.db.manyOrNone<RecordDbRow>(
-      `SELECT DISTINCT ON (name) *
-       FROM record
-       WHERE stream_id = $(streamId)
-         AND name IS NOT NULL
-         AND name != ''
-       ORDER BY name, index DESC`,
+    // Get the latest record for each unique name using ROW_NUMBER window function
+    const latestRecords = await executeSelect(
+      ctx.db,
+      (p: { streamId: number }, h = helpers) =>
+        from(dbContext, "record")
+          .where(
+            (r) =>
+              r.stream_id === p.streamId && r.name !== null && r.name !== "",
+          )
+          .select((r) => ({
+            ...r,
+            rn: h
+              .window(r)
+              .partitionBy((row) => row.name)
+              .orderByDescending((row) => row.index)
+              .rowNumber(),
+          }))
+          .where((r) => r.rn === 1)
+          .select((r) => r),
       { streamId },
     );
 
