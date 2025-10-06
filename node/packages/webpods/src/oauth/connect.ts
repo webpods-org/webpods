@@ -14,27 +14,13 @@ import { getDb } from "../db/index.js";
 import { createLogger } from "../logger.js";
 import { getHydraPublicUrl } from "./hydra-client.js";
 import { rateLimit } from "../middleware/ratelimit.js";
+import { createSchema } from "@webpods/tinqer";
+import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "../db/schema.js";
 
 const logger = createLogger("webpods:oauth:connect");
 const router = Router();
-
-// OAuth client DB row type
-interface OAuthClientDbRow {
-  id: string;
-  user_id: string;
-  client_id: string;
-  client_name: string;
-  client_secret: string | null;
-  redirect_uris: string[];
-  requested_pods: string[];
-  grant_types: string[];
-  response_types: string[];
-  token_endpoint_auth_method: string;
-  scope: string;
-  metadata: Record<string, unknown>;
-  created_at: string;
-  updated_at: string;
-}
+const schema = createSchema<DatabaseSchema>();
 
 /**
  * Simplified OAuth connection endpoint
@@ -59,10 +45,18 @@ router.get("/", rateLimit("read"), async (req: Request, res: Response) => {
     const db = getDb();
 
     // Look up client in database
-    const client = await db.oneOrNone<OAuthClientDbRow>(
-      `SELECT * FROM oauth_client WHERE client_id = $(clientId)`,
+    const clients = await executeSelect(
+      db,
+      schema,
+      (q, p) =>
+        q
+          .from("oauth_client")
+          .where((c) => c.client_id === p.clientId)
+          .select((c) => c),
       { clientId },
     );
+
+    const client = clients[0] || null;
 
     if (!client) {
       logger.warn("Unknown client attempted connection", { clientId });

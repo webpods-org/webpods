@@ -4,18 +4,21 @@
 
 import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
-import { PodDbRow } from "../../db-types.js";
 import { Pod } from "../../types.js";
 import { createLogger } from "../../logger.js";
 import { getCache, cacheKeys } from "../../cache/index.js";
 import { getConfig } from "../../config-loader.js";
+import { createSchema } from "@webpods/tinqer";
+import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:pods");
+const schema = createSchema<DatabaseSchema>();
 
 /**
  * Map database row to domain type
  */
-function mapPodFromDb(row: PodDbRow): Pod {
+function mapPodFromDb(row: DatabaseSchema["pod"]): Pod {
   return {
     name: row.name,
     userId: row.owner_id || "", // Use owner_id directly from pod table
@@ -44,11 +47,19 @@ export async function getPod(
       logger.debug("Pod cache miss", { podName });
     }
 
-    // Cache miss - fetch from database (now includes owner_id)
-    const pod = await ctx.db.oneOrNone<PodDbRow>(
-      `SELECT * FROM pod WHERE name = $(pod_name)`,
-      { pod_name: podName },
+    // Cache miss - fetch from database using Tinqer
+    const pods = await executeSelect(
+      ctx.db,
+      schema,
+      (q, p) =>
+        q
+          .from("pod")
+          .where((pod) => pod.name === p.podName)
+          .select((pod) => pod),
+      { podName },
     );
+
+    const pod = pods[0] || null;
 
     if (!pod) {
       return failure(new Error("Pod not found"));

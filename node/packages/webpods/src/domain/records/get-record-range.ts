@@ -7,8 +7,12 @@ import { Result, success, failure } from "../../utils/result.js";
 import { RecordDbRow } from "../../db-types.js";
 import { StreamRecord } from "../../types.js";
 import { createLogger } from "../../logger.js";
+import { createSchema } from "@webpods/tinqer";
+import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:records");
+const schema = createSchema<DatabaseSchema>();
 
 /**
  * Map database row to domain type
@@ -48,11 +52,16 @@ export async function getRecordRange(
 
     // Handle negative indices
     if (startIndex < 0 || endIndex < 0) {
-      const countResult = await ctx.db.one<{ count: string }>(
-        `SELECT COUNT(*) as count FROM record WHERE stream_id = $(streamId)`,
+      const totalCount = await executeSelect(
+        ctx.db,
+        schema,
+        (q, p) =>
+          q
+            .from("record")
+            .where((r) => r.stream_id === p.streamId)
+            .count(),
         { streamId },
       );
-      const totalCount = parseInt(countResult.count);
 
       if (startIndex < 0) {
         actualStartIndex = totalCount + startIndex;
@@ -74,18 +83,26 @@ export async function getRecordRange(
       return success([]);
     }
 
-    // Fetch records in the specified index range
+    // Fetch records in the specified index range using Tinqer
     // Note: Including all records at these indices, even deletion markers
-    const records = await ctx.db.manyOrNone<RecordDbRow>(
-      `SELECT * FROM record
-       WHERE stream_id = $(streamId)
-         AND index >= $(start_index)
-         AND index < $(end_index)
-       ORDER BY index ASC`,
+    const records = await executeSelect(
+      ctx.db,
+      schema,
+      (q, p) =>
+        q
+          .from("record")
+          .where(
+            (r) =>
+              r.stream_id === p.streamId &&
+              r.index >= p.startIndex &&
+              r.index < p.endIndex,
+          )
+          .orderBy((r) => r.index)
+          .select((r) => r),
       {
         streamId,
-        start_index: actualStartIndex,
-        end_index: actualEndIndex,
+        startIndex: actualStartIndex,
+        endIndex: actualEndIndex,
       },
     );
 

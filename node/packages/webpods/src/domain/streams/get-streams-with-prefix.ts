@@ -5,16 +5,19 @@
 import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
 import { createError } from "../../utils/errors.js";
-import { StreamDbRow } from "../../db-types.js";
 import { Stream } from "../../types.js";
 import { createLogger } from "../../logger.js";
+import { createSchema } from "@webpods/tinqer";
+import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:streams");
+const schema = createSchema<DatabaseSchema>();
 
 /**
  * Map database row to domain type
  */
-function mapStreamFromDb(row: StreamDbRow): Stream {
+function mapStreamFromDb(row: DatabaseSchema["stream"]): Stream {
   return {
     id: row.id,
     podName: row.pod_name,
@@ -46,11 +49,19 @@ export async function getStreamsWithPrefix(
       ? `${streamPath}%`
       : `${streamPath}/%`;
 
-    const streams = await ctx.db.manyOrNone<StreamDbRow>(
-      `SELECT * FROM stream 
-       WHERE pod_name = $(podName) 
-         AND (path = $(streamPath) OR path LIKE $(pathPattern))
-       ORDER BY path ASC`,
+    const streams = await executeSelect(
+      ctx.db,
+      schema,
+      (q, p) =>
+        q
+          .from("stream")
+          .where(
+            (s) =>
+              s.pod_name === p.podName &&
+              (s.path === p.streamPath || s.path.startsWith(p.pathPattern)),
+          )
+          .orderBy((s) => s.path)
+          .select((s) => s),
       { podName, streamPath, pathPattern },
     );
 

@@ -4,18 +4,21 @@
 
 import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
-import { RecordDbRow } from "../../db-types.js";
 import { StreamRecord } from "../../types.js";
 import { createLogger } from "../../logger.js";
 import { getStreamsWithPrefix } from "../streams/get-streams-with-prefix.js";
 import { canRead } from "../permissions/can-read.js";
+import { createSchema } from "@webpods/tinqer";
+import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:records");
+const schema = createSchema<DatabaseSchema>();
 
 /**
  * Map database row to domain type
  */
-function mapRecordFromDb(row: RecordDbRow): StreamRecord {
+function mapRecordFromDb(row: DatabaseSchema["record"]): StreamRecord {
   return {
     id: row.id || 0,
     streamId: row.stream_id,
@@ -89,14 +92,18 @@ export async function listRecordsRecursive(
 
     // Step 4: Get total count with a single efficient query
     // Note: Including all records, even deletion markers, as this is an append-only log
-    const countResult = await ctx.db.one<{ count: string }>(
-      `SELECT COUNT(*) as count
-       FROM record
-       WHERE stream_id = ANY($(streamIds)::bigint[])`,
+    const countResult = await executeSelect(
+      ctx.db,
+      schema,
+      (q, p) =>
+        q
+          .from("record")
+          .where((r) => p.streamIds.includes(r.stream_id))
+          .count(),
       { streamIds: readableStreamIds },
     );
 
-    const totalCount = parseInt(countResult.count);
+    const totalCount = Number(countResult);
 
     // Handle negative 'after' parameter
     let actualAfter = after;
@@ -110,26 +117,37 @@ export async function listRecordsRecursive(
 
     // Step 5: Use single efficient query with proper ordering and pagination
     // Note: Including all records as this is an append-only log
-    let query = `
-      SELECT r.*
-      FROM record r
-      WHERE r.stream_id = ANY($(streamIds)::bigint[])
-      ORDER BY r.created_at ASC`;
-
-    // Add pagination parameters
-    const params: Record<string, unknown> = {
-      streamIds: readableStreamIds,
-      limit: limit + 1, // Get one extra to check hasMore
-    };
-
-    if (actualAfter !== undefined && actualAfter >= 0) {
-      query += ` OFFSET $(offset)`;
-      params.offset = actualAfter;
-    }
-
-    query += ` LIMIT $(limit)`;
-
-    const records = await ctx.db.manyOrNone<RecordDbRow>(query, params);
+    const records =
+      actualAfter !== undefined && actualAfter >= 0
+        ? await executeSelect(
+            ctx.db,
+            schema,
+            (q, p) =>
+              q
+                .from("record")
+                .where((r) => p.streamIds.includes(r.stream_id))
+                .orderBy((r) => r.created_at)
+                .skip(p.offset)
+                .take(p.limit)
+                .select((r) => r),
+            {
+              streamIds: readableStreamIds,
+              offset: actualAfter,
+              limit: limit + 1,
+            },
+          )
+        : await executeSelect(
+            ctx.db,
+            schema,
+            (q, p) =>
+              q
+                .from("record")
+                .where((r) => p.streamIds.includes(r.stream_id))
+                .orderBy((r) => r.created_at)
+                .take(p.limit)
+                .select((r) => r),
+            { streamIds: readableStreamIds, limit: limit + 1 },
+          );
 
     // Check if there are more records
     const hasMore = records.length > limit;

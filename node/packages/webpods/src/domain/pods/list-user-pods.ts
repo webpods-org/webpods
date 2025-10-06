@@ -4,11 +4,14 @@
 
 import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
-import { PodDbRow } from "../../db-types.js";
 import { createLogger } from "../../logger.js";
 import { getCache, getCacheConfig, cacheKeys } from "../../cache/index.js";
+import { createSchema } from "@webpods/tinqer";
+import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:pods");
+const schema = createSchema<DatabaseSchema>();
 
 export interface UserPod {
   name: string;
@@ -35,10 +38,17 @@ export async function listUserPods(
       }
     }
 
-    // Get pods owned by this user directly using owner_id
-    const pods = await ctx.db.manyOrNone<PodDbRow>(
-      `SELECT * FROM pod WHERE owner_id = $(owner_id) ORDER BY created_at DESC`,
-      { owner_id: userId },
+    // Get pods owned by this user using Tinqer
+    const pods = await executeSelect(
+      ctx.db,
+      schema,
+      (q, p) =>
+        q
+          .from("pod")
+          .where((pod) => pod.owner_id === p.ownerId)
+          .orderByDescending((pod) => pod.created_at)
+          .select((pod) => pod),
+      { ownerId: userId },
     );
 
     // Map to UserPod format

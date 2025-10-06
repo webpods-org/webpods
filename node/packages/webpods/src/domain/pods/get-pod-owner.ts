@@ -4,12 +4,15 @@
 
 import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
-import { RecordDbRow } from "../../db-types.js";
 import { createLogger } from "../../logger.js";
 import { createError } from "../../utils/errors.js";
 import { getCache, getCacheConfig, cacheKeys } from "../../cache/index.js";
+import { createSchema } from "@webpods/tinqer";
+import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:pods");
+const schema = createSchema<DatabaseSchema>();
 
 export async function getPodOwner(
   ctx: DataContext,
@@ -29,15 +32,24 @@ export async function getPodOwner(
       }
     }
 
-    // Get the latest owner record using separate queries
-    // Get .config stream
-    const configStream = await ctx.db.oneOrNone<{ id: string }>(
-      `SELECT id FROM stream 
-       WHERE pod_name = $(pod_name) 
-         AND name = '.config' 
-         AND parent_id IS NULL`,
-      { pod_name: podName },
+    // Get .config stream using Tinqer
+    const configStreams = await executeSelect(
+      ctx.db,
+      schema,
+      (q, p) =>
+        q
+          .from("stream")
+          .where(
+            (s) =>
+              s.pod_name === p.podName &&
+              s.name === ".config" &&
+              s.parent_id === null,
+          )
+          .select((s) => ({ id: s.id })),
+      { podName },
     );
+
+    const configStream = configStreams[0] || null;
 
     if (!configStream) {
       logger.debug("No .config stream found for pod", { podName });
@@ -51,13 +63,19 @@ export async function getPodOwner(
       return success(null);
     }
 
-    // Get owner stream (child of .config)
-    const ownerStream = await ctx.db.oneOrNone<{ id: string }>(
-      `SELECT id FROM stream 
-       WHERE parent_id = $(parent_id) 
-         AND name = 'owner'`,
-      { parent_id: configStream.id },
+    // Get owner stream (child of .config) using Tinqer
+    const ownerStreams = await executeSelect(
+      ctx.db,
+      schema,
+      (q, p) =>
+        q
+          .from("stream")
+          .where((s) => s.parent_id === p.parentId && s.name === "owner")
+          .select((s) => ({ id: s.id })),
+      { parentId: configStream.id },
     );
+
+    const ownerStream = ownerStreams[0] || null;
 
     if (!ownerStream) {
       logger.debug("No owner stream found under .config", {
@@ -74,15 +92,21 @@ export async function getPodOwner(
       return success(null);
     }
 
-    // Get owner record
-    const ownerRecord = await ctx.db.oneOrNone<RecordDbRow>(
-      `SELECT * FROM record 
-       WHERE stream_id = $(stream_id)
-         AND name = 'owner'
-       ORDER BY index DESC
-       LIMIT 1`,
-      { stream_id: ownerStream.id },
+    // Get owner record using Tinqer
+    const ownerRecords = await executeSelect(
+      ctx.db,
+      schema,
+      (q, p) =>
+        q
+          .from("record")
+          .where((r) => r.stream_id === p.streamId && r.name === "owner")
+          .orderByDescending((r) => r.index)
+          .take(1)
+          .select((r) => r),
+      { streamId: ownerStream.id },
     );
+
+    const ownerRecord = ownerRecords[0] || null;
 
     if (!ownerRecord) {
       logger.debug("No owner record found in owner stream", {

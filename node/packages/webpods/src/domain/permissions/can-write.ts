@@ -4,12 +4,15 @@
 
 import { DataContext } from "../data-context.js";
 import { Stream } from "../../types.js";
-import { RecordDbRow, StreamDbRow } from "../../db-types.js";
 import { parsePermission } from "./parse-permission.js";
 import { checkPermissionStream } from "./check-permission-stream.js";
 import { createLogger } from "../../logger.js";
+import { createSchema } from "@webpods/tinqer";
+import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:permissions");
+const schema = createSchema<DatabaseSchema>();
 
 /**
  * Check permissions for a specific stream (internal helper)
@@ -79,33 +82,55 @@ export async function canWrite(
   let podOwner: string | null = null;
 
   // Get .config stream
-  const configStream = await ctx.db.oneOrNone<StreamDbRow>(
-    `SELECT id FROM stream 
-     WHERE pod_name = $(pod_name) 
-       AND name = '.config' 
-       AND parent_id IS NULL`,
+  const configStreamResults = await executeSelect(
+    ctx.db,
+    schema,
+    (q, p) =>
+      q
+        .from("stream")
+        .where(
+          (s) =>
+            s.pod_name === p.pod_name &&
+            s.name === ".config" &&
+            s.parent_id === null,
+        )
+        .select((s) => ({ id: s.id })),
     { pod_name: stream.podName },
   );
 
+  const configStream = configStreamResults[0] || null;
+
   if (configStream) {
     // Get owner stream (child of .config)
-    const ownerStream = await ctx.db.oneOrNone<StreamDbRow>(
-      `SELECT id FROM stream 
-       WHERE parent_id = $(parent_id) 
-         AND name = 'owner'`,
+    const ownerStreamResults = await executeSelect(
+      ctx.db,
+      schema,
+      (q, p) =>
+        q
+          .from("stream")
+          .where((s) => s.parent_id === p.parent_id && s.name === "owner")
+          .select((s) => ({ id: s.id })),
       { parent_id: configStream.id },
     );
 
+    const ownerStream = ownerStreamResults[0] || null;
+
     if (ownerStream) {
       // Get owner record
-      const ownerRecord = await ctx.db.oneOrNone<RecordDbRow>(
-        `SELECT * FROM record 
-         WHERE stream_id = $(stream_id)
-           AND name = 'owner'
-         ORDER BY index DESC
-         LIMIT 1`,
+      const ownerRecordResults = await executeSelect(
+        ctx.db,
+        schema,
+        (q, p) =>
+          q
+            .from("record")
+            .where((r) => r.stream_id === p.stream_id && r.name === "owner")
+            .orderByDescending((r) => r.index)
+            .take(1)
+            .select((r) => r),
         { stream_id: ownerStream.id },
       );
+
+      const ownerRecord = ownerRecordResults[0] || null;
 
       if (ownerRecord) {
         try {
@@ -132,10 +157,18 @@ export async function canWrite(
   // If no explicit permission on current stream, check parent streams
   let currentStreamId = stream.parentId;
   while (currentStreamId) {
-    const parentStream = await ctx.db.oneOrNone<StreamDbRow>(
-      `SELECT * FROM stream WHERE id = $(id)`,
+    const parentStreamResults = await executeSelect(
+      ctx.db,
+      schema,
+      (q, p) =>
+        q
+          .from("stream")
+          .where((s) => s.id === p.id)
+          .select((s) => s),
       { id: currentStreamId },
     );
+
+    const parentStream = parentStreamResults[0] || null;
 
     if (!parentStream) {
       break;

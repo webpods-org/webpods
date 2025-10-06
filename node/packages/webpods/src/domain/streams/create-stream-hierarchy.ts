@@ -6,7 +6,6 @@ import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
 import { createError } from "../../utils/errors.js";
 import { Stream } from "../../types.js";
-import { StreamDbRow } from "../../db-types.js";
 import {
   parseStreamPath,
   isValidStreamName,
@@ -14,8 +13,12 @@ import {
 import { createStream, mapStreamFromDb } from "./create-stream.js";
 import { getStreamByPath } from "./get-stream-by-path.js";
 import { createLogger } from "../../logger.js";
+import { createSchema } from "@webpods/tinqer";
+import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:streams");
+const schema = createSchema<DatabaseSchema>();
 
 /**
  * Create a stream hierarchy, creating parent streams as needed
@@ -37,13 +40,23 @@ export async function createStreamHierarchy(
   // Handle root stream case
   if (segments.length === 0 || path === "/") {
     // Check if a root stream already exists
-    const existingRoot = await ctx.db.oneOrNone<StreamDbRow>(
-      `SELECT * FROM stream 
-       WHERE pod_name = $(podName) 
-         AND name = $(name) 
-         AND parent_id IS NULL`,
+    const existingRoots = await executeSelect(
+      ctx.db,
+      schema,
+      (q, p) =>
+        q
+          .from("stream")
+          .where(
+            (s) =>
+              s.pod_name === p.podName &&
+              s.name === p.name &&
+              s.parent_id === null,
+          )
+          .select((s) => s),
       { podName, name: "/" },
     );
+
+    const existingRoot = existingRoots[0] || null;
 
     if (existingRoot) {
       return success(mapStreamFromDb(existingRoot));
@@ -93,13 +106,19 @@ export async function createStreamHierarchy(
 
       // Before creating a stream, check if a record with this name exists in the parent
       if (parentId !== null) {
-        const recordCheck = await ctx.db.oneOrNone<{ id: number }>(
-          `SELECT id FROM record 
-           WHERE stream_id = $(streamId) 
-             AND name = $(name)
-           LIMIT 1`,
+        const recordChecks = await executeSelect(
+          ctx.db,
+          schema,
+          (q, p) =>
+            q
+              .from("record")
+              .where((r) => r.stream_id === p.streamId && r.name === p.name)
+              .take(1)
+              .select((r) => ({ id: r.id })),
           { streamId: parentId, name: segment },
         );
+
+        const recordCheck = recordChecks[0] || null;
 
         if (recordCheck) {
           return failure(

@@ -4,19 +4,22 @@
 
 import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
-import { RecordDbRow } from "../../db-types.js";
 import { StreamRecord } from "../../types.js";
 import { createLogger } from "../../logger.js";
 import { createError } from "../../utils/errors.js";
 import { getCache, cacheKeys } from "../../cache/index.js";
 import { getConfig } from "../../config-loader.js";
+import { createSchema } from "@webpods/tinqer";
+import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:records");
+const schema = createSchema<DatabaseSchema>();
 
 /**
  * Map database row to domain type
  */
-function mapRecordFromDb(row: RecordDbRow): StreamRecord {
+function mapRecordFromDb(row: DatabaseSchema["record"]): StreamRecord {
   return {
     id: row.id || 0,
     streamId: row.stream_id,
@@ -48,7 +51,7 @@ export async function getRecord(
   try {
     const cache = getCache();
     const config = getConfig();
-    let record: RecordDbRow | null = null;
+    let record: DatabaseSchema["record"] | null = null;
 
     // Check cache first
     if (cache && config.cache?.pools?.singleRecords?.enabled && streamPath) {
@@ -64,15 +67,21 @@ export async function getRecord(
       logger.debug("Record cache miss", { streamId, name });
     }
 
-    // Get the latest record by name and check if it's deleted
-    const latestRecord = await ctx.db.oneOrNone<RecordDbRow>(
-      `SELECT * FROM record
-       WHERE stream_id = $(streamId)
-         AND name = $(name)
-       ORDER BY index DESC
-       LIMIT 1`,
+    // Get the latest record by name using Tinqer
+    const latestRecords = await executeSelect(
+      ctx.db,
+      schema,
+      (q, p) =>
+        q
+          .from("record")
+          .where((r) => r.stream_id === p.streamId && r.name === p.name)
+          .orderByDescending((r) => r.index)
+          .take(1)
+          .select((r) => r),
       { streamId, name },
     );
+
+    const latestRecord = latestRecords[0] || null;
 
     // Only use it if it's not deleted or purged
     if (latestRecord && !latestRecord.deleted && !latestRecord.purged) {

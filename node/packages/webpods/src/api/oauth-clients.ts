@@ -10,27 +10,17 @@ import { getHydraAdmin } from "../oauth/hydra-client.js";
 import { requireWebPodsJWT } from "../middleware/webpods-jwt.js";
 import { rateLimit } from "../middleware/ratelimit.js";
 import { createLogger } from "../logger.js";
+import { createSchema } from "@webpods/tinqer";
+import {
+  executeSelect,
+  executeInsert,
+  executeDelete,
+} from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "../db/schema.js";
 
 const logger = createLogger("webpods:api:oauth-clients");
 const router = Router();
-
-// OAuth client DB row type
-interface OAuthClientDbRow {
-  id: string | number; // bigserial - string when returned from DB
-  user_id: string;
-  client_id: string;
-  client_name: string;
-  client_secret: string | null;
-  redirect_uris: string; // TEXT storing JSON array
-  requested_pods: string; // TEXT storing JSON array
-  grant_types: string; // TEXT storing JSON array
-  response_types: string; // TEXT storing JSON array
-  token_endpoint_auth_method: string;
-  scope: string;
-  metadata: string; // TEXT storing JSON
-  created_at: number; // BIGINT timestamp
-  updated_at: number; // BIGINT timestamp
-}
+const schema = createSchema<DatabaseSchema>();
 
 // Validation schema for client creation
 const createClientSchema = z.object({
@@ -136,36 +126,28 @@ router.post(
 
         // Store client in our database
         const now = Date.now();
-        const clientRecord = await db.one<OAuthClientDbRow>(
-          `INSERT INTO oauth_client (
-          user_id,
-          client_id,
-          client_name,
-          client_secret,
-          redirect_uris,
-          requested_pods,
-          grant_types,
-          response_types,
-          token_endpoint_auth_method,
-          scope,
-          metadata,
-          created_at,
-          updated_at
-        ) VALUES (
-          $(user_id),
-          $(client_id),
-          $(client_name),
-          $(client_secret),
-          $(redirect_uris),
-          $(requested_pods),
-          $(grant_types),
-          $(response_types),
-          $(token_endpoint_auth_method),
-          $(scope),
-          $(metadata),
-          $(created_at),
-          $(updated_at)
-        ) RETURNING *`,
+        const clientRecords = await executeInsert(
+          db,
+          schema,
+          (q, p) =>
+            q
+              .insertInto("oauth_client")
+              .values({
+                user_id: p.user_id,
+                client_id: p.client_id,
+                client_name: p.client_name,
+                client_secret: p.client_secret,
+                redirect_uris: p.redirect_uris,
+                requested_pods: p.requested_pods,
+                grant_types: p.grant_types,
+                response_types: p.response_types,
+                token_endpoint_auth_method: p.token_endpoint_auth_method,
+                scope: p.scope,
+                metadata: p.metadata,
+                created_at: p.created_at,
+                updated_at: p.updated_at,
+              })
+              .returning((c) => c),
           {
             user_id: userId,
             client_id: clientId,
@@ -182,6 +164,11 @@ router.post(
             updated_at: now,
           },
         );
+
+        const clientRecord = clientRecords[0];
+        if (!clientRecord) {
+          throw new Error("Failed to create OAuth client record");
+        }
 
         // Return client info (including secret only on creation)
         res.status(201).json({
@@ -262,10 +249,15 @@ router.get(
       const userId = req.user!.id;
       const db = getDb();
 
-      const clients = await db.manyOrNone<OAuthClientDbRow>(
-        `SELECT * FROM oauth_client 
-       WHERE user_id = $(user_id)
-       ORDER BY created_at DESC`,
+      const clients = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("oauth_client")
+            .where((c) => c.user_id === p.user_id)
+            .orderByDescending((c) => c.created_at)
+            .select((c) => c),
         { user_id: userId },
       );
 
@@ -317,11 +309,21 @@ router.get(
       const { clientId } = req.params;
       const db = getDb();
 
-      const client = await db.oneOrNone<OAuthClientDbRow>(
-        `SELECT * FROM oauth_client 
-       WHERE client_id = $(client_id) AND user_id = $(user_id)`,
-        { client_id: clientId, user_id: userId },
+      const clients = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("oauth_client")
+            .where(
+              (c) => c.client_id === p.client_id && c.user_id === p.user_id,
+            )
+            .take(1)
+            .select((c) => c),
+        { client_id: clientId || "", user_id: userId },
       );
+
+      const client = clients[0] || null;
 
       if (!client) {
         res.status(404).json({
@@ -378,11 +380,21 @@ router.delete(
       const db = getDb();
 
       // Check if client exists and belongs to user
-      const client = await db.oneOrNone<OAuthClientDbRow>(
-        `SELECT * FROM oauth_client 
-       WHERE client_id = $(client_id) AND user_id = $(user_id)`,
-        { client_id: clientId, user_id: userId },
+      const clients = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("oauth_client")
+            .where(
+              (c) => c.client_id === p.client_id && c.user_id === p.user_id,
+            )
+            .take(1)
+            .select((c) => c),
+        { client_id: clientId || "", user_id: userId },
       );
+
+      const client = clients[0] || null;
 
       if (!client) {
         res.status(404).json({
@@ -422,10 +434,16 @@ router.delete(
       }
 
       // Delete from our database
-      await db.none(
-        `DELETE FROM oauth_client 
-       WHERE client_id = $(client_id) AND user_id = $(user_id)`,
-        { client_id: clientId, user_id: userId },
+      await executeDelete(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .deleteFrom("oauth_client")
+            .where(
+              (c) => c.client_id === p.client_id && c.user_id === p.user_id,
+            ),
+        { client_id: clientId || "", user_id: userId },
       );
 
       logger.info("Deleted OAuth client");

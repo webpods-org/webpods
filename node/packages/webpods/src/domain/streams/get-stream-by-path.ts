@@ -10,8 +10,12 @@ import { Stream } from "../../types.js";
 import { createLogger } from "../../logger.js";
 import { getCache, cacheKeys } from "../../cache/index.js";
 import { getConfig } from "../../config-loader.js";
+import { createSchema } from "@webpods/tinqer";
+import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:streams");
+const schema = createSchema<DatabaseSchema>();
 
 /**
  * Map database row to domain type
@@ -66,14 +70,20 @@ export async function getStreamByPath(
       logger.debug("Stream cache miss", { podName, path: normalizedPath });
     }
 
-    // Cache miss - fetch from database
+    // Cache miss - fetch from database using Tinqer
     // Direct lookup using path column - O(1) instead of O(n)
-    const stream = await ctx.db.oneOrNone<StreamDbRow>(
-      `SELECT * FROM stream
-       WHERE pod_name = $(podName)
-         AND path = $(path)`,
+    const streams = await executeSelect(
+      ctx.db,
+      schema,
+      (q, p) =>
+        q
+          .from("stream")
+          .where((s) => s.pod_name === p.podName && s.path === p.path)
+          .select((s) => s),
       { podName, path: normalizedPath },
     );
+
+    const stream = streams[0] || null;
 
     if (!stream) {
       logger.debug("Stream not found by path", {
@@ -109,10 +119,18 @@ export async function getStreamPath(
   streamId: number,
 ): Promise<Result<string>> {
   try {
-    const stream = await ctx.db.oneOrNone<StreamDbRow>(
-      `SELECT path FROM stream WHERE id = $(id)`,
+    const streams = await executeSelect(
+      ctx.db,
+      schema,
+      (q, p) =>
+        q
+          .from("stream")
+          .where((s) => s.id === p.id)
+          .select((s) => ({ path: s.path })),
       { id: streamId },
     );
+
+    const stream = streams[0] || null;
 
     if (!stream) {
       return failure(createError("STREAM_NOT_FOUND", "Stream not found"));

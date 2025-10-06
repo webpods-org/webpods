@@ -9,9 +9,13 @@ import { getDb } from "../db/index.js";
 import { createLogger } from "../logger.js";
 import { getConfig } from "../config-loader.js";
 import { rateLimit } from "../middleware/ratelimit.js";
+import { createSchema } from "@webpods/tinqer";
+import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "../db/schema.js";
 
 const logger = createLogger("webpods:oauth:consent");
 const router = Router();
+const schema = createSchema<DatabaseSchema>();
 
 /**
  * Parse pods from consent request
@@ -73,8 +77,14 @@ async function getUserOwnedPods(userId: string): Promise<string[]> {
 
   try {
     // Get pods owned by this user directly using owner_id
-    const pods = await db.manyOrNone<{ name: string }>(
-      `SELECT name FROM pod WHERE owner_id = $(owner_id)`,
+    const pods = await executeSelect(
+      db,
+      schema,
+      (q, p) =>
+        q
+          .from("pod")
+          .where((pod) => pod.owner_id === p.owner_id)
+          .select((pod) => ({ name: pod.name })),
       { owner_id: userId },
     );
 

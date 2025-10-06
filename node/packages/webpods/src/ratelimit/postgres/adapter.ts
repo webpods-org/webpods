@@ -8,7 +8,6 @@ import { getActionLimit } from "../types.js";
 import { getDb } from "../../db/index.js";
 import { createLogger } from "../../logger.js";
 import type { RateLimitDbRow } from "../../db-types.js";
-
 const logger = createLogger("webpods:ratelimit:postgres");
 
 let config: RateLimitConfig | null = null;
