@@ -256,8 +256,7 @@ router.get(
           q
             .from("oauth_client")
             .where((c) => c.user_id === p.user_id)
-            .orderByDescending((c) => c.created_at)
-            .select((c) => c),
+            .orderByDescending((c) => c.created_at),
         { user_id: userId },
       );
 
@@ -318,8 +317,7 @@ router.get(
             .where(
               (c) => c.client_id === p.client_id && c.user_id === p.user_id,
             )
-            .take(1)
-            .select((c) => c),
+            .take(1),
         { client_id: clientId || "", user_id: userId },
       );
 
@@ -389,8 +387,7 @@ router.delete(
             .where(
               (c) => c.client_id === p.client_id && c.user_id === p.user_id,
             )
-            .take(1)
-            .select((c) => c),
+            .take(1),
         { client_id: clientId || "", user_id: userId },
       );
 

@@ -78,8 +78,7 @@ export async function getStreamByPath(
       (q, p) =>
         q
           .from("stream")
-          .where((s) => s.pod_name === p.podName && s.path === p.path)
-          .select((s) => s),
+          .where((s) => s.pod_name === p.podName && s.path === p.path),
       { podName, path: normalizedPath },
     );
 

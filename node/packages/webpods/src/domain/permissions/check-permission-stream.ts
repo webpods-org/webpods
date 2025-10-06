@@ -53,8 +53,7 @@ export async function checkPermissionStream(
         q
           .from("record")
           .where((r) => r.stream_id === p.streamId)
-          .orderBy((r) => r.index)
-          .select((r) => r),
+          .orderBy((r) => r.index),
       { streamId: stream.id },
     );
 

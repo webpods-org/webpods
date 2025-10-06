@@ -76,8 +76,7 @@ export async function getRecord(
           .from("record")
           .where((r) => r.stream_id === p.streamId && r.name === p.name)
           .orderByDescending((r) => r.index)
-          .take(1)
-          .select((r) => r),
+          .take(1),
       { streamId, name },
     );
 

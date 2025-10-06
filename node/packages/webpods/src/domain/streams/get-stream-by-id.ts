@@ -58,11 +58,7 @@ export async function getStreamById(
     const streams = await executeSelect(
       ctx.db,
       schema,
-      (q, p) =>
-        q
-          .from("stream")
-          .where((s) => s.id === p.id)
-          .select((s) => s),
+      (q, p) => q.from("stream").where((s) => s.id === p.id),
       { id: streamId },
     );
 

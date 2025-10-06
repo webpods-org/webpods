@@ -33,12 +33,7 @@ export async function findPodByDomain(
     }
 
     // Get all pods using Tinqer
-    const pods = await executeSelect(
-      ctx.db,
-      schema,
-      (q) => q.from("pod").select((p) => p),
-      {},
-    );
+    const pods = await executeSelect(ctx.db, schema, (q) => q.from("pod"), {});
 
     // Check each pod's domains
     for (const pod of pods) {
@@ -85,8 +80,7 @@ export async function findPodByDomain(
           q
             .from("record")
             .where((r) => r.stream_id === p.streamId)
-            .orderBy((r) => r.index)
-            .select((r) => r),
+            .orderBy((r) => r.index),
         { streamId: domainsStream.id },
       );
 
