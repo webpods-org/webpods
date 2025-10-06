@@ -7,12 +7,12 @@ import { Result, success, failure } from "../../utils/result.js";
 import { RecordDbRow } from "../../db-types.js";
 import { StreamRecord } from "../../types.js";
 import { createLogger } from "../../logger.js";
-import { createContext, from } from "@webpods/tinqer";
+import { createSchema } from "@webpods/tinqer";
 import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
 import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:records");
-const dbContext = createContext<DatabaseSchema>();
+const schema = createSchema<DatabaseSchema>();
 
 /**
  * Map database row to domain type
@@ -54,8 +54,10 @@ export async function getRecordRange(
     if (startIndex < 0 || endIndex < 0) {
       const totalCount = await executeSelect(
         ctx.db,
-        (p: { streamId: number }) =>
-          from(dbContext, "record")
+        schema,
+        (q, p) =>
+          q
+            .from("record")
             .where((r) => r.stream_id === p.streamId)
             .count(),
         { streamId },
@@ -85,8 +87,10 @@ export async function getRecordRange(
     // Note: Including all records at these indices, even deletion markers
     const records = await executeSelect(
       ctx.db,
-      (p: { streamId: number; startIndex: number; endIndex: number }) =>
-        from(dbContext, "record")
+      schema,
+      (q, p) =>
+        q
+          .from("record")
           .where(
             (r) =>
               r.stream_id === p.streamId &&

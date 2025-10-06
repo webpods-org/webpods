@@ -6,12 +6,12 @@ import { DataContext } from "../data-context.js";
 import { Result, success } from "../../utils/result.js";
 import { createLogger } from "../../logger.js";
 import { getCache, getCacheConfig, cacheKeys } from "../../cache/index.js";
-import { createContext, from } from "@webpods/tinqer";
+import { createSchema } from "@webpods/tinqer";
 import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
 import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:routing");
-const dbContext = createContext<DatabaseSchema>();
+const schema = createSchema<DatabaseSchema>();
 
 export async function findPodByDomain(
   ctx: DataContext,
@@ -35,7 +35,8 @@ export async function findPodByDomain(
     // Get all pods using Tinqer
     const pods = await executeSelect(
       ctx.db,
-      () => from(dbContext, "pod").select((p) => p),
+      schema,
+      (q) => q.from("pod").select((p) => p),
       {},
     );
 
@@ -44,8 +45,10 @@ export async function findPodByDomain(
       // Get .config stream using Tinqer
       const configStreams = await executeSelect(
         ctx.db,
-        (p: { podName: string }) =>
-          from(dbContext, "stream")
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
             .where(
               (s) =>
                 s.pod_name === p.podName &&
@@ -62,8 +65,10 @@ export async function findPodByDomain(
       // Get domains stream (child of .config) using Tinqer
       const domainsStreams = await executeSelect(
         ctx.db,
-        (p: { parentId: number }) =>
-          from(dbContext, "stream")
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
             .where((s) => s.parent_id === p.parentId && s.name === "domains")
             .select((s) => ({ id: s.id })),
         { parentId: configStream.id },
@@ -75,8 +80,10 @@ export async function findPodByDomain(
       // Get domain records using Tinqer
       const records = await executeSelect(
         ctx.db,
-        (p: { streamId: number }) =>
-          from(dbContext, "record")
+        schema,
+        (q, p) =>
+          q
+            .from("record")
             .where((r) => r.stream_id === p.streamId)
             .orderBy((r) => r.index)
             .select((r) => r),

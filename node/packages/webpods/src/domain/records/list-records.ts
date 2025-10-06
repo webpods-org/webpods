@@ -8,12 +8,12 @@ import { StreamRecord } from "../../types.js";
 import { createLogger } from "../../logger.js";
 import { getCache, cacheKeys } from "../../cache/index.js";
 import { getConfig } from "../../config-loader.js";
-import { createContext, from } from "@webpods/tinqer";
+import { createSchema } from "@webpods/tinqer";
 import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
 import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:records");
-const dbContext = createContext<DatabaseSchema>();
+const schema = createSchema<DatabaseSchema>();
 
 /**
  * Map database row to domain type
@@ -62,8 +62,10 @@ export async function listRecords(
     if (!actualStreamPath) {
       const streamInfo = await executeSelect(
         ctx.db,
-        (p: { streamId: number }) =>
-          from(dbContext, "stream")
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
             .where((s) => s.id === p.streamId)
             .select((s) => ({ path: s.path })),
         { streamId },
@@ -101,8 +103,10 @@ export async function listRecords(
       // Get total count to convert negative index
       const countResult = await executeSelect(
         ctx.db,
-        (p: { streamId: number }) =>
-          from(dbContext, "record")
+        schema,
+        (q, p) =>
+          q
+            .from("record")
             .where((r) => r.stream_id === p.streamId)
             .count(),
         { streamId },
@@ -123,8 +127,10 @@ export async function listRecords(
       actualAfter !== undefined
         ? await executeSelect(
             ctx.db,
-            (p: { streamId: number; after: number; limit: number }) =>
-              from(dbContext, "record")
+            schema,
+            (q, p) =>
+              q
+                .from("record")
                 .where((r) => r.stream_id === p.streamId && r.index > p.after)
                 .orderBy((r) => r.index)
                 .take(p.limit)
@@ -133,8 +139,10 @@ export async function listRecords(
           )
         : await executeSelect(
             ctx.db,
-            (p: { streamId: number; limit: number }) =>
-              from(dbContext, "record")
+            schema,
+            (q, p) =>
+              q
+                .from("record")
                 .where((r) => r.stream_id === p.streamId)
                 .orderBy((r) => r.index)
                 .take(p.limit)
@@ -144,8 +152,10 @@ export async function listRecords(
 
     const countResult = await executeSelect(
       ctx.db,
-      (p: { streamId: number }) =>
-        from(dbContext, "record")
+      schema,
+      (q, p) =>
+        q
+          .from("record")
           .where((r) => r.stream_id === p.streamId)
           .count(),
       { streamId },

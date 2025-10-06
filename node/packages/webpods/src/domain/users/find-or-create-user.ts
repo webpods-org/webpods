@@ -8,12 +8,12 @@ import { UserDbRow, IdentityDbRow } from "../../db-types.js";
 import { User, Identity, OAuthProvider, OAuthUserInfo } from "../../types.js";
 import { createLogger } from "../../logger.js";
 import { sql } from "../../db/index.js";
-import { createContext, from, updateTable } from "@webpods/tinqer";
+import { createSchema } from "@webpods/tinqer";
 import { executeSelect, executeUpdate } from "@webpods/tinqer-sql-pg-promise";
 import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:users");
-const dbContext = createContext<DatabaseSchema>();
+const schema = createSchema<DatabaseSchema>();
 
 /**
  * Map database row to domain type
@@ -58,8 +58,10 @@ export async function findOrCreateUser(
     // First check if we have an identity for this provider
     const existingIdentityRows = await executeSelect(
       ctx.db,
-      (p: { provider: string; provider_id: string }) =>
-        from(dbContext, "identity")
+      schema,
+      (q, p) =>
+        q
+          .from("identity")
           .where(
             (i) => i.provider === p.provider && i.provider_id === p.provider_id,
           )
@@ -75,8 +77,10 @@ export async function findOrCreateUser(
       // Get the associated user
       const userRows = await executeSelect(
         ctx.db,
-        (p: { user_id: string }) =>
-          from(dbContext, "user")
+        schema,
+        (q, p) =>
+          q
+            .from("user")
             .where((u) => u.id === p.user_id)
             .select((u) => u),
         { user_id: existingIdentity.userId },
@@ -95,14 +99,10 @@ export async function findOrCreateUser(
       ) {
         await executeUpdate(
           ctx.db,
-          (p: {
-            email: string;
-            name: string;
-            updated_at: number;
-            provider: string;
-            provider_id: string;
-          }) =>
-            updateTable(dbContext, "identity")
+          schema,
+          (q, p) =>
+            q
+              .update("identity")
               .set({
                 email: p.email,
                 name: p.name,

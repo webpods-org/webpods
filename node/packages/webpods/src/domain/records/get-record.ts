@@ -9,12 +9,12 @@ import { createLogger } from "../../logger.js";
 import { createError } from "../../utils/errors.js";
 import { getCache, cacheKeys } from "../../cache/index.js";
 import { getConfig } from "../../config-loader.js";
-import { createContext, from } from "@webpods/tinqer";
+import { createSchema } from "@webpods/tinqer";
 import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
 import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:records");
-const dbContext = createContext<DatabaseSchema>();
+const schema = createSchema<DatabaseSchema>();
 
 /**
  * Map database row to domain type
@@ -70,8 +70,10 @@ export async function getRecord(
     // Get the latest record by name using Tinqer
     const latestRecords = await executeSelect(
       ctx.db,
-      (p: { streamId: number; name: string }) =>
-        from(dbContext, "record")
+      schema,
+      (q, p) =>
+        q
+          .from("record")
           .where((r) => r.stream_id === p.streamId && r.name === p.name)
           .orderByDescending((r) => r.index)
           .take(1)

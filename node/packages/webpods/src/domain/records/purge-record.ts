@@ -9,12 +9,12 @@ import { createLogger } from "../../logger.js";
 import { getStorageAdapter } from "../../storage-adapters/index.js";
 import { extname } from "path";
 import { cacheInvalidation } from "../../cache/index.js";
-import { createContext, from, updateTable } from "@webpods/tinqer";
+import { createSchema } from "@webpods/tinqer";
 import { executeSelect, executeUpdate } from "@webpods/tinqer-sql-pg-promise";
 import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:records");
-const dbContext = createContext<DatabaseSchema>();
+const schema = createSchema<DatabaseSchema>();
 
 /**
  * Purge a record by overwriting its content with deletion metadata
@@ -36,8 +36,10 @@ export async function purgeRecord(
     // First check if any record exists with this name
     const latestRecords = await executeSelect(
       ctx.db,
-      (p: { streamId: number; recordName: string }) =>
-        from(dbContext, "record")
+      schema,
+      (q, p) =>
+        q
+          .from("record")
           .where((r) => r.stream_id === p.streamId && r.name === p.recordName)
           .orderByDescending((r) => r.index)
           .take(1)
@@ -59,8 +61,10 @@ export async function purgeRecord(
     // Find the last record with external storage info (skip deletion markers)
     const recordsWithStorage = await executeSelect(
       ctx.db,
-      (p: { streamId: number; recordName: string }) =>
-        from(dbContext, "record")
+      schema,
+      (q, p) =>
+        q
+          .from("record")
           .where(
             (r) =>
               r.stream_id === p.streamId &&
@@ -85,8 +89,10 @@ export async function purgeRecord(
         // Get pod and stream info for deletion
         const streamInfoResult = await executeSelect(
           ctx.db,
-          (p: { streamId: number }) =>
-            from(dbContext, "stream")
+          schema,
+          (q, p) =>
+            q
+              .from("stream")
               .where((s) => s.id === p.streamId)
               .select((s) => ({ pod_name: s.pod_name, path: s.path })),
           { streamId },
@@ -124,8 +130,10 @@ export async function purgeRecord(
     // Update the record in the database - set both deleted and purged flags and clear content
     const result = await executeUpdate(
       ctx.db,
-      (p: { streamId: number; recordName: string; contentHash: string }) =>
-        updateTable(dbContext, "record")
+      schema,
+      (q, p) =>
+        q
+          .update("record")
           .set({
             content: "",
             content_type: "text/plain",
@@ -152,8 +160,10 @@ export async function purgeRecord(
     // Get stream info for cache invalidation
     const streamInfoResults = await executeSelect(
       ctx.db,
-      (p: { streamId: number }) =>
-        from(dbContext, "stream")
+      schema,
+      (q, p) =>
+        q
+          .from("stream")
           .where((s) => s.id === p.streamId)
           .select((s) => ({ pod_name: s.pod_name, path: s.path })),
       { streamId },

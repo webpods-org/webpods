@@ -10,7 +10,7 @@ import { getHydraAdmin } from "../oauth/hydra-client.js";
 import { requireWebPodsJWT } from "../middleware/webpods-jwt.js";
 import { rateLimit } from "../middleware/ratelimit.js";
 import { createLogger } from "../logger.js";
-import { createContext, from, insertInto, deleteFrom } from "@webpods/tinqer";
+import { createSchema } from "@webpods/tinqer";
 import {
   executeSelect,
   executeInsert,
@@ -20,7 +20,7 @@ import type { DatabaseSchema } from "../db/schema.js";
 
 const logger = createLogger("webpods:api:oauth-clients");
 const router = Router();
-const dbContext = createContext<DatabaseSchema>();
+const schema = createSchema<DatabaseSchema>();
 
 // Validation schema for client creation
 const createClientSchema = z.object({
@@ -128,22 +128,10 @@ router.post(
         const now = Date.now();
         const clientRecords = await executeInsert(
           db,
-          (p: {
-            user_id: string;
-            client_id: string;
-            client_name: string;
-            client_secret: string | null;
-            redirect_uris: string;
-            requested_pods: string;
-            grant_types: string;
-            response_types: string;
-            token_endpoint_auth_method: string;
-            scope: string;
-            metadata: string;
-            created_at: number;
-            updated_at: number;
-          }) =>
-            insertInto(dbContext, "oauth_client")
+          schema,
+          (q, p) =>
+            q
+              .insertInto("oauth_client")
               .values({
                 user_id: p.user_id,
                 client_id: p.client_id,
@@ -263,8 +251,10 @@ router.get(
 
       const clients = await executeSelect(
         db,
-        (p: { user_id: string }) =>
-          from(dbContext, "oauth_client")
+        schema,
+        (q, p) =>
+          q
+            .from("oauth_client")
             .where((c) => c.user_id === p.user_id)
             .orderByDescending((c) => c.created_at)
             .select((c) => c),
@@ -321,8 +311,10 @@ router.get(
 
       const clients = await executeSelect(
         db,
-        (p: { client_id: string; user_id: string }) =>
-          from(dbContext, "oauth_client")
+        schema,
+        (q, p) =>
+          q
+            .from("oauth_client")
             .where(
               (c) => c.client_id === p.client_id && c.user_id === p.user_id,
             )
@@ -390,8 +382,10 @@ router.delete(
       // Check if client exists and belongs to user
       const clients = await executeSelect(
         db,
-        (p: { client_id: string; user_id: string }) =>
-          from(dbContext, "oauth_client")
+        schema,
+        (q, p) =>
+          q
+            .from("oauth_client")
             .where(
               (c) => c.client_id === p.client_id && c.user_id === p.user_id,
             )
@@ -442,10 +436,13 @@ router.delete(
       // Delete from our database
       await executeDelete(
         db,
-        (p: { client_id: string; user_id: string }) =>
-          deleteFrom(dbContext, "oauth_client").where(
-            (c) => c.client_id === p.client_id && c.user_id === p.user_id,
-          ),
+        schema,
+        (q, p) =>
+          q
+            .deleteFrom("oauth_client")
+            .where(
+              (c) => c.client_id === p.client_id && c.user_id === p.user_id,
+            ),
         { client_id: clientId || "", user_id: userId },
       );
 

@@ -5,12 +5,12 @@
 import { DataContext } from "../data-context.js";
 import { createLogger } from "../../logger.js";
 import { getStreamByPath } from "../streams/get-stream-by-path.js";
-import { createContext, from } from "@webpods/tinqer";
+import { createSchema } from "@webpods/tinqer";
 import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
 import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:permissions");
-const dbContext = createContext<DatabaseSchema>();
+const schema = createSchema<DatabaseSchema>();
 
 export async function checkPermissionStream(
   ctx: DataContext,
@@ -48,8 +48,10 @@ export async function checkPermissionStream(
     // Get ALL records from the permission stream
     const records = await executeSelect(
       ctx.db,
-      (p: { streamId: number }) =>
-        from(dbContext, "record")
+      schema,
+      (q, p) =>
+        q
+          .from("record")
           .where((r) => r.stream_id === p.streamId)
           .orderBy((r) => r.index)
           .select((r) => r),

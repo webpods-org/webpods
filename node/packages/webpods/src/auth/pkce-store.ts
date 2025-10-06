@@ -6,8 +6,16 @@ import { getDb } from "../db/index.js";
 import { createLogger } from "../logger.js";
 import { generators } from "openid-client";
 import { getConfig } from "../config-loader.js";
+import { createSchema } from "@webpods/tinqer";
+import {
+  executeSelect,
+  executeInsert,
+  executeDelete,
+} from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "../db/schema.js";
 
 const logger = createLogger("webpods:auth:pkce");
+const schema = createSchema<DatabaseSchema>();
 
 export interface PKCEState {
   state: string;
@@ -32,9 +40,18 @@ export async function storePKCEState(
   const now = Date.now();
   const expiresAt = now + ttlMinutes * 60 * 1000;
 
-  await db.none(
-    `INSERT INTO oauth_state (state, code_verifier, pod, redirect_uri, created_at, expires_at)
-     VALUES ($(state), $(codeVerifier), $(pod), $(redirectUri), $(createdAt), $(expiresAt))`,
+  await executeInsert(
+    db,
+    schema,
+    (q, p) =>
+      q.insertInto("oauth_state").values({
+        state: p.state,
+        code_verifier: p.codeVerifier,
+        pod: p.pod,
+        redirect_uri: p.redirectUri,
+        created_at: p.createdAt,
+        expires_at: p.expiresAt,
+      }),
     {
       state,
       codeVerifier,
@@ -57,18 +74,23 @@ export async function retrievePKCEState(
   const db = getDb();
 
   const now = Date.now();
-  const row = await db.oneOrNone<{
-    state: string;
-    code_verifier: string;
-    pod: string | null;
-    redirect_uri: string | null;
-  }>(
-    `SELECT state, code_verifier, pod, redirect_uri
-     FROM oauth_state
-     WHERE state = $(state)
-       AND expires_at > $(now)`,
+  const rows = await executeSelect(
+    db,
+    schema,
+    (q, p) =>
+      q
+        .from("oauth_state")
+        .where((s) => s.state === p.state && s.expires_at > p.now)
+        .select((s) => ({
+          state: s.state,
+          code_verifier: s.code_verifier,
+          pod: s.pod,
+          redirect_uri: s.redirect_uri,
+        })),
     { state, now },
   );
+
+  const row = rows[0] || null;
 
   if (!row) {
     logger.warn("PKCE state not found or expired", { state });
@@ -76,7 +98,12 @@ export async function retrievePKCEState(
   }
 
   // Delete the state (one-time use)
-  await db.none(`DELETE FROM oauth_state WHERE state = $(state)`, { state });
+  await executeDelete(
+    db,
+    schema,
+    (q, p) => q.deleteFrom("oauth_state").where((s) => s.state === p.state),
+    { state },
+  );
 
   logger.info("PKCE state retrieved and deleted");
 
@@ -110,10 +137,11 @@ export async function cleanupExpiredStates(): Promise<void> {
   const db = getDb();
 
   const now = Date.now();
-  const result = await db.result(
-    `DELETE FROM oauth_state WHERE expires_at < $(now)`,
+  const result = await executeDelete(
+    db,
+    schema,
+    (q, p) => q.deleteFrom("oauth_state").where((s) => s.expires_at < p.now),
     { now },
-    (r) => r.rowCount,
   );
 
   if (result > 0) {

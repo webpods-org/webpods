@@ -8,12 +8,12 @@ import { Pod } from "../../types.js";
 import { createLogger } from "../../logger.js";
 import { getCache, cacheKeys } from "../../cache/index.js";
 import { getConfig } from "../../config-loader.js";
-import { createContext, from } from "@webpods/tinqer";
+import { createSchema } from "@webpods/tinqer";
 import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
 import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:pods");
-const dbContext = createContext<DatabaseSchema>();
+const schema = createSchema<DatabaseSchema>();
 
 /**
  * Map database row to domain type
@@ -50,8 +50,10 @@ export async function getPod(
     // Cache miss - fetch from database using Tinqer
     const pods = await executeSelect(
       ctx.db,
-      (p: { podName: string }) =>
-        from(dbContext, "pod")
+      schema,
+      (q, p) =>
+        q
+          .from("pod")
           .where((pod) => pod.name === p.podName)
           .select((pod) => pod),
       { podName },

@@ -6,12 +6,12 @@ import { DataContext } from "../data-context.js";
 import { Result, success } from "../../utils/result.js";
 import { createLogger } from "../../logger.js";
 import { getCache, getCacheConfig, cacheKeys } from "../../cache/index.js";
-import { createContext, from } from "@webpods/tinqer";
+import { createSchema } from "@webpods/tinqer";
 import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
 import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:routing");
-const dbContext = createContext<DatabaseSchema>();
+const schema = createSchema<DatabaseSchema>();
 
 interface LinkMapping {
   streamPath: string;
@@ -38,8 +38,10 @@ export async function resolveLink(
     // Get .config stream
     const configStreamResults = await executeSelect(
       ctx.db,
-      (p: { pod_name: string }) =>
-        from(dbContext, "stream")
+      schema,
+      (q, p) =>
+        q
+          .from("stream")
           .where(
             (s) =>
               s.pod_name === p.pod_name &&
@@ -59,8 +61,10 @@ export async function resolveLink(
     // Get routing stream (child of .config)
     const routingStreamResults = await executeSelect(
       ctx.db,
-      (p: { parent_id: number }) =>
-        from(dbContext, "stream")
+      schema,
+      (q, p) =>
+        q
+          .from("stream")
           .where((s) => s.parent_id === p.parent_id && s.name === "routing")
           .select((s) => ({ id: s.id })),
       { parent_id: configStream.id },
@@ -75,8 +79,10 @@ export async function resolveLink(
     // Get the routing record named "routes" (or latest unnamed for backward compatibility)
     const recordResults = await executeSelect(
       ctx.db,
-      (p: { stream_id: number }) =>
-        from(dbContext, "record")
+      schema,
+      (q, p) =>
+        q
+          .from("record")
           .where((r) => r.stream_id === p.stream_id && r.name === "routes")
           .orderByDescending((r) => r.created_at)
           .take(1)
@@ -90,8 +96,10 @@ export async function resolveLink(
     if (!record) {
       const unnamedResults = await executeSelect(
         ctx.db,
-        (p: { stream_id: number }) =>
-          from(dbContext, "record")
+        schema,
+        (q, p) =>
+          q
+            .from("record")
             .where((r) => r.stream_id === p.stream_id && r.name === null)
             .orderByDescending((r) => r.created_at)
             .take(1)

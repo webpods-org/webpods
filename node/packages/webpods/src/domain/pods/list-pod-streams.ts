@@ -9,12 +9,12 @@ import { StreamDbRow } from "../../db-types.js";
 import { createLogger } from "../../logger.js";
 import { getCache, getCacheConfig, cacheKeys } from "../../cache/index.js";
 import { createHash } from "crypto";
-import { createContext, from } from "@webpods/tinqer";
+import { createSchema } from "@webpods/tinqer";
 import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
 import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:pods");
-const dbContext = createContext<DatabaseSchema>();
+const schema = createSchema<DatabaseSchema>();
 
 export interface StreamInfo {
   // Core identification
@@ -123,8 +123,10 @@ async function validateHashChain(
   try {
     const records = await executeSelect(
       ctx.db,
-      (p: { streamId: number }) =>
-        from(dbContext, "record")
+      schema,
+      (q, p) =>
+        q
+          .from("record")
           .where((r) => r.stream_id === p.streamId)
           .orderBy((r) => r.index)
           .select((r) => ({
@@ -192,8 +194,10 @@ export async function listPodStreams(
 
     const podResults = await executeSelect(
       ctx.db,
-      (p: { pod_name: string }) =>
-        from(dbContext, "pod")
+      schema,
+      (q, p) =>
+        q
+          .from("pod")
           .where((pod) => pod.name === p.pod_name)
           .select((pod) => pod),
       { pod_name: podName },
@@ -208,8 +212,10 @@ export async function listPodStreams(
     // Get all streams for the pod
     const allStreams = await executeSelect(
       ctx.db,
-      (p: { pod_name: string }) =>
-        from(dbContext, "stream")
+      schema,
+      (q, p) =>
+        q
+          .from("stream")
           .where((s) => s.pod_name === p.pod_name)
           .orderBy((s) => s.parent_id)
           .thenBy((s) => s.name)
@@ -310,8 +316,10 @@ export async function listPodStreams(
       if (options.includeRecordCounts) {
         const countResult = await executeSelect(
           ctx.db,
-          (p: { streamId: number }) =>
-            from(dbContext, "record")
+          schema,
+          (q, p) =>
+            q
+              .from("record")
               .where((r) => r.stream_id === p.streamId)
               .count(),
           { streamId: stream.id },
@@ -322,8 +330,10 @@ export async function listPodStreams(
           // Get last record index
           const lastRecordResults = await executeSelect(
             ctx.db,
-            (p: { streamId: number }) =>
-              from(dbContext, "record")
+            schema,
+            (q, p) =>
+              q
+                .from("record")
                 .where((r) => r.stream_id === p.streamId)
                 .orderByDescending((r) => r.index)
                 .take(1)
@@ -344,8 +354,10 @@ export async function listPodStreams(
           // Get first record timestamp
           const firstRecordResults = await executeSelect(
             ctx.db,
-            (p: { streamId: number }) =>
-              from(dbContext, "record")
+            schema,
+            (q, p) =>
+              q
+                .from("record")
                 .where((r) => r.stream_id === p.streamId)
                 .orderBy((r) => r.index)
                 .take(1)
@@ -367,8 +379,10 @@ export async function listPodStreams(
       if (options.includeHashes) {
         const lastRecordResults = await executeSelect(
           ctx.db,
-          (p: { streamId: number }) =>
-            from(dbContext, "record")
+          schema,
+          (q, p) =>
+            q
+              .from("record")
               .where((r) => r.stream_id === p.streamId)
               .orderByDescending((r) => r.index)
               .take(1)

@@ -7,12 +7,12 @@ import { Result, success, failure } from "../../utils/result.js";
 import { createLogger } from "../../logger.js";
 import { createError } from "../../utils/errors.js";
 import { getCache, getCacheConfig, cacheKeys } from "../../cache/index.js";
-import { createContext, from } from "@webpods/tinqer";
+import { createSchema } from "@webpods/tinqer";
 import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
 import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:pods");
-const dbContext = createContext<DatabaseSchema>();
+const schema = createSchema<DatabaseSchema>();
 
 export async function getPodOwner(
   ctx: DataContext,
@@ -35,8 +35,10 @@ export async function getPodOwner(
     // Get .config stream using Tinqer
     const configStreams = await executeSelect(
       ctx.db,
-      (p: { podName: string }) =>
-        from(dbContext, "stream")
+      schema,
+      (q, p) =>
+        q
+          .from("stream")
           .where(
             (s) =>
               s.pod_name === p.podName &&
@@ -64,8 +66,10 @@ export async function getPodOwner(
     // Get owner stream (child of .config) using Tinqer
     const ownerStreams = await executeSelect(
       ctx.db,
-      (p: { parentId: number }) =>
-        from(dbContext, "stream")
+      schema,
+      (q, p) =>
+        q
+          .from("stream")
           .where((s) => s.parent_id === p.parentId && s.name === "owner")
           .select((s) => ({ id: s.id })),
       { parentId: configStream.id },
@@ -91,8 +95,10 @@ export async function getPodOwner(
     // Get owner record using Tinqer
     const ownerRecords = await executeSelect(
       ctx.db,
-      (p: { streamId: number }) =>
-        from(dbContext, "record")
+      schema,
+      (q, p) =>
+        q
+          .from("record")
           .where((r) => r.stream_id === p.streamId && r.name === "owner")
           .orderByDescending((r) => r.index)
           .take(1)

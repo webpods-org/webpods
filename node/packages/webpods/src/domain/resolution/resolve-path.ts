@@ -7,12 +7,12 @@ import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
 import { createError } from "../../utils/errors.js";
 import { createLogger } from "../../logger.js";
-import { createContext, from } from "@webpods/tinqer";
+import { createSchema } from "@webpods/tinqer";
 import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
 import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:resolution");
-const dbContext = createContext<DatabaseSchema>();
+const schema = createSchema<DatabaseSchema>();
 
 export interface PathResolution {
   streamId: number; // The resolved stream ID
@@ -60,8 +60,10 @@ export async function resolvePath(
       // Direct lookup using path column - O(1)
       const streams = await executeSelect(
         ctx.db,
-        (p: { podName: string; path: string }) =>
-          from(dbContext, "stream")
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
             .where((s) => s.pod_name === p.podName && s.path === p.path)
             .select((s) => s),
         { podName, path: normalizedPath },
@@ -85,8 +87,10 @@ export async function resolvePath(
     // Try full path as stream first - O(1) lookup
     const streamResults = await executeSelect(
       ctx.db,
-      (p: { podName: string; path: string }) =>
-        from(dbContext, "stream")
+      schema,
+      (q, p) =>
+        q
+          .from("stream")
           .where((s) => s.pod_name === p.podName && s.path === p.path)
           .select((s) => s),
       { podName, path: normalizedPath },
@@ -106,10 +110,12 @@ export async function resolvePath(
     // Not a stream, try as record - O(1) lookup using JOIN
     const recordResults = await executeSelect(
       ctx.db,
-      (p: { podName: string; path: string }) =>
-        from(dbContext, "record")
+      schema,
+      (q, p) =>
+        q
+          .from("record")
           .join(
-            from(dbContext, "stream"),
+            q.from("stream"),
             (r) => r.stream_id,
             (s) => s.id,
             (r, s) => ({ r, s }),
@@ -178,8 +184,10 @@ export async function resolvePathForWrite(
       // Check if a root stream exists
       const rootStreams = await executeSelect(
         ctx.db,
-        (p: { podName: string; path: string }) =>
-          from(dbContext, "stream")
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
             .where((s) => s.pod_name === p.podName && s.path === p.path)
             .select((s) => s),
         { podName, path: "/" },
@@ -205,8 +213,10 @@ export async function resolvePathForWrite(
     // Direct lookup for stream - O(1)
     const streamLookupResults = await executeSelect(
       ctx.db,
-      (p: { podName: string; path: string }) =>
-        from(dbContext, "stream")
+      schema,
+      (q, p) =>
+        q
+          .from("stream")
           .where((s) => s.pod_name === p.podName && s.path === p.path)
           .select((s) => s),
       { podName, path: streamPath },

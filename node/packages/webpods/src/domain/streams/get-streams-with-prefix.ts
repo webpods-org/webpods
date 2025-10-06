@@ -7,12 +7,12 @@ import { Result, success, failure } from "../../utils/result.js";
 import { createError } from "../../utils/errors.js";
 import { Stream } from "../../types.js";
 import { createLogger } from "../../logger.js";
-import { createContext, from } from "@webpods/tinqer";
+import { createSchema } from "@webpods/tinqer";
 import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
 import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:streams");
-const dbContext = createContext<DatabaseSchema>();
+const schema = createSchema<DatabaseSchema>();
 
 /**
  * Map database row to domain type
@@ -51,8 +51,10 @@ export async function getStreamsWithPrefix(
 
     const streams = await executeSelect(
       ctx.db,
-      (p: { podName: string; streamPath: string; pathPattern: string }) =>
-        from(dbContext, "stream")
+      schema,
+      (q, p) =>
+        q
+          .from("stream")
           .where(
             (s) =>
               s.pod_name === p.podName &&

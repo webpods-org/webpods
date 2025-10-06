@@ -6,12 +6,12 @@ import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
 import { createLogger } from "../../logger.js";
 import { cacheInvalidation } from "../../cache/index.js";
-import { createContext, from, updateTable } from "@webpods/tinqer";
+import { createSchema } from "@webpods/tinqer";
 import { executeSelect, executeUpdate } from "@webpods/tinqer-sql-pg-promise";
 import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:streams");
-const dbContext = createContext<DatabaseSchema>();
+const schema = createSchema<DatabaseSchema>();
 
 export async function updateStreamPermissions(
   ctx: DataContext,
@@ -23,8 +23,10 @@ export async function updateStreamPermissions(
     // Get affected streams before update for cache invalidation
     const affectedStreams = await executeSelect(
       ctx.db,
-      (p: { podName: string; name: string }) =>
-        from(dbContext, "stream")
+      schema,
+      (q, p) =>
+        q
+          .from("stream")
           .where((s) => s.pod_name === p.podName && s.name === p.name)
           .select((s) => ({ path: s.path })),
       { podName, name: streamName },
@@ -33,13 +35,10 @@ export async function updateStreamPermissions(
     const now = Date.now();
     await executeUpdate(
       ctx.db,
-      (p: {
-        accessPermission: string;
-        updatedAt: number;
-        podName: string;
-        name: string;
-      }) =>
-        updateTable(dbContext, "stream")
+      schema,
+      (q, p) =>
+        q
+          .update("stream")
           .set({
             access_permission: p.accessPermission,
             updated_at: p.updatedAt,

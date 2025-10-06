@@ -8,13 +8,12 @@ import { RecordDbRow } from "../../db-types.js";
 import { StreamRecord } from "../../types.js";
 import { createLogger } from "../../logger.js";
 import { getCache, getCacheConfig, cacheKeys } from "../../cache/index.js";
-import { createContext, from, createQueryHelpers } from "@webpods/tinqer";
+import { createSchema } from "@webpods/tinqer";
 import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
 import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:records");
-const dbContext = createContext<DatabaseSchema>();
-const helpers = createQueryHelpers();
+const schema = createSchema<DatabaseSchema>();
 
 /**
  * Map database row to domain type
@@ -60,8 +59,10 @@ export async function listUniqueRecords(
       // Get stream path for cache key generation
       const streams = await executeSelect(
         ctx.db,
-        (p: { streamId: number }) =>
-          from(dbContext, "stream")
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
             .where((s) => s.id === p.streamId)
             .select((s) => ({ path: s.path })),
         { streamId },
@@ -98,8 +99,10 @@ export async function listUniqueRecords(
     // Get the latest record for each unique name using ROW_NUMBER window function
     const latestRecords = await executeSelect(
       ctx.db,
-      (p: { streamId: number }, h = helpers) =>
-        from(dbContext, "record")
+      schema,
+      (q, p, h) =>
+        q
+          .from("record")
           .where(
             (r) =>
               r.stream_id === p.streamId && r.name !== null && r.name !== "",
@@ -128,8 +131,10 @@ export async function listUniqueRecords(
       // Get total count to convert negative index
       const totalCount = await executeSelect(
         ctx.db,
-        (p: { streamId: number }) =>
-          from(dbContext, "record")
+        schema,
+        (q, p) =>
+          q
+            .from("record")
             .where((r) => r.stream_id === p.streamId)
             .count(),
         { streamId },

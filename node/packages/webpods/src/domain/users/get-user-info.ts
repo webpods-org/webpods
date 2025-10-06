@@ -6,12 +6,12 @@ import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
 import { createLogger } from "../../logger.js";
 import { getCache, getCacheConfig, cacheKeys } from "../../cache/index.js";
-import { createContext, from } from "@webpods/tinqer";
+import { createSchema } from "@webpods/tinqer";
 import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
 import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:users");
-const dbContext = createContext<DatabaseSchema>();
+const schema = createSchema<DatabaseSchema>();
 
 export interface UserInfo {
   user_id: string;
@@ -39,10 +39,12 @@ export async function getUserInfo(
     // Get user with identity info using Tinqer LEFT JOIN
     const userInfos = await executeSelect(
       ctx.db,
-      (p: { userId: string }) =>
-        from(dbContext, "user")
+      schema,
+      (q, p) =>
+        q
+          .from("user")
           .groupJoin(
-            from(dbContext, "identity"),
+            q.from("identity"),
             (u) => u.id,
             (i) => i.user_id,
             (u, identities) => ({ u, identities }),

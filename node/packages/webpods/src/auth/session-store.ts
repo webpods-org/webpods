@@ -8,9 +8,13 @@ import { getDb } from "../db/index.js";
 import { createLogger } from "../logger.js";
 import { getConfig } from "../config-loader.js";
 import type { SessionData } from "../types.js";
+import { createSchema } from "@webpods/tinqer";
+import { executeSelect, executeDelete } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "../db/schema.js";
 
 const logger = createLogger("webpods:auth:session");
 const PgSession = connectPgSimple(session);
+const schema = createSchema<DatabaseSchema>();
 
 let sessionStore: session.Store | null = null;
 
@@ -79,14 +83,18 @@ export async function getUserSessions(userId: string): Promise<
   const db = getDb();
 
   const now = new Date();
-  const sessions = await db.manyOrNone<{
-    sid: string;
-    sess: Record<string, unknown>;
-    expire: Date;
-  }>(
-    `SELECT sid, sess, expire
-     FROM session
-     WHERE expire > $(now)`,
+  const sessions = await executeSelect(
+    db,
+    schema,
+    (q, p) =>
+      q
+        .from("session")
+        .where((s) => s.expire > p.now)
+        .select((s) => ({
+          sid: s.sid,
+          sess: s.sess,
+          expire: s.expire,
+        })),
     { now },
   );
 
@@ -123,10 +131,11 @@ export async function getUserSessions(userId: string): Promise<
 export async function revokeSession(sessionId: string): Promise<boolean> {
   const db = getDb();
 
-  const result = await db.result(
-    `DELETE FROM session WHERE sid = $(sessionId)`,
+  const result = await executeDelete(
+    db,
+    schema,
+    (q, p) => q.deleteFrom("session").where((s) => s.sid === p.sessionId),
     { sessionId },
-    (r) => r.rowCount,
   );
 
   return result > 0;
@@ -156,10 +165,11 @@ export async function cleanupExpiredSessions(): Promise<number> {
   const db = getDb();
 
   const now = new Date();
-  const result = await db.result(
-    `DELETE FROM session WHERE expire < $(now)`,
+  const result = await executeDelete(
+    db,
+    schema,
+    (q, p) => q.deleteFrom("session").where((s) => s.expire < p.now),
     { now },
-    (r) => r.rowCount,
   );
 
   if (result > 0) {

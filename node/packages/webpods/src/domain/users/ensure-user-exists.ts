@@ -7,12 +7,12 @@ import { Result, success, failure } from "../../utils/result.js";
 import { UserDbRow } from "../../db-types.js";
 import { User } from "../../types.js";
 import { createLogger } from "../../logger.js";
-import { createContext, from } from "@webpods/tinqer";
+import { createSchema } from "@webpods/tinqer";
 import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
 import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:users");
-const dbContext = createContext<DatabaseSchema>();
+const schema = createSchema<DatabaseSchema>();
 
 /**
  * Map database row to domain type
@@ -33,8 +33,10 @@ export async function ensureUserExists(
     // Check if user exists
     const existingUsers = await executeSelect(
       ctx.db,
-      (p: { user_id: string }) =>
-        from(dbContext, "user")
+      schema,
+      (q, p) =>
+        q
+          .from("user")
           .where((u) => u.id === p.user_id)
           .select((u) => u),
       { user_id: userId },

@@ -10,12 +10,12 @@ import { createLogger } from "../../logger.js";
 import { createError } from "../../utils/errors.js";
 import { isValidStreamName } from "../../utils/stream-utils.js";
 import { getCache, cacheKeys } from "../../cache/index.js";
-import { createContext, from, insertInto } from "@webpods/tinqer";
+import { createSchema } from "@webpods/tinqer";
 import { executeSelect, executeInsert } from "@webpods/tinqer-sql-pg-promise";
 import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:streams");
-const dbContext = createContext<DatabaseSchema>();
+const schema = createSchema<DatabaseSchema>();
 
 /**
  * Map database row to domain type
@@ -58,8 +58,10 @@ export async function createStream(
     // Check if stream already exists with same name in same parent
     const existingStreams = await executeSelect(
       ctx.db,
-      (p: { podName: string; name: string; parentId: number | null }) =>
-        from(dbContext, "stream")
+      schema,
+      (q, p) =>
+        q
+          .from("stream")
           .where(
             (s) =>
               s.pod_name === p.podName &&
@@ -82,8 +84,10 @@ export async function createStream(
     if (parentId) {
       const existingRecords = await executeSelect(
         ctx.db,
-        (p: { parentId: number; name: string }) =>
-          from(dbContext, "record")
+        schema,
+        (q, p) =>
+          q
+            .from("record")
             .where((r) => r.stream_id === p.parentId && r.name === p.name)
             .take(1)
             .select((r) => r),
@@ -120,8 +124,10 @@ export async function createStream(
     if (ownerStream) {
       const ownerRecords = await executeSelect(
         ctx.db,
-        (p: { streamId: number }) =>
-          from(dbContext, "record")
+        schema,
+        (q, p) =>
+          q
+            .from("record")
             .where((r) => r.stream_id === p.streamId && r.name === "owner")
             .orderByDescending((r) => r.index)
             .take(1)
@@ -163,8 +169,10 @@ export async function createStream(
       // Get parent path to build full path
       const parentStreams = await executeSelect(
         ctx.db,
-        (p: { parentId: number }) =>
-          from(dbContext, "stream")
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
             .where((s) => s.id === p.parentId)
             .select((s) => ({ path: s.path })),
         { parentId },
@@ -187,19 +195,10 @@ export async function createStream(
     const now = Date.now();
     const streams = await executeInsert(
       ctx.db,
-      (p: {
-        podName: string;
-        name: string;
-        path: string;
-        parentId: number | null;
-        userId: string;
-        accessPermission: string;
-        hasSchema: boolean;
-        metadata: string;
-        createdAt: number;
-        updatedAt: number;
-      }) =>
-        insertInto(dbContext, "stream")
+      schema,
+      (q, p) =>
+        q
+          .insertInto("stream")
           .values({
             pod_name: p.podName,
             name: p.name,

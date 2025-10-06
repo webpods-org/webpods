@@ -8,12 +8,12 @@ import { StreamRecord } from "../../types.js";
 import { createLogger } from "../../logger.js";
 import { getStreamsWithPrefix } from "../streams/get-streams-with-prefix.js";
 import { canRead } from "../permissions/can-read.js";
-import { createContext, from } from "@webpods/tinqer";
+import { createSchema } from "@webpods/tinqer";
 import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
 import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:records");
-const dbContext = createContext<DatabaseSchema>();
+const schema = createSchema<DatabaseSchema>();
 
 /**
  * Map database row to domain type
@@ -94,8 +94,10 @@ export async function listRecordsRecursive(
     // Note: Including all records, even deletion markers, as this is an append-only log
     const countResult = await executeSelect(
       ctx.db,
-      (p: { streamIds: number[] }) =>
-        from(dbContext, "record")
+      schema,
+      (q, p) =>
+        q
+          .from("record")
           .where((r) => p.streamIds.includes(r.stream_id))
           .count(),
       { streamIds: readableStreamIds },
@@ -119,8 +121,10 @@ export async function listRecordsRecursive(
       actualAfter !== undefined && actualAfter >= 0
         ? await executeSelect(
             ctx.db,
-            (p: { streamIds: number[]; offset: number; limit: number }) =>
-              from(dbContext, "record")
+            schema,
+            (q, p) =>
+              q
+                .from("record")
                 .where((r) => p.streamIds.includes(r.stream_id))
                 .orderBy((r) => r.created_at)
                 .skip(p.offset)
@@ -134,8 +138,10 @@ export async function listRecordsRecursive(
           )
         : await executeSelect(
             ctx.db,
-            (p: { streamIds: number[]; limit: number }) =>
-              from(dbContext, "record")
+            schema,
+            (q, p) =>
+              q
+                .from("record")
                 .where((r) => p.streamIds.includes(r.stream_id))
                 .orderBy((r) => r.created_at)
                 .take(p.limit)

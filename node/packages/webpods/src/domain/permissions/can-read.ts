@@ -7,12 +7,12 @@ import { Stream } from "../../types.js";
 import { createLogger } from "../../logger.js";
 import { parsePermission } from "./parse-permission.js";
 import { checkPermissionStream } from "./check-permission-stream.js";
-import { createContext, from } from "@webpods/tinqer";
+import { createSchema } from "@webpods/tinqer";
 import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
 import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:permissions");
-const dbContext = createContext<DatabaseSchema>();
+const schema = createSchema<DatabaseSchema>();
 
 /**
  * Check permissions for a specific stream (internal helper)
@@ -87,8 +87,10 @@ export async function canRead(
   // Get .config stream
   const configStreamResults = await executeSelect(
     ctx.db,
-    (p: { pod_name: string }) =>
-      from(dbContext, "stream")
+    schema,
+    (q, p) =>
+      q
+        .from("stream")
         .where(
           (s) =>
             s.pod_name === p.pod_name &&
@@ -105,8 +107,10 @@ export async function canRead(
     // Get owner stream (child of .config)
     const ownerStreamResults = await executeSelect(
       ctx.db,
-      (p: { parent_id: number }) =>
-        from(dbContext, "stream")
+      schema,
+      (q, p) =>
+        q
+          .from("stream")
           .where((s) => s.parent_id === p.parent_id && s.name === "owner")
           .select((s) => ({ id: s.id })),
       { parent_id: configStream.id },
@@ -118,8 +122,10 @@ export async function canRead(
       // Get owner record
       const ownerRecordResults = await executeSelect(
         ctx.db,
-        (p: { stream_id: number }) =>
-          from(dbContext, "record")
+        schema,
+        (q, p) =>
+          q
+            .from("record")
             .where((r) => r.stream_id === p.stream_id && r.name === "owner")
             .orderByDescending((r) => r.index)
             .take(1)
@@ -156,8 +162,10 @@ export async function canRead(
   while (currentStreamId) {
     const parentStreamResults = await executeSelect(
       ctx.db,
-      (p: { id: number }) =>
-        from(dbContext, "stream")
+      schema,
+      (q, p) =>
+        q
+          .from("stream")
           .where((s) => s.id === p.id)
           .select((s) => s),
       { id: currentStreamId },

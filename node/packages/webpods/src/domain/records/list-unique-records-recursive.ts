@@ -9,13 +9,12 @@ import { StreamRecord } from "../../types.js";
 import { createLogger } from "../../logger.js";
 import { getStreamsWithPrefix } from "../streams/get-streams-with-prefix.js";
 import { canRead } from "../permissions/can-read.js";
-import { createContext, from, createQueryHelpers } from "@webpods/tinqer";
+import { createSchema } from "@webpods/tinqer";
 import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
 import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:records");
-const dbContext = createContext<DatabaseSchema>();
-const helpers = createQueryHelpers();
+const schema = createSchema<DatabaseSchema>();
 
 /**
  * Map database row to domain type
@@ -93,8 +92,10 @@ export async function listUniqueRecordsRecursive(
     // For recursive unique, we want the latest record with each name FROM EACH STREAM
     const totalCount = await executeSelect(
       ctx.db,
-      (p: { streamIds: number[] }, h = helpers) =>
-        from(dbContext, "record")
+      schema,
+      (q, p, h) =>
+        q
+          .from("record")
           .where(
             (r) =>
               p.streamIds.includes(r.stream_id) &&
@@ -132,11 +133,10 @@ export async function listUniqueRecordsRecursive(
 
     const records = await executeSelect(
       ctx.db,
-      (
-        p: { streamIds: number[]; limit: number; offset: number },
-        h = helpers,
-      ) =>
-        from(dbContext, "record")
+      schema,
+      (q, p, h) =>
+        q
+          .from("record")
           .where(
             (r) =>
               p.streamIds.includes(r.stream_id) &&

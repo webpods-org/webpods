@@ -13,12 +13,12 @@ import {
 import { createStream, mapStreamFromDb } from "./create-stream.js";
 import { getStreamByPath } from "./get-stream-by-path.js";
 import { createLogger } from "../../logger.js";
-import { createContext, from } from "@webpods/tinqer";
+import { createSchema } from "@webpods/tinqer";
 import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
 import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:streams");
-const dbContext = createContext<DatabaseSchema>();
+const schema = createSchema<DatabaseSchema>();
 
 /**
  * Create a stream hierarchy, creating parent streams as needed
@@ -42,8 +42,10 @@ export async function createStreamHierarchy(
     // Check if a root stream already exists
     const existingRoots = await executeSelect(
       ctx.db,
-      (p: { podName: string; name: string }) =>
-        from(dbContext, "stream")
+      schema,
+      (q, p) =>
+        q
+          .from("stream")
           .where(
             (s) =>
               s.pod_name === p.podName &&
@@ -106,8 +108,10 @@ export async function createStreamHierarchy(
       if (parentId !== null) {
         const recordChecks = await executeSelect(
           ctx.db,
-          (p: { streamId: number; name: string }) =>
-            from(dbContext, "record")
+          schema,
+          (q, p) =>
+            q
+              .from("record")
               .where((r) => r.stream_id === p.streamId && r.name === p.name)
               .take(1)
               .select((r) => ({ id: r.id })),

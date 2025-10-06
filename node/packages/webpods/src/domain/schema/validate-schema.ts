@@ -6,11 +6,11 @@ import Ajv from "ajv";
 import type { DataContext } from "../data-context.js";
 import type { Result, Stream } from "../../types.js";
 import { StreamDbRow } from "../../db-types.js";
-import { createContext, from, updateTable } from "@webpods/tinqer";
+import { createSchema } from "@webpods/tinqer";
 import { executeSelect, executeUpdate } from "@webpods/tinqer-sql-pg-promise";
 import type { DatabaseSchema } from "../../db/schema.js";
 
-const dbContext = createContext<DatabaseSchema>();
+const schema = createSchema<DatabaseSchema>();
 
 const ajv = new Ajv.default({ allErrors: true });
 
@@ -56,10 +56,12 @@ export async function validateAgainstSchema(
     // Get the latest schema record (record named "schema" in the .config stream)
     const schemaRecords = await executeSelect(
       ctx.db,
-      (p: { podName: string; configStreamPath: string }) =>
-        from(dbContext, "record")
+      schema,
+      (q, p) =>
+        q
+          .from("record")
           .join(
-            from(dbContext, "stream"),
+            q.from("stream"),
             (r) => r.stream_id,
             (s) => s.id,
             (r, s) => ({ record: r, stream: s }),
@@ -172,13 +174,10 @@ export async function updateSchemaFlag(
     const now = Date.now();
     await executeUpdate(
       ctx.db,
-      (p: {
-        podName: string;
-        parentPath: string;
-        hasSchema: boolean;
-        updatedAt: number;
-      }) =>
-        updateTable(dbContext, "stream")
+      schema,
+      (q, p) =>
+        q
+          .update("stream")
           .set({
             has_schema: p.hasSchema,
             updated_at: p.updatedAt,
