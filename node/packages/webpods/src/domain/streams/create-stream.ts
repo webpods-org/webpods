@@ -67,8 +67,7 @@ export async function createStream(
               s.pod_name === p.podName &&
               s.name === p.name &&
               s.parent_id === p.parentId,
-          )
-          .select((s) => s),
+          ),
       { podName, name: streamName, parentId },
     );
 
@@ -89,8 +88,7 @@ export async function createStream(
           q
             .from("record")
             .where((r) => r.stream_id === p.parentId && r.name === p.name)
-            .take(1)
-            .select((r) => r),
+            .take(1),
         { parentId, name: streamName },
       );
 
@@ -130,8 +128,7 @@ export async function createStream(
             .from("record")
             .where((r) => r.stream_id === p.streamId && r.name === "owner")
             .orderByDescending((r) => r.index)
-            .take(1)
-            .select((r) => r),
+            .take(1),
         { streamId: ownerStream.id },
       );
 

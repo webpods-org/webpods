@@ -133,8 +133,7 @@ export async function listRecords(
                 .from("record")
                 .where((r) => r.stream_id === p.streamId && r.index > p.after)
                 .orderBy((r) => r.index)
-                .take(p.limit)
-                .select((r) => r),
+                .take(p.limit),
             { streamId, after: actualAfter, limit: limit + 1 },
           )
         : await executeSelect(
@@ -145,8 +144,7 @@ export async function listRecords(
                 .from("record")
                 .where((r) => r.stream_id === p.streamId)
                 .orderBy((r) => r.index)
-                .take(p.limit)
-                .select((r) => r),
+                .take(p.limit),
             { streamId, limit: limit + 1 },
           );
 

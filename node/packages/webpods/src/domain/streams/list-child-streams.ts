@@ -68,8 +68,7 @@ export async function listChildStreams(
               .where(
                 (s) => s.pod_name === p.podName && s.parent_id === p.parentId,
               )
-              .orderBy((s) => s.name)
-              .select((s) => s),
+              .orderBy((s) => s.name),
           { podName, parentId },
         )
       : await executeSelect(
@@ -79,8 +78,7 @@ export async function listChildStreams(
             q
               .from("stream")
               .where((s) => s.pod_name === p.podName && s.parent_id === null)
-              .orderBy((s) => s.name)
-              .select((s) => s),
+              .orderBy((s) => s.name),
           { podName },
         );
 

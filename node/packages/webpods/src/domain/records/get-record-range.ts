@@ -97,8 +97,7 @@ export async function getRecordRange(
               r.index >= p.startIndex &&
               r.index < p.endIndex,
           )
-          .orderBy((r) => r.index)
-          .select((r) => r),
+          .orderBy((r) => r.index),
       {
         streamId,
         startIndex: actualStartIndex,

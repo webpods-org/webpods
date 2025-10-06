@@ -195,11 +195,7 @@ export async function listPodStreams(
     const podResults = await executeSelect(
       ctx.db,
       schema,
-      (q, p) =>
-        q
-          .from("pod")
-          .where((pod) => pod.name === p.pod_name)
-          .select((pod) => pod),
+      (q, p) => q.from("pod").where((pod) => pod.name === p.pod_name),
       { pod_name: podName },
     );
 
@@ -218,8 +214,7 @@ export async function listPodStreams(
           .from("stream")
           .where((s) => s.pod_name === p.pod_name)
           .orderBy((s) => s.parent_id)
-          .thenBy((s) => s.name)
-          .select((s) => s),
+          .thenBy((s) => s.name),
       { pod_name: pod.name },
     );
 

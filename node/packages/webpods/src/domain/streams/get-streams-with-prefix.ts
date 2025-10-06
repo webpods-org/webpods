@@ -60,8 +60,7 @@ export async function getStreamsWithPrefix(
               s.pod_name === p.podName &&
               (s.path === p.streamPath || s.path.startsWith(p.pathPattern)),
           )
-          .orderBy((s) => s.path)
-          .select((s) => s),
+          .orderBy((s) => s.path),
       { podName, streamPath, pathPattern },
     );
 

@@ -85,8 +85,7 @@ export async function resolveLink(
           .from("record")
           .where((r) => r.stream_id === p.stream_id && r.name === "routes")
           .orderByDescending((r) => r.created_at)
-          .take(1)
-          .select((r) => r),
+          .take(1),
       { stream_id: routingStream.id },
     );
 
@@ -102,8 +101,7 @@ export async function resolveLink(
             .from("record")
             .where((r) => r.stream_id === p.stream_id && r.name === null)
             .orderByDescending((r) => r.created_at)
-            .take(1)
-            .select((r) => r),
+            .take(1),
         { stream_id: routingStream.id },
       );
       record = unnamedResults[0] || null;

@@ -46,8 +46,7 @@ export async function listUserPods(
         q
           .from("pod")
           .where((pod) => pod.owner_id === p.ownerId)
-          .orderByDescending((pod) => pod.created_at)
-          .select((pod) => pod),
+          .orderByDescending((pod) => pod.created_at),
       { ownerId: userId },
     );
 

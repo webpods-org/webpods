@@ -128,8 +128,7 @@ export async function listRecordsRecursive(
                 .where((r) => p.streamIds.includes(r.stream_id))
                 .orderBy((r) => r.created_at)
                 .skip(p.offset)
-                .take(p.limit)
-                .select((r) => r),
+                .take(p.limit),
             {
               streamIds: readableStreamIds,
               offset: actualAfter,
@@ -144,8 +143,7 @@ export async function listRecordsRecursive(
                 .from("record")
                 .where((r) => p.streamIds.includes(r.stream_id))
                 .orderBy((r) => r.created_at)
-                .take(p.limit)
-                .select((r) => r),
+                .take(p.limit),
             { streamIds: readableStreamIds, limit: limit + 1 },
           );
 

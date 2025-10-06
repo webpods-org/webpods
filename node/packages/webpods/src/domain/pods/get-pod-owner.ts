@@ -101,8 +101,7 @@ export async function getPodOwner(
           .from("record")
           .where((r) => r.stream_id === p.streamId && r.name === "owner")
           .orderByDescending((r) => r.index)
-          .take(1)
-          .select((r) => r),
+          .take(1),
       { streamId: ownerStream.id },
     );
 

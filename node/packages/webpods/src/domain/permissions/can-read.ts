@@ -128,8 +128,7 @@ export async function canRead(
             .from("record")
             .where((r) => r.stream_id === p.stream_id && r.name === "owner")
             .orderByDescending((r) => r.index)
-            .take(1)
-            .select((r) => r),
+            .take(1),
         { stream_id: ownerStream.id },
       );
 
@@ -163,11 +162,7 @@ export async function canRead(
     const parentStreamResults = await executeSelect(
       ctx.db,
       schema,
-      (q, p) =>
-        q
-          .from("stream")
-          .where((s) => s.id === p.id)
-          .select((s) => s),
+      (q, p) => q.from("stream").where((s) => s.id === p.id),
       { id: currentStreamId },
     );
 

@@ -48,11 +48,7 @@ router.get("/", rateLimit("read"), async (req: Request, res: Response) => {
     const clients = await executeSelect(
       db,
       schema,
-      (q, p) =>
-        q
-          .from("oauth_client")
-          .where((c) => c.client_id === p.clientId)
-          .select((c) => c),
+      (q, p) => q.from("oauth_client").where((c) => c.client_id === p.clientId),
       { clientId },
     );
 

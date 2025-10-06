@@ -51,11 +51,7 @@ export async function getPod(
     const pods = await executeSelect(
       ctx.db,
       schema,
-      (q, p) =>
-        q
-          .from("pod")
-          .where((pod) => pod.name === p.podName)
-          .select((pod) => pod),
+      (q, p) => q.from("pod").where((pod) => pod.name === p.podName),
       { podName },
     );
 

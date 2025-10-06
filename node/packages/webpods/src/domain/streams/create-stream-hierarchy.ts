@@ -51,8 +51,7 @@ export async function createStreamHierarchy(
               s.pod_name === p.podName &&
               s.name === p.name &&
               s.parent_id === null,
-          )
-          .select((s) => s),
+          ),
       { podName, name: "/" },
     );
 

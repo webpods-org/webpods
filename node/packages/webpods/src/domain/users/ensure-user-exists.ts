@@ -34,11 +34,7 @@ export async function ensureUserExists(
     const existingUsers = await executeSelect(
       ctx.db,
       schema,
-      (q, p) =>
-        q
-          .from("user")
-          .where((u) => u.id === p.user_id)
-          .select((u) => u),
+      (q, p) => q.from("user").where((u) => u.id === p.user_id),
       { user_id: userId },
     );
 

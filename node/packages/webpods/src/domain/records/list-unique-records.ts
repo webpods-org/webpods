@@ -115,8 +115,7 @@ export async function listUniqueRecords(
               .orderByDescending((row) => row.index)
               .rowNumber(),
           }))
-          .where((r) => r.rn === 1)
-          .select((r) => r),
+          .where((r) => r.rn === 1),
       { streamId },
     );
 

@@ -64,8 +64,7 @@ export async function findOrCreateUser(
           .from("identity")
           .where(
             (i) => i.provider === p.provider && i.provider_id === p.provider_id,
-          )
-          .select((i) => i),
+          ),
       { provider: provider.provider, provider_id: providerId },
     );
 
@@ -78,11 +77,7 @@ export async function findOrCreateUser(
       const userRows = await executeSelect(
         ctx.db,
         schema,
-        (q, p) =>
-          q
-            .from("user")
-            .where((u) => u.id === p.user_id)
-            .select((u) => u),
+        (q, p) => q.from("user").where((u) => u.id === p.user_id),
         { user_id: existingIdentity.userId },
       );
 
