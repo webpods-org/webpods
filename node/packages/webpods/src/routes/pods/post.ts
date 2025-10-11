@@ -24,6 +24,11 @@ import { writeResultToResponse } from "../../domain/records/record-to-response.j
 import { canWrite } from "../../domain/permissions/can-write.js";
 import { getPodOwner } from "../../domain/pods/get-pod-owner.js";
 import { getRateLimiter } from "../../ratelimit/index.js";
+import {
+  validateAgainstSchema,
+  updateSchemaFlag,
+} from "../../domain/schema/validate-schema.js";
+import { getConfig } from "../../config-loader.js";
 
 const logger = createRouteLogger("post");
 
@@ -403,9 +408,6 @@ export const postHandler = async (
     }
 
     // Validate against schema if present
-    const { validateAgainstSchema } = await import(
-      "../../domain/schema/validate-schema.js"
-    );
     const validationResult = await validateAgainstSchema(
       { db },
       streamResult.data,
@@ -423,7 +425,6 @@ export const postHandler = async (
     const useExternalStorage = req.headers["x-record-type"] === "file";
 
     // Extract custom headers with x-record-header- prefix
-    const { getConfig } = await import("../../config-loader.js");
     const config = getConfig();
     const allowedHeaders = config.server.allowedRecordHeaders || [];
 
@@ -469,9 +470,6 @@ export const postHandler = async (
 
     // If we just wrote to a .config/schema stream, update the parent stream's has_schema flag
     if (name === "schema" && resolvedStreamPath.endsWith("/.config")) {
-      const { updateSchemaFlag } = await import(
-        "../../domain/schema/validate-schema.js"
-      );
       try {
         const contentStr =
           typeof content === "string" ? content : JSON.stringify(content);

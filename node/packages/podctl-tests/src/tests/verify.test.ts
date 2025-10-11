@@ -17,6 +17,15 @@ import {
   createTestStream,
   createTestRecord,
 } from "../utils/test-data-helpers.js";
+import { createSchema } from "@webpods/tinqer";
+import {
+  executeInsert,
+  executeSelect,
+  executeUpdate,
+} from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "webpods-test-utils";
+
+const schema = createSchema<DatabaseSchema>();
 
 describe("CLI Verify Command", function () {
   this.timeout(30000);
@@ -40,15 +49,22 @@ describe("CLI Verify Command", function () {
 
     // Create a test pod
     testPodName = `test-pod-${Date.now()}`;
-    await testDb
-      .getDb()
-      .none(
-        "INSERT INTO pod (name, created_at, updated_at, metadata) VALUES ($(name), $(now), $(now), '{}')",
-        {
-          name: testPodName,
-          now: Date.now(),
-        },
-      );
+    const now = Date.now();
+    await executeInsert(
+      testDb.getDb(),
+      schema,
+      (q, p) =>
+        q.insertInto("pod").values({
+          name: p.name,
+          created_at: p.now,
+          updated_at: p.now,
+          metadata: "{}",
+        }),
+      {
+        name: testPodName,
+        now,
+      },
+    );
 
     // Create owner config
     await createOwnerConfig(
@@ -83,12 +99,18 @@ describe("CLI Verify Command", function () {
       });
 
       // Get the actual hash for the next iteration
-      const record = await testDb.getDb().one<{ hash: string }>(
-        `SELECT hash FROM record 
-         WHERE stream_id = $(streamId) AND index = $(index)`,
+      const recordResults = await executeSelect(
+        testDb.getDb(),
+        schema,
+        (q, p) =>
+          q
+            .from("record")
+            .select((r) => ({ hash: r.hash }))
+            .where((r) => r.stream_id === p.streamId && r.index === p.index)
+            .take(1),
         { streamId, index: i },
       );
-      previousHash = record.hash;
+      previousHash = recordResults[0].hash;
     }
   });
 
@@ -174,19 +196,37 @@ describe("CLI Verify Command", function () {
     it("should detect broken hash chain", async () => {
       // Break the hash chain by updating a record's previous_hash
       // First get the stream
-      const stream = await testDb.getDb().one<{
-        id: number;
-      }>(`SELECT id FROM stream WHERE pod_name = $(podName) AND name = $(streamName) AND parent_id IS NULL`, { podName: testPodName, streamName: "test-stream" });
+      const streamResults = await executeSelect(
+        testDb.getDb(),
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .select((s) => ({ id: s.id }))
+            .where(
+              (s) =>
+                s.pod_name === p.podName &&
+                s.name === p.streamName &&
+                s.parent_id === null,
+            )
+            .take(1),
+        { podName: testPodName, streamName: "test-stream" },
+      );
+      const stream = streamResults[0];
 
-      await testDb
-        .getDb()
-        .none(
-          "UPDATE record SET previous_hash = $(brokenHash) WHERE stream_id = $(streamId) AND index = 3",
-          {
-            brokenHash: "sha256:broken",
-            streamId: stream.id,
-          },
-        );
+      await executeUpdate(
+        testDb.getDb(),
+        schema,
+        (q, p) =>
+          q
+            .update("record")
+            .set({ previous_hash: p.brokenHash })
+            .where((r) => r.stream_id === p.streamId && r.index === 3),
+        {
+          brokenHash: "sha256:broken",
+          streamId: stream.id,
+        },
+      );
 
       const result = await cli.exec(
         ["record", "verify", testPodName, "/test-stream", "--check-integrity"],
@@ -203,19 +243,37 @@ describe("CLI Verify Command", function () {
     it("should detect invalid first record with previous_hash", async () => {
       // Add previous_hash to first record (should be null)
       // First get the stream
-      const stream = await testDb.getDb().one<{
-        id: number;
-      }>(`SELECT id FROM stream WHERE pod_name = $(podName) AND name = $(streamName) AND parent_id IS NULL`, { podName: testPodName, streamName: "test-stream" });
+      const streamResults = await executeSelect(
+        testDb.getDb(),
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .select((s) => ({ id: s.id }))
+            .where(
+              (s) =>
+                s.pod_name === p.podName &&
+                s.name === p.streamName &&
+                s.parent_id === null,
+            )
+            .take(1),
+        { podName: testPodName, streamName: "test-stream" },
+      );
+      const stream = streamResults[0];
 
-      await testDb
-        .getDb()
-        .none(
-          "UPDATE record SET previous_hash = $(hash) WHERE stream_id = $(streamId) AND index = 0",
-          {
-            hash: "sha256:shouldnothaveprevious",
-            streamId: stream.id,
-          },
-        );
+      await executeUpdate(
+        testDb.getDb(),
+        schema,
+        (q, p) =>
+          q
+            .update("record")
+            .set({ previous_hash: p.hash })
+            .where((r) => r.stream_id === p.streamId && r.index === 0),
+        {
+          hash: "sha256:shouldnothaveprevious",
+          streamId: stream.id,
+        },
+      );
 
       const result = await cli.exec(
         ["record", "verify", testPodName, "/test-stream", "--check-integrity"],

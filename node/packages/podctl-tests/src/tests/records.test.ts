@@ -18,6 +18,11 @@ import {
   createTestRecord,
   createOwnerConfig,
 } from "../utils/test-data-helpers.js";
+import { createSchema } from "@webpods/tinqer";
+import { executeInsert, executeSelect } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "webpods-test-utils";
+
+const schema = createSchema<DatabaseSchema>();
 
 describe("CLI Record Commands", function () {
   this.timeout(30000);
@@ -41,16 +46,23 @@ describe("CLI Record Commands", function () {
 
     // Create a test pod directly in database
     testPodName = `test-pod-${Date.now()}`;
+    const now = Date.now();
 
-    await testDb
-      .getDb()
-      .none(
-        "INSERT INTO pod (name, created_at, updated_at, metadata) VALUES ($(name), $(now), $(now), '{}')",
-        {
-          name: testPodName,
-          now: Date.now(),
-        },
-      );
+    await executeInsert(
+      testDb.getDb(),
+      schema,
+      (q, p) =>
+        q.insertInto("pod").values({
+          name: p.name,
+          created_at: p.now,
+          updated_at: p.now,
+          metadata: "{}",
+        }),
+      {
+        name: testPodName,
+        now,
+      },
+    );
 
     // Create owner config for the pod
     await createOwnerConfig(
@@ -91,17 +103,47 @@ describe("CLI Record Commands", function () {
       );
 
       // Verify record was created - use hierarchical query
-      const record = await testDb.getDb().oneOrNone(
-        `SELECT r.* FROM record r 
-         JOIN stream s ON r.stream_id = s.id
-         WHERE s.pod_name = $(podName) AND s.name = $(streamName) 
-         AND s.parent_id IS NULL AND r.name = $(recordName)`,
+      // First get the stream
+      const streamResults = await executeSelect(
+        testDb.getDb(),
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .select((s) => ({ id: s.id }))
+            .where(
+              (s) =>
+                s.pod_name === p.podName &&
+                s.name === p.streamName &&
+                s.parent_id === null,
+            )
+            .take(1),
         {
           podName: testPodName,
           streamName: "test-stream",
-          recordName: "record1",
         },
       );
+      // Then get the record
+      const recordResults =
+        streamResults.length > 0
+          ? await executeSelect(
+              testDb.getDb(),
+              schema,
+              (q, p) =>
+                q
+                  .from("record")
+                  .where(
+                    (r) =>
+                      r.stream_id === p.streamId && r.name === p.recordName,
+                  )
+                  .take(1),
+              {
+                streamId: streamResults[0].id,
+                recordName: "record1",
+              },
+            )
+          : [];
+      const record = recordResults[0] || null;
       expect(record).to.not.be.null;
       expect(JSON.parse(record.content).message).to.equal("hello world");
     });
@@ -172,11 +214,19 @@ describe("CLI Record Commands", function () {
       expect(result.exitCode).to.equal(0);
 
       // Verify stream permission was updated
-      const stream = await testDb
-        .getDb()
-        .oneOrNone("SELECT * FROM stream WHERE id = $(id)", {
+      const streamResults = await executeSelect(
+        testDb.getDb(),
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where((s) => s.id === p.id)
+            .take(1),
+        {
           id: streamId,
-        });
+        },
+      );
+      const stream = streamResults[0];
       expect(stream.access_permission).to.equal("public");
     });
 
@@ -214,17 +264,47 @@ describe("CLI Record Commands", function () {
       );
 
       // Verify record was created with headers
-      const record = await testDb.getDb().oneOrNone(
-        `SELECT r.* FROM record r 
-         JOIN stream s ON r.stream_id = s.id
-         WHERE s.pod_name = $(podName) AND s.name = $(streamName) 
-         AND s.parent_id IS NULL AND r.name = $(recordName)`,
+      // First get the stream
+      const streamResults = await executeSelect(
+        testDb.getDb(),
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .select((s) => ({ id: s.id }))
+            .where(
+              (s) =>
+                s.pod_name === p.podName &&
+                s.name === p.streamName &&
+                s.parent_id === null,
+            )
+            .take(1),
         {
           podName: testPodName,
           streamName: "test-stream",
-          recordName: "record-with-headers",
         },
       );
+      // Then get the record
+      const recordResults =
+        streamResults.length > 0
+          ? await executeSelect(
+              testDb.getDb(),
+              schema,
+              (q, p) =>
+                q
+                  .from("record")
+                  .where(
+                    (r) =>
+                      r.stream_id === p.streamId && r.name === p.recordName,
+                  )
+                  .take(1),
+              {
+                streamId: streamResults[0].id,
+                recordName: "record-with-headers",
+              },
+            )
+          : [];
+      const record = recordResults[0] || null;
 
       expect(record).to.not.be.null;
       const headers =
@@ -266,17 +346,47 @@ describe("CLI Record Commands", function () {
       expect(result.exitCode).to.equal(0);
 
       // Verify the header was stored correctly
-      const record = await testDb.getDb().oneOrNone(
-        `SELECT r.* FROM record r 
-         JOIN stream s ON r.stream_id = s.id
-         WHERE s.pod_name = $(podName) AND s.name = $(streamName) 
-         AND s.parent_id IS NULL AND r.name = $(recordName)`,
+      // First get the stream
+      const streamResults = await executeSelect(
+        testDb.getDb(),
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .select((s) => ({ id: s.id }))
+            .where(
+              (s) =>
+                s.pod_name === p.podName &&
+                s.name === p.streamName &&
+                s.parent_id === null,
+            )
+            .take(1),
         {
           podName: testPodName,
           streamName: "test-stream",
-          recordName: "record-with-colons",
         },
       );
+      // Then get the record
+      const recordResults =
+        streamResults.length > 0
+          ? await executeSelect(
+              testDb.getDb(),
+              schema,
+              (q, p) =>
+                q
+                  .from("record")
+                  .where(
+                    (r) =>
+                      r.stream_id === p.streamId && r.name === p.recordName,
+                  )
+                  .take(1),
+              {
+                streamId: streamResults[0].id,
+                recordName: "record-with-colons",
+              },
+            )
+          : [];
+      const record = recordResults[0] || null;
 
       expect(record).to.not.be.null;
       const headers =
@@ -321,17 +431,47 @@ describe("CLI Record Commands", function () {
       expect(result.exitCode).to.equal(0);
 
       // Verify all headers were stored
-      const record = await testDb.getDb().oneOrNone(
-        `SELECT r.* FROM record r 
-         JOIN stream s ON r.stream_id = s.id
-         WHERE s.pod_name = $(podName) AND s.name = $(streamName) 
-         AND s.parent_id IS NULL AND r.name = $(recordName)`,
+      // First get the stream
+      const streamResults = await executeSelect(
+        testDb.getDb(),
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .select((s) => ({ id: s.id }))
+            .where(
+              (s) =>
+                s.pod_name === p.podName &&
+                s.name === p.streamName &&
+                s.parent_id === null,
+            )
+            .take(1),
         {
           podName: testPodName,
           streamName: "test-stream",
-          recordName: "multi-header-record",
         },
       );
+      // Then get the record
+      const recordResults =
+        streamResults.length > 0
+          ? await executeSelect(
+              testDb.getDb(),
+              schema,
+              (q, p) =>
+                q
+                  .from("record")
+                  .where(
+                    (r) =>
+                      r.stream_id === p.streamId && r.name === p.recordName,
+                  )
+                  .take(1),
+              {
+                streamId: streamResults[0].id,
+                recordName: "multi-header-record",
+              },
+            )
+          : [];
+      const record = recordResults[0] || null;
 
       expect(record).to.not.be.null;
       const headers =
@@ -605,15 +745,25 @@ describe("CLI Record Commands", function () {
       );
 
       // Verify in database
-      const stream = await testDb
-        .getDb()
-        .oneOrNone(
-          "SELECT * FROM stream WHERE pod_name = $(podName) AND name = $(name) AND parent_id IS NULL",
-          {
-            podName: testPodName,
-            name: "new-stream",
-          },
-        );
+      const streamResults = await executeSelect(
+        testDb.getDb(),
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where(
+              (s) =>
+                s.pod_name === p.podName &&
+                s.name === p.name &&
+                s.parent_id === null,
+            )
+            .take(1),
+        {
+          podName: testPodName,
+          name: "new-stream",
+        },
+      );
+      const stream = streamResults[0] || null;
       expect(stream).to.not.be.null;
       expect(stream.access_permission).to.equal("public");
     });
@@ -636,15 +786,25 @@ describe("CLI Record Commands", function () {
       expect(result.exitCode).to.equal(0);
 
       // Verify in database
-      const stream = await testDb
-        .getDb()
-        .oneOrNone(
-          "SELECT * FROM stream WHERE pod_name = $(podName) AND name = $(name) AND parent_id IS NULL",
-          {
-            podName: testPodName,
-            name: "private-stream",
-          },
-        );
+      const streamResults = await executeSelect(
+        testDb.getDb(),
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where(
+              (s) =>
+                s.pod_name === p.podName &&
+                s.name === p.name &&
+                s.parent_id === null,
+            )
+            .take(1),
+        {
+          podName: testPodName,
+          name: "private-stream",
+        },
+      );
+      const stream = streamResults[0] || null;
       expect(stream).to.not.be.null;
       expect(stream.access_permission).to.equal("private");
     });
@@ -676,15 +836,25 @@ describe("CLI Record Commands", function () {
       expect(result.exitCode).to.equal(0);
 
       // Verify in database
-      const stream = await testDb
-        .getDb()
-        .oneOrNone(
-          "SELECT * FROM stream WHERE pod_name = $(podName) AND name = $(name) AND parent_id IS NULL",
-          {
-            podName: testPodName,
-            name: "perm-stream",
-          },
-        );
+      const streamResults = await executeSelect(
+        testDb.getDb(),
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where(
+              (s) =>
+                s.pod_name === p.podName &&
+                s.name === p.name &&
+                s.parent_id === null,
+            )
+            .take(1),
+        {
+          podName: testPodName,
+          name: "perm-stream",
+        },
+      );
+      const stream = streamResults[0] || null;
       expect(stream).to.not.be.null;
       expect(stream.access_permission).to.equal("/permissions/editors");
     });
@@ -736,15 +906,25 @@ describe("CLI Record Commands", function () {
       );
 
       // Verify stream is deleted
-      const stream = await testDb
-        .getDb()
-        .oneOrNone(
-          "SELECT * FROM stream WHERE pod_name = $(podName) AND name = $(name) AND parent_id IS NULL",
-          {
-            podName: testPodName,
-            name: "deletable-stream",
-          },
-        );
+      const streamResults = await executeSelect(
+        testDb.getDb(),
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where(
+              (s) =>
+                s.pod_name === p.podName &&
+                s.name === p.name &&
+                s.parent_id === null,
+            )
+            .take(1),
+        {
+          podName: testPodName,
+          name: "deletable-stream",
+        },
+      );
+      const stream = streamResults[0] || null;
       expect(stream).to.be.null;
     });
 

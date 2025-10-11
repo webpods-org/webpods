@@ -11,6 +11,7 @@ import {
 } from "./shared.js";
 import { getConfig } from "../../config-loader.js";
 import { rateLimit } from "../../middleware/ratelimit.js";
+import { getHandler } from "./get.js";
 
 /**
  * Root path handler with .config/routing support
@@ -63,7 +64,6 @@ export const rootHandler = async (
     req.path !== "/"
   ) {
     // Path was rewritten, forward to the GET handler
-    const { getHandler } = await import("./get.js");
     return getHandler(req, res, next);
   }
 

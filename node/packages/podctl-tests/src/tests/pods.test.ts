@@ -17,6 +17,11 @@ import {
   createOwnerConfig,
   createStreamWithRecord,
 } from "../utils/test-data-helpers.js";
+import { createSchema } from "@webpods/tinqer";
+import { executeInsert, executeSelect } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "webpods-test-utils";
+
+const schema = createSchema<DatabaseSchema>();
 
 describe("CLI Pod Commands", function () {
   this.timeout(30000);
@@ -50,24 +55,68 @@ describe("CLI Pod Commands", function () {
       expect(result.stdout).to.include("Pod 'test-pod' created successfully");
 
       // Verify pod was created in database
-      const pod = await testDb
-        .getDb()
-        .oneOrNone("SELECT * FROM pod WHERE name = $(name)", {
+      const podResults = await executeSelect(
+        testDb.getDb(),
+        schema,
+        (q, p) =>
+          q
+            .from("pod")
+            .where((pod) => pod.name === p.name)
+            .take(1),
+        {
           name: "test-pod",
-        });
+        },
+      );
+      const pod = podResults[0] || null;
       expect(pod).to.not.be.null;
 
       // Verify ownership via .config/owner stream
-      // Note: With the new schema, we need to join through stream table
-      const ownerRecord = await testDb.getDb().oneOrNone(
-        `SELECT r.* FROM record r
-         JOIN stream s ON r.stream_id = s.id
-         WHERE s.pod_name = 'test-pod'
-         AND s.name = 'owner'
-         AND s.parent_id IN (
-           SELECT id FROM stream WHERE pod_name = 'test-pod' AND name = '.config' AND parent_id IS NULL
-         )`,
+      // First get the .config stream
+      const configStreamResults = await executeSelect(
+        testDb.getDb(),
+        schema,
+        (q) =>
+          q
+            .from("stream")
+            .select((s) => ({ id: s.id }))
+            .where(
+              (s) =>
+                s.pod_name === "test-pod" &&
+                s.name === ".config" &&
+                s.parent_id === null,
+            )
+            .take(1),
+        {},
       );
+      // Then get the owner stream
+      const ownerStreamResults =
+        configStreamResults.length > 0
+          ? await executeSelect(
+              testDb.getDb(),
+              schema,
+              (q, p) =>
+                q
+                  .from("stream")
+                  .select((s) => ({ id: s.id }))
+                  .where(
+                    (s) => s.parent_id === p.configId && s.name === "owner",
+                  )
+                  .take(1),
+              { configId: configStreamResults[0].id },
+            )
+          : [];
+      // Finally get the record from the owner stream
+      const ownerRecordResults =
+        ownerStreamResults.length > 0
+          ? await executeSelect(
+              testDb.getDb(),
+              schema,
+              (q, p) =>
+                q.from("record").where((r) => r.stream_id === p.streamId),
+              { streamId: ownerStreamResults[0].id },
+            )
+          : [];
+      const ownerRecord = ownerRecordResults[0] || null;
       expect(ownerRecord).to.not.be.null;
       const ownerContent = JSON.parse(ownerRecord.content);
       expect(ownerContent.userId).to.equal(testUser.userId);
@@ -108,16 +157,24 @@ describe("CLI Pod Commands", function () {
       // Create test pods with owner_id set
       for (const podName of ["pod-1", "pod-2", "pod-3"]) {
         // Create pod with owner_id
-        await testDb
-          .getDb()
-          .none(
-            "INSERT INTO pod (name, owner_id, created_at, updated_at, metadata) VALUES ($(name), $(owner_id), $(now), $(now), '{}')",
-            {
-              name: podName,
-              owner_id: testUser.userId,
-              now: Date.now(),
-            },
-          );
+        const now = Date.now();
+        await executeInsert(
+          testDb.getDb(),
+          schema,
+          (q, p) =>
+            q.insertInto("pod").values({
+              name: p.name,
+              owner_id: p.owner_id,
+              created_at: p.now,
+              updated_at: p.now,
+              metadata: "{}",
+            }),
+          {
+            name: podName,
+            owner_id: testUser.userId,
+            now,
+          },
+        );
 
         // Create .config/owner stream using the new helper
         await createOwnerConfig(
@@ -173,15 +230,22 @@ describe("CLI Pod Commands", function () {
   describe("info command", () => {
     beforeEach(async () => {
       // Create test pod with owner stream
-      await testDb
-        .getDb()
-        .none(
-          "INSERT INTO pod (name, created_at, updated_at, metadata) VALUES ($(name), $(now), $(now), '{}')",
-          {
-            name: "test-pod",
-            now: Date.now(),
-          },
-        );
+      const now = Date.now();
+      await executeInsert(
+        testDb.getDb(),
+        schema,
+        (q, p) =>
+          q.insertInto("pod").values({
+            name: p.name,
+            created_at: p.now,
+            updated_at: p.now,
+            metadata: "{}",
+          }),
+        {
+          name: "test-pod",
+          now,
+        },
+      );
 
       // Create .config/owner stream using the new helper
       await createOwnerConfig(
@@ -231,15 +295,22 @@ describe("CLI Pod Commands", function () {
   describe("delete command", () => {
     beforeEach(async () => {
       // Create test pod with owner stream
-      await testDb
-        .getDb()
-        .none(
-          "INSERT INTO pod (name, created_at, updated_at, metadata) VALUES ($(name), $(now), $(now), '{}')",
-          {
-            name: "test-pod",
-            now: Date.now(),
-          },
-        );
+      const now = Date.now();
+      await executeInsert(
+        testDb.getDb(),
+        schema,
+        (q, p) =>
+          q.insertInto("pod").values({
+            name: p.name,
+            created_at: p.now,
+            updated_at: p.now,
+            metadata: "{}",
+          }),
+        {
+          name: "test-pod",
+          now,
+        },
+      );
 
       // Create .config/owner stream using the new helper
       await createOwnerConfig(
@@ -259,11 +330,19 @@ describe("CLI Pod Commands", function () {
       expect(result.stdout).to.include("Pod 'test-pod' deleted successfully");
 
       // Verify pod was deleted
-      const pod = await testDb
-        .getDb()
-        .oneOrNone("SELECT * FROM pod WHERE name = $(name)", {
+      const podResults = await executeSelect(
+        testDb.getDb(),
+        schema,
+        (q, p) =>
+          q
+            .from("pod")
+            .where((pod) => pod.name === p.name)
+            .take(1),
+        {
           name: "test-pod",
-        });
+        },
+      );
+      const pod = podResults[0] || null;
       expect(pod).to.be.null;
     });
 
@@ -277,11 +356,19 @@ describe("CLI Pod Commands", function () {
       expect(result.stdout).to.include("--force");
 
       // Verify pod was NOT deleted
-      const pod = await testDb
-        .getDb()
-        .oneOrNone("SELECT * FROM pod WHERE name = $(name)", {
+      const podResults = await executeSelect(
+        testDb.getDb(),
+        schema,
+        (q, p) =>
+          q
+            .from("pod")
+            .where((pod) => pod.name === p.name)
+            .take(1),
+        {
           name: "test-pod",
-        });
+        },
+      );
+      const pod = podResults[0] || null;
       expect(pod).to.not.be.null;
     });
 
@@ -289,27 +376,45 @@ describe("CLI Pod Commands", function () {
       // Create another user with identity
       const otherUserId = randomUUID();
       const now = Date.now();
-      await testDb
-        .getDb()
-        .none(
-          'INSERT INTO "user" (id, created_at, updated_at) VALUES ($(id), $(now), $(now))',
-          { id: otherUserId, now },
-        );
-      await testDb
-        .getDb()
-        .none(
-          "INSERT INTO identity (id, user_id, provider, provider_id, email, name, metadata, created_at, updated_at) VALUES ($(id), $(userId), $(provider), $(providerId), $(email), $(name), $(metadata), $(now), $(now))",
-          {
-            id: randomUUID(),
-            userId: otherUserId,
-            provider: "test-provider",
-            providerId: randomUUID(),
-            now,
-            email: "other@example.com",
-            name: "Other User",
-            metadata: "{}",
-          },
-        );
+      await executeInsert(
+        testDb.getDb(),
+        schema,
+        (q, p) =>
+          q.insertInto("user").values({
+            id: p.id,
+            created_at: p.now,
+            updated_at: p.now,
+          }),
+        { id: otherUserId, now },
+      );
+      const identityId = randomUUID();
+      const providerId = randomUUID();
+      await executeInsert(
+        testDb.getDb(),
+        schema,
+        (q, p) =>
+          q.insertInto("identity").values({
+            id: p.id,
+            user_id: p.userId,
+            provider: p.provider,
+            provider_id: p.providerId,
+            email: p.email,
+            name: p.name,
+            metadata: p.metadata,
+            created_at: p.now,
+            updated_at: p.now,
+          }),
+        {
+          id: identityId,
+          userId: otherUserId,
+          provider: "test-provider",
+          providerId,
+          now,
+          email: "other@example.com",
+          name: "Other User",
+          metadata: "{}",
+        },
+      );
       const otherToken = cli.createTestToken(otherUserId, "other@example.com");
 
       const result = await cli.exec(["pod", "delete", "test-pod", "--force"], {

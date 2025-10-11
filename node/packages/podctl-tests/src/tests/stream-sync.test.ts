@@ -18,6 +18,11 @@ import {
   createTestStream,
   createOwnerConfig,
 } from "../utils/test-data-helpers.js";
+import { createSchema } from "@webpods/tinqer";
+import { executeInsert } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "webpods-test-utils";
+
+const schema = createSchema<DatabaseSchema>();
 
 describe("CLI Stream Sync and Download Commands", function () {
   this.timeout(60000);
@@ -71,15 +76,22 @@ describe("CLI Stream Sync and Download Commands", function () {
     await fs.mkdir(downloadDir, { recursive: true });
 
     // Create test pod directly in database
-    await testDb
-      .getDb()
-      .none(
-        "INSERT INTO pod (name, created_at, updated_at, metadata) VALUES ($(name), $(now), $(now), '{}')",
-        {
-          name: testPodName,
-          now: Date.now(),
-        },
-      );
+    const now = Date.now();
+    await executeInsert(
+      testDb.getDb(),
+      schema,
+      (q, p) =>
+        q.insertInto("pod").values({
+          name: p.name,
+          created_at: p.now,
+          updated_at: p.now,
+          metadata: "{}",
+        }),
+      {
+        name: testPodName,
+        now,
+      },
+    );
 
     // Set up owner config
     await createOwnerConfig(

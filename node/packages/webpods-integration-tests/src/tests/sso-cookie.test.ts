@@ -10,6 +10,15 @@ import {
   createTestPod,
 } from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
+import { createSchema } from "@webpods/tinqer";
+import {
+  executeSelect,
+  executeInsert,
+  executeDelete,
+} from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "webpods-test-utils";
+
+const schema = createSchema<DatabaseSchema>();
 
 describe("SSO Cookie Management", () => {
   let client: TestHttpClient;
@@ -20,9 +29,15 @@ describe("SSO Cookie Management", () => {
     // Clear cookies and test data
     client.clearCookies();
     const db = testDb.getDb();
-    await db.none('TRUNCATE TABLE "user" CASCADE');
-    await db.none('TRUNCATE TABLE "session" CASCADE');
-    await db.none('TRUNCATE TABLE "oauth_state" CASCADE');
+    await executeDelete(db, schema, (q) =>
+      q.deleteFrom("user").allowFullTableDelete(),
+    );
+    await executeDelete(db, schema, (q) =>
+      q.deleteFrom("session").allowFullTableDelete(),
+    );
+    await executeDelete(db, schema, (q) =>
+      q.deleteFrom("oauth_state").allowFullTableDelete(),
+    );
   });
 
   describe("Cookie Jar Functionality", () => {
@@ -83,11 +98,18 @@ describe("SSO Cookie Management", () => {
         },
       };
 
-      await db.none(
-        `INSERT INTO session (sid, sess, expire) VALUES ($(sid), $(sess), $(expire))`,
+      await executeInsert(
+        db,
+        schema,
+        (q, p) =>
+          q.insertInto("session").values({
+            sid: p.sid,
+            sess: p.sess,
+            expire: p.expire,
+          }),
         {
           sid: sessionId,
-          sess: JSON.stringify(sessionData),
+          sess: sessionData,
           expire: new Date(Date.now() + 604800000),
         },
       );
@@ -97,10 +119,17 @@ describe("SSO Cookie Management", () => {
 
       // Now when we make authorized requests, the session cookie should work
       // This would enable SSO if the server properly reads the session
-      const sessionCheck = await db.oneOrNone(
-        `SELECT * FROM session WHERE sid = $(sid)`,
+      const sessionCheckResults = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("session")
+            .where((s) => s.sid === p.sid)
+            .take(1),
         { sid: sessionId },
       );
+      const sessionCheck = sessionCheckResults[0] || null;
 
       expect(sessionCheck).to.exist;
       expect(sessionCheck.sid).to.equal(sessionId);
@@ -138,11 +167,18 @@ describe("SSO Cookie Management", () => {
 
       // 2. Create session (this would normally happen in OAuth callback)
       const sessionId = "sso-session-" + Date.now();
-      await db.none(
-        `INSERT INTO session (sid, sess, expire) VALUES ($(sid), $(sess), $(expire))`,
+      await executeInsert(
+        db,
+        schema,
+        (q, p) =>
+          q.insertInto("session").values({
+            sid: p.sid,
+            sess: p.sess,
+            expire: p.expire,
+          }),
         {
           sid: sessionId,
-          sess: JSON.stringify({
+          sess: {
             cookie: {
               originalMaxAge: 604800000,
               expires: new Date(Date.now() + 604800000).toISOString(),
@@ -156,7 +192,7 @@ describe("SSO Cookie Management", () => {
               name: user.name,
               provider: "test-auth-provider-2",
             },
-          }),
+          },
           expire: new Date(Date.now() + 604800000),
         },
       );
@@ -169,10 +205,17 @@ describe("SSO Cookie Management", () => {
       // without requiring re-authentication
 
       // Verify session exists and is valid
-      const session = await db.oneOrNone(
-        `SELECT * FROM session WHERE sid = $(sid) AND expire > $(now)`,
+      const sessionResults = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("session")
+            .where((s) => s.sid === p.sid && s.expire > p.now)
+            .take(1),
         { sid: sessionId, now: new Date() },
       );
+      const session = sessionResults[0] || null;
 
       expect(session).to.exist;
       expect(client.getCookie("webpods.sid")).to.equal(sessionId);

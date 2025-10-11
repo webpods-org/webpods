@@ -1,6 +1,9 @@
 import pgPromise from "pg-promise";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
+import { createSchema } from "@webpods/tinqer";
+import { executeInsert } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "./db-schema.js";
 
 export interface TestUser {
   userId: string;
@@ -10,6 +13,8 @@ export interface TestUser {
   email: string;
   name: string;
 }
+
+const schema = createSchema<DatabaseSchema>();
 
 /**
  * Create a test user with identity in the database
@@ -32,16 +37,34 @@ export async function createTestUser(
 
   // Create user
   const now = Date.now();
-  await db.none(
-    `INSERT INTO "user" (id, created_at, updated_at)
-     VALUES ($(userId), $(now), $(now))`,
+  await executeInsert(
+    db,
+    schema,
+    (q, p) =>
+      q.insertInto("user").values({
+        id: p.userId,
+        created_at: p.now,
+        updated_at: p.now,
+      }),
     { userId, now },
   );
 
   // Create identity
-  await db.none(
-    `INSERT INTO identity (id, user_id, provider, provider_id, email, name, metadata, created_at, updated_at)
-     VALUES ($(identityId), $(userId), $(provider), $(providerId), $(email), $(name), '{}', $(now), $(now))`,
+  await executeInsert(
+    db,
+    schema,
+    (q, p) =>
+      q.insertInto("identity").values({
+        id: p.identityId,
+        user_id: p.userId,
+        provider: p.provider,
+        provider_id: p.providerId,
+        email: p.email,
+        name: p.name,
+        metadata: "{}",
+        created_at: p.now,
+        updated_at: p.now,
+      }),
     {
       identityId,
       userId,
@@ -73,27 +96,75 @@ export async function createTestPod(
 ): Promise<void> {
   const now = Date.now();
   // Create pod
-  await db.none(
-    `INSERT INTO pod (name, owner_id, metadata, created_at, updated_at)
-     VALUES ($(podName), $(ownerId), '{}', $(now), $(now))`,
+  await executeInsert(
+    db,
+    schema,
+    (q, p) =>
+      q.insertInto("pod").values({
+        name: p.podName,
+        owner_id: p.ownerId,
+        metadata: "{}",
+        created_at: p.now,
+        updated_at: p.now,
+      }),
     { podName, ownerId, now },
   );
 
   // Create .config stream first (parent)
-  const configStream = await db.one(
-    `INSERT INTO stream (pod_name, name, path, parent_id, user_id, access_permission, metadata, has_schema, created_at, updated_at)
-     VALUES ($(podName), '.config', '.config', NULL, $(ownerId), 'private', '{}', false, $(now), $(now))
-     RETURNING id`,
+  const configStreams = await executeInsert(
+    db,
+    schema,
+    (q, p) =>
+      q
+        .insertInto("stream")
+        .values({
+          pod_name: p.podName,
+          name: ".config",
+          path: ".config",
+          parent_id: null,
+          user_id: p.ownerId,
+          access_permission: "private",
+          metadata: "{}",
+          has_schema: false,
+          created_at: p.now,
+          updated_at: p.now,
+        })
+        .returning((s) => ({ id: s.id })),
     { podName, ownerId, now },
   );
 
+  const configStream = configStreams[0];
+  if (!configStream) {
+    throw new Error("Failed to create .config stream");
+  }
+
   // Create owner stream under .config
-  const ownerStream = await db.one(
-    `INSERT INTO stream (pod_name, name, path, parent_id, user_id, access_permission, metadata, has_schema, created_at, updated_at)
-     VALUES ($(podName), 'owner', '.config/owner', $(parentId), $(ownerId), 'private', '{}', false, $(now), $(now))
-     RETURNING id`,
+  const ownerStreams = await executeInsert(
+    db,
+    schema,
+    (q, p) =>
+      q
+        .insertInto("stream")
+        .values({
+          pod_name: p.podName,
+          name: "owner",
+          path: ".config/owner",
+          parent_id: p.parentId,
+          user_id: p.ownerId,
+          access_permission: "private",
+          metadata: "{}",
+          has_schema: false,
+          created_at: p.now,
+          updated_at: p.now,
+        })
+        .returning((s) => ({ id: s.id })),
     { podName, parentId: configStream.id, ownerId, now },
   );
+
+  const ownerStream = ownerStreams[0];
+  if (!ownerStream) {
+    throw new Error("Failed to create owner stream");
+  }
 
   // Add ownership record
   const ownerObj = { userId: ownerId };
@@ -113,9 +184,28 @@ export async function createTestPod(
 
   const size = Buffer.byteLength(content, "utf8");
 
-  await db.none(
-    `INSERT INTO record (stream_id, index, content, content_type, is_binary, size, name, path, content_hash, hash, previous_hash, user_id, headers, deleted, purged, created_at)
-     VALUES ($(streamId), 0, $(content), 'application/json', false, $(size), 'owner', '.config/owner/owner', $(contentHash), $(hash), NULL, $(ownerId), '{}', false, false, $(now))`,
+  await executeInsert(
+    db,
+    schema,
+    (q, p) =>
+      q.insertInto("record").values({
+        stream_id: p.streamId,
+        index: 0,
+        content: p.content,
+        content_type: "application/json",
+        is_binary: false,
+        size: p.size,
+        name: "owner",
+        path: ".config/owner/owner",
+        content_hash: p.contentHash,
+        hash: p.hash,
+        previous_hash: null,
+        user_id: p.ownerId,
+        headers: "{}",
+        deleted: false,
+        purged: false,
+        created_at: p.now,
+      }),
     {
       streamId: ownerStream.id,
       content,

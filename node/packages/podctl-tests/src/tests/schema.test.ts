@@ -11,6 +11,11 @@ import {
 import * as fs from "fs/promises";
 import * as path from "path";
 import * as os from "os";
+import { createSchema } from "@webpods/tinqer";
+import { executeInsert, executeSelect } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "webpods-test-utils";
+
+const schema = createSchema<DatabaseSchema>();
 
 describe("CLI Schema Commands", () => {
   let cli: CliTestHelper;
@@ -36,15 +41,22 @@ describe("CLI Schema Commands", () => {
     testPodName = `test-pod-${Date.now()}`;
 
     // Create test pod
-    await testDb
-      .getDb()
-      .none(
-        `INSERT INTO pod (name, created_at, updated_at, metadata) VALUES ($(podName), $(now), $(now), '{}')`,
-        {
-          podName: testPodName,
-          now: Date.now(),
-        },
-      );
+    const now = Date.now();
+    await executeInsert(
+      testDb.getDb(),
+      schema,
+      (q, p) =>
+        q.insertInto("pod").values({
+          name: p.podName,
+          created_at: p.now,
+          updated_at: p.now,
+          metadata: "{}",
+        }),
+      {
+        podName: testPodName,
+        now,
+      },
+    );
   });
 
   describe("schema enable command", () => {
@@ -73,13 +85,34 @@ describe("CLI Schema Commands", () => {
       expect(result.stdout).to.include("Schema enabled");
 
       // Verify schema was written to .config/schema
-      const records = await testDb.getDb().manyOrNone(
-        `SELECT r.* FROM record r
-         INNER JOIN stream s ON r.stream_id = s.id
-         WHERE s.pod_name = $(podName) AND s.path = $(path) AND r.name = 'schema'
-         ORDER BY r.index`,
+      // First get the stream
+      const streamResults = await executeSelect(
+        testDb.getDb(),
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .select((s) => ({ id: s.id }))
+            .where((s) => s.pod_name === p.podName && s.path === p.path)
+            .take(1),
         { podName: testPodName, path: "blog/posts/.config" },
       );
+      // Then get records from that stream
+      const records =
+        streamResults.length > 0
+          ? await executeSelect(
+              testDb.getDb(),
+              schema,
+              (q, p) =>
+                q
+                  .from("record")
+                  .where(
+                    (r) => r.stream_id === p.streamId && r.name === "schema",
+                  )
+                  .orderBy((r) => r.index, "asc"),
+              { streamId: streamResults[0].id },
+            )
+          : [];
 
       expect(records).to.have.length(1);
       const schemaRecord = JSON.parse(records[0].content);
@@ -109,12 +142,33 @@ describe("CLI Schema Commands", () => {
       expect(result.exitCode).to.equal(0);
 
       // Check the written schema
-      const records = await testDb.getDb().manyOrNone(
-        `SELECT r.* FROM record r
-         INNER JOIN stream s ON r.stream_id = s.id
-         WHERE s.pod_name = $(podName) AND s.path = $(path) AND r.name = 'schema'`,
+      // First get the stream
+      const streamResults = await executeSelect(
+        testDb.getDb(),
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .select((s) => ({ id: s.id }))
+            .where((s) => s.pod_name === p.podName && s.path === p.path)
+            .take(1),
         { podName: testPodName, path: "api/data/.config" },
       );
+      // Then get records from that stream
+      const records =
+        streamResults.length > 0
+          ? await executeSelect(
+              testDb.getDb(),
+              schema,
+              (q, p) =>
+                q
+                  .from("record")
+                  .where(
+                    (r) => r.stream_id === p.streamId && r.name === "schema",
+                  ),
+              { streamId: streamResults[0].id },
+            )
+          : [];
 
       const schemaRecord = JSON.parse(records[0].content);
       expect(schemaRecord.validationMode).to.equal("permissive");
@@ -191,14 +245,35 @@ describe("CLI Schema Commands", () => {
       expect(result.stdout).to.include("Schema disabled");
 
       // Verify schemaType is "none"
-      const records = await testDb.getDb().manyOrNone(
-        `SELECT r.* FROM record r
-         INNER JOIN stream s ON r.stream_id = s.id
-         WHERE s.pod_name = $(podName) AND s.path = $(path) AND r.name = 'schema'
-         ORDER BY r.index DESC
-         LIMIT 1`,
+      // First get the stream
+      const streamResults = await executeSelect(
+        testDb.getDb(),
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .select((s) => ({ id: s.id }))
+            .where((s) => s.pod_name === p.podName && s.path === p.path)
+            .take(1),
         { podName: testPodName, path: "users/.config" },
       );
+      // Then get the latest record from that stream
+      const records =
+        streamResults.length > 0
+          ? await executeSelect(
+              testDb.getDb(),
+              schema,
+              (q, p) =>
+                q
+                  .from("record")
+                  .where(
+                    (r) => r.stream_id === p.streamId && r.name === "schema",
+                  )
+                  .orderBy((r) => r.index, "desc")
+                  .take(1),
+              { streamId: streamResults[0].id },
+            )
+          : [];
 
       expect(records).to.have.length(1);
       const schemaRecord = JSON.parse(records[0].content);

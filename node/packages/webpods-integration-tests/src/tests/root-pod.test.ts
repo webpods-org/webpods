@@ -7,6 +7,11 @@ import {
   clearAllCache,
 } from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
+import { createSchema } from "@webpods/tinqer";
+import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "webpods-test-utils";
+
+const schema = createSchema<DatabaseSchema>();
 
 describe("WebPods Root Pod", () => {
   let client: TestHttpClient;
@@ -20,10 +25,18 @@ describe("WebPods Root Pod", () => {
     const db = testDb.getDb();
 
     // Check if pod already exists
-    const existingPod = await db.oneOrNone(
-      `SELECT name FROM pod WHERE name = $(podId)`,
+    const podResults = await executeSelect(
+      db,
+      schema,
+      (q, p) =>
+        q
+          .from("pod")
+          .select((pod) => ({ name: pod.name }))
+          .where((pod) => pod.name === p.podId)
+          .take(1),
       { podId: rootPodId },
     );
+    const existingPod = podResults[0] || null;
 
     if (!existingPod) {
       await createTestPod(db, rootPodId, userId);
@@ -139,10 +152,18 @@ describe("WebPods Root Pod", () => {
       // Create the pod first with OAuth authentication
       const db = testDb.getDb();
       // Check if pod exists first
-      const existingPod = await db.oneOrNone(
-        `SELECT name FROM pod WHERE name = $(podId)`,
+      const podResults = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("pod")
+            .select((pod) => ({ name: pod.name }))
+            .where((pod) => pod.name === p.podId)
+            .take(1),
         { podId: rootPodId },
       );
+      const existingPod = podResults[0] || null;
       if (!existingPod) {
         await createTestPod(db, rootPodId, userId);
       }
@@ -171,10 +192,18 @@ describe("WebPods Root Pod", () => {
       // Create the pod and content first
       const db = testDb.getDb();
       // Check if pod exists first
-      const existingPod = await db.oneOrNone(
-        `SELECT name FROM pod WHERE name = $(podId)`,
+      const podResults = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("pod")
+            .select((pod) => ({ name: pod.name }))
+            .where((pod) => pod.name === p.podId)
+            .take(1),
         { podId: rootPodId },
       );
+      const existingPod = podResults[0] || null;
       if (!existingPod) {
         await createTestPod(db, rootPodId, userId);
       }

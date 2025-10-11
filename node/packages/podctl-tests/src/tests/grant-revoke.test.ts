@@ -13,6 +13,11 @@ import {
   testUser,
 } from "../test-setup.js";
 import { randomUUID } from "crypto";
+import { createSchema } from "@webpods/tinqer";
+import { executeInsert } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "webpods-test-utils";
+
+const schema = createSchema<DatabaseSchema>();
 
 describe("CLI Grant/Revoke Commands", function () {
   this.timeout(30000);
@@ -38,20 +43,39 @@ describe("CLI Grant/Revoke Commands", function () {
     // Create a test pod
     testPodName = `test-pod-${Date.now()}`;
     const now = Date.now();
-    await testDb
-      .getDb()
-      .none(
-        "INSERT INTO pod (name, created_at, updated_at, metadata) VALUES ($(name), $(now), $(now), '{}')",
-        {
-          name: testPodName,
-          now,
-        },
-      );
+    await executeInsert(
+      testDb.getDb(),
+      schema,
+      (q, p) =>
+        q.insertInto("pod").values({
+          name: p.name,
+          created_at: p.now,
+          updated_at: p.now,
+          metadata: "{}",
+        }),
+      {
+        name: testPodName,
+        now,
+      },
+    );
 
     // Create the permissions stream (required for grant/revoke to work)
-    await testDb.getDb().none(
-      `INSERT INTO stream (pod_name, name, path, parent_id, user_id, access_permission, created_at, updated_at, metadata, has_schema)
-         VALUES ($(podName), $(streamName), $(path), NULL, $(userId), 'public', $(now), $(now), '{}', false)`,
+    await executeInsert(
+      testDb.getDb(),
+      schema,
+      (q, p) =>
+        q.insertInto("stream").values({
+          pod_name: p.podName,
+          name: p.streamName,
+          path: p.path,
+          parent_id: null,
+          user_id: p.userId,
+          access_permission: "public",
+          created_at: p.now,
+          updated_at: p.now,
+          metadata: "{}",
+          has_schema: false,
+        }),
       {
         podName: testPodName,
         streamName: "team-permissions",
@@ -63,12 +87,17 @@ describe("CLI Grant/Revoke Commands", function () {
 
     // Create another user for testing
     otherUserId = randomUUID();
-    await testDb
-      .getDb()
-      .none(
-        'INSERT INTO "user" (id, created_at, updated_at) VALUES ($(id), $(now), $(now))',
-        { id: otherUserId, now },
-      );
+    await executeInsert(
+      testDb.getDb(),
+      schema,
+      (q, p) =>
+        q.insertInto("user").values({
+          id: p.id,
+          created_at: p.now,
+          updated_at: p.now,
+        }),
+      { id: otherUserId, now },
+    );
   });
 
   describe("grant command", () => {

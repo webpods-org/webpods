@@ -13,6 +13,11 @@ import {
   testDb,
 } from "../test-setup.js";
 import { createOwnerConfig } from "../utils/test-data-helpers.js";
+import { createSchema } from "@webpods/tinqer";
+import { executeInsert } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "webpods-test-utils";
+
+const schema = createSchema<DatabaseSchema>();
 
 describe("CLI Links Commands", function () {
   this.timeout(30000);
@@ -36,15 +41,22 @@ describe("CLI Links Commands", function () {
 
     // Create a test pod
     testPodName = `test-pod-${Date.now()}`;
-    await testDb
-      .getDb()
-      .none(
-        "INSERT INTO pod (name, created_at, updated_at, metadata) VALUES ($(name), $(now), $(now), '{}')",
-        {
-          name: testPodName,
-          now: Date.now(),
-        },
-      );
+    const now = Date.now();
+    await executeInsert(
+      testDb.getDb(),
+      schema,
+      (q, p) =>
+        q.insertInto("pod").values({
+          name: p.name,
+          created_at: p.now,
+          updated_at: p.now,
+          metadata: "{}",
+        }),
+      {
+        name: testPodName,
+        now,
+      },
+    );
 
     // Create .config/owner stream for pod ownership
     await createOwnerConfig(
@@ -142,15 +154,22 @@ describe("CLI Links Commands", function () {
     it("should show message when no links exist", async () => {
       // Use a fresh pod with no links
       const emptyPodName = `empty-pod-${Date.now()}`;
-      await testDb
-        .getDb()
-        .none(
-          "INSERT INTO pod (name, created_at, updated_at, metadata) VALUES ($(name), $(now), $(now), '{}')",
-          {
-            name: emptyPodName,
-            now: Date.now(),
-          },
-        );
+      const now = Date.now();
+      await executeInsert(
+        testDb.getDb(),
+        schema,
+        (q, p) =>
+          q.insertInto("pod").values({
+            name: p.name,
+            created_at: p.now,
+            updated_at: p.now,
+            metadata: "{}",
+          }),
+        {
+          name: emptyPodName,
+          now,
+        },
+      );
 
       const result = await cli.exec(["link", "list", emptyPodName], {
         token: testToken,

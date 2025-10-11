@@ -6,6 +6,11 @@ import {
   clearAllCache,
 } from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
+import { createSchema } from "@webpods/tinqer";
+import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "webpods-test-utils";
+
+const schema = createSchema<DatabaseSchema>();
 
 describe("Stream Name Normalization", function () {
   this.timeout(5 * 60 * 1000); // 5 minute timeout
@@ -54,18 +59,42 @@ describe("Stream Name Normalization", function () {
       // Verify in database - hierarchical structure: blog -> posts
       const db = testDb.getDb();
       // Check parent stream "blog"
-      const blogStream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(name) AND parent_id IS NULL`,
-        { pod_name: testPodId, name: "blog" },
+      const blogStreams = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where(
+              (s) =>
+                s.pod_name === p.podName &&
+                s.name === p.name &&
+                s.parent_id === null,
+            )
+            .take(1),
+        { podName: testPodId, name: "blog" },
       );
+      const blogStream = blogStreams[0] || null;
       expect(blogStream).to.exist;
       expect(blogStream.name).to.equal("blog");
 
       // Check child stream "posts"
-      const postsStream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(name) AND parent_id = $(parent_id)`,
-        { pod_name: testPodId, name: "posts", parent_id: blogStream.id },
+      const postsStreams = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where(
+              (s) =>
+                s.pod_name === p.podName &&
+                s.name === p.name &&
+                s.parent_id === p.parentId,
+            )
+            .take(1),
+        { podName: testPodId, name: "posts", parentId: blogStream.id },
       );
+      const postsStream = postsStreams[0] || null;
       expect(postsStream).to.exist;
       expect(postsStream.name).to.equal("posts");
     });
@@ -79,18 +108,42 @@ describe("Stream Name Normalization", function () {
       // Verify hierarchical structure: projects -> webapp
       const db = testDb.getDb();
       // Check parent stream "projects"
-      const projectsStream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(name) AND parent_id IS NULL`,
-        { pod_name: testPodId, name: "projects" },
+      const projectsStreams = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where(
+              (s) =>
+                s.pod_name === p.podName &&
+                s.name === p.name &&
+                s.parent_id === null,
+            )
+            .take(1),
+        { podName: testPodId, name: "projects" },
       );
+      const projectsStream = projectsStreams[0] || null;
       expect(projectsStream).to.exist;
       expect(projectsStream.name).to.equal("projects");
 
       // Check child stream "webapp"
-      const webappStream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(name) AND parent_id = $(parent_id)`,
-        { pod_name: testPodId, name: "webapp", parent_id: projectsStream.id },
+      const webappStreams = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where(
+              (s) =>
+                s.pod_name === p.podName &&
+                s.name === p.name &&
+                s.parent_id === p.parentId,
+            )
+            .take(1),
+        { podName: testPodId, name: "webapp", parentId: projectsStream.id },
       );
+      const webappStream = webappStreams[0] || null;
       expect(webappStream).to.exist;
       expect(webappStream.name).to.equal("webapp");
     });
@@ -101,28 +154,76 @@ describe("Stream Name Normalization", function () {
 
       const db = testDb.getDb();
       // Check the full hierarchy: api -> v1 -> users -> profiles
-      const apiStream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(name) AND parent_id IS NULL`,
-        { pod_name: testPodId, name: "api" },
+      const apiStreams = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where(
+              (s) =>
+                s.pod_name === p.podName &&
+                s.name === p.name &&
+                s.parent_id === null,
+            )
+            .take(1),
+        { podName: testPodId, name: "api" },
       );
+      const apiStream = apiStreams[0] || null;
       expect(apiStream).to.exist;
 
-      const v1Stream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(name) AND parent_id = $(parent_id)`,
-        { pod_name: testPodId, name: "v1", parent_id: apiStream.id },
+      const v1Streams = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where(
+              (s) =>
+                s.pod_name === p.podName &&
+                s.name === p.name &&
+                s.parent_id === p.parentId,
+            )
+            .take(1),
+        { podName: testPodId, name: "v1", parentId: apiStream.id },
       );
+      const v1Stream = v1Streams[0] || null;
       expect(v1Stream).to.exist;
 
-      const usersStream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(name) AND parent_id = $(parent_id)`,
-        { pod_name: testPodId, name: "users", parent_id: v1Stream.id },
+      const usersStreams = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where(
+              (s) =>
+                s.pod_name === p.podName &&
+                s.name === p.name &&
+                s.parent_id === p.parentId,
+            )
+            .take(1),
+        { podName: testPodId, name: "users", parentId: v1Stream.id },
       );
+      const usersStream = usersStreams[0] || null;
       expect(usersStream).to.exist;
 
-      const profilesStream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(name) AND parent_id = $(parent_id)`,
-        { pod_name: testPodId, name: "profiles", parent_id: usersStream.id },
+      const profilesStreams = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where(
+              (s) =>
+                s.pod_name === p.podName &&
+                s.name === p.name &&
+                s.parent_id === p.parentId,
+            )
+            .take(1),
+        { podName: testPodId, name: "profiles", parentId: usersStream.id },
       );
+      const profilesStream = profilesStreams[0] || null;
       expect(profilesStream).to.exist;
       expect(profilesStream.name).to.equal("profiles");
     });
@@ -136,29 +237,41 @@ describe("Stream Name Normalization", function () {
       // Check that the record was created in the root stream
       // There's no explicit root stream in the hierarchical model
       // Records at root level have no parent stream
-      const record = await db.oneOrNone(
-        `SELECT r.* FROM record r
-         JOIN stream s ON r.stream_id = s.id
-         WHERE s.pod_name = $(pod_name) 
-           AND s.parent_id IS NULL
-           AND r.name = $(name)`,
-        { pod_name: testPodId, name: "root-record" },
+
+      // First, get top-level streams
+      const topLevelStreams = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where((s) => s.pod_name === p.podName && s.parent_id === null),
+        { podName: testPodId },
       );
 
-      // Since we don't have a root stream concept anymore,
-      // we need to check if the record was created properly
-      // This might be in the .config stream or another top-level stream
-      if (!record) {
-        // Check if a new top-level stream was created
-        await db.manyOrNone(
-          `SELECT * FROM stream WHERE pod_name = $(pod_name) AND parent_id IS NULL`,
-          { pod_name: testPodId },
+      // Then, check if any of these streams have the record we're looking for
+      let foundRecord = false;
+      for (const stream of topLevelStreams) {
+        const records = await executeSelect(
+          db,
+          schema,
+          (q, p) =>
+            q
+              .from("record")
+              .where((r) => r.stream_id === p.streamId && r.name === p.name)
+              .take(1),
+          { streamId: stream.id, name: "root-record" },
         );
+        if (records.length > 0) {
+          foundRecord = true;
+          break;
+        }
       }
 
       // The test needs to be adjusted for hierarchical structure
       // Root records should be handled differently
       expect(response.data).to.have.property("index");
+      expect(foundRecord).to.be.true;
     });
   });
 
@@ -208,10 +321,22 @@ describe("Stream Name Normalization", function () {
 
       // Verify the stream was created with correct permission
       const db = testDb.getDb();
-      const stream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(name) AND parent_id IS NULL`,
-        { pod_name: testPodId, name: "restricted-data" },
+      const streams = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where(
+              (s) =>
+                s.pod_name === p.podName &&
+                s.name === p.name &&
+                s.parent_id === null,
+            )
+            .take(1),
+        { podName: testPodId, name: "restricted-data" },
       );
+      const stream = streams[0] || null;
       expect(stream).to.exist;
       expect(stream.access_permission).to.equal("/team-permissions");
     });
@@ -226,13 +351,31 @@ describe("Stream Name Normalization", function () {
       await client.post("/record-test/item2", "Item 2");
 
       const db = testDb.getDb();
-      const stream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(name) AND parent_id IS NULL`,
-        { pod_name: testPodId, name: "record-test" },
+      const streams = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where(
+              (s) =>
+                s.pod_name === p.podName &&
+                s.name === p.name &&
+                s.parent_id === null,
+            )
+            .take(1),
+        { podName: testPodId, name: "record-test" },
       );
-      const records = await db.manyOrNone(
-        `SELECT * FROM record WHERE stream_id = $(stream_id) ORDER BY index`,
-        { stream_id: stream.id },
+      const stream = streams[0];
+      const records = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("record")
+            .where((r) => r.stream_id === p.streamId)
+            .orderBy((r) => r.index),
+        { streamId: stream.id },
       );
 
       expect(records).to.have.lengthOf(2);
@@ -261,10 +404,22 @@ describe("Stream Name Normalization", function () {
 
       // Verify it's gone
       const db = testDb.getDb();
-      const stream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(name) AND parent_id IS NULL`,
-        { pod_name: testPodId, name: "to-delete" },
+      const streams = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where(
+              (s) =>
+                s.pod_name === p.podName &&
+                s.name === p.name &&
+                s.parent_id === null,
+            )
+            .take(1),
+        { podName: testPodId, name: "to-delete" },
       );
+      const stream = streams[0] || null;
       expect(stream).to.be.null;
     });
   });
@@ -274,17 +429,41 @@ describe("Stream Name Normalization", function () {
       const db = testDb.getDb();
 
       // Check that .config and owner streams exist in hierarchical structure
-      const configStream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(name) AND parent_id IS NULL`,
-        { pod_name: testPodId, name: ".config" },
+      const configStreams = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where(
+              (s) =>
+                s.pod_name === p.podName &&
+                s.name === p.name &&
+                s.parent_id === null,
+            )
+            .take(1),
+        { podName: testPodId, name: ".config" },
       );
+      const configStream = configStreams[0] || null;
       expect(configStream).to.exist;
       expect(configStream.name).to.equal(".config");
 
-      const ownerStream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(name) AND parent_id = $(parent_id)`,
-        { pod_name: testPodId, name: "owner", parent_id: configStream.id },
+      const ownerStreams = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where(
+              (s) =>
+                s.pod_name === p.podName &&
+                s.name === p.name &&
+                s.parent_id === p.parentId,
+            )
+            .take(1),
+        { podName: testPodId, name: "owner", parentId: configStream.id },
       );
+      const ownerStream = ownerStreams[0] || null;
       expect(ownerStream).to.exist;
       expect(ownerStream.name).to.equal("owner");
 

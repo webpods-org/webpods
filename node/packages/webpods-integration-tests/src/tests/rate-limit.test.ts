@@ -8,6 +8,11 @@ import {
 } from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 import crypto from "crypto";
+import { createSchema } from "@webpods/tinqer";
+import { executeSelect, executeInsert } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "webpods-test-utils";
+
+const schema = createSchema<DatabaseSchema>();
 
 describe("WebPods Rate Limiting", () => {
   let client: TestHttpClient;
@@ -107,19 +112,42 @@ describe("WebPods Rate Limiting", () => {
 
     for (const streamName of streamsToCreate) {
       // Check if stream already exists at root level
-      const existing = await db.oneOrNone(
-        `SELECT id FROM stream 
-         WHERE pod_name = $(podName) 
-           AND name = $(streamName) 
-           AND parent_id IS NULL`,
+      const existingResults = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where(
+              (s) =>
+                s.pod_name === p.podName &&
+                s.name === p.streamName &&
+                s.parent_id === null,
+            )
+            .select((s) => ({ id: s.id }))
+            .take(1),
         { podName: testPodId, streamName },
       );
+      const existing = existingResults[0] || null;
 
       if (!existing) {
         const now = Date.now();
-        await db.none(
-          `INSERT INTO stream (pod_name, name, path, parent_id, user_id, access_permission, metadata, has_schema, created_at, updated_at)
-           VALUES ($(podName), $(streamName), $(streamName), NULL, $(userId), 'public', '{}', false, $(now), $(now))`,
+        await executeInsert(
+          db,
+          schema,
+          (q, p) =>
+            q.insertInto("stream").values({
+              pod_name: p.podName,
+              name: p.streamName,
+              path: p.streamName,
+              parent_id: null,
+              user_id: p.userId,
+              access_permission: "public",
+              metadata: "{}",
+              has_schema: false,
+              created_at: p.now,
+              updated_at: p.now,
+            }),
           { podName: testPodId, streamName, userId, now },
         );
       }
@@ -198,45 +226,125 @@ describe("WebPods Rate Limiting", () => {
       expect(response2.status).to.equal(201);
 
       // Verify pods were actually created in the database
-      const pod1 = await db.oneOrNone(
-        `SELECT * FROM pod WHERE name = $(podId)`,
+      const pod1Results = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("pod")
+            .where((pod) => pod.name === p.podId)
+            .take(1),
         { podId: "pod-limit-1" },
       );
-      const pod2 = await db.oneOrNone(
-        `SELECT * FROM pod WHERE name = $(podId)`,
+      const pod1 = pod1Results[0] || null;
+
+      const pod2Results = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("pod")
+            .where((pod) => pod.name === p.podId)
+            .take(1),
         { podId: "pod-limit-2" },
       );
+      const pod2 = pod2Results[0] || null;
 
       expect(pod1).to.exist;
       expect(pod2).to.exist;
 
       // Verify ownership via .config/owner stream
       // Get .config stream for pod1
-      const configStream1 = await db.oneOrNone(
-        `SELECT id FROM stream WHERE pod_name = $(pod_name) AND name = '.config' AND parent_id IS NULL`,
+      const configStream1Results = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where(
+              (s) =>
+                s.pod_name === p.pod_name &&
+                s.name === ".config" &&
+                s.parent_id === null,
+            )
+            .select((s) => ({ id: s.id }))
+            .take(1),
         { pod_name: pod1.name },
       );
-      const ownerStream1 = await db.oneOrNone(
-        `SELECT id FROM stream WHERE parent_id = $(parent_id) AND name = 'owner'`,
+      const configStream1 = configStream1Results[0] || null;
+
+      const ownerStream1Results = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where((s) => s.parent_id === p.parent_id && s.name === "owner")
+            .select((s) => ({ id: s.id }))
+            .take(1),
         { parent_id: configStream1.id },
       );
-      const owner1Record = await db.oneOrNone(
-        `SELECT content FROM record WHERE stream_id = $(stream_id) AND name = 'owner' ORDER BY index DESC LIMIT 1`,
+      const ownerStream1 = ownerStream1Results[0] || null;
+
+      const owner1RecordResults = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("record")
+            .where((r) => r.stream_id === p.stream_id && r.name === "owner")
+            .orderByDescending((r) => r.index)
+            .select((r) => ({ content: r.content }))
+            .take(1),
         { stream_id: ownerStream1.id },
       );
+      const owner1Record = owner1RecordResults[0] || null;
+
       // Get .config stream for pod2
-      const configStream2 = await db.oneOrNone(
-        `SELECT id FROM stream WHERE pod_name = $(pod_name) AND name = '.config' AND parent_id IS NULL`,
+      const configStream2Results = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where(
+              (s) =>
+                s.pod_name === p.pod_name &&
+                s.name === ".config" &&
+                s.parent_id === null,
+            )
+            .select((s) => ({ id: s.id }))
+            .take(1),
         { pod_name: pod2.name },
       );
-      const ownerStream2 = await db.oneOrNone(
-        `SELECT id FROM stream WHERE parent_id = $(parent_id) AND name = 'owner'`,
+      const configStream2 = configStream2Results[0] || null;
+
+      const ownerStream2Results = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where((s) => s.parent_id === p.parent_id && s.name === "owner")
+            .select((s) => ({ id: s.id }))
+            .take(1),
         { parent_id: configStream2.id },
       );
-      const owner2Record = await db.oneOrNone(
-        `SELECT content FROM record WHERE stream_id = $(stream_id) AND name = 'owner' ORDER BY index DESC LIMIT 1`,
+      const ownerStream2 = ownerStream2Results[0] || null;
+
+      const owner2RecordResults = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("record")
+            .where((r) => r.stream_id === p.stream_id && r.name === "owner")
+            .orderByDescending((r) => r.index)
+            .select((r) => ({ content: r.content }))
+            .take(1),
         { stream_id: ownerStream2.id },
       );
+      const owner2Record = owner2RecordResults[0] || null;
 
       expect(owner1Record).to.exist;
       expect(JSON.parse(owner1Record.content).userId).to.equal(
@@ -548,9 +656,22 @@ describe("WebPods Rate Limiting", () => {
 
       // Pre-create streams for user2's pod
       const now = Date.now();
-      await db.none(
-        `INSERT INTO stream (pod_name, name, path, parent_id, user_id, access_permission, created_at, updated_at, metadata, has_schema)
-         VALUES ($(podName), $(streamName), $(streamName), NULL, $(userId), 'public', $(now), $(now), '{}', false)`,
+      await executeInsert(
+        db,
+        schema,
+        (q, p) =>
+          q.insertInto("stream").values({
+            pod_name: p.podName,
+            name: p.streamName,
+            path: p.streamName,
+            parent_id: null,
+            user_id: p.userId,
+            access_permission: "public",
+            created_at: p.now,
+            updated_at: p.now,
+            metadata: "{}",
+            has_schema: false,
+          }),
         {
           podName: user2PodId,
           now,
@@ -624,9 +745,22 @@ describe("WebPods Rate Limiting", () => {
 
       // Pre-create ONLY the can-write stream (stream-99, stream-100, stream-101 need to be created during test)
       const streamNow = Date.now();
-      await db.none(
-        `INSERT INTO stream (pod_name, name, path, parent_id, user_id, access_permission, created_at, updated_at, metadata, has_schema)
-         VALUES ($(podName), $(streamName), $(streamName), NULL, $(userId), 'public', $(streamNow), $(streamNow), '{}', false)`,
+      await executeInsert(
+        db,
+        schema,
+        (q, p) =>
+          q.insertInto("stream").values({
+            pod_name: p.podName,
+            name: p.streamName,
+            path: p.streamName,
+            parent_id: null,
+            user_id: p.userId,
+            access_permission: "public",
+            created_at: p.streamNow,
+            updated_at: p.streamNow,
+            metadata: "{}",
+            has_schema: false,
+          }),
         {
           podName: uniquePodId,
           streamName: "can-write",

@@ -6,6 +6,11 @@ import { expect } from "chai";
 import { TestHttpClient, createTestUser } from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 import jwt from "jsonwebtoken";
+import { createSchema } from "@webpods/tinqer";
+import { executeDelete } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "webpods-test-utils";
+
+const schema = createSchema<DatabaseSchema>();
 
 // Helper to generate WebPods JWT tokens for testing
 function generateWebPodsToken(userId: string): string {
@@ -65,9 +70,13 @@ describe("OAuth Connect Endpoint", () => {
   afterEach(async () => {
     // Clean up OAuth clients
     const db = testDb.getDb();
-    await db.none(`DELETE FROM oauth_client WHERE user_id = $(userId)`, {
-      userId,
-    });
+    await executeDelete(
+      db,
+      schema,
+      (q, p) =>
+        q.deleteFrom("oauth_client").where((c) => c.user_id === p.userId),
+      { userId },
+    );
   });
 
   describe("GET /connect", () => {

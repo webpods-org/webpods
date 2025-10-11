@@ -1,5 +1,9 @@
 import type { RateLimiterAdapter } from "./adapter.js";
-import type { RateLimitConfig } from "./types.js";
+import type {
+  RateLimitConfig,
+  RateLimitAction,
+  RateLimitResult,
+} from "./types.js";
 import { inMemoryRateLimiterAdapter } from "./in-memory/index.js";
 import { postgresRateLimiterAdapter } from "./postgres/index.js";
 import { createLogger } from "../logger.js";
@@ -62,8 +66,8 @@ export function getRateLimiterConfig(): RateLimitConfig | null {
 // Helper function to check rate limit (convenience wrapper)
 export async function checkRateLimit(
   identifier: string,
-  action: import("./types.js").RateLimitAction,
-): Promise<import("./types.js").RateLimitResult> {
+  action: RateLimitAction,
+): Promise<RateLimitResult> {
   if (!rateLimiterInstance) {
     // If not initialized, allow all requests
     return {

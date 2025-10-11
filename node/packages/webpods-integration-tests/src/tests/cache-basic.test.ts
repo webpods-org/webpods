@@ -7,6 +7,15 @@ import {
   clearAllCache,
 } from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
+import { createSchema } from "@webpods/tinqer";
+import {
+  executeUpdate,
+  executeDelete,
+  executeSelect,
+} from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "webpods-test-utils";
+
+const schema = createSchema<DatabaseSchema>();
 
 describe("WebPods Caching Layer", () => {
   let client: TestHttpClient;
@@ -78,9 +87,14 @@ describe("WebPods Caching Layer", () => {
 
       // Update stream permission via database (bypassing cache invalidation)
       const db = testDb.getDb();
-      await db.none(
-        `UPDATE stream SET access_permission = 'private' 
-         WHERE pod_name = $(podName) AND name = $(streamName)`,
+      await executeUpdate(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .update("stream")
+            .set({ access_permission: "private" })
+            .where((s) => s.pod_name === p.podName && s.name === p.streamName),
         { podName: testPodId, streamName: "perm-test-stream" },
       );
 
@@ -412,11 +426,26 @@ describe("WebPods Caching Layer", () => {
 
       // Delete ONLY the record from database (keep stream intact)
       const db = testDb.getDb();
-      await db.none(
-        `DELETE FROM record WHERE stream_id IN (
-          SELECT id FROM stream WHERE pod_name = $(podName) AND name = $(streamName)
-        )`,
+      // First get the stream ID
+      const streamResults = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where((s) => s.pod_name === p.podName && s.name === p.streamName)
+            .take(1),
         { podName: testPodId, streamName: deleteStreamName },
+      );
+      const stream = streamResults[0];
+
+      // Then delete records from that stream
+      await executeDelete(
+        db,
+        schema,
+        (q, p) =>
+          q.deleteFrom("record").where((r) => r.stream_id === p.streamId),
+        { streamId: stream.id },
       );
 
       // Immediately after DB deletion, cache should still return the record

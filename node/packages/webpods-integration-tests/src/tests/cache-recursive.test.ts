@@ -7,6 +7,11 @@ import {
   clearAllCache,
 } from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
+import { createSchema } from "@webpods/tinqer";
+import { executeUpdate } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "webpods-test-utils";
+
+const schema = createSchema<DatabaseSchema>();
 
 describe("Cache Safety - Recursive Operations", () => {
   let client: TestHttpClient;
@@ -128,9 +133,14 @@ describe("Cache Safety - Recursive Operations", () => {
 
       // Update stream permission directly in DB (simulating permission change)
       const db = testDb.getDb();
-      await db.none(
-        `UPDATE stream SET access_permission = 'owner'
-         WHERE pod_name = $(podName) AND name = $(streamName)`,
+      await executeUpdate(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .update("stream")
+            .set({ access_permission: "owner" })
+            .where((s) => s.pod_name === p.podName && s.name === p.streamName),
         { podName: testPodId, streamName: "content/public" },
       );
 

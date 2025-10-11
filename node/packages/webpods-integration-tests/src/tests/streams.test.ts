@@ -7,6 +7,11 @@ import {
   clearAllCache,
 } from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
+import { createSchema } from "@webpods/tinqer";
+import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "webpods-test-utils";
+
+const schema = createSchema<DatabaseSchema>();
 
 describe("WebPods Stream Operations", () => {
   let client: TestHttpClient;
@@ -74,10 +79,22 @@ describe("WebPods Stream Operations", () => {
 
       // Verify stream exists in database
       const db = testDb.getDb();
-      const stream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamName) AND parent_id IS NULL`,
+      const streamResults = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where(
+              (s) =>
+                s.pod_name === p.pod_name &&
+                s.name === p.streamName &&
+                s.parent_id === null,
+            )
+            .take(1),
         { pod_name: testPodId, streamName: "my-first-stream" },
       );
+      const stream = streamResults[0] || null;
       expect(stream).to.exist;
       expect(stream.user_id).to.equal(userId);
     });
@@ -97,31 +114,74 @@ describe("WebPods Stream Operations", () => {
       const db = testDb.getDb();
 
       // blog stream (root level)
-      const blogStream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = 'blog' AND parent_id IS NULL`,
+      const blogStreamResults = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where(
+              (s) =>
+                s.pod_name === p.pod_name &&
+                s.name === "blog" &&
+                s.parent_id === null,
+            )
+            .take(1),
         { pod_name: testPodId },
       );
+      const blogStream = blogStreamResults[0] || null;
       expect(blogStream).to.exist;
 
       // posts stream (child of blog)
-      const postsStream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = 'posts' AND parent_id = $(parent_id)`,
+      const postsStreamResults = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where(
+              (s) =>
+                s.pod_name === p.pod_name &&
+                s.name === "posts" &&
+                s.parent_id === p.parent_id,
+            )
+            .take(1),
         { pod_name: testPodId, parent_id: blogStream.id },
       );
+      const postsStream = postsStreamResults[0] || null;
       expect(postsStream).to.exist;
 
       // 2024 stream (child of posts)
-      const yearStream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = '2024' AND parent_id = $(parent_id)`,
+      const yearStreamResults = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where(
+              (s) =>
+                s.pod_name === p.pod_name &&
+                s.name === "2024" &&
+                s.parent_id === p.parent_id,
+            )
+            .take(1),
         { pod_name: testPodId, parent_id: postsStream.id },
       );
+      const yearStream = yearStreamResults[0] || null;
       expect(yearStream).to.exist;
 
       // Verify the record was created with name 'january'
-      const record = await db.oneOrNone(
-        `SELECT * FROM record WHERE stream_id = $(stream_id) AND name = $(name)`,
+      const recordResults = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("record")
+            .where((r) => r.stream_id === p.stream_id && r.name === p.name)
+            .take(1),
         { stream_id: yearStream.id, name: "january" },
       );
+      const record = recordResults[0] || null;
       expect(record).to.exist;
     });
 
@@ -142,10 +202,22 @@ describe("WebPods Stream Operations", () => {
       expect(response.status).to.equal(201);
 
       const db = testDb.getDb();
-      const stream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamName) AND parent_id IS NULL`,
+      const streamResults = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where(
+              (s) =>
+                s.pod_name === p.pod_name &&
+                s.name === p.streamName &&
+                s.parent_id === null,
+            )
+            .take(1),
         { pod_name: testPodId, streamName: "private-stream" },
       );
+      const stream = streamResults[0] || null;
       expect(stream).to.exist;
       expect(stream.access_permission).to.equal("private");
     });
@@ -400,32 +472,66 @@ describe("WebPods Stream Operations", () => {
       // The .config/owner stream is created when the pod is created
       // in the beforeEach hook
       const db = testDb.getDb();
-      const pod = await db.oneOrNone(
-        `SELECT * FROM pod WHERE name = $(podId)`,
+      const podResults = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("pod")
+            .where((pod) => pod.name === p.podId)
+            .take(1),
         { podId: testPodId },
       );
+      const pod = podResults[0] || null;
 
       // Get .config stream
-      const configStream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = '.config' AND parent_id IS NULL`,
+      const configStreamResults = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where(
+              (s) =>
+                s.pod_name === p.pod_name &&
+                s.name === ".config" &&
+                s.parent_id === null,
+            )
+            .take(1),
         { pod_name: pod.name },
       );
+      const configStream = configStreamResults[0] || null;
       expect(configStream).to.exist;
 
       // Get owner stream (child of .config)
-      const ownerStream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE parent_id = $(parent_id) AND name = 'owner'`,
+      const ownerStreamResults = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where((s) => s.parent_id === p.parent_id && s.name === "owner")
+            .take(1),
         { parent_id: configStream.id },
       );
+      const ownerStream = ownerStreamResults[0] || null;
 
       expect(ownerStream).to.exist;
       expect(ownerStream.access_permission).to.equal("private");
 
       // Check owner record
-      const ownerRecord = await db.oneOrNone(
-        `SELECT * FROM record WHERE stream_id = $(stream_id) ORDER BY index ASC LIMIT 1`,
+      const ownerRecordResults = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("record")
+            .where((r) => r.stream_id === p.stream_id)
+            .orderBy((r) => r.index)
+            .take(1),
         { stream_id: ownerStream.id },
       );
+      const ownerRecord = ownerRecordResults[0] || null;
       const content = JSON.parse(ownerRecord.content);
       expect(content.userId).to.equal(userId);
     });
