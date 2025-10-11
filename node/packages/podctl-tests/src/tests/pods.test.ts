@@ -78,13 +78,13 @@ describe("CLI Pod Commands", function () {
         (q) =>
           q
             .from("stream")
-            .select((s) => ({ id: s.id }))
             .where(
               (s) =>
                 s.pod_name === "test-pod" &&
                 s.name === ".config" &&
                 s.parent_id === null,
             )
+            .select((s) => ({ id: s.id }))
             .take(1),
         {},
       );
@@ -97,12 +97,12 @@ describe("CLI Pod Commands", function () {
               (q, p) =>
                 q
                   .from("stream")
-                  .select((s) => ({ id: s.id }))
                   .where(
                     (s) => s.parent_id === p.configId && s.name === "owner",
                   )
+                  .select((s) => ({ id: s.id }))
                   .take(1),
-              { configId: configStreamResults[0].id },
+              { configId: configStreamResults[0]!.id },
             )
           : [];
       // Finally get the record from the owner stream
@@ -113,12 +113,12 @@ describe("CLI Pod Commands", function () {
               schema,
               (q, p) =>
                 q.from("record").where((r) => r.stream_id === p.streamId),
-              { streamId: ownerStreamResults[0].id },
+              { streamId: ownerStreamResults[0]!.id },
             )
           : [];
       const ownerRecord = ownerRecordResults[0] || null;
       expect(ownerRecord).to.not.be.null;
-      const ownerContent = JSON.parse(ownerRecord.content);
+      const ownerContent = JSON.parse(ownerRecord!.content);
       expect(ownerContent.userId).to.equal(testUser.userId);
     });
 

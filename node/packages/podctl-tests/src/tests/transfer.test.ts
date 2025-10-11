@@ -151,13 +151,13 @@ describe("CLI Transfer Command", function () {
         (q, p) =>
           q
             .from("stream")
-            .select((s) => ({ id: s.id }))
             .where(
               (s) =>
                 s.pod_name === p.podName &&
                 s.name === ".config" &&
                 s.parent_id === null,
             )
+            .select((s) => ({ id: s.id }))
             .take(1),
         { podName: testPodName },
       );
@@ -168,12 +168,12 @@ describe("CLI Transfer Command", function () {
         (q, p) =>
           q
             .from("stream")
-            .select((s) => ({ id: s.id }))
             .where((s) => s.parent_id === p.configId && s.name === "owner")
+            .select((s) => ({ id: s.id }))
             .take(1),
-        { configId: configStreamResults[0].id },
+        { configId: configStreamResults[0]!.id },
       );
-      const ownerStream = ownerStreamResults[0];
+      const ownerStream = ownerStreamResults[0]!;
 
       const ownerRecordResults = await executeSelect(
         testDb.getDb(),
@@ -182,12 +182,12 @@ describe("CLI Transfer Command", function () {
           q
             .from("record")
             .where((r) => r.stream_id === p.streamId && r.name === "owner")
-            .orderBy((r) => r.index, "desc")
+            .orderByDescending((r) => r.index)
             .take(1),
         { streamId: ownerStream.id },
       );
       const ownerRecord = ownerRecordResults[0] || null;
-      const ownerContent = JSON.parse(ownerRecord.content);
+      const ownerContent = JSON.parse(ownerRecord!.content);
       expect(ownerContent.userId).to.equal(testUser.userId); // Still original owner
     });
 

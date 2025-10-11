@@ -110,13 +110,13 @@ describe("CLI Record Commands", function () {
         (q, p) =>
           q
             .from("stream")
-            .select((s) => ({ id: s.id }))
             .where(
               (s) =>
                 s.pod_name === p.podName &&
                 s.name === p.streamName &&
                 s.parent_id === null,
             )
+            .select((s) => ({ id: s.id }))
             .take(1),
         {
           podName: testPodName,
@@ -138,14 +138,14 @@ describe("CLI Record Commands", function () {
                   )
                   .take(1),
               {
-                streamId: streamResults[0].id,
+                streamId: streamResults[0]!.id,
                 recordName: "record1",
               },
             )
           : [];
       const record = recordResults[0] || null;
       expect(record).to.not.be.null;
-      expect(JSON.parse(record.content).message).to.equal("hello world");
+      expect(JSON.parse(record!.content).message).to.equal("hello world");
     });
 
     it("should write from file", async () => {
@@ -226,7 +226,7 @@ describe("CLI Record Commands", function () {
           id: streamId,
         },
       );
-      const stream = streamResults[0];
+      const stream = streamResults[0]!;
       expect(stream.access_permission).to.equal("public");
     });
 
@@ -271,13 +271,13 @@ describe("CLI Record Commands", function () {
         (q, p) =>
           q
             .from("stream")
-            .select((s) => ({ id: s.id }))
             .where(
               (s) =>
                 s.pod_name === p.podName &&
                 s.name === p.streamName &&
                 s.parent_id === null,
             )
+            .select((s) => ({ id: s.id }))
             .take(1),
         {
           podName: testPodName,
@@ -299,7 +299,7 @@ describe("CLI Record Commands", function () {
                   )
                   .take(1),
               {
-                streamId: streamResults[0].id,
+                streamId: streamResults[0]!.id,
                 recordName: "record-with-headers",
               },
             )
@@ -308,9 +308,9 @@ describe("CLI Record Commands", function () {
 
       expect(record).to.not.be.null;
       const headers =
-        typeof record.headers === "string"
-          ? JSON.parse(record.headers)
-          : record.headers;
+        typeof record!.headers === "string"
+          ? JSON.parse(record!.headers)
+          : record!.headers;
       expect(headers).to.deep.equal({
         "cache-control": "no-cache",
         "hello-world": "test-value",
@@ -353,13 +353,13 @@ describe("CLI Record Commands", function () {
         (q, p) =>
           q
             .from("stream")
-            .select((s) => ({ id: s.id }))
             .where(
               (s) =>
                 s.pod_name === p.podName &&
                 s.name === p.streamName &&
                 s.parent_id === null,
             )
+            .select((s) => ({ id: s.id }))
             .take(1),
         {
           podName: testPodName,
@@ -381,7 +381,7 @@ describe("CLI Record Commands", function () {
                   )
                   .take(1),
               {
-                streamId: streamResults[0].id,
+                streamId: streamResults[0]!.id,
                 recordName: "record-with-colons",
               },
             )
@@ -390,9 +390,9 @@ describe("CLI Record Commands", function () {
 
       expect(record).to.not.be.null;
       const headers =
-        typeof record.headers === "string"
-          ? JSON.parse(record.headers)
-          : record.headers;
+        typeof record!.headers === "string"
+          ? JSON.parse(record!.headers)
+          : record!.headers;
       expect(headers).to.deep.equal({
         "cache-control": "max-age=3600, must-revalidate",
       });
@@ -438,13 +438,13 @@ describe("CLI Record Commands", function () {
         (q, p) =>
           q
             .from("stream")
-            .select((s) => ({ id: s.id }))
             .where(
               (s) =>
                 s.pod_name === p.podName &&
                 s.name === p.streamName &&
                 s.parent_id === null,
             )
+            .select((s) => ({ id: s.id }))
             .take(1),
         {
           podName: testPodName,
@@ -466,7 +466,7 @@ describe("CLI Record Commands", function () {
                   )
                   .take(1),
               {
-                streamId: streamResults[0].id,
+                streamId: streamResults[0]!.id,
                 recordName: "multi-header-record",
               },
             )
@@ -475,9 +475,9 @@ describe("CLI Record Commands", function () {
 
       expect(record).to.not.be.null;
       const headers =
-        typeof record.headers === "string"
-          ? JSON.parse(record.headers)
-          : record.headers;
+        typeof record!.headers === "string"
+          ? JSON.parse(record!.headers)
+          : record!.headers;
       expect(headers).to.deep.equal({
         "cache-control": "private",
         "hello-world": "greeting",
@@ -765,7 +765,7 @@ describe("CLI Record Commands", function () {
       );
       const stream = streamResults[0] || null;
       expect(stream).to.not.be.null;
-      expect(stream.access_permission).to.equal("public");
+      expect(stream!.access_permission).to.equal("public");
     });
 
     it("should create a private stream", async () => {
@@ -806,7 +806,7 @@ describe("CLI Record Commands", function () {
       );
       const stream = streamResults[0] || null;
       expect(stream).to.not.be.null;
-      expect(stream.access_permission).to.equal("private");
+      expect(stream!.access_permission).to.equal("private");
     });
 
     it("should create a permission stream", async () => {
@@ -856,7 +856,7 @@ describe("CLI Record Commands", function () {
       );
       const stream = streamResults[0] || null;
       expect(stream).to.not.be.null;
-      expect(stream.access_permission).to.equal("/permissions/editors");
+      expect(stream!.access_permission).to.equal("/permissions/editors");
     });
 
     it("should require authentication", async () => {

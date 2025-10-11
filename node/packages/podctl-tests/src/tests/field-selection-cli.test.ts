@@ -89,17 +89,17 @@ describe("CLI Field Selection and Content Truncation", function () {
         (q, p) =>
           q
             .from("stream")
-            .select((s) => ({ id: s.id }))
             .where(
               (s) =>
                 s.pod_name === p.podName &&
                 s.name === p.streamName &&
                 s.parent_id === null,
             )
+            .select((s) => ({ id: s.id }))
             .take(1),
         { podName: testPodName, streamName: "test-stream" },
       );
-      const stream = streamResults[0];
+      const stream = streamResults[0]!;
 
       // Write test records
       await createTestRecord(testDb.getDb(), {
@@ -217,17 +217,17 @@ describe("CLI Field Selection and Content Truncation", function () {
         (q, p) =>
           q
             .from("stream")
-            .select((s) => ({ id: s.id }))
             .where(
               (s) =>
                 s.pod_name === p.podName &&
                 s.name === p.streamName &&
                 s.parent_id === null,
             )
+            .select((s) => ({ id: s.id }))
             .take(1),
         { podName: testPodName, streamName: "test-stream" },
       );
-      const stream = streamResults[0];
+      const stream = streamResults[0]!;
 
       // Write a record with large content
       const largeContent = "A".repeat(10000);
@@ -350,17 +350,17 @@ describe("CLI Field Selection and Content Truncation", function () {
         (q, p) =>
           q
             .from("stream")
-            .select((s) => ({ id: s.id }))
             .where(
               (s) =>
                 s.pod_name === p.podName &&
                 s.name === p.streamName &&
                 s.parent_id === null,
             )
+            .select((s) => ({ id: s.id }))
             .take(1),
         { podName: testPodName, streamName: "test-stream" },
       );
-      const stream = streamResults[0];
+      const stream = streamResults[0]!;
 
       // Create multiple records
       for (let i = 0; i < 5; i++) {

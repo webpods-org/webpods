@@ -7,7 +7,7 @@ type IDatabase = any;
 import { createHash } from "crypto";
 import { createSchema } from "@webpods/tinqer";
 import { executeSelect, executeInsert } from "@webpods/tinqer-sql-pg-promise";
-import type { DatabaseSchema } from "@webpods/webpods/src/db/schema.js";
+import type { DatabaseSchema } from "webpods-test-utils";
 
 const schema = createSchema<DatabaseSchema>();
 
@@ -61,7 +61,6 @@ export async function createTestStream(
       (q, p) =>
         q
           .from("stream")
-          .select((s) => ({ id: s.id }))
           .where((s) =>
             parentId === null
               ? s.pod_name === p.podName &&
@@ -71,6 +70,7 @@ export async function createTestStream(
                 s.name === p.name &&
                 s.parent_id === p.parentId,
           )
+          .select((s) => ({ id: s.id }))
           .take(1),
       { podName, name: segment, parentId },
     );
@@ -151,8 +151,8 @@ export async function createTestRecord(
     (q, p) =>
       q
         .from("stream")
-        .select((s) => ({ path: s.path }))
         .where((s) => s.id === p.streamId)
+        .select((s) => ({ path: s.path }))
         .take(1),
     { streamId },
   );

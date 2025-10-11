@@ -105,12 +105,12 @@ describe("CLI Verify Command", function () {
         (q, p) =>
           q
             .from("record")
-            .select((r) => ({ hash: r.hash }))
             .where((r) => r.stream_id === p.streamId && r.index === p.index)
+            .select((r) => ({ hash: r.hash }))
             .take(1),
         { streamId, index: i },
       );
-      previousHash = recordResults[0].hash;
+      previousHash = recordResults[0]!.hash;
     }
   });
 
@@ -202,17 +202,17 @@ describe("CLI Verify Command", function () {
         (q, p) =>
           q
             .from("stream")
-            .select((s) => ({ id: s.id }))
             .where(
               (s) =>
                 s.pod_name === p.podName &&
                 s.name === p.streamName &&
                 s.parent_id === null,
             )
+            .select((s) => ({ id: s.id }))
             .take(1),
         { podName: testPodName, streamName: "test-stream" },
       );
-      const stream = streamResults[0];
+      const stream = streamResults[0]!;
 
       await executeUpdate(
         testDb.getDb(),
@@ -249,13 +249,13 @@ describe("CLI Verify Command", function () {
         (q, p) =>
           q
             .from("stream")
-            .select((s) => ({ id: s.id }))
             .where(
               (s) =>
                 s.pod_name === p.podName &&
                 s.name === p.streamName &&
                 s.parent_id === null,
             )
+            .select((s) => ({ id: s.id }))
             .take(1),
         { podName: testPodName, streamName: "test-stream" },
       );
