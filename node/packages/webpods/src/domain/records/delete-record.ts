@@ -11,8 +11,12 @@ import { createLogger } from "../../logger.js";
 import { getStorageAdapter } from "../../storage-adapters/index.js";
 import { extname } from "path";
 import { cacheInvalidation } from "../../cache/index.js";
+import { createSchema } from "@webpods/tinqer";
+import { executeSelect, executeInsert } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:records");
+const schema = createSchema<DatabaseSchema>();
 
 /**
  * Minimal result type for delete operations
@@ -59,17 +63,38 @@ export async function deleteRecord(
     return await ctx.db.tx(async (t) => {
       // First get the latest record with this name to check if it's already deleted
       // We need several fields but NOT the large content field
-      const latestRecord = await t.oneOrNone<Omit<RecordDbRow, "content">>(
-        `SELECT id, stream_id, index, content_type, is_binary, size, name, path,
-                content_hash, hash, previous_hash, user_id, storage, headers,
-                deleted, purged, created_at
-         FROM record
-         WHERE stream_id = $(streamId)
-           AND name = $(recordName)
-         ORDER BY index DESC
-         LIMIT 1`,
+      const latestRecordResults = await executeSelect(
+        t,
+        schema,
+        (q, p) =>
+          q
+            .from("record")
+            .select((r) => ({
+              id: r.id,
+              stream_id: r.stream_id,
+              index: r.index,
+              content_type: r.content_type,
+              is_binary: r.is_binary,
+              size: r.size,
+              name: r.name,
+              path: r.path,
+              content_hash: r.content_hash,
+              hash: r.hash,
+              previous_hash: r.previous_hash,
+              user_id: r.user_id,
+              storage: r.storage,
+              headers: r.headers,
+              deleted: r.deleted,
+              purged: r.purged,
+              created_at: r.created_at,
+            }))
+            .where((r) => r.stream_id === p.streamId && r.name === p.recordName)
+            .orderByDescending((r) => r.index)
+            .take(1),
         { streamId, recordName },
       );
+
+      const latestRecord = latestRecordResults[0] || null;
 
       if (!latestRecord) {
         return failure(
@@ -100,10 +125,18 @@ export async function deleteRecord(
         const adapter = getStorageAdapter();
         if (adapter) {
           // Get pod and stream info for deletion
-          const streamInfo = await t.one<{ pod_name: string; path: string }>(
-            `SELECT pod_name, path FROM stream WHERE id = $(streamId)`,
+          const streamInfoResults = await executeSelect(
+            t,
+            schema,
+            (q, p) =>
+              q
+                .from("stream")
+                .select((s) => ({ pod_name: s.pod_name, path: s.path }))
+                .where((s) => s.id === p.streamId)
+                .take(1),
             { streamId },
           );
+          const streamInfo = streamInfoResults[0];
 
           // Extract file extension from name only - don't add one if name has none
           const ext = extname(recordName).replace(".", "");
@@ -139,13 +172,20 @@ export async function deleteRecord(
 
       // Get the last record to calculate the next index and hash chain
       // No need for FOR UPDATE here since the stream lock serializes access
-      const lastRecord = await t.oneOrNone<Pick<RecordDbRow, "index" | "hash">>(
-        `SELECT index, hash FROM record
-         WHERE stream_id = $(streamId)
-         ORDER BY index DESC
-         LIMIT 1`,
+      const lastRecordResults = await executeSelect(
+        t,
+        schema,
+        (q, p) =>
+          q
+            .from("record")
+            .select((r) => ({ index: r.index, hash: r.hash }))
+            .where((r) => r.stream_id === p.streamId)
+            .orderByDescending((r) => r.index)
+            .take(1),
         { streamId },
       );
+
+      const lastRecord = lastRecordResults[0] || null;
 
       const index = (lastRecord?.index ?? -1) + 1;
       const previousHash = lastRecord?.hash || null;
@@ -155,11 +195,19 @@ export async function deleteRecord(
       const content = "";
 
       // Get stream path to compute record path
-      const stream = await t.one<{ path: string }>(
-        `SELECT path FROM stream WHERE id = $(streamId)`,
+      const streamResults = await executeSelect(
+        t,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .select((s) => ({ path: s.path }))
+            .where((s) => s.id === p.streamId)
+            .take(1),
         { streamId },
       );
 
+      const stream = streamResults[0];
       const recordPath = `${stream.path}/${recordName}`;
 
       // Calculate hashes and size
@@ -174,12 +222,37 @@ export async function deleteRecord(
 
       // Insert deletion marker record with deleted=true
       // Only fetch the fields we need for the result
-      const deletionRecord = await t.one<
-        Pick<RecordDbRow, "id" | "index" | "hash" | "previous_hash" | "name">
-      >(
-        `INSERT INTO record (stream_id, index, content, content_type, is_binary, size, name, path, content_hash, hash, previous_hash, user_id, headers, deleted, purged, created_at)
-         VALUES ($(streamId), $(index), $(content), $(contentType), false, $(size), $(name), $(path), $(contentHash), $(hash), $(previousHash), $(userId), '{}', true, false, $(createdAt))
-         RETURNING id, index, hash, previous_hash, name`,
+      const deletionRecordResults = await executeInsert(
+        t,
+        schema,
+        (q, p) =>
+          q
+            .insertInto("record")
+            .values({
+              stream_id: p.streamId,
+              index: p.index,
+              content: p.content,
+              content_type: p.contentType,
+              is_binary: false,
+              size: p.size,
+              name: p.name,
+              path: p.path,
+              content_hash: p.contentHash,
+              hash: p.hash,
+              previous_hash: p.previousHash,
+              user_id: p.userId,
+              headers: "{}",
+              deleted: true,
+              purged: false,
+              created_at: p.createdAt,
+            })
+            .returning((r) => ({
+              id: r.id,
+              index: r.index,
+              hash: r.hash,
+              previous_hash: r.previous_hash,
+              name: r.name,
+            })),
         {
           streamId,
           index,
@@ -196,6 +269,8 @@ export async function deleteRecord(
         },
       );
 
+      const deletionRecord = deletionRecordResults[0];
+
       logger.info("Record soft deleted", {
         streamId,
         recordName,
@@ -204,10 +279,18 @@ export async function deleteRecord(
       });
 
       // Get stream info for cache invalidation
-      const streamInfo = await t.one<{ pod_name: string; path: string }>(
-        `SELECT pod_name, path FROM stream WHERE id = $(streamId)`,
+      const streamInfoResults2 = await executeSelect(
+        t,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .select((s) => ({ pod_name: s.pod_name, path: s.path }))
+            .where((s) => s.id === p.streamId)
+            .take(1),
         { streamId },
       );
+      const streamInfo = streamInfoResults2[0];
 
       // Invalidate caches for the deleted record
       await cacheInvalidation.invalidateRecord(
