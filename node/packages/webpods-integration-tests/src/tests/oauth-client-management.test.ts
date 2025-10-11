@@ -7,6 +7,11 @@ import { TestHttpClient, createTestUser } from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 import jwt from "jsonwebtoken";
 import { generateWebPodsToken as generateWebPodsTokenFromModule } from "../../../webpods/dist/auth/jwt-generator.js";
+import { createSchema } from "@webpods/tinqer";
+import { executeSelect, executeDelete } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "webpods-test-utils";
+
+const schema = createSchema<DatabaseSchema>();
 
 // Helper to generate WebPods JWT tokens for testing
 // This is a local implementation to avoid loading config in test process
@@ -46,15 +51,25 @@ describe("OAuth Client Management API", () => {
       const db = testDb.getDb();
 
       // Get all client IDs for this user before deleting
-      const existingClients = await db.manyOrNone(
-        `SELECT client_id FROM oauth_client WHERE user_id = $(userId)`,
+      const existingClients = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("oauth_client")
+            .where((c) => c.user_id === p.userId)
+            .select((c) => ({ client_id: c.client_id })),
         { userId },
       );
 
       // Delete from database first
-      await db.none(`DELETE FROM oauth_client WHERE user_id = $(userId)`, {
-        userId,
-      });
+      await executeDelete(
+        db,
+        schema,
+        (q, p) =>
+          q.deleteFrom("oauth_client").where((c) => c.user_id === p.userId),
+        { userId },
+      );
 
       // Also delete from Hydra - wait for each deletion to complete
       for (const client of existingClients) {
@@ -156,10 +171,17 @@ describe("OAuth Client Management API", () => {
 
       // Verify it was created in the database
       const db = testDb.getDb();
-      const dbResult = await db.oneOrNone(
-        `SELECT * FROM oauth_client WHERE client_id = $(clientId)`,
+      const dbResults = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("oauth_client")
+            .where((c) => c.client_id === p.clientId)
+            .take(1),
         { clientId: createdClientId },
       );
+      const dbResult = dbResults[0] || null;
       expect(dbResult).to.exist;
       expect(dbResult.user_id).to.equal(userId);
     });

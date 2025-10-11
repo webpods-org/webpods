@@ -7,6 +7,11 @@ import {
   clearAllCache,
 } from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
+import { createSchema } from "@webpods/tinqer";
+import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "webpods-test-utils";
+
+const schema = createSchema<DatabaseSchema>();
 
 describe("WebPods Permissions", () => {
   let client: TestHttpClient;
@@ -246,14 +251,34 @@ describe("WebPods Permissions", () => {
 
       // Verify initial permissions are public
       const db = testDb.getDb();
-      const pod = await db.oneOrNone(
-        `SELECT * FROM pod WHERE name = $(podId)`,
+      const podResults = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("pod")
+            .where((pod) => pod.name === p.podId)
+            .take(1),
         { podId: testPodId },
       );
-      let stream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamName) AND parent_id IS NULL`,
+      const pod = podResults[0] || null;
+
+      let streamResults = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where(
+              (s) =>
+                s.pod_name === p.pod_name &&
+                s.name === p.streamName &&
+                s.parent_id === null,
+            )
+            .take(1),
         { pod_name: pod.name, streamName: "perm-update" },
       );
+      let stream = streamResults[0] || null;
       expect(stream.access_permission).to.equal("public");
 
       // User2 can read the public stream
@@ -270,10 +295,22 @@ describe("WebPods Permissions", () => {
       expect(response.status).to.equal(201);
 
       // Verify permissions were actually updated
-      stream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamName) AND parent_id IS NULL`,
+      streamResults = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where(
+              (s) =>
+                s.pod_name === p.pod_name &&
+                s.name === p.streamName &&
+                s.parent_id === null,
+            )
+            .take(1),
         { pod_name: pod.name, streamName: "perm-update" },
       );
+      stream = streamResults[0] || null;
       expect(stream.access_permission).to.equal("private");
 
       // User2 can no longer read the now-private stream
@@ -295,14 +332,34 @@ describe("WebPods Permissions", () => {
 
       // Verify initial permissions are public
       const db = testDb.getDb();
-      const pod = await db.oneOrNone(
-        `SELECT * FROM pod WHERE name = $(podId)`,
+      const podResults = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("pod")
+            .where((pod) => pod.name === p.podId)
+            .take(1),
         { podId: testPodId },
       );
-      let stream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamName) AND parent_id IS NULL`,
+      const pod = podResults[0] || null;
+
+      let streamResults = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where(
+              (s) =>
+                s.pod_name === p.pod_name &&
+                s.name === p.streamName &&
+                s.parent_id === null,
+            )
+            .take(1),
         { pod_name: pod.name, streamName: "perm-noncreator" },
       );
+      let stream = streamResults[0] || null;
       expect(stream.access_permission).to.equal("public");
 
       // User2 tries to update permissions (should be ignored)
@@ -314,10 +371,22 @@ describe("WebPods Permissions", () => {
       expect(response.status).to.equal(201); // Write succeeds
 
       // But permissions should remain unchanged
-      stream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamName) AND parent_id IS NULL`,
+      streamResults = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where(
+              (s) =>
+                s.pod_name === p.pod_name &&
+                s.name === p.streamName &&
+                s.parent_id === null,
+            )
+            .take(1),
         { pod_name: pod.name, streamName: "perm-noncreator" },
       );
+      stream = streamResults[0] || null;
       expect(stream.access_permission).to.equal("public"); // Still public
     });
   });

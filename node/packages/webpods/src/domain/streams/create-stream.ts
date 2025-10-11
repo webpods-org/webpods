@@ -105,19 +105,42 @@ export async function createStream(
     }
 
     // Check if user is the pod owner
-    // First find the .config/owner stream
-    const ownerStream = await ctx.db.oneOrNone<StreamDbRow>(
-      `SELECT * FROM stream
-       WHERE pod_name = $(podName)
-         AND name = 'owner'
-         AND parent_id IN (
-           SELECT id FROM stream 
-           WHERE pod_name = $(podName) 
-           AND name = '.config' 
-           AND parent_id IS NULL
-         )`,
+    // First find the .config stream, then the owner stream
+    const configStreams = await executeSelect(
+      ctx.db,
+      schema,
+      (q, p) =>
+        q
+          .from("stream")
+          .where(
+            (s) =>
+              s.pod_name === p.podName &&
+              s.name === ".config" &&
+              s.parent_id === null,
+          )
+          .take(1)
+          .select((s) => ({ id: s.id })),
       { podName },
     );
+
+    const ownerStream =
+      configStreams.length > 0
+        ? await executeSelect(
+            ctx.db,
+            schema,
+            (q, p) =>
+              q
+                .from("stream")
+                .where(
+                  (s) =>
+                    s.pod_name === p.podName &&
+                    s.name === "owner" &&
+                    s.parent_id === p.configId,
+                )
+                .take(1),
+            { podName, configId: configStreams[0]!.id },
+          ).then((rows) => rows[0] || null)
+        : null;
 
     if (ownerStream) {
       const ownerRecords = await executeSelect(

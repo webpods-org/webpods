@@ -6,6 +6,12 @@ import {
   createTestPod,
 } from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
+import { createSchema } from "@webpods/tinqer";
+import { executeSelect, executeInsert } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "webpods-test-utils";
+import crypto from "crypto";
+
+const schema = createSchema<DatabaseSchema>();
 
 describe("WebPods Authentication", () => {
   let client: TestHttpClient;
@@ -243,18 +249,47 @@ describe("WebPods Authentication", () => {
 
       // Verify userId is stored in database
       const db = testDb.getDb();
-      const pod = await db.oneOrNone(
-        `SELECT * FROM pod WHERE name = $(podId)`,
+      const pods = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("pod")
+            .where((pod) => pod.name === p.podId)
+            .take(1),
         { podId: testPodId },
       );
-      const stream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId) AND parent_id IS NULL`,
-        { pod_name: pod.name, streamId: "tracked" },
+      const pod = pods[0];
+
+      const streams = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where(
+              (s) =>
+                s.pod_name === p.podName &&
+                s.name === p.streamId &&
+                s.parent_id === null,
+            )
+            .take(1),
+        { podName: pod.name, streamId: "tracked" },
       );
-      const record = await db.oneOrNone(
-        `SELECT * FROM record WHERE stream_id = $(stream_id) ORDER BY index ASC LIMIT 1`,
-        { stream_id: stream.id },
+      const stream = streams[0];
+
+      const records = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("record")
+            .where((r) => r.stream_id === p.streamId)
+            .orderBy((r) => r.index)
+            .take(1),
+        { streamId: stream.id },
       );
+      const record = records[0];
 
       expect(record.user_id).to.equal(userId);
     });
@@ -517,49 +552,122 @@ describe("WebPods Authentication", () => {
       expect(response2.status).to.equal(201);
 
       // Verify both pods exist and have correct ownership
-      const pod1 = await db.oneOrNone(
-        `SELECT * FROM pod WHERE name = $(podId)`,
+      const pod1Results = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("pod")
+            .where((pod) => pod.name === p.podId)
+            .take(1),
         { podId: "pod-one" },
       );
-      const pod2 = await db.oneOrNone(
-        `SELECT * FROM pod WHERE name = $(podId)`,
+      const pod1 = pod1Results[0];
+
+      const pod2Results = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("pod")
+            .where((pod) => pod.name === p.podId)
+            .take(1),
         { podId: "pod-two" },
       );
+      const pod2 = pod2Results[0];
 
       expect(pod1).to.exist;
       expect(pod2).to.exist;
 
       // Check .config/owner for both pods
       // Get .config stream
-      const configStream1 = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = '.config' AND parent_id IS NULL`,
-        { pod_name: pod1.name },
+      const configStream1Results = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where(
+              (s) =>
+                s.pod_name === p.podName &&
+                s.name === ".config" &&
+                s.parent_id === null,
+            )
+            .take(1),
+        { podName: pod1.name },
       );
+      const configStream1 = configStream1Results[0];
+
       // Get owner stream (child of .config)
-      const ownerStream1 = await db.oneOrNone(
-        `SELECT * FROM stream WHERE parent_id = $(parent_id) AND name = 'owner'`,
-        { parent_id: configStream1.id },
+      const ownerStream1Results = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where((s) => s.parent_id === p.parentId && s.name === "owner")
+            .take(1),
+        { parentId: configStream1.id },
       );
-      const owner1Record = await db.oneOrNone(
-        `SELECT * FROM record WHERE stream_id = $(stream_id) ORDER BY index ASC LIMIT 1`,
-        { stream_id: ownerStream1.id },
+      const ownerStream1 = ownerStream1Results[0];
+
+      const owner1RecordResults = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("record")
+            .where((r) => r.stream_id === p.streamId)
+            .orderBy((r) => r.index)
+            .take(1),
+        { streamId: ownerStream1.id },
       );
+      const owner1Record = owner1RecordResults[0];
       expect(JSON.parse(owner1Record.content).userId).to.equal(userId);
 
       // Get .config stream
-      const configStream2 = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = '.config' AND parent_id IS NULL`,
-        { pod_name: pod2.name },
+      const configStream2Results = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where(
+              (s) =>
+                s.pod_name === p.podName &&
+                s.name === ".config" &&
+                s.parent_id === null,
+            )
+            .take(1),
+        { podName: pod2.name },
       );
+      const configStream2 = configStream2Results[0];
+
       // Get owner stream (child of .config)
-      const ownerStream2 = await db.oneOrNone(
-        `SELECT * FROM stream WHERE parent_id = $(parent_id) AND name = 'owner'`,
-        { parent_id: configStream2.id },
+      const ownerStream2Results = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where((s) => s.parent_id === p.parentId && s.name === "owner")
+            .take(1),
+        { parentId: configStream2.id },
       );
-      const owner2Record = await db.oneOrNone(
-        `SELECT * FROM record WHERE stream_id = $(stream_id) ORDER BY index ASC LIMIT 1`,
-        { stream_id: ownerStream2.id },
+      const ownerStream2 = ownerStream2Results[0];
+
+      const owner2RecordResults = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("record")
+            .where((r) => r.stream_id === p.streamId)
+            .orderBy((r) => r.index)
+            .take(1),
+        { streamId: ownerStream2.id },
       );
+      const owner2Record = owner2RecordResults[0];
       expect(JSON.parse(owner2Record.content).userId).to.equal(userId);
     });
   });
@@ -573,16 +681,36 @@ describe("WebPods Authentication", () => {
       const identityId = crypto.randomUUID();
       const now = Date.now();
 
-      await db.none(
-        `INSERT INTO "user" (id, created_at, updated_at)
-         VALUES ($(userId), $(now), $(now))`,
+      await executeInsert(
+        db,
+        schema,
+        (q, p) =>
+          q.insertInto("user").values({
+            id: p.userId,
+            created_at: p.now,
+            updated_at: p.now,
+          }),
         { userId, now },
       );
 
-      const identity = await db.one(
-        `INSERT INTO identity (id, user_id, provider, provider_id, email, name, metadata, created_at, updated_at)
-         VALUES ($(identityId), $(userId), $(provider), $(providerId), $(email), $(name), $(metadata), $(now), $(now))
-         RETURNING *`,
+      const identityResults = await executeInsert(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .insertInto("identity")
+            .values({
+              id: p.identityId,
+              user_id: p.userId,
+              provider: p.provider,
+              provider_id: p.providerId,
+              email: p.email,
+              name: p.name,
+              metadata: p.metadata,
+              created_at: p.now,
+              updated_at: p.now,
+            })
+            .returning((i) => i),
         {
           identityId,
           userId,
@@ -598,6 +726,7 @@ describe("WebPods Authentication", () => {
           now,
         },
       );
+      const identity = identityResults[0];
 
       // metadata is stored as TEXT (JSON string) in database
       const metadata =
@@ -632,14 +761,29 @@ describe("WebPods Authentication", () => {
       });
 
       // Verify identities were created correctly
-      const identity1 = await db.oneOrNone(
-        `SELECT * FROM identity WHERE user_id = $(userId)`,
+      const identity1Results = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("identity")
+            .where((i) => i.user_id === p.userId)
+            .take(1),
         { userId: user1.userId },
       );
-      const identity2 = await db.oneOrNone(
-        `SELECT * FROM identity WHERE user_id = $(userId)`,
+      const identity1 = identity1Results[0];
+
+      const identity2Results = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("identity")
+            .where((i) => i.user_id === p.userId)
+            .take(1),
         { userId: user2.userId },
       );
+      const identity2 = identity2Results[0];
 
       expect(identity1.provider).to.equal("test-auth-provider-1");
       expect(identity1.provider_id).to.equal("p1-123");

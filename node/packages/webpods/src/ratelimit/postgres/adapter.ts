@@ -7,8 +7,17 @@ import type {
 import { getActionLimit } from "../types.js";
 import { getDb } from "../../db/index.js";
 import { createLogger } from "../../logger.js";
-import type { RateLimitDbRow } from "../../db-types.js";
+import { createSchema } from "@webpods/tinqer";
+import {
+  executeSelect,
+  executeInsert,
+  executeUpdate,
+  executeDelete,
+} from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "../../db/schema.js";
+
 const logger = createLogger("webpods:ratelimit:postgres");
+const schema = createSchema<DatabaseSchema>();
 
 let config: RateLimitConfig | null = null;
 
@@ -48,40 +57,86 @@ export const postgresRateLimiterAdapter: RateLimiterAdapter = {
       const windowEnd = Math.ceil(now / windowMS) * windowMS;
       const actualWindowStart = windowEnd - windowMS;
 
-      let rateLimitRecord = await db.oneOrNone<RateLimitDbRow>(
-        `SELECT * FROM rate_limit
-         WHERE identifier = $(identifier)
-           AND action = $(action)
-           AND window_start = $(windowStart)`,
+      const rateLimitResults = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("rate_limit")
+            .where(
+              (r) =>
+                r.identifier === p.identifier &&
+                r.action === p.action &&
+                r.window_start === p.windowStart,
+            )
+            .take(1),
         { identifier, action, windowStart: actualWindowStart },
       );
 
-      if (!rateLimitRecord) {
-        // Use UPSERT to handle concurrent inserts
-        const params = {
-          identifier: identifier,
-          action: action,
-          count: 0,
-          window_start: actualWindowStart,
-          window_end: windowEnd,
-        };
+      let rateLimitRecord = rateLimitResults[0] || null;
 
-        rateLimitRecord = await db.one<RateLimitDbRow>(
-          `INSERT INTO rate_limit (identifier, action, count, window_start, window_end)
-           VALUES ($(identifier), $(action), $(count), $(window_start), $(window_end))
-           ON CONFLICT (identifier, action, window_start)
-           DO UPDATE SET count = rate_limit.count
-           RETURNING *`,
-          params,
-        );
+      if (!rateLimitRecord) {
+        // Try to insert, handle conflict with SELECT if it already exists
+        try {
+          const insertResults = await executeInsert(
+            db,
+            schema,
+            (q, p) =>
+              q
+                .insertInto("rate_limit")
+                .values({
+                  identifier: p.identifier,
+                  action: p.action,
+                  count: p.count,
+                  window_start: p.windowStart,
+                  window_end: p.windowEnd,
+                })
+                .returning((r) => r),
+            {
+              identifier,
+              action,
+              count: 0,
+              windowStart: actualWindowStart,
+              windowEnd,
+            },
+          );
+          rateLimitRecord = insertResults[0]!;
+        } catch (error: unknown) {
+          // On conflict (concurrent insert), query again to get the existing record
+          if ((error as { code?: string }).code === "23505") {
+            const retryResults = await executeSelect(
+              db,
+              schema,
+              (q, p) =>
+                q
+                  .from("rate_limit")
+                  .where(
+                    (r) =>
+                      r.identifier === p.identifier &&
+                      r.action === p.action &&
+                      r.window_start === p.windowStart,
+                  )
+                  .take(1),
+              { identifier, action, windowStart: actualWindowStart },
+            );
+            rateLimitRecord = retryResults[0]!;
+          } else {
+            throw error;
+          }
+        }
       }
 
       const count = rateLimitRecord.count;
       const remaining = Math.max(0, limit - count);
 
       // Clean old windows (do this before checking limit)
-      await db.none(
-        `DELETE FROM rate_limit WHERE window_start < $(windowStart)`,
+      await executeDelete(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .deleteFrom("rate_limit")
+            .where((r) => r.window_start < p.windowStart),
         { windowStart },
       );
 
@@ -95,11 +150,16 @@ export const postgresRateLimiterAdapter: RateLimiterAdapter = {
       }
 
       // Increment counter only if allowed
-      await db.none(
-        `UPDATE rate_limit
-         SET count = count + 1
-         WHERE id = $(id)`,
-        { id: rateLimitRecord.id },
+      const newCount = count + 1;
+      await executeUpdate(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .update("rate_limit")
+            .set({ count: p.newCount })
+            .where((r) => r.id === p.id),
+        { id: rateLimitRecord.id, newCount },
       );
 
       return {
@@ -142,13 +202,23 @@ export const postgresRateLimiterAdapter: RateLimiterAdapter = {
       const windowEnd = Math.ceil(now / windowMS) * windowMS;
       const actualWindowStart = windowEnd - windowMS;
 
-      const rateLimitRecord = await db.oneOrNone<RateLimitDbRow>(
-        `SELECT * FROM rate_limit
-         WHERE identifier = $(identifier)
-           AND action = $(action)
-           AND window_start = $(windowStart)`,
+      const rateLimitResults = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("rate_limit")
+            .where(
+              (r) =>
+                r.identifier === p.identifier &&
+                r.action === p.action &&
+                r.window_start === p.windowStart,
+            )
+            .take(1),
         { identifier, action, windowStart: actualWindowStart },
       );
+
+      const rateLimitRecord = rateLimitResults[0] || null;
 
       const used = rateLimitRecord?.count || 0;
       const remaining = Math.max(0, limit - used);
@@ -181,15 +251,26 @@ export const postgresRateLimiterAdapter: RateLimiterAdapter = {
 
       if (action) {
         // Reset specific action
-        await db.none(
-          `DELETE FROM rate_limit
-           WHERE identifier = $(identifier) AND action = $(action)`,
+        await executeDelete(
+          db,
+          schema,
+          (q, p) =>
+            q
+              .deleteFrom("rate_limit")
+              .where(
+                (r) => r.identifier === p.identifier && r.action === p.action,
+              ),
           { identifier, action },
         );
       } else {
         // Reset all actions for identifier
-        await db.none(
-          `DELETE FROM rate_limit WHERE identifier = $(identifier)`,
+        await executeDelete(
+          db,
+          schema,
+          (q, p) =>
+            q
+              .deleteFrom("rate_limit")
+              .where((r) => r.identifier === p.identifier),
           { identifier },
         );
       }
@@ -204,15 +285,21 @@ export const postgresRateLimiterAdapter: RateLimiterAdapter = {
   async getWindowInfo(identifier: string, action: RateLimitAction) {
     try {
       const db = getDb();
-      const result = await db.oneOrNone<{
-        window_start: number;
-        window_end: number;
-      }>(
-        `SELECT window_start, window_end FROM rate_limit
-         WHERE identifier = $(identifier) AND action = $(action)
-         ORDER BY window_end DESC LIMIT 1`,
+      const results = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("rate_limit")
+            .where(
+              (r) => r.identifier === p.identifier && r.action === p.action,
+            )
+            .orderByDescending((r) => r.window_end)
+            .take(1),
         { identifier, action },
       );
+
+      const result = results[0] || null;
 
       if (!result) {
         return null;
@@ -237,16 +324,30 @@ export const postgresRateLimiterAdapter: RateLimiterAdapter = {
       const db = getDb();
 
       // First delete any existing window
-      await db.none(
-        `DELETE FROM rate_limit
-         WHERE identifier = $(identifier) AND action = $(action)`,
+      await executeDelete(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .deleteFrom("rate_limit")
+            .where(
+              (r) => r.identifier === p.identifier && r.action === p.action,
+            ),
         { identifier, action },
       );
 
       // Insert the new window with specified values
-      await db.none(
-        `INSERT INTO rate_limit (identifier, action, count, window_start, window_end)
-         VALUES ($(identifier), $(action), $(count), $(windowStart), $(windowEnd))`,
+      await executeInsert(
+        db,
+        schema,
+        (q, p) =>
+          q.insertInto("rate_limit").values({
+            identifier: p.identifier,
+            action: p.action,
+            count: p.count,
+            window_start: p.windowStart,
+            window_end: p.windowEnd,
+          }),
         {
           identifier,
           action,
@@ -266,14 +367,18 @@ export const postgresRateLimiterAdapter: RateLimiterAdapter = {
   async getAllWindows() {
     try {
       const db = getDb();
-      const results = await db.manyOrNone<{
-        identifier: string;
-        action: RateLimitAction;
-        count: number;
-        window_start: number;
-        window_end: number;
-      }>(
-        `SELECT identifier, action, count, window_start, window_end FROM rate_limit`,
+      const results = await executeSelect(
+        db,
+        schema,
+        (q) =>
+          q.from("rate_limit").select((r) => ({
+            identifier: r.identifier,
+            action: r.action as RateLimitAction,
+            count: r.count,
+            window_start: r.window_start,
+            window_end: r.window_end,
+          })),
+        {},
       );
 
       return results.map((r) => ({

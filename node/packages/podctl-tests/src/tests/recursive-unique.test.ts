@@ -13,6 +13,11 @@ import {
   testDb,
   testUser,
 } from "../test-setup.js";
+import { createSchema } from "@webpods/tinqer";
+import { executeInsert, executeSelect } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "webpods-test-utils";
+
+const schema = createSchema<DatabaseSchema>();
 
 describe("CLI Recursive Unique Listing", () => {
   let cli: CliTestHelper;
@@ -34,15 +39,22 @@ describe("CLI Recursive Unique Listing", () => {
     testPodName = `test-pod-${Date.now()}`;
 
     // Create test pod
-    await testDb
-      .getDb()
-      .none(
-        `INSERT INTO pod (name, created_at, updated_at, metadata) VALUES ($(podName), $(now), $(now), '{}')`,
-        {
-          podName: testPodName,
-          now: Date.now(),
-        },
-      );
+    const now = Date.now();
+    await executeInsert(
+      testDb.getDb(),
+      schema,
+      (q, p) =>
+        q.insertInto("pod").values({
+          name: p.podName,
+          created_at: p.now,
+          updated_at: p.now,
+          metadata: "{}",
+        }),
+      {
+        podName: testPodName,
+        now,
+      },
+    );
   });
 
   describe("record list --recursive --unique", () => {
@@ -51,17 +63,48 @@ describe("CLI Recursive Unique Listing", () => {
       const now = Date.now();
 
       // Create nested stream structure
-      const documentsStream = await db.one<{ id: number }>(
-        `INSERT INTO stream (pod_name, name, path, parent_id, user_id, access_permission, created_at, updated_at, metadata, has_schema)
-         VALUES ($(podName), 'documents', 'documents', NULL, $(userId), 'public', $(now), $(now), '{}', false)
-         RETURNING id`,
+      const documentsResults = await executeInsert(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .insertInto("stream")
+            .values({
+              pod_name: p.podName,
+              name: "documents",
+              path: "documents",
+              parent_id: null,
+              user_id: p.userId,
+              access_permission: "public",
+              created_at: p.now,
+              updated_at: p.now,
+              metadata: "{}",
+              has_schema: false,
+            })
+            .returning((s) => ({ id: s.id })),
         { podName: testPodName, userId: testUser.userId, now },
       );
+      const documentsStream = documentsResults[0]!;
 
-      const reportsStream = await db.one<{ id: number }>(
-        `INSERT INTO stream (pod_name, name, path, parent_id, user_id, access_permission, created_at, updated_at, metadata, has_schema)
-         VALUES ($(podName), 'reports', 'documents/reports', $(parentId), $(userId), 'public', $(now), $(now), '{}', false)
-         RETURNING id`,
+      const reportsResults = await executeInsert(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .insertInto("stream")
+            .values({
+              pod_name: p.podName,
+              name: "reports",
+              path: "documents/reports",
+              parent_id: p.parentId,
+              user_id: p.userId,
+              access_permission: "public",
+              created_at: p.now,
+              updated_at: p.now,
+              metadata: "{}",
+              has_schema: false,
+            })
+            .returning((s) => ({ id: s.id })),
         {
           podName: testPodName,
           parentId: documentsStream.id,
@@ -69,11 +112,27 @@ describe("CLI Recursive Unique Listing", () => {
           now,
         },
       );
+      const reportsStream = reportsResults[0]!;
 
-      const draftsStream = await db.one<{ id: number }>(
-        `INSERT INTO stream (pod_name, name, path, parent_id, user_id, access_permission, created_at, updated_at, metadata, has_schema)
-         VALUES ($(podName), 'drafts', 'documents/drafts', $(parentId), $(userId), 'public', $(now), $(now), '{}', false)
-         RETURNING id`,
+      const draftsResults = await executeInsert(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .insertInto("stream")
+            .values({
+              pod_name: p.podName,
+              name: "drafts",
+              path: "documents/drafts",
+              parent_id: p.parentId,
+              user_id: p.userId,
+              access_permission: "public",
+              created_at: p.now,
+              updated_at: p.now,
+              metadata: "{}",
+              has_schema: false,
+            })
+            .returning((s) => ({ id: s.id })),
         {
           podName: testPodName,
           parentId: documentsStream.id,
@@ -81,13 +140,33 @@ describe("CLI Recursive Unique Listing", () => {
           now,
         },
       );
+      const draftsStream = draftsResults[0]!;
 
       // Add records with duplicate names across streams
       // documents/report.md (v1, v2)
       const content1 = JSON.stringify({ version: 1 });
-      await db.none(
-        `INSERT INTO record (stream_id, index, content, content_type, size, name, path, content_hash, hash, previous_hash, user_id, is_binary, headers, deleted, purged, created_at)
-         VALUES ($(streamId), 0, $(content), 'application/json', $(size), 'report.md', 'documents/report.md', 'hash1', 'hash1', NULL, $(userId), false, '{}', false, false, $(now))`,
+      await executeInsert(
+        db,
+        schema,
+        (q, p) =>
+          q.insertInto("record").values({
+            stream_id: p.streamId,
+            index: 0,
+            content: p.content,
+            content_type: "application/json",
+            size: p.size,
+            name: "report.md",
+            path: "documents/report.md",
+            content_hash: "hash1",
+            hash: "hash1",
+            previous_hash: null,
+            user_id: p.userId,
+            is_binary: false,
+            headers: "{}",
+            deleted: false,
+            purged: false,
+            created_at: p.now,
+          }),
         {
           streamId: documentsStream.id,
           content: content1,
@@ -98,9 +177,28 @@ describe("CLI Recursive Unique Listing", () => {
       );
 
       const content2 = JSON.stringify({ version: 2 });
-      await db.none(
-        `INSERT INTO record (stream_id, index, content, content_type, size, name, path, content_hash, hash, previous_hash, user_id, is_binary, headers, deleted, purged, created_at)
-         VALUES ($(streamId), 1, $(content), 'application/json', $(size), 'report.md', 'documents/report.md', 'hash2', 'hash2', 'hash1', $(userId), false, '{}', false, false, $(now))`,
+      await executeInsert(
+        db,
+        schema,
+        (q, p) =>
+          q.insertInto("record").values({
+            stream_id: p.streamId,
+            index: 1,
+            content: p.content,
+            content_type: "application/json",
+            size: p.size,
+            name: "report.md",
+            path: "documents/report.md",
+            content_hash: "hash2",
+            hash: "hash2",
+            previous_hash: "hash1",
+            user_id: p.userId,
+            is_binary: false,
+            headers: "{}",
+            deleted: false,
+            purged: false,
+            created_at: p.now,
+          }),
         {
           streamId: documentsStream.id,
           content: content2,
@@ -112,9 +210,28 @@ describe("CLI Recursive Unique Listing", () => {
 
       // documents/reports/summary.md
       const content3 = JSON.stringify({ title: "Summary" });
-      await db.none(
-        `INSERT INTO record (stream_id, index, content, content_type, size, name, path, content_hash, hash, previous_hash, user_id, is_binary, headers, deleted, purged, created_at)
-         VALUES ($(streamId), 0, $(content), 'application/json', $(size), 'summary.md', 'documents/reports/summary.md', 'hash3', 'hash3', NULL, $(userId), false, '{}', false, false, $(now))`,
+      await executeInsert(
+        db,
+        schema,
+        (q, p) =>
+          q.insertInto("record").values({
+            stream_id: p.streamId,
+            index: 0,
+            content: p.content,
+            content_type: "application/json",
+            size: p.size,
+            name: "summary.md",
+            path: "documents/reports/summary.md",
+            content_hash: "hash3",
+            hash: "hash3",
+            previous_hash: null,
+            user_id: p.userId,
+            is_binary: false,
+            headers: "{}",
+            deleted: false,
+            purged: false,
+            created_at: p.now,
+          }),
         {
           streamId: reportsStream.id,
           content: content3,
@@ -126,9 +243,28 @@ describe("CLI Recursive Unique Listing", () => {
 
       // documents/drafts/draft.md
       const content4 = JSON.stringify({ draft: true });
-      await db.none(
-        `INSERT INTO record (stream_id, index, content, content_type, size, name, path, content_hash, hash, previous_hash, user_id, is_binary, headers, deleted, purged, created_at)
-         VALUES ($(streamId), 0, $(content), 'application/json', $(size), 'draft.md', 'documents/drafts/draft.md', 'hash4', 'hash4', NULL, $(userId), false, '{}', false, false, $(now))`,
+      await executeInsert(
+        db,
+        schema,
+        (q, p) =>
+          q.insertInto("record").values({
+            stream_id: p.streamId,
+            index: 0,
+            content: p.content,
+            content_type: "application/json",
+            size: p.size,
+            name: "draft.md",
+            path: "documents/drafts/draft.md",
+            content_hash: "hash4",
+            hash: "hash4",
+            previous_hash: null,
+            user_id: p.userId,
+            is_binary: false,
+            headers: "{}",
+            deleted: false,
+            purged: false,
+            created_at: p.now,
+          }),
         {
           streamId: draftsStream.id,
           content: content4,
@@ -140,9 +276,28 @@ describe("CLI Recursive Unique Listing", () => {
 
       // documents/drafts/report.md (different from documents/report.md)
       const content5 = JSON.stringify({ draft: "report" });
-      await db.none(
-        `INSERT INTO record (stream_id, index, content, content_type, size, name, path, content_hash, hash, previous_hash, user_id, is_binary, headers, deleted, purged, created_at)
-         VALUES ($(streamId), 1, $(content), 'application/json', $(size), 'report.md', 'documents/drafts/report.md', 'hash5', 'hash5', NULL, $(userId), false, '{}', false, false, $(now))`,
+      await executeInsert(
+        db,
+        schema,
+        (q, p) =>
+          q.insertInto("record").values({
+            stream_id: p.streamId,
+            index: 1,
+            content: p.content,
+            content_type: "application/json",
+            size: p.size,
+            name: "report.md",
+            path: "documents/drafts/report.md",
+            content_hash: "hash5",
+            hash: "hash5",
+            previous_hash: null,
+            user_id: p.userId,
+            is_binary: false,
+            headers: "{}",
+            deleted: false,
+            purged: false,
+            created_at: p.now,
+          }),
         {
           streamId: draftsStream.id,
           content: content5,
@@ -269,20 +424,51 @@ describe("CLI Recursive Unique Listing", () => {
 
     it("should handle deleted records correctly", async () => {
       // Add a deleted record
-      const draftsStream = await testDb.getDb().one<{
-        id: number;
-      }>(`SELECT id FROM stream WHERE pod_name = $(podName) AND path = 'documents/drafts'`, { podName: testPodName });
+      const draftsStreamResults = await executeSelect(
+        testDb.getDb(),
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where(
+              (s) => s.pod_name === p.podName && s.path === "documents/drafts",
+            )
+            .select((s) => ({ id: s.id }))
+            .take(1),
+        { podName: testPodName },
+      );
+      const draftsStream = draftsStreamResults[0]!;
 
       const content6 = JSON.stringify({ deleted: true });
-      await testDb.getDb().none(
-        `INSERT INTO record (stream_id, index, content, content_type, size, name, path, content_hash, hash, previous_hash, user_id, is_binary, headers, deleted, purged, created_at)
-         VALUES ($(streamId), 2, $(content), 'application/json', $(size), 'draft.md', 'documents/drafts/draft.md', 'hash6', 'hash6', 'hash4', $(userId), false, '{}', false, false, $(now))`,
+      const now = Date.now();
+      await executeInsert(
+        testDb.getDb(),
+        schema,
+        (q, p) =>
+          q.insertInto("record").values({
+            stream_id: p.streamId,
+            index: 2,
+            content: p.content,
+            content_type: "application/json",
+            size: p.size,
+            name: "draft.md",
+            path: "documents/drafts/draft.md",
+            content_hash: "hash6",
+            hash: "hash6",
+            previous_hash: "hash4",
+            user_id: p.userId,
+            is_binary: false,
+            headers: "{}",
+            deleted: false,
+            purged: false,
+            created_at: p.now,
+          }),
         {
           streamId: draftsStream.id,
           content: content6,
           size: Buffer.byteLength(content6, "utf8"),
           userId: testUser.userId,
-          now: Date.now(),
+          now,
         },
       );
 

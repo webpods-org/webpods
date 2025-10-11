@@ -7,9 +7,12 @@ import { Result, success, failure } from "../../utils/result.js";
 import { UserDbRow, IdentityDbRow } from "../../db-types.js";
 import { User, Identity, OAuthProvider, OAuthUserInfo } from "../../types.js";
 import { createLogger } from "../../logger.js";
-import { sql } from "../../db/index.js";
 import { createSchema } from "@webpods/tinqer";
-import { executeSelect, executeUpdate } from "@webpods/tinqer-sql-pg-promise";
+import {
+  executeSelect,
+  executeUpdate,
+  executeInsert,
+} from "@webpods/tinqer-sql-pg-promise";
 import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:users");
@@ -123,15 +126,35 @@ export async function findOrCreateUser(
     // No existing identity, create transaction for new user
     return await ctx.db.tx(async (t) => {
       // Check if user exists with this email via another identity
-      const existingUserByEmail = email
-        ? await t.oneOrNone<UserDbRow>(
-            `SELECT DISTINCT u.* FROM "user" u
-             JOIN identity i ON i.user_id = u.id
-             WHERE i.email = $(email)
-             LIMIT 1`,
-            { email },
-          )
-        : null;
+      // Break JOIN into two queries: first get identities by email, then get user
+      let existingUserByEmail: UserDbRow | null = null;
+      if (email) {
+        const identitiesWithEmail = await executeSelect(
+          t,
+          schema,
+          (q, p) =>
+            q
+              .from("identity")
+              .where((i) => i.email === p.email)
+              .select((i) => ({ user_id: i.user_id }))
+              .take(1),
+          { email },
+        );
+
+        if (identitiesWithEmail.length > 0) {
+          const userResults = await executeSelect(
+            t,
+            schema,
+            (q, p) =>
+              q
+                .from("user")
+                .where((u) => u.id === p.user_id)
+                .take(1),
+            { user_id: identitiesWithEmail[0]!.user_id },
+          );
+          existingUserByEmail = userResults[0] || null;
+        }
+      }
 
       let user: User;
       let userId: string;
@@ -142,44 +165,70 @@ export async function findOrCreateUser(
         userId = existingUserByEmail.id;
         logger.info("Linking new provider to existing user");
       } else {
-        // Create new user with snake_case parameters
+        // Create new user
         const now = Date.now();
-        const userParams = {
-          id: crypto.randomUUID(),
-          created_at: now,
-          updated_at: now,
-        };
+        const newUserId = crypto.randomUUID();
 
-        const newUserRow = await t.one<UserDbRow>(
-          `${sql.insert('"user"', userParams)} RETURNING *`,
-          userParams,
+        const newUserRows = await executeInsert(
+          t,
+          schema,
+          (q, p) =>
+            q
+              .insertInto("user")
+              .values({
+                id: p.id,
+                created_at: p.created_at,
+                updated_at: p.updated_at,
+              })
+              .returning((u) => u),
+          {
+            id: newUserId,
+            created_at: now,
+            updated_at: now,
+          },
         );
 
-        user = mapUserFromDb(newUserRow);
+        user = mapUserFromDb(newUserRows[0]!);
         userId = user.id;
         logger.info("Created new user");
       }
 
-      // Create identity with snake_case parameters
+      // Create identity
       const now = Date.now();
-      const identityParams = {
-        id: crypto.randomUUID(),
-        user_id: userId,
-        provider: provider.provider,
-        provider_id: providerId,
-        email: email || null,
-        name: name || null,
-        metadata: JSON.stringify(profile),
-        created_at: now,
-        updated_at: now,
-      };
+      const identityId = crypto.randomUUID();
 
-      const identityRow = await t.one<IdentityDbRow>(
-        `${sql.insert("identity", identityParams)} RETURNING *`,
-        identityParams,
+      const identityRows = await executeInsert(
+        t,
+        schema,
+        (q, p) =>
+          q
+            .insertInto("identity")
+            .values({
+              id: p.id,
+              user_id: p.user_id,
+              provider: p.provider,
+              provider_id: p.provider_id,
+              email: p.email,
+              name: p.name,
+              metadata: p.metadata,
+              created_at: p.created_at,
+              updated_at: p.updated_at,
+            })
+            .returning((i) => i),
+        {
+          id: identityId,
+          user_id: userId,
+          provider: provider.provider,
+          provider_id: providerId,
+          email: email || null,
+          name: name || null,
+          metadata: JSON.stringify(profile),
+          created_at: now,
+          updated_at: now,
+        },
       );
 
-      const identity = mapIdentityFromDb(identityRow);
+      const identity = mapIdentityFromDb(identityRows[0]!);
       logger.info("Created new identity");
 
       return success({ user, identity });

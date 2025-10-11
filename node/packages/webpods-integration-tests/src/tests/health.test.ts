@@ -6,6 +6,11 @@ import {
   createTestPod,
 } from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
+import { createSchema } from "@webpods/tinqer";
+import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "webpods-test-utils";
+
+const schema = createSchema<DatabaseSchema>();
 
 describe("WebPods Health Checks", () => {
   let client: TestHttpClient;
@@ -58,9 +63,17 @@ describe("WebPods Health Checks", () => {
     expect(response.data).to.have.property("index", 0);
 
     // Verify pod was created
-    const pod = await db.oneOrNone(`SELECT * FROM pod WHERE name = $(podId)`, {
-      podId: uniquePodId,
-    });
+    const podResults = await executeSelect(
+      db,
+      schema,
+      (q, p) =>
+        q
+          .from("pod")
+          .where((pod) => pod.name === p.podId)
+          .take(1),
+      { podId: uniquePodId },
+    );
+    const pod = podResults[0] || null;
     expect(pod).to.exist;
   });
 });

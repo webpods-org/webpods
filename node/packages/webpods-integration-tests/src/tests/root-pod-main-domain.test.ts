@@ -13,6 +13,11 @@ import {
 } from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 import jwt from "jsonwebtoken";
+import { createSchema } from "@webpods/tinqer";
+import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "webpods-test-utils";
+
+const schema = createSchema<DatabaseSchema>();
 
 // Generate a WebPods JWT (not OAuth token) for API access
 function generateWebPodsToken(userId: string): string {
@@ -107,10 +112,17 @@ describe("WebPods Root Pod Main Domain", () => {
 
     // Verify the pod exists
     const podDb = testDb.getDb();
-    const pod = await podDb.oneOrNone(
-      `SELECT * FROM pod WHERE name = $(podId)`,
+    const podResults = await executeSelect(
+      podDb,
+      schema,
+      (q, p) =>
+        q
+          .from("pod")
+          .where((pod) => pod.name === p.podId)
+          .take(1),
       { podId: rootPodId },
     );
+    const pod = podResults[0] || null;
     if (!pod) {
       throw new Error("Root pod was not created");
     }

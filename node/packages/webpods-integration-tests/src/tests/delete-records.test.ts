@@ -7,6 +7,11 @@ import {
   clearAllCache,
 } from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
+import { createSchema } from "@webpods/tinqer";
+import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "webpods-test-utils";
+
+const schema = createSchema<DatabaseSchema>();
 
 describe("WebPods Record Deletion", () => {
   let client: TestHttpClient;
@@ -84,24 +89,50 @@ describe("WebPods Record Deletion", () => {
 
       // Verify the deletion marker record exists in database
       const db = testDb.getDb();
-      const pod = await db.oneOrNone(
-        `SELECT * FROM pod WHERE name = $(podId)`,
+      const podResults = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("pod")
+            .where((pod) => pod.name === p.podId)
+            .take(1),
         { podId: testPodId },
       );
+      const pod = podResults[0] || null;
 
       // Find the stream using hierarchical structure
-      const stream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamName) AND parent_id IS NULL`,
+      const streamResults = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where(
+              (s) =>
+                s.pod_name === p.pod_name &&
+                s.name === p.streamName &&
+                s.parent_id === null,
+            )
+            .take(1),
         { pod_name: pod.name, streamName: "documents" },
       );
+      const stream = streamResults[0] || null;
 
       // Check for deletion record using stream_id
-      const deletionRecords = await db.manyOrNone(
-        `SELECT * FROM record
-         WHERE stream_id = $(streamId)
-         AND name = 'report'
-         AND deleted = true
-         ORDER BY index DESC`,
+      const deletionRecords = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("record")
+            .where(
+              (r) =>
+                r.stream_id === p.streamId &&
+                r.name === "report" &&
+                r.deleted === true,
+            )
+            .orderByDescending((r) => r.index),
         { streamId: stream.id },
       );
 
@@ -172,18 +203,46 @@ describe("WebPods Record Deletion", () => {
 
       // Verify the content was physically deleted but hash preserved
       const db = testDb.getDb();
-      const pod = await db.oneOrNone(
-        `SELECT * FROM pod WHERE name = $(podId)`,
+      const podResults = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("pod")
+            .where((pod) => pod.name === p.podId)
+            .take(1),
         { podId: testPodId },
       );
-      const stream = await db.oneOrNone(
-        `SELECT * FROM stream WHERE pod_name = $(pod_name) AND name = $(streamId) AND parent_id IS NULL`,
+      const pod = podResults[0] || null;
+
+      const streamResults = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where(
+              (s) =>
+                s.pod_name === p.pod_name &&
+                s.name === p.streamId &&
+                s.parent_id === null,
+            )
+            .take(1),
         { pod_name: pod.name, streamId: "secrets" },
       );
-      const record = await db.oneOrNone(
-        `SELECT * FROM record WHERE stream_id = $(stream_id) AND name = $(name)`,
+      const stream = streamResults[0] || null;
+
+      const recordResults = await executeSelect(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .from("record")
+            .where((r) => r.stream_id === p.stream_id && r.name === p.name)
+            .take(1),
         { stream_id: stream.id, name: "password" },
       );
+      const record = recordResults[0] || null;
 
       expect(record).to.exist;
       // Content should be empty after purge

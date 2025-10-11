@@ -5,11 +5,14 @@
 import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
 import { createError } from "../../utils/errors.js";
-import { StreamDbRow } from "../../db-types.js";
 import { createLogger } from "../../logger.js";
 import { cacheInvalidation, getCache, cacheKeys } from "../../cache/index.js";
+import { createSchema } from "@webpods/tinqer";
+import { executeSelect, executeDelete } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:streams");
+const schema = createSchema<DatabaseSchema>();
 
 export async function deleteStream(
   ctx: DataContext,
@@ -24,12 +27,18 @@ export async function deleteStream(
   try {
     return await ctx.db.tx(async (t) => {
       // Get the stream by ID
-      const stream = await t.oneOrNone<StreamDbRow>(
-        `SELECT * FROM stream
-         WHERE id = $(streamId)
-           AND pod_name = $(pod_name)`,
+      const streamResults = await executeSelect(
+        t,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where((s) => s.id === p.streamId && s.pod_name === p.pod_name)
+            .take(1),
         { streamId, pod_name: podName },
       );
+
+      const stream = streamResults[0] || null;
 
       if (!stream) {
         return failure(createError("NOT_FOUND", "Stream not found"));
@@ -43,36 +52,46 @@ export async function deleteStream(
       }
 
       // Check if stream has child streams
-      const childCount = await t.oneOrNone<{ count: string }>(
-        `SELECT COUNT(*) as count FROM stream
-         WHERE pod_name = $(podName)
-           AND parent_id = $(streamId)`,
+      const childStreams = await executeSelect(
+        t,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where(
+              (s) => s.pod_name === p.podName && s.parent_id === p.streamId,
+            )
+            .select((s) => ({ id: s.id })),
         { podName, streamId },
       );
 
-      const childStreamCount = parseInt(childCount?.count || "0");
-      if (childStreamCount > 0) {
+      if (childStreams.length > 0) {
         // Note: The CASCADE will delete them, but we log this for clarity
         logger.info("Deleting stream with child streams", {
           podName,
           streamId,
-          childCount: childStreamCount,
+          childCount: childStreams.length,
         });
       }
 
       // Delete all records in the stream
       // Note: Child streams and their records will be CASCADE deleted by PostgreSQL
-      await t.none(
-        `DELETE FROM record 
-         WHERE stream_id = $(streamId)`,
+      await executeDelete(
+        t,
+        schema,
+        (q, p) =>
+          q.deleteFrom("record").where((r) => r.stream_id === p.streamId),
         { streamId },
       );
 
       // Delete the stream (CASCADE will delete child streams)
-      await t.none(
-        `DELETE FROM stream 
-         WHERE id = $(streamId)
-           AND pod_name = $(pod_name)`,
+      await executeDelete(
+        t,
+        schema,
+        (q, p) =>
+          q
+            .deleteFrom("stream")
+            .where((s) => s.id === p.streamId && s.pod_name === p.pod_name),
         { streamId, pod_name: podName },
       );
 

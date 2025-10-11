@@ -17,6 +17,11 @@ import {
   createTestRecord,
   createOwnerConfig,
 } from "../utils/test-data-helpers.js";
+import { createSchema } from "@webpods/tinqer";
+import { executeInsert, executeSelect } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "webpods-test-utils";
+
+const schema = createSchema<DatabaseSchema>();
 
 describe("CLI Field Selection and Content Truncation", function () {
   this.timeout(30000);
@@ -40,16 +45,23 @@ describe("CLI Field Selection and Content Truncation", function () {
 
     // Create a test pod directly in database
     testPodName = `test-pod-${Date.now()}`;
+    const now = Date.now();
 
-    await testDb
-      .getDb()
-      .none(
-        "INSERT INTO pod (name, created_at, updated_at, metadata) VALUES ($(name), $(now), $(now), '{}')",
-        {
-          name: testPodName,
-          now: Date.now(),
-        },
-      );
+    await executeInsert(
+      testDb.getDb(),
+      schema,
+      (q, p) =>
+        q.insertInto("pod").values({
+          name: p.name,
+          created_at: p.now,
+          updated_at: p.now,
+          metadata: "{}",
+        }),
+      {
+        name: testPodName,
+        now,
+      },
+    );
 
     // Create owner config for the pod
     await createOwnerConfig(
@@ -71,12 +83,23 @@ describe("CLI Field Selection and Content Truncation", function () {
   describe("Field Selection", () => {
     beforeEach(async () => {
       // Get the stream ID
-      const stream = await testDb
-        .getDb()
-        .one(
-          "SELECT id FROM stream WHERE pod_name = $(podName) AND name = $(streamName) AND parent_id IS NULL",
-          { podName: testPodName, streamName: "test-stream" },
-        );
+      const streamResults = await executeSelect(
+        testDb.getDb(),
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where(
+              (s) =>
+                s.pod_name === p.podName &&
+                s.name === p.streamName &&
+                s.parent_id === null,
+            )
+            .select((s) => ({ id: s.id }))
+            .take(1),
+        { podName: testPodName, streamName: "test-stream" },
+      );
+      const stream = streamResults[0]!;
 
       // Write test records
       await createTestRecord(testDb.getDb(), {
@@ -188,12 +211,23 @@ describe("CLI Field Selection and Content Truncation", function () {
   describe("Content Truncation", () => {
     beforeEach(async () => {
       // Get the stream ID
-      const stream = await testDb
-        .getDb()
-        .one(
-          "SELECT id FROM stream WHERE pod_name = $(podName) AND name = $(streamName) AND parent_id IS NULL",
-          { podName: testPodName, streamName: "test-stream" },
-        );
+      const streamResults = await executeSelect(
+        testDb.getDb(),
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where(
+              (s) =>
+                s.pod_name === p.podName &&
+                s.name === p.streamName &&
+                s.parent_id === null,
+            )
+            .select((s) => ({ id: s.id }))
+            .take(1),
+        { podName: testPodName, streamName: "test-stream" },
+      );
+      const stream = streamResults[0]!;
 
       // Write a record with large content
       const largeContent = "A".repeat(10000);
@@ -310,12 +344,23 @@ describe("CLI Field Selection and Content Truncation", function () {
   describe("With Other Options", () => {
     beforeEach(async () => {
       // Get the stream ID
-      const stream = await testDb
-        .getDb()
-        .one(
-          "SELECT id FROM stream WHERE pod_name = $(podName) AND name = $(streamName) AND parent_id IS NULL",
-          { podName: testPodName, streamName: "test-stream" },
-        );
+      const streamResults = await executeSelect(
+        testDb.getDb(),
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where(
+              (s) =>
+                s.pod_name === p.podName &&
+                s.name === p.streamName &&
+                s.parent_id === null,
+            )
+            .select((s) => ({ id: s.id }))
+            .take(1),
+        { podName: testPodName, streamName: "test-stream" },
+      );
+      const stream = streamResults[0]!;
 
       // Create multiple records
       for (let i = 0; i < 5; i++) {

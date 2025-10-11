@@ -5,7 +5,6 @@
 import Ajv from "ajv";
 import type { DataContext } from "../data-context.js";
 import type { Result, Stream } from "../../types.js";
-import { StreamDbRow } from "../../db-types.js";
 import { createSchema } from "@webpods/tinqer";
 import { executeSelect, executeUpdate } from "@webpods/tinqer-sql-pg-promise";
 import type { DatabaseSchema } from "../../db/schema.js";
@@ -30,18 +29,12 @@ export interface SchemaDefinition {
  */
 export async function validateAgainstSchema(
   ctx: DataContext,
-  stream: Stream | StreamDbRow,
+  stream: Stream,
   content: unknown,
 ): Promise<Result<void>> {
   // Check if stream has schema flag
-  const hasSchema =
-    "has_schema" in stream
-      ? (stream as StreamDbRow).has_schema
-      : (stream as Stream).hasSchema;
-  const podName =
-    "pod_name" in stream
-      ? (stream as StreamDbRow).pod_name
-      : (stream as Stream).podName;
+  const hasSchema = stream.hasSchema;
+  const podName = stream.podName;
   const streamPath = stream.path;
 
   // Fast path - no schema

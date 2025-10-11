@@ -21,3 +21,4 @@ export {
 export type { TestUser } from "./utils/test-helpers.js";
 export { clearAllCache } from "./utils/test-cache.js";
 export { logIndented } from "./utils/test-output.js";
+export type { DatabaseSchema } from "./utils/db-schema.js";

@@ -15,6 +15,11 @@ import {
   testDb,
 } from "../test-setup.js";
 import { createOwnerConfig } from "../utils/test-data-helpers.js";
+import { createSchema } from "@webpods/tinqer";
+import { executeInsert, executeSelect } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "webpods-test-utils";
+
+const schema = createSchema<DatabaseSchema>();
 
 describe("CLI Transfer Command", function () {
   this.timeout(30000);
@@ -41,15 +46,21 @@ describe("CLI Transfer Command", function () {
     // Create a test pod
     testPodName = `test-pod-${Date.now()}`;
     const now = Date.now();
-    await testDb
-      .getDb()
-      .none(
-        "INSERT INTO pod (name, created_at, updated_at, metadata) VALUES ($(name), $(now), $(now), '{}')",
-        {
-          name: testPodName,
-          now,
-        },
-      );
+    await executeInsert(
+      testDb.getDb(),
+      schema,
+      (q, p) =>
+        q.insertInto("pod").values({
+          name: p.name,
+          created_at: p.now,
+          updated_at: p.now,
+          metadata: "{}",
+        }),
+      {
+        name: testPodName,
+        now,
+      },
+    );
 
     // Create .config/owner stream for pod ownership
     await createOwnerConfig(
@@ -61,29 +72,47 @@ describe("CLI Transfer Command", function () {
 
     // Create new owner user
     newOwnerId = randomUUID();
-    await testDb
-      .getDb()
-      .none(
-        'INSERT INTO "user" (id, created_at, updated_at) VALUES ($(id), $(now), $(now))',
-        { id: newOwnerId, now },
-      );
+    await executeInsert(
+      testDb.getDb(),
+      schema,
+      (q, p) =>
+        q.insertInto("user").values({
+          id: p.id,
+          created_at: p.now,
+          updated_at: p.now,
+        }),
+      { id: newOwnerId, now },
+    );
 
     // Create identity for new owner
-    await testDb
-      .getDb()
-      .none(
-        "INSERT INTO identity (id, user_id, provider, provider_id, email, name, metadata, created_at, updated_at) VALUES ($(id), $(userId), $(provider), $(providerId), $(email), $(name), $(metadata), $(now), $(now))",
-        {
-          id: randomUUID(),
-          userId: newOwnerId,
-          provider: "test-provider",
-          providerId: randomUUID(),
-          email: "newowner@example.com",
-          name: "New Owner",
-          metadata: "{}",
-          now,
-        },
-      );
+    const identityId = randomUUID();
+    const providerId = randomUUID();
+    await executeInsert(
+      testDb.getDb(),
+      schema,
+      (q, p) =>
+        q.insertInto("identity").values({
+          id: p.id,
+          user_id: p.userId,
+          provider: p.provider,
+          provider_id: p.providerId,
+          email: p.email,
+          name: p.name,
+          metadata: p.metadata,
+          created_at: p.now,
+          updated_at: p.now,
+        }),
+      {
+        id: identityId,
+        userId: newOwnerId,
+        provider: "test-provider",
+        providerId,
+        email: "newowner@example.com",
+        name: "New Owner",
+        metadata: "{}",
+        now,
+      },
+    );
 
     // Create a proper JWT token for the new owner
     newOwnerToken = sign(
@@ -115,24 +144,50 @@ describe("CLI Transfer Command", function () {
       expect(result.stdout).to.include("run the command again with --force");
 
       // Verify ownership was NOT transferred
-      // First get the .config/owner stream
-      const ownerStream = await testDb.getDb().one<{ id: number }>(
-        `SELECT s2.id FROM stream s1
-         JOIN stream s2 ON s2.parent_id = s1.id
-         WHERE s1.pod_name = $(podName) AND s1.name = '.config' AND s1.parent_id IS NULL
-         AND s2.name = 'owner'`,
+      // First get the .config stream
+      const configStreamResults = await executeSelect(
+        testDb.getDb(),
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where(
+              (s) =>
+                s.pod_name === p.podName &&
+                s.name === ".config" &&
+                s.parent_id === null,
+            )
+            .select((s) => ({ id: s.id }))
+            .take(1),
         { podName: testPodName },
       );
+      // Then get the owner stream
+      const ownerStreamResults = await executeSelect(
+        testDb.getDb(),
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where((s) => s.parent_id === p.configId && s.name === "owner")
+            .select((s) => ({ id: s.id }))
+            .take(1),
+        { configId: configStreamResults[0]!.id },
+      );
+      const ownerStream = ownerStreamResults[0]!;
 
-      const ownerRecord = await testDb.getDb().oneOrNone(
-        `SELECT * FROM record 
-         WHERE stream_id = $(streamId) 
-         AND name = 'owner'
-         ORDER BY index DESC
-         LIMIT 1`,
+      const ownerRecordResults = await executeSelect(
+        testDb.getDb(),
+        schema,
+        (q, p) =>
+          q
+            .from("record")
+            .where((r) => r.stream_id === p.streamId && r.name === "owner")
+            .orderByDescending((r) => r.index)
+            .take(1),
         { streamId: ownerStream.id },
       );
-      const ownerContent = JSON.parse(ownerRecord.content);
+      const ownerRecord = ownerRecordResults[0] || null;
+      const ownerContent = JSON.parse(ownerRecord!.content);
       expect(ownerContent.userId).to.equal(testUser.userId); // Still original owner
     });
 
@@ -159,12 +214,18 @@ describe("CLI Transfer Command", function () {
     it("should only allow current owner to transfer", async () => {
       // Try to transfer using a different user's token
       const otherUserId = randomUUID();
-      await testDb
-        .getDb()
-        .none(
-          'INSERT INTO "user" (id, created_at, updated_at) VALUES ($(id), $(now), $(now))',
-          { id: otherUserId, now: Date.now() },
-        );
+      const now = Date.now();
+      await executeInsert(
+        testDb.getDb(),
+        schema,
+        (q, p) =>
+          q.insertInto("user").values({
+            id: p.id,
+            created_at: p.now,
+            updated_at: p.now,
+          }),
+        { id: otherUserId, now },
+      );
       const otherToken = cli.createTestToken(otherUserId, "other@example.com");
 
       const result = await cli.exec(
@@ -267,15 +328,29 @@ describe("CLI Transfer Command", function () {
       });
 
       // Create a stream with new owner's user_id (should succeed)
-      await testDb.getDb().none(
-        `INSERT INTO stream (pod_name, name, path, parent_id, user_id, access_permission, created_at, updated_at, metadata, has_schema)
-         VALUES ($(podName), $(streamName), $(path), NULL, $(userId), 'public', $(now), $(now), '{}', false)`,
+      const now = Date.now();
+      await executeInsert(
+        testDb.getDb(),
+        schema,
+        (q, p) =>
+          q.insertInto("stream").values({
+            pod_name: p.podName,
+            name: p.streamName,
+            path: p.path,
+            parent_id: null,
+            user_id: p.userId,
+            access_permission: "public",
+            created_at: p.now,
+            updated_at: p.now,
+            metadata: "{}",
+            has_schema: false,
+          }),
         {
           podName: testPodName,
           streamName: "new-owner-stream",
           path: "new-owner-stream",
           userId: newOwnerId,
-          now: Date.now(),
+          now,
         },
       );
 

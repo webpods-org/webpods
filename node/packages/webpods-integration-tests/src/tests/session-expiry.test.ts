@@ -5,25 +5,40 @@
 
 import { expect } from "chai";
 import { testDb } from "../test-setup.js";
+import { createSchema } from "@webpods/tinqer";
+import {
+  executeSelect,
+  executeInsert,
+  executeDelete,
+} from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "webpods-test-utils";
+
+const schema = createSchema<DatabaseSchema>();
 
 describe("Session Expiry and Cleanup", () => {
   let db: any;
 
   // Helper functions for cleanup (these would normally be in the server)
   async function cleanupExpiredSessions(): Promise<number> {
-    const result = await db.result(
-      `DELETE FROM session WHERE expire < $(now)`,
-      { now: new Date() },
+    const now = new Date();
+    const deleted = await executeDelete(
+      db,
+      schema,
+      (q, p) => q.deleteFrom("session").where((s) => s.expire < p.now),
+      { now },
     );
-    return result.rowCount;
+    return deleted;
   }
 
   async function cleanupExpiredStates(): Promise<number> {
-    const result = await db.result(
-      `DELETE FROM oauth_state WHERE expires_at < $(now)`,
-      { now: Date.now() },
+    const now = Date.now();
+    const deleted = await executeDelete(
+      db,
+      schema,
+      (q, p) => q.deleteFrom("oauth_state").where((s) => s.expires_at < p.now),
+      { now },
     );
-    return result.rowCount;
+    return deleted;
   }
 
   before(() => {
@@ -31,8 +46,12 @@ describe("Session Expiry and Cleanup", () => {
   });
 
   beforeEach(async () => {
-    await db.none('TRUNCATE TABLE "session" CASCADE');
-    await db.none('TRUNCATE TABLE "oauth_state" CASCADE');
+    await executeDelete(db, schema, (q) =>
+      q.deleteFrom("session").allowFullTableDelete(),
+    );
+    await executeDelete(db, schema, (q) =>
+      q.deleteFrom("oauth_state").allowFullTableDelete(),
+    );
   });
 
   describe("Session Expiry", () => {
@@ -42,28 +61,44 @@ describe("Session Expiry and Cleanup", () => {
       const future = new Date(now.getTime() + 3600000); // 1 hour from now
 
       // Insert expired session
-      await db.none(
-        `INSERT INTO session (sid, sess, expire) VALUES ($(sid), $(sess), $(expire))`,
+      await executeInsert(
+        db,
+        schema,
+        (q, p) =>
+          q.insertInto("session").values({
+            sid: p.sid,
+            sess: p.sess,
+            expire: p.expire,
+          }),
         {
           sid: "expired-session",
-          sess: JSON.stringify({ user: { id: "user1" } }),
+          sess: { user: { id: "user1" } },
           expire: expired,
         },
       );
 
       // Insert valid session
-      await db.none(
-        `INSERT INTO session (sid, sess, expire) VALUES ($(sid), $(sess), $(expire))`,
+      await executeInsert(
+        db,
+        schema,
+        (q, p) =>
+          q.insertInto("session").values({
+            sid: p.sid,
+            sess: p.sess,
+            expire: p.expire,
+          }),
         {
           sid: "valid-session",
-          sess: JSON.stringify({ user: { id: "user2" } }),
+          sess: { user: { id: "user2" } },
           expire: future,
         },
       );
 
       // Check expired sessions
-      const expiredSessions = await db.manyOrNone(
-        `SELECT * FROM session WHERE expire < $(now)`,
+      const expiredSessions = await executeSelect(
+        db,
+        schema,
+        (q, p) => q.from("session").where((s) => s.expire < p.now),
         { now },
       );
 
@@ -71,8 +106,10 @@ describe("Session Expiry and Cleanup", () => {
       expect(expiredSessions[0].sid).to.equal("expired-session");
 
       // Check valid sessions
-      const validSessions = await db.manyOrNone(
-        `SELECT * FROM session WHERE expire > $(now)`,
+      const validSessions = await executeSelect(
+        db,
+        schema,
+        (q, p) => q.from("session").where((s) => s.expire > p.now),
         { now },
       );
 
@@ -87,23 +124,53 @@ describe("Session Expiry and Cleanup", () => {
       const future = new Date(now.getTime() + 3600000);
 
       // Insert multiple sessions
-      await db.none(
-        `INSERT INTO session (sid, sess, expire) VALUES 
-         ($(sid1), $(sess1), $(expire1)),
-         ($(sid2), $(sess2), $(expire2)),
-         ($(sid3), $(sess3), $(expire3))`,
-        {
-          sid1: "expired-1",
-          sess1: JSON.stringify({ user: { id: "user1" } }),
-          expire1: expired1,
-          sid2: "expired-2",
-          sess2: JSON.stringify({ user: { id: "user2" } }),
-          expire2: expired2,
-          sid3: "valid-1",
-          sess3: JSON.stringify({ user: { id: "user3" } }),
-          expire3: future,
-        },
-      );
+      await Promise.all([
+        executeInsert(
+          db,
+          schema,
+          (q, p) =>
+            q.insertInto("session").values({
+              sid: p.sid,
+              sess: p.sess,
+              expire: p.expire,
+            }),
+          {
+            sid: "expired-1",
+            sess: { user: { id: "user1" } },
+            expire: expired1,
+          },
+        ),
+        executeInsert(
+          db,
+          schema,
+          (q, p) =>
+            q.insertInto("session").values({
+              sid: p.sid,
+              sess: p.sess,
+              expire: p.expire,
+            }),
+          {
+            sid: "expired-2",
+            sess: { user: { id: "user2" } },
+            expire: expired2,
+          },
+        ),
+        executeInsert(
+          db,
+          schema,
+          (q, p) =>
+            q.insertInto("session").values({
+              sid: p.sid,
+              sess: p.sess,
+              expire: p.expire,
+            }),
+          {
+            sid: "valid-1",
+            sess: { user: { id: "user3" } },
+            expire: future,
+          },
+        ),
+      ]);
 
       // Run cleanup
       const deletedCount = await cleanupExpiredSessions();
@@ -111,7 +178,12 @@ describe("Session Expiry and Cleanup", () => {
       expect(deletedCount).to.equal(2);
 
       // Verify only valid session remains
-      const remainingSessions = await db.manyOrNone("SELECT * FROM session");
+      const remainingSessions = await executeSelect(
+        db,
+        schema,
+        (q) => q.from("session"),
+        {},
+      );
       expect(remainingSessions).to.have.lengthOf(1);
       expect(remainingSessions[0].sid).to.equal("valid-1");
     });
@@ -122,25 +194,34 @@ describe("Session Expiry and Cleanup", () => {
         now.getTime() + 7 * 24 * 60 * 60 * 1000,
       );
 
-      await db.none(
-        `INSERT INTO session (sid, sess, expire) VALUES ($(sid), $(sess), $(expire))`,
+      await executeInsert(
+        db,
+        schema,
+        (q, p) =>
+          q.insertInto("session").values({
+            sid: p.sid,
+            sess: p.sess,
+            expire: p.expire,
+          }),
         {
           sid: "week-session",
-          sess: JSON.stringify({
+          sess: {
             cookie: {
               originalMaxAge: 604800000, // 7 days in ms
               expires: sevenDaysFromNow.toISOString(),
               maxAge: 604800000,
             },
             user: { id: "user1" },
-          }),
+          },
           expire: sevenDaysFromNow,
         },
       );
 
       // Session should be valid now
-      const validSessions = await db.manyOrNone(
-        `SELECT * FROM session WHERE expire > $(now)`,
+      const validSessions = await executeSelect(
+        db,
+        schema,
+        (q, p) => q.from("session").where((s) => s.expire > p.now),
         { now },
       );
 
@@ -148,21 +229,30 @@ describe("Session Expiry and Cleanup", () => {
 
       // Simulate time passing (we can't actually wait 7 days)
       // Instead, insert an already expired session to test cleanup
-      await db.none(
-        `INSERT INTO session (sid, sess, expire) VALUES ($(sid), $(sess), $(expire))`,
+      await executeInsert(
+        db,
+        schema,
+        (q, p) =>
+          q.insertInto("session").values({
+            sid: p.sid,
+            sess: p.sess,
+            expire: p.expire,
+          }),
         {
           sid: "old-session",
-          sess: JSON.stringify({ user: { id: "user2" } }),
+          sess: { user: { id: "user2" } },
           expire: new Date(now.getTime() - 8 * 24 * 60 * 60 * 1000), // 8 days ago
         },
       );
 
-      const expiredCount = await db.oneOrNone(
-        `SELECT COUNT(*) as count FROM session WHERE expire < $(now)`,
+      const expiredSessions = await executeSelect(
+        db,
+        schema,
+        (q, p) => q.from("session").where((s) => s.expire < p.now),
         { now },
       );
 
-      expect(expiredCount.count).to.equal("1");
+      expect(expiredSessions).to.have.lengthOf(1);
     });
   });
 
@@ -173,9 +263,16 @@ describe("Session Expiry and Cleanup", () => {
       const future = now + 600000; // 10 minutes
 
       // Insert expired state
-      await db.none(
-        `INSERT INTO oauth_state (state, code_verifier, created_at, expires_at)
-         VALUES ($(state), $(codeVerifier), $(createdAt), $(expiresAt))`,
+      await executeInsert(
+        db,
+        schema,
+        (q, p) =>
+          q.insertInto("oauth_state").values({
+            state: p.state,
+            code_verifier: p.codeVerifier,
+            created_at: p.createdAt,
+            expires_at: p.expiresAt,
+          }),
         {
           state: "expired-state",
           codeVerifier: "verifier1",
@@ -185,9 +282,16 @@ describe("Session Expiry and Cleanup", () => {
       );
 
       // Insert valid state
-      await db.none(
-        `INSERT INTO oauth_state (state, code_verifier, created_at, expires_at)
-         VALUES ($(state), $(codeVerifier), $(createdAt), $(expiresAt))`,
+      await executeInsert(
+        db,
+        schema,
+        (q, p) =>
+          q.insertInto("oauth_state").values({
+            state: p.state,
+            code_verifier: p.codeVerifier,
+            created_at: p.createdAt,
+            expires_at: p.expiresAt,
+          }),
         {
           state: "valid-state",
           codeVerifier: "verifier2",
@@ -197,8 +301,10 @@ describe("Session Expiry and Cleanup", () => {
       );
 
       // Check expired states
-      const expiredStates = await db.manyOrNone(
-        `SELECT * FROM oauth_state WHERE expires_at < $(now)`,
+      const expiredStates = await executeSelect(
+        db,
+        schema,
+        (q, p) => q.from("oauth_state").where((s) => s.expires_at < p.now),
         { now },
       );
 
@@ -212,26 +318,59 @@ describe("Session Expiry and Cleanup", () => {
       const future = now + 600000;
 
       // Insert states
-      await db.none(
-        `INSERT INTO oauth_state (state, code_verifier, created_at, expires_at) VALUES
-         ($(state1), $(verifier1), $(created1), $(expires1)),
-         ($(state2), $(verifier2), $(created2), $(expires2)),
-         ($(state3), $(verifier3), $(created3), $(expires3))`,
-        {
-          state1: "expired-1",
-          verifier1: "v1",
-          created1: expired,
-          expires1: expired,
-          state2: "expired-2",
-          verifier2: "v2",
-          created2: expired,
-          expires2: expired,
-          state3: "valid-1",
-          verifier3: "v3",
-          created3: now,
-          expires3: future,
-        },
-      );
+      await Promise.all([
+        executeInsert(
+          db,
+          schema,
+          (q, p) =>
+            q.insertInto("oauth_state").values({
+              state: p.state,
+              code_verifier: p.verifier,
+              created_at: p.created,
+              expires_at: p.expires,
+            }),
+          {
+            state: "expired-1",
+            verifier: "v1",
+            created: expired,
+            expires: expired,
+          },
+        ),
+        executeInsert(
+          db,
+          schema,
+          (q, p) =>
+            q.insertInto("oauth_state").values({
+              state: p.state,
+              code_verifier: p.verifier,
+              created_at: p.created,
+              expires_at: p.expires,
+            }),
+          {
+            state: "expired-2",
+            verifier: "v2",
+            created: expired,
+            expires: expired,
+          },
+        ),
+        executeInsert(
+          db,
+          schema,
+          (q, p) =>
+            q.insertInto("oauth_state").values({
+              state: p.state,
+              code_verifier: p.verifier,
+              created_at: p.created,
+              expires_at: p.expires,
+            }),
+          {
+            state: "valid-1",
+            verifier: "v3",
+            created: now,
+            expires: future,
+          },
+        ),
+      ]);
 
       // Run cleanup
       const deletedCount = await cleanupExpiredStates();
@@ -239,7 +378,12 @@ describe("Session Expiry and Cleanup", () => {
       expect(deletedCount).to.equal(2);
 
       // Verify only valid state remains
-      const remainingStates = await db.manyOrNone("SELECT * FROM oauth_state");
+      const remainingStates = await executeSelect(
+        db,
+        schema,
+        (q) => q.from("oauth_state"),
+        {},
+      );
       expect(remainingStates).to.have.lengthOf(1);
       expect(remainingStates[0].state).to.equal("valid-1");
     });
@@ -249,27 +393,52 @@ describe("Session Expiry and Cleanup", () => {
       const nineMinutes = now + 9 * 60 * 1000;
       const elevenMinutes = now + 11 * 60 * 1000;
 
-      await db.none(
-        `INSERT INTO oauth_state (state, code_verifier, created_at, expires_at, pod) VALUES
-         ($(state1), $(verifier1), $(created1), $(expires1), $(pod1)),
-         ($(state2), $(verifier2), $(created2), $(expires2), $(pod2))`,
-        {
-          state1: "within-ttl",
-          verifier1: "verifier1",
-          created1: now,
-          expires1: nineMinutes,
-          pod1: "alice",
-          state2: "beyond-ttl",
-          verifier2: "verifier2",
-          created2: now,
-          expires2: elevenMinutes,
-          pod2: "bob",
-        },
-      );
+      await Promise.all([
+        executeInsert(
+          db,
+          schema,
+          (q, p) =>
+            q.insertInto("oauth_state").values({
+              state: p.state,
+              code_verifier: p.verifier,
+              created_at: p.created,
+              expires_at: p.expires,
+              pod: p.pod,
+            }),
+          {
+            state: "within-ttl",
+            verifier: "verifier1",
+            created: now,
+            expires: nineMinutes,
+            pod: "alice",
+          },
+        ),
+        executeInsert(
+          db,
+          schema,
+          (q, p) =>
+            q.insertInto("oauth_state").values({
+              state: p.state,
+              code_verifier: p.verifier,
+              created_at: p.created,
+              expires_at: p.expires,
+              pod: p.pod,
+            }),
+          {
+            state: "beyond-ttl",
+            verifier: "verifier2",
+            created: now,
+            expires: elevenMinutes,
+            pod: "bob",
+          },
+        ),
+      ]);
 
       // Both should be valid now
-      const validStates = await db.manyOrNone(
-        `SELECT * FROM oauth_state WHERE expires_at > $(now)`,
+      const validStates = await executeSelect(
+        db,
+        schema,
+        (q, p) => q.from("oauth_state").where((s) => s.expires_at > p.now),
         { now },
       );
 
@@ -304,48 +473,122 @@ describe("Session Expiry and Cleanup", () => {
       const now = new Date();
 
       // Insert mix of expired and valid records
-      await db.none(
-        `INSERT INTO session (sid, sess, expire) VALUES 
-         ($(sid1), $(sess1), $(expire1)),
-         ($(sid2), $(sess2), $(expire2)),
-         ($(sid3), $(sess3), $(expire3)),
-         ($(sid4), $(sess4), $(expire4))`,
-        {
-          sid1: "s1",
-          sess1: JSON.stringify({}),
-          expire1: new Date(now.getTime() - 1000),
-          sid2: "s2",
-          sess2: JSON.stringify({}),
-          expire2: new Date(now.getTime() + 1000),
-          sid3: "s3",
-          sess3: JSON.stringify({}),
-          expire3: new Date(now.getTime() - 2000),
-          sid4: "s4",
-          sess4: JSON.stringify({}),
-          expire4: new Date(now.getTime() + 2000),
-        },
-      );
+      await Promise.all([
+        executeInsert(
+          db,
+          schema,
+          (q, p) =>
+            q.insertInto("session").values({
+              sid: p.sid,
+              sess: p.sess,
+              expire: p.expire,
+            }),
+          {
+            sid: "s1",
+            sess: {},
+            expire: new Date(now.getTime() - 1000),
+          },
+        ),
+        executeInsert(
+          db,
+          schema,
+          (q, p) =>
+            q.insertInto("session").values({
+              sid: p.sid,
+              sess: p.sess,
+              expire: p.expire,
+            }),
+          {
+            sid: "s2",
+            sess: {},
+            expire: new Date(now.getTime() + 1000),
+          },
+        ),
+        executeInsert(
+          db,
+          schema,
+          (q, p) =>
+            q.insertInto("session").values({
+              sid: p.sid,
+              sess: p.sess,
+              expire: p.expire,
+            }),
+          {
+            sid: "s3",
+            sess: {},
+            expire: new Date(now.getTime() - 2000),
+          },
+        ),
+        executeInsert(
+          db,
+          schema,
+          (q, p) =>
+            q.insertInto("session").values({
+              sid: p.sid,
+              sess: p.sess,
+              expire: p.expire,
+            }),
+          {
+            sid: "s4",
+            sess: {},
+            expire: new Date(now.getTime() + 2000),
+          },
+        ),
+      ]);
 
-      await db.none(
-        `INSERT INTO oauth_state (state, code_verifier, created_at, expires_at) VALUES
-         ($(state1), $(verifier1), $(created1), $(expires1)),
-         ($(state2), $(verifier2), $(created2), $(expires2)),
-         ($(state3), $(verifier3), $(created3), $(expires3))`,
-        {
-          state1: "st1",
-          verifier1: "v1",
-          created1: now.getTime() - 1000,
-          expires1: now.getTime() - 1000,
-          state2: "st2",
-          verifier2: "v2",
-          created2: now.getTime(),
-          expires2: now.getTime() + 1000,
-          state3: "st3",
-          verifier3: "v3",
-          created3: now.getTime() - 2000,
-          expires3: now.getTime() - 2000,
-        },
-      );
+      await Promise.all([
+        executeInsert(
+          db,
+          schema,
+          (q, p) =>
+            q.insertInto("oauth_state").values({
+              state: p.state,
+              code_verifier: p.verifier,
+              created_at: p.created,
+              expires_at: p.expires,
+            }),
+          {
+            state: "st1",
+            verifier: "v1",
+            created: now.getTime() - 1000,
+            expires: now.getTime() - 1000,
+          },
+        ),
+        executeInsert(
+          db,
+          schema,
+          (q, p) =>
+            q.insertInto("oauth_state").values({
+              state: p.state,
+              code_verifier: p.verifier,
+              created_at: p.created,
+              expires_at: p.expires,
+            }),
+          {
+            state: "st2",
+            verifier: "v2",
+            created: now.getTime(),
+            expires: now.getTime() + 1000,
+          },
+        ),
+        executeInsert(
+          db,
+          schema,
+          (q, p) =>
+            q.insertInto("oauth_state").values({
+              state: p.state,
+              code_verifier: p.verifier,
+              created_at: p.created,
+              expires_at: p.expires,
+            }),
+          {
+            state: "st3",
+            verifier: "v3",
+            created: now.getTime() - 2000,
+            expires: now.getTime() - 2000,
+          },
+        ),
+      ]);
 
       // Run cleanup
       const sessionDeleted = await cleanupExpiredSessions();
@@ -355,11 +598,25 @@ describe("Session Expiry and Cleanup", () => {
       expect(stateDeleted).to.equal(2);
 
       // Verify correct records remain
-      const sessions = await db.manyOrNone(
-        `SELECT sid FROM session ORDER BY sid`,
+      const sessions = await executeSelect(
+        db,
+        schema,
+        (q) =>
+          q
+            .from("session")
+            .select((s) => ({ sid: s.sid }))
+            .orderBy((s) => s.sid),
+        {},
       );
-      const states = await db.manyOrNone(
-        `SELECT state FROM oauth_state ORDER BY state`,
+      const states = await executeSelect(
+        db,
+        schema,
+        (q) =>
+          q
+            .from("oauth_state")
+            .select((s) => ({ state: s.state }))
+            .orderBy((s) => s.state),
+        {},
       );
 
       expect(sessions.map((s: any) => s.sid)).to.deep.equal(["s2", "s4"]);

@@ -4,13 +4,15 @@
 
 import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
-import { PodDbRow, StreamDbRow, RecordDbRow } from "../../db-types.js";
 import { calculateContentHash, calculateRecordHash } from "../../utils.js";
 import { createLogger } from "../../logger.js";
-import { sql } from "../../db/index.js";
 import { getCache, cacheKeys } from "../../cache/index.js";
+import { createSchema } from "@webpods/tinqer";
+import { executeSelect, executeInsert } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:routing");
+const schema = createSchema<DatabaseSchema>();
 
 export async function updateCustomDomains(
   ctx: DataContext,
@@ -21,49 +23,78 @@ export async function updateCustomDomains(
   try {
     return await ctx.db.tx(async (t) => {
       // Get pod
-      const pod = await t.oneOrNone<PodDbRow>(
-        `SELECT * FROM pod WHERE name = $(pod_name)`,
+      const podResults = await executeSelect(
+        t,
+        schema,
+        (q, p) =>
+          q
+            .from("pod")
+            .where((pod) => pod.name === p.pod_name)
+            .take(1),
         { pod_name: podName },
       );
+
+      const pod = podResults[0] || null;
 
       if (!pod) {
         return failure(new Error("Pod not found"));
       }
 
       // Verify ownership - first get .config stream
-      const configStream = await t.oneOrNone<StreamDbRow>(
-        `SELECT * FROM stream 
-         WHERE pod_name = $(pod_name) 
-           AND name = '.config' 
-           AND parent_id IS NULL`,
+      const configStreamResults = await executeSelect(
+        t,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where(
+              (s) =>
+                s.pod_name === p.pod_name &&
+                s.name === ".config" &&
+                s.parent_id === null,
+            )
+            .take(1),
         { pod_name: podName },
       );
+
+      const configStream = configStreamResults[0] || null;
 
       if (!configStream) {
         return failure(new Error("Config stream not found"));
       }
 
       // Get owner stream (child of .config)
-      const ownerStream = await t.oneOrNone<StreamDbRow>(
-        `SELECT * FROM stream 
-         WHERE parent_id = $(parent_id) 
-           AND name = 'owner'`,
+      const ownerStreamResults = await executeSelect(
+        t,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where((s) => s.parent_id === p.parent_id && s.name === "owner")
+            .take(1),
         { parent_id: configStream.id },
       );
+
+      const ownerStream = ownerStreamResults[0] || null;
 
       if (!ownerStream) {
         return failure(new Error("Owner stream not found"));
       }
 
       // Get owner record
-      const ownerRecord = await t.oneOrNone<RecordDbRow>(
-        `SELECT * FROM record 
-         WHERE stream_id = $(stream_id)
-           AND name = 'owner'
-         ORDER BY index DESC
-         LIMIT 1`,
+      const ownerRecordResults = await executeSelect(
+        t,
+        schema,
+        (q, p) =>
+          q
+            .from("record")
+            .where((r) => r.stream_id === p.stream_id && r.name === "owner")
+            .orderByDescending((r) => r.index)
+            .take(1),
         { stream_id: ownerStream.id },
       );
+
+      const ownerRecord = ownerRecordResults[0] || null;
 
       if (!ownerRecord) {
         return failure(new Error("Owner record not found"));
@@ -81,25 +112,36 @@ export async function updateCustomDomains(
       }
 
       // Get or create domains stream (child of .config)
-      let domainsStream = await t.oneOrNone<StreamDbRow>(
-        `SELECT * FROM stream
-         WHERE parent_id = $(parent_id)
-           AND name = 'domains'`,
+      const domainsStreamResults = await executeSelect(
+        t,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where((s) => s.parent_id === p.parent_id && s.name === "domains")
+            .take(1),
         { parent_id: configStream.id },
       );
+
+      let domainsStream = domainsStreamResults[0] || null;
 
       // Get old domains for cache invalidation
       let oldDomains: string[] = [];
       if (domainsStream) {
         // Get the most recent domains record to find old domains
-        const lastDomainsRecord = await t.oneOrNone<RecordDbRow>(
-          `SELECT * FROM record
-           WHERE stream_id = $(stream_id)
-             AND name = 'domains'
-           ORDER BY index DESC
-           LIMIT 1`,
+        const lastDomainsRecordResults = await executeSelect(
+          t,
+          schema,
+          (q, p) =>
+            q
+              .from("record")
+              .where((r) => r.stream_id === p.stream_id && r.name === "domains")
+              .orderByDescending((r) => r.index)
+              .take(1),
           { stream_id: domainsStream.id },
         );
+
+        const lastDomainsRecord = lastDomainsRecordResults[0] || null;
 
         if (lastDomainsRecord) {
           try {
@@ -112,33 +154,63 @@ export async function updateCustomDomains(
       } else {
         // Create the stream with hierarchical structure
         const now = Date.now();
-        const streamParams = {
-          pod_name: podName,
-          name: "domains",
-          path: ".config/domains",
-          parent_id: configStream.id,
-          user_id: userId,
-          access_permission: "private",
-          has_schema: false,
-          metadata: "{}",
-          created_at: now,
-          updated_at: now,
-        };
 
-        domainsStream = await t.one<StreamDbRow>(
-          `${sql.insert("stream", streamParams)} RETURNING *`,
-          streamParams,
+        const domainsStreamCreateResults = await executeInsert(
+          t,
+          schema,
+          (q, p) =>
+            q
+              .insertInto("stream")
+              .values({
+                pod_name: p.pod_name,
+                name: p.name,
+                path: p.path,
+                parent_id: p.parent_id,
+                user_id: p.user_id,
+                access_permission: p.access_permission,
+                has_schema: p.has_schema,
+                metadata: p.metadata,
+                created_at: p.created_at,
+                updated_at: p.updated_at,
+              })
+              .returning((s) => s),
+          {
+            pod_name: podName,
+            name: "domains",
+            path: ".config/domains",
+            parent_id: configStream.id,
+            user_id: userId,
+            access_permission: "private",
+            has_schema: false,
+            metadata: "{}",
+            created_at: now,
+            updated_at: now,
+          },
         );
+
+        domainsStream = domainsStreamCreateResults[0] || null;
+      }
+
+      // Ensure domainsStream exists (either found or created)
+      if (!domainsStream) {
+        return failure(new Error("Failed to create domains stream"));
       }
 
       // Get the last record for hash chain
-      const lastRecord = await t.oneOrNone<Pick<RecordDbRow, "index" | "hash">>(
-        `SELECT index, hash FROM record
-         WHERE stream_id = $(stream_id)
-         ORDER BY index DESC
-         LIMIT 1`,
+      const lastRecordResults = await executeSelect(
+        t,
+        schema,
+        (q, p) =>
+          q
+            .from("record")
+            .where((r) => r.stream_id === p.stream_id)
+            .select((r) => ({ index: r.index, hash: r.hash }))
+            .orderByDescending((r) => r.index)
+            .take(1),
         { stream_id: domainsStream.id },
       );
+
+      const lastRecord = lastRecordResults[0] || null;
 
       const index = (lastRecord?.index ?? -1) + 1;
       const previousHash = lastRecord?.hash || null;
@@ -156,26 +228,47 @@ export async function updateCustomDomains(
       const contentString = JSON.stringify(content);
       const size = Buffer.byteLength(contentString, "utf8");
 
-      const params = {
-        stream_id: domainsStream.id,
-        index: index,
-        content: contentString,
-        content_type: "application/json",
-        is_binary: false,
-        size: size,
-        name: `domains`,
-        path: `.config/domains/domains`,
-        content_hash: contentHash,
-        hash: hash,
-        previous_hash: previousHash,
-        user_id: userId,
-        headers: JSON.stringify({}),
-        deleted: false,
-        purged: false,
-        created_at: timestamp,
-      };
-
-      await t.none(sql.insert("record", params), params);
+      await executeInsert(
+        t,
+        schema,
+        (q, p) =>
+          q.insertInto("record").values({
+            stream_id: p.stream_id,
+            index: p.index,
+            content: p.content,
+            content_type: p.content_type,
+            is_binary: p.is_binary,
+            size: p.size,
+            name: p.name,
+            path: p.path,
+            content_hash: p.content_hash,
+            hash: p.hash,
+            previous_hash: p.previous_hash,
+            user_id: p.user_id,
+            headers: p.headers,
+            deleted: p.deleted,
+            purged: p.purged,
+            created_at: p.created_at,
+          }),
+        {
+          stream_id: domainsStream.id,
+          index: index,
+          content: contentString,
+          content_type: "application/json",
+          is_binary: false,
+          size: size,
+          name: `domains`,
+          path: `.config/domains/domains`,
+          content_hash: contentHash,
+          hash: hash,
+          previous_hash: previousHash,
+          user_id: userId,
+          headers: JSON.stringify({}),
+          deleted: false,
+          purged: false,
+          created_at: timestamp,
+        },
+      );
 
       // Invalidate cache for all affected domains
       const cache = getCache();

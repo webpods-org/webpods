@@ -5,7 +5,6 @@
 import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
 import { createError } from "../../utils/errors.js";
-import { RecordDbRow, StreamDbRow } from "../../db-types.js";
 import { calculateContentHash, calculateRecordHash } from "../../utils.js";
 import { createLogger } from "../../logger.js";
 import { isValidRecordName } from "../../utils/stream-utils.js";
@@ -15,8 +14,12 @@ import {
 } from "../../storage-adapters/index.js";
 import { extname } from "path";
 import { cacheInvalidation } from "../../cache/index.js";
+import { createSchema } from "@webpods/tinqer";
+import { executeSelect, executeInsert } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:records");
+const schema = createSchema<DatabaseSchema>();
 
 export type WriteRecordResult = {
   id: number;
@@ -50,13 +53,18 @@ export async function writeRecord(
   try {
     return await ctx.db.tx(async (t) => {
       // Check if a child stream with the same name exists
-      const existingChildStream = await t.oneOrNone<StreamDbRow>(
-        `SELECT * FROM stream 
-         WHERE parent_id = $(streamId) 
-           AND name = $(name)
-         LIMIT 1`,
+      const existingChildStreamResults = await executeSelect(
+        t,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where((s) => s.parent_id === p.streamId && s.name === p.name)
+            .take(1),
         { streamId, name },
       );
+
+      const existingChildStream = existingChildStreamResults[0] || null;
 
       if (existingChildStream) {
         return failure(
@@ -67,26 +75,22 @@ export async function writeRecord(
         );
       }
 
-      // First, lock the stream row to serialize writes to this stream
-      // This handles both empty streams (no records) and streams with existing records
-      await t.one<StreamDbRow>(
-        `SELECT * FROM stream
-         WHERE id = $(streamId)
-         FOR UPDATE`,
+      // Get the previous record for hash chain
+      // No lock needed - UNIQUE constraint on (stream_id, index) prevents conflicts
+      const previousRecordResults = await executeSelect(
+        t,
+        schema,
+        (q, p) =>
+          q
+            .from("record")
+            .where((r) => r.stream_id === p.streamId)
+            .orderByDescending((r) => r.index)
+            .select((r) => ({ index: r.index, hash: r.hash }))
+            .take(1),
         { streamId },
       );
 
-      // Now safely get the previous record for hash chain
-      // No need for FOR UPDATE here since the stream lock serializes access
-      const previousRecord = await t.oneOrNone<
-        Pick<RecordDbRow, "index" | "hash">
-      >(
-        `SELECT index, hash FROM record
-         WHERE stream_id = $(streamId)
-         ORDER BY index DESC
-         LIMIT 1`,
-        { streamId },
-      );
+      const previousRecord = previousRecordResults[0] || null;
 
       const index = (previousRecord?.index ?? -1) + 1;
       const previousHash = previousRecord?.hash || null;
@@ -124,11 +128,19 @@ export async function writeRecord(
       const hash = calculateRecordHash(previousHash, contentHash, userId, now);
 
       // Get stream path to compute record path
-      const stream = await t.one<StreamDbRow>(
-        `SELECT path FROM stream WHERE id = $(streamId)`,
+      const streamResults = await executeSelect(
+        t,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where((s) => s.id === p.streamId)
+            .select((s) => ({ path: s.path }))
+            .take(1),
         { streamId },
       );
 
+      const stream = streamResults[0]!;
       const recordPath = `${stream.path}/${name}`;
 
       // Check if we should store externally
@@ -143,10 +155,18 @@ export async function writeRecord(
 
         if (adapter) {
           // Get pod name from stream
-          const podInfo = await t.one<{ pod_name: string }>(
-            `SELECT pod_name FROM stream WHERE id = $(streamId)`,
+          const podInfoResults = await executeSelect(
+            t,
+            schema,
+            (q, p) =>
+              q
+                .from("stream")
+                .where((s) => s.id === p.streamId)
+                .select((s) => ({ pod_name: s.pod_name }))
+                .take(1),
             { streamId },
           );
+          const podInfo = podInfoResults[0]!;
 
           // Extract file extension from name only - don't add one if name has none
           const ext = extname(name).replace(".", "");
@@ -192,10 +212,32 @@ export async function writeRecord(
       }
 
       // Insert new record with path and size
-      const record = await t.one<RecordDbRow>(
-        `INSERT INTO record (stream_id, index, content, content_type, is_binary, size, name, path, content_hash, hash, previous_hash, user_id, storage, headers, deleted, purged, created_at)
-         VALUES ($(streamId), $(index), $(content), $(contentType), $(isBinary), $(size), $(name), $(path), $(contentHash), $(hash), $(previousHash), $(userId), $(storage), $(headers), $(deleted), $(purged), $(createdAt))
-         RETURNING *`,
+      const recordResults = await executeInsert(
+        t,
+        schema,
+        (q, p) =>
+          q
+            .insertInto("record")
+            .values({
+              stream_id: p.streamId,
+              index: p.index,
+              content: p.content,
+              content_type: p.contentType,
+              is_binary: p.isBinary,
+              size: p.size,
+              name: p.name,
+              path: p.path,
+              content_hash: p.contentHash,
+              hash: p.hash,
+              previous_hash: p.previousHash,
+              user_id: p.userId,
+              storage: p.storage,
+              headers: p.headers,
+              deleted: p.deleted,
+              purged: p.purged,
+              created_at: p.createdAt,
+            })
+            .returning((r) => r),
         {
           streamId,
           index,
@@ -217,6 +259,11 @@ export async function writeRecord(
         },
       );
 
+      const record = recordResults[0];
+      if (!record) {
+        return failure(createError("INSERT_FAILED", "Failed to insert record"));
+      }
+
       logger.info("Record written", {
         streamId,
         index,
@@ -225,10 +272,21 @@ export async function writeRecord(
       });
 
       // Get stream info for cache invalidation
-      const streamInfo = await t.one<{ pod_name: string; path: string }>(
-        `SELECT pod_name, path FROM stream WHERE id = $(streamId)`,
+      const streamInfoResults = await executeSelect(
+        t,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where((s) => s.id === p.streamId)
+            .select((s) => ({ pod_name: s.pod_name, path: s.path }))
+            .take(1),
         { streamId },
       );
+      const streamInfo = streamInfoResults[0];
+      if (!streamInfo) {
+        return failure(createError("STREAM_NOT_FOUND", "Stream not found"));
+      }
 
       // Invalidate caches
       await cacheInvalidation.invalidateRecord(
@@ -249,12 +307,12 @@ export async function writeRecord(
     });
   } catch (error: unknown) {
     logger.error("Failed to write record", { error, streamId });
-    // Check if it's a unique constraint violation
+    // Check if it's a unique constraint violation on (stream_id, index)
     if ((error as { code?: string }).code === "23505") {
       return failure(
         createError(
-          "NAME_EXISTS",
-          "Record with this name already exists in this stream",
+          "CONCURRENT_WRITE_CONFLICT",
+          "Concurrent write detected - another record was written at the same time. Please retry.",
         ),
       );
     }

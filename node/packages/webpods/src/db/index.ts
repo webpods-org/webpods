@@ -141,6 +141,3 @@ export async function checkDbConnection(): Promise<boolean> {
 
 // Export pgp for use in transactions and helpers
 export { pgp };
-
-// Export SQL helper functions
-export * as sql from "./sql.js";
