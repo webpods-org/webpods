@@ -55,7 +55,7 @@ export async function createTestStream(
     currentPath = currentPath ? `${currentPath}/${segment}` : segment;
 
     // Check if this stream already exists at this level
-    const existingResults = await executeSelect(
+    const existingResults: { id: number }[] = await executeSelect(
       db,
       schema,
       (q, p) =>
@@ -75,14 +75,14 @@ export async function createTestStream(
       { podName, name: segment, parentId },
     );
 
-    const existing = existingResults[0] || null;
+    const existing: { id: number } | null = existingResults[0] || null;
 
     if (existing) {
       currentStreamId = existing.id;
     } else {
       // Create the stream with path
       const now = Date.now();
-      const resultRows = await executeInsert(
+      const resultRows: { id: number }[] = await executeInsert(
         db,
         schema,
         (q, p) =>

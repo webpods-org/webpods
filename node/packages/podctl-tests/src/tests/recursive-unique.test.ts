@@ -84,7 +84,7 @@ describe("CLI Recursive Unique Listing", () => {
             .returning((s) => ({ id: s.id })),
         { podName: testPodName, userId: testUser.userId, now },
       );
-      const documentsStream = documentsResults[0];
+      const documentsStream = documentsResults[0]!;
 
       const reportsResults = await executeInsert(
         db,
@@ -112,7 +112,7 @@ describe("CLI Recursive Unique Listing", () => {
           now,
         },
       );
-      const reportsStream = reportsResults[0];
+      const reportsStream = reportsResults[0]!;
 
       const draftsResults = await executeInsert(
         db,
@@ -140,7 +140,7 @@ describe("CLI Recursive Unique Listing", () => {
           now,
         },
       );
-      const draftsStream = draftsResults[0];
+      const draftsStream = draftsResults[0]!;
 
       // Add records with duplicate names across streams
       // documents/report.md (v1, v2)
@@ -430,14 +430,14 @@ describe("CLI Recursive Unique Listing", () => {
         (q, p) =>
           q
             .from("stream")
-            .select((s) => ({ id: s.id }))
             .where(
               (s) => s.pod_name === p.podName && s.path === "documents/drafts",
             )
+            .select((s) => ({ id: s.id }))
             .take(1),
         { podName: testPodName },
       );
-      const draftsStream = draftsStreamResults[0];
+      const draftsStream = draftsStreamResults[0]!;
 
       const content6 = JSON.stringify({ deleted: true });
       const now = Date.now();

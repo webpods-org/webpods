@@ -205,17 +205,17 @@ describe("CLI Recursive Records", function () {
         (q, p) =>
           q
             .from("stream")
-            .select((s) => ({ id: s.id }))
             .where(
               (s) =>
                 s.pod_name === p.podName &&
                 s.name === "api" &&
                 s.parent_id === null,
             )
+            .select((s) => ({ id: s.id }))
             .take(1),
         { podName: testPodName },
       );
-      const apiStream = apiStreamResults[0];
+      const apiStream = apiStreamResults[0]!;
 
       const previousHash: string | null = null;
       for (let i = 2; i <= 5; i++) {

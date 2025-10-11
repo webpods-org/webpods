@@ -63,7 +63,7 @@ describe("CLI Schema Commands", () => {
     it("should enable schema validation for a stream", async () => {
       // Create a schema file
       const schemaFile = path.join(tempDir, "test-schema.json");
-      const schema = {
+      const jsonSchema = {
         type: "object",
         properties: {
           title: { type: "string", minLength: 1 },
@@ -71,7 +71,7 @@ describe("CLI Schema Commands", () => {
         },
         required: ["title", "content"],
       };
-      await fs.writeFile(schemaFile, JSON.stringify(schema, null, 2));
+      await fs.writeFile(schemaFile, JSON.stringify(jsonSchema, null, 2));
 
       // Enable schema
       const result = await cli.exec(
@@ -92,8 +92,8 @@ describe("CLI Schema Commands", () => {
         (q, p) =>
           q
             .from("stream")
-            .select((s) => ({ id: s.id }))
             .where((s) => s.pod_name === p.podName && s.path === p.path)
+            .select((s) => ({ id: s.id }))
             .take(1),
         { podName: testPodName, path: "blog/posts/.config" },
       );
@@ -109,15 +109,15 @@ describe("CLI Schema Commands", () => {
                   .where(
                     (r) => r.stream_id === p.streamId && r.name === "schema",
                   )
-                  .orderBy((r) => r.index, "asc"),
-              { streamId: streamResults[0].id },
+                  .orderBy((r) => ({ column: r.index, order: "asc" })),
+              { streamId: streamResults[0]!.id },
             )
           : [];
 
       expect(records).to.have.length(1);
-      const schemaRecord = JSON.parse(records[0].content);
+      const schemaRecord = JSON.parse(records[0]!.content);
       expect(schemaRecord.schemaType).to.equal("json-schema");
-      expect(schemaRecord.schema).to.deep.equal(schema);
+      expect(schemaRecord.schema).to.deep.equal(jsonSchema);
     });
 
     it("should set validation mode", async () => {
@@ -149,8 +149,8 @@ describe("CLI Schema Commands", () => {
         (q, p) =>
           q
             .from("stream")
-            .select((s) => ({ id: s.id }))
             .where((s) => s.pod_name === p.podName && s.path === p.path)
+            .select((s) => ({ id: s.id }))
             .take(1),
         { podName: testPodName, path: "api/data/.config" },
       );
@@ -166,11 +166,11 @@ describe("CLI Schema Commands", () => {
                   .where(
                     (r) => r.stream_id === p.streamId && r.name === "schema",
                   ),
-              { streamId: streamResults[0].id },
+              { streamId: streamResults[0]!.id },
             )
           : [];
 
-      const schemaRecord = JSON.parse(records[0].content);
+      const schemaRecord = JSON.parse(records[0]!.content);
       expect(schemaRecord.validationMode).to.equal("permissive");
     });
 
@@ -252,8 +252,8 @@ describe("CLI Schema Commands", () => {
         (q, p) =>
           q
             .from("stream")
-            .select((s) => ({ id: s.id }))
             .where((s) => s.pod_name === p.podName && s.path === p.path)
+            .select((s) => ({ id: s.id }))
             .take(1),
         { podName: testPodName, path: "users/.config" },
       );
@@ -269,14 +269,14 @@ describe("CLI Schema Commands", () => {
                   .where(
                     (r) => r.stream_id === p.streamId && r.name === "schema",
                   )
-                  .orderBy((r) => r.index, "desc")
+                  .orderBy((r) => ({ column: r.index, order: "desc" }))
                   .take(1),
-              { streamId: streamResults[0].id },
+              { streamId: streamResults[0]!.id },
             )
           : [];
 
       expect(records).to.have.length(1);
-      const schemaRecord = JSON.parse(records[0].content);
+      const schemaRecord = JSON.parse(records[0]!.content);
       expect(schemaRecord.schemaType).to.equal("none");
     });
 
@@ -309,7 +309,7 @@ describe("CLI Schema Commands", () => {
     it("should enforce schema when enabled", async () => {
       // Enable strict schema
       const schemaFile = path.join(tempDir, "strict-schema.json");
-      const schema = {
+      const jsonSchema = {
         type: "object",
         properties: {
           name: { type: "string", minLength: 1 },
@@ -317,7 +317,7 @@ describe("CLI Schema Commands", () => {
         },
         required: ["name", "age"],
       };
-      await fs.writeFile(schemaFile, JSON.stringify(schema));
+      await fs.writeFile(schemaFile, JSON.stringify(jsonSchema));
 
       const enableResult = await cli.exec(
         ["schema", "enable", testPodName, "people", schemaFile],

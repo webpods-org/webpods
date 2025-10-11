@@ -259,7 +259,7 @@ describe("CLI Verify Command", function () {
             .take(1),
         { podName: testPodName, streamName: "test-stream" },
       );
-      const stream = streamResults[0];
+      const stream = streamResults[0]!;
 
       await executeUpdate(
         testDb.getDb(),
