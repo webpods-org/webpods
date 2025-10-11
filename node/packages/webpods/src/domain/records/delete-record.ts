@@ -131,12 +131,12 @@ export async function deleteRecord(
             (q, p) =>
               q
                 .from("stream")
-                .select((s) => ({ pod_name: s.pod_name, path: s.path }))
                 .where((s) => s.id === p.streamId)
+                .select((s) => ({ pod_name: s.pod_name, path: s.path }))
                 .take(1),
             { streamId },
           );
-          const streamInfo = streamInfoResults[0];
+          const streamInfo = streamInfoResults[0]!;
 
           // Extract file extension from name only - don't add one if name has none
           const ext = extname(recordName).replace(".", "");
@@ -178,9 +178,9 @@ export async function deleteRecord(
         (q, p) =>
           q
             .from("record")
-            .select((r) => ({ index: r.index, hash: r.hash }))
             .where((r) => r.stream_id === p.streamId)
             .orderByDescending((r) => r.index)
+            .select((r) => ({ index: r.index, hash: r.hash }))
             .take(1),
         { streamId },
       );
@@ -201,13 +201,13 @@ export async function deleteRecord(
         (q, p) =>
           q
             .from("stream")
-            .select((s) => ({ path: s.path }))
             .where((s) => s.id === p.streamId)
+            .select((s) => ({ path: s.path }))
             .take(1),
         { streamId },
       );
 
-      const stream = streamResults[0];
+      const stream = streamResults[0]!;
       const recordPath = `${stream.path}/${recordName}`;
 
       // Calculate hashes and size
@@ -285,12 +285,12 @@ export async function deleteRecord(
         (q, p) =>
           q
             .from("stream")
-            .select((s) => ({ pod_name: s.pod_name, path: s.path }))
             .where((s) => s.id === p.streamId)
+            .select((s) => ({ pod_name: s.pod_name, path: s.path }))
             .take(1),
         { streamId },
       );
-      const streamInfo = streamInfoResults2[0];
+      const streamInfo = streamInfoResults2[0]!;
 
       // Invalidate caches for the deleted record
       await cacheInvalidation.invalidateRecord(
@@ -299,7 +299,7 @@ export async function deleteRecord(
         recordName,
       );
 
-      return success(mapToDeleteResult(deletionRecord));
+      return success(mapToDeleteResult(deletionRecord!));
     });
   } catch (error: unknown) {
     logger.error("Failed to soft delete record", {

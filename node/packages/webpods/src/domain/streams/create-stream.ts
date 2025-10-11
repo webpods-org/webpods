@@ -112,14 +112,14 @@ export async function createStream(
       (q, p) =>
         q
           .from("stream")
-          .select((s) => ({ id: s.id }))
           .where(
             (s) =>
               s.pod_name === p.podName &&
               s.name === ".config" &&
               s.parent_id === null,
           )
-          .take(1),
+          .take(1)
+          .select((s) => ({ id: s.id })),
       { podName },
     );
 
@@ -138,7 +138,7 @@ export async function createStream(
                     s.parent_id === p.configId,
                 )
                 .take(1),
-            { podName, configId: configStreams[0].id },
+            { podName, configId: configStreams[0]!.id },
           ).then((rows) => rows[0] || null)
         : null;
 

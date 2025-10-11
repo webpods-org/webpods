@@ -135,8 +135,8 @@ export async function findOrCreateUser(
           (q, p) =>
             q
               .from("identity")
-              .select((i) => ({ user_id: i.user_id }))
               .where((i) => i.email === p.email)
+              .select((i) => ({ user_id: i.user_id }))
               .take(1),
           { email },
         );
@@ -150,7 +150,7 @@ export async function findOrCreateUser(
                 .from("user")
                 .where((u) => u.id === p.user_id)
                 .take(1),
-            { user_id: identitiesWithEmail[0].user_id },
+            { user_id: identitiesWithEmail[0]!.user_id },
           );
           existingUserByEmail = userResults[0] || null;
         }
@@ -188,7 +188,7 @@ export async function findOrCreateUser(
           },
         );
 
-        user = mapUserFromDb(newUserRows[0]);
+        user = mapUserFromDb(newUserRows[0]!);
         userId = user.id;
         logger.info("Created new user");
       }
@@ -228,7 +228,7 @@ export async function findOrCreateUser(
         },
       );
 
-      const identity = mapIdentityFromDb(identityRows[0]);
+      const identity = mapIdentityFromDb(identityRows[0]!);
       logger.info("Created new identity");
 
       return success({ user, identity });

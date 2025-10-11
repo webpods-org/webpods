@@ -5,6 +5,11 @@
 // Using any for database type to avoid dependency issues
 type IDatabase = any;
 import { createHash } from "crypto";
+import { createSchema } from "@webpods/tinqer";
+import { executeSelect, executeInsert } from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "@webpods/webpods/src/db/schema.js";
+
+const schema = createSchema<DatabaseSchema>();
 
 interface StreamData {
   podName: string;
@@ -50,27 +55,52 @@ export async function createTestStream(
     currentPath = currentPath ? `${currentPath}/${segment}` : segment;
 
     // Check if this stream already exists at this level
-    const existing: { id: number } | null = await db.oneOrNone(
-      `SELECT id FROM stream 
-       WHERE pod_name = $(podName) 
-       AND name = $(name) 
-       AND ${parentId === null ? "parent_id IS NULL" : "parent_id = $(parentId)"}`,
-      {
-        podName,
-        name: segment,
-        parentId,
-      },
+    const existingResults = await executeSelect(
+      db,
+      schema,
+      (q, p) =>
+        q
+          .from("stream")
+          .select((s) => ({ id: s.id }))
+          .where((s) =>
+            parentId === null
+              ? s.pod_name === p.podName &&
+                s.name === p.name &&
+                s.parent_id === null
+              : s.pod_name === p.podName &&
+                s.name === p.name &&
+                s.parent_id === p.parentId,
+          )
+          .take(1),
+      { podName, name: segment, parentId },
     );
+
+    const existing = existingResults[0] || null;
 
     if (existing) {
       currentStreamId = existing.id;
     } else {
       // Create the stream with path
       const now = Date.now();
-      const result: { id: number } = await db.one(
-        `INSERT INTO stream (pod_name, name, path, parent_id, user_id, access_permission, created_at, updated_at, metadata, has_schema)
-         VALUES ($(podName), $(name), $(path), $(parentId), $(userId), $(accessPermission), $(timestamp), $(timestamp), '{}', false)
-         RETURNING id`,
+      const resultRows = await executeInsert(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .insertInto("stream")
+            .values({
+              pod_name: p.podName,
+              name: p.name,
+              path: p.path,
+              parent_id: p.parentId,
+              user_id: p.userId,
+              access_permission: p.accessPermission,
+              created_at: p.timestamp,
+              updated_at: p.timestamp,
+              metadata: "{}",
+              has_schema: false,
+            })
+            .returning((s) => ({ id: s.id })),
         {
           podName,
           name: segment,
@@ -81,7 +111,7 @@ export async function createTestStream(
           timestamp: now,
         },
       );
-      currentStreamId = result.id;
+      currentStreamId = resultRows[0]!.id;
     }
 
     // This stream becomes the parent for the next level
@@ -115,11 +145,19 @@ export async function createTestRecord(
   const size = Buffer.byteLength(content, "utf8");
 
   // Get stream path to compute record path
-  const stream: { path: string } = await db.one(
-    `SELECT path FROM stream WHERE id = $(streamId)`,
+  const streamResults = await executeSelect(
+    db,
+    schema,
+    (q, p) =>
+      q
+        .from("stream")
+        .select((s) => ({ path: s.path }))
+        .where((s) => s.id === p.streamId)
+        .take(1),
     { streamId },
   );
 
+  const stream = streamResults[0]!;
   const recordPath = name ? `${stream.path}/${name}` : stream.path;
 
   // Calculate record hash (simplified for testing)
@@ -133,9 +171,28 @@ export async function createTestRecord(
 
   const hash = `sha256:${createHash("sha256").update(hashInput).digest("hex")}`;
 
-  await db.none(
-    `INSERT INTO record (stream_id, name, path, content, content_type, content_hash, hash, previous_hash, user_id, index, size, deleted, purged, is_binary, headers, created_at)
-     VALUES ($(streamId), $(name), $(path), $(content), $(contentType), $(contentHash), $(hash), $(previousHash), $(userId), $(index), $(size), $(deleted), $(purged), $(isBinary), $(headers), $(timestamp))`,
+  await executeInsert(
+    db,
+    schema,
+    (q, p) =>
+      q.insertInto("record").values({
+        stream_id: p.streamId,
+        name: p.name,
+        path: p.path,
+        content: p.content,
+        content_type: p.contentType,
+        content_hash: p.contentHash,
+        hash: p.hash,
+        previous_hash: p.previousHash,
+        user_id: p.userId,
+        index: p.index,
+        size: p.size,
+        deleted: p.deleted,
+        purged: p.purged,
+        is_binary: p.isBinary,
+        headers: p.headers,
+        created_at: p.timestamp,
+      }),
     {
       streamId,
       name,

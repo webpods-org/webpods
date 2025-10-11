@@ -93,9 +93,9 @@ export async function writeRecord(
         (q, p) =>
           q
             .from("record")
-            .select((r) => ({ index: r.index, hash: r.hash }))
             .where((r) => r.stream_id === p.streamId)
             .orderByDescending((r) => r.index)
+            .select((r) => ({ index: r.index, hash: r.hash }))
             .take(1),
         { streamId },
       );
@@ -144,13 +144,13 @@ export async function writeRecord(
         (q, p) =>
           q
             .from("stream")
-            .select((s) => ({ path: s.path }))
             .where((s) => s.id === p.streamId)
+            .select((s) => ({ path: s.path }))
             .take(1),
         { streamId },
       );
 
-      const stream = streamResults[0];
+      const stream = streamResults[0]!;
       const recordPath = `${stream.path}/${name}`;
 
       // Check if we should store externally
@@ -171,12 +171,12 @@ export async function writeRecord(
             (q, p) =>
               q
                 .from("stream")
-                .select((s) => ({ pod_name: s.pod_name }))
                 .where((s) => s.id === p.streamId)
+                .select((s) => ({ pod_name: s.pod_name }))
                 .take(1),
             { streamId },
           );
-          const podInfo = podInfoResults[0];
+          const podInfo = podInfoResults[0]!;
 
           // Extract file extension from name only - don't add one if name has none
           const ext = extname(name).replace(".", "");
@@ -288,8 +288,8 @@ export async function writeRecord(
         (q, p) =>
           q
             .from("stream")
-            .select((s) => ({ pod_name: s.pod_name, path: s.path }))
             .where((s) => s.id === p.streamId)
+            .select((s) => ({ pod_name: s.pod_name, path: s.path }))
             .take(1),
         { streamId },
       );

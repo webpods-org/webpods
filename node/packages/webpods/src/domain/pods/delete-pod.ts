@@ -47,7 +47,6 @@ export async function deletePod(
         (q, p) =>
           q
             .from("stream")
-            .select((s) => ({ id: s.id }))
             .where(
               (s) =>
                 s.pod_name === p.pod_name &&
@@ -71,7 +70,6 @@ export async function deletePod(
         (q, p) =>
           q
             .from("stream")
-            .select((s) => ({ id: s.id }))
             .where((s) => s.parent_id === p.parent_id && s.name === "owner")
             .take(1),
         { parent_id: configStream.id },
@@ -121,8 +119,8 @@ export async function deletePod(
         (q, p) =>
           q
             .from("stream")
-            .select((s) => ({ id: s.id }))
-            .where((s) => s.pod_name === p.pod_name),
+            .where((s) => s.pod_name === p.pod_name)
+            .select((s) => ({ id: s.id })),
         { pod_name: pod.name },
       );
 

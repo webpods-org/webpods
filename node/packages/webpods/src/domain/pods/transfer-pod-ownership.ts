@@ -5,13 +5,19 @@
 import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
 import { createError } from "../../utils/errors.js";
-import { StreamDbRow, RecordDbRow } from "../../db-types.js";
 import { calculateContentHash, calculateRecordHash } from "../../utils.js";
 import { createLogger } from "../../logger.js";
-import { sql } from "../../db/index.js";
 import { cacheInvalidation, getCache, cacheKeys } from "../../cache/index.js";
+import { createSchema } from "@webpods/tinqer";
+import {
+  executeSelect,
+  executeInsert,
+  executeUpdate,
+} from "@webpods/tinqer-sql-pg-promise";
+import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:pods");
+const schema = createSchema<DatabaseSchema>();
 
 export async function transferPodOwnership(
   ctx: DataContext,
@@ -22,49 +28,79 @@ export async function transferPodOwnership(
   try {
     return await ctx.db.tx(async (t) => {
       // Validate that the new owner exists
-      const newOwnerExists = await t.oneOrNone(
-        `SELECT id FROM "user" WHERE id = $(userId)`,
+      const newOwnerResults = await executeSelect(
+        t,
+        schema,
+        (q, p) =>
+          q
+            .from("user")
+            .select((u) => ({ id: u.id }))
+            .where((u) => u.id === p.userId)
+            .take(1),
         { userId: toUserId },
       );
+
+      const newOwnerExists = newOwnerResults[0] || null;
 
       if (!newOwnerExists) {
         return failure(createError("USER_NOT_FOUND", "User not found"));
       }
 
       // Get .config stream
-      const configStream = await t.oneOrNone<StreamDbRow>(
-        `SELECT * FROM stream
-         WHERE pod_name = $(pod_name)
-           AND name = '.config'
-           AND parent_id IS NULL`,
+      const configStreamResults = await executeSelect(
+        t,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where(
+              (s) =>
+                s.pod_name === p.pod_name &&
+                s.name === ".config" &&
+                s.parent_id === null,
+            )
+            .take(1),
         { pod_name: podName },
       );
+
+      const configStream = configStreamResults[0] || null;
 
       if (!configStream) {
         return failure(new Error("Config stream not found"));
       }
 
       // Get owner stream (child of .config)
-      const ownerStream = await t.oneOrNone<StreamDbRow>(
-        `SELECT * FROM stream
-         WHERE parent_id = $(parent_id)
-           AND name = 'owner'`,
+      const ownerStreamResults = await executeSelect(
+        t,
+        schema,
+        (q, p) =>
+          q
+            .from("stream")
+            .where((s) => s.parent_id === p.parent_id && s.name === "owner")
+            .take(1),
         { parent_id: configStream.id },
       );
+
+      const ownerStream = ownerStreamResults[0] || null;
 
       if (!ownerStream) {
         return failure(new Error("Owner stream not found"));
       }
 
       // Verify current owner
-      const currentOwnerRecord = await t.oneOrNone<RecordDbRow>(
-        `SELECT * FROM record
-         WHERE stream_id = $(stream_id)
-           AND name = 'owner'
-         ORDER BY index DESC
-         LIMIT 1`,
+      const currentOwnerRecordResults = await executeSelect(
+        t,
+        schema,
+        (q, p) =>
+          q
+            .from("record")
+            .where((r) => r.stream_id === p.stream_id && r.name === "owner")
+            .orderByDescending((r) => r.index)
+            .take(1),
         { stream_id: ownerStream.id },
       );
+
+      const currentOwnerRecord = currentOwnerRecordResults[0] || null;
 
       if (!currentOwnerRecord) {
         return failure(new Error("Current owner record not found"));
@@ -85,15 +121,20 @@ export async function transferPodOwnership(
       }
 
       // Get the previous record for hash chain
-      const previousRecord = await t.oneOrNone<
-        Pick<RecordDbRow, "index" | "hash">
-      >(
-        `SELECT index, hash FROM record
-         WHERE stream_id = $(stream_id)
-         ORDER BY index DESC
-         LIMIT 1`,
+      const previousRecordResults = await executeSelect(
+        t,
+        schema,
+        (q, p) =>
+          q
+            .from("record")
+            .where((r) => r.stream_id === p.stream_id)
+            .select((r) => ({ index: r.index, hash: r.hash }))
+            .orderByDescending((r) => r.index)
+            .take(1),
         { stream_id: ownerStream.id },
       );
+
+      const previousRecord = previousRecordResults[0] || null;
 
       const index = (previousRecord?.index ?? -1) + 1;
       const previousHash = previousRecord?.hash || null;
@@ -111,31 +152,58 @@ export async function transferPodOwnership(
       const contentString = JSON.stringify(newOwnerContent);
       const size = Buffer.byteLength(contentString, "utf8");
 
-      // Insert new owner record with snake_case parameters
-      const params = {
-        stream_id: ownerStream.id,
-        index: index,
-        content: contentString,
-        content_type: "application/json",
-        is_binary: false,
-        size: size,
-        name: "owner",
-        path: `${ownerStream.path}/owner`,
-        content_hash: contentHash,
-        hash: hash,
-        previous_hash: previousHash,
-        user_id: fromUserId,
-        headers: JSON.stringify({}),
-        deleted: false,
-        purged: false,
-        created_at: timestamp,
-      };
-
-      await t.none(sql.insert("record", params), params);
+      // Insert new owner record
+      await executeInsert(
+        t,
+        schema,
+        (q, p) =>
+          q.insertInto("record").values({
+            stream_id: p.stream_id,
+            index: p.index,
+            content: p.content,
+            content_type: p.content_type,
+            is_binary: p.is_binary,
+            size: p.size,
+            name: p.name,
+            path: p.path,
+            content_hash: p.content_hash,
+            hash: p.hash,
+            previous_hash: p.previous_hash,
+            user_id: p.user_id,
+            headers: p.headers,
+            deleted: p.deleted,
+            purged: p.purged,
+            created_at: p.created_at,
+          }),
+        {
+          stream_id: ownerStream.id,
+          index: index,
+          content: contentString,
+          content_type: "application/json",
+          is_binary: false,
+          size: size,
+          name: "owner",
+          path: `${ownerStream.path}/owner`,
+          content_hash: contentHash,
+          hash: hash,
+          previous_hash: previousHash,
+          user_id: fromUserId,
+          headers: JSON.stringify({}),
+          deleted: false,
+          purged: false,
+          created_at: timestamp,
+        },
+      );
 
       // Update owner_id in pod table for fast lookups
-      await t.none(
-        `UPDATE pod SET owner_id = $(owner_id), updated_at = $(updated_at) WHERE name = $(pod_name)`,
+      await executeUpdate(
+        t,
+        schema,
+        (q, p) =>
+          q
+            .update("pod")
+            .set({ owner_id: p.owner_id, updated_at: p.updated_at })
+            .where((pod) => pod.name === p.pod_name),
         {
           owner_id: toUserId,
           pod_name: podName,

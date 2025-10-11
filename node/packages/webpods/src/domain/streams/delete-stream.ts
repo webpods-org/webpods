@@ -52,26 +52,25 @@ export async function deleteStream(
       }
 
       // Check if stream has child streams
-      const childCountResults = await executeSelect(
+      const childStreams = await executeSelect(
         t,
         schema,
         (q, p) =>
           q
             .from("stream")
-            .select((s) => ({ count: s.id.count() }))
             .where(
               (s) => s.pod_name === p.podName && s.parent_id === p.streamId,
-            ),
+            )
+            .select((s) => ({ id: s.id })),
         { podName, streamId },
       );
 
-      const childStreamCount = Number(childCountResults[0]?.count || 0);
-      if (childStreamCount > 0) {
+      if (childStreams.length > 0) {
         // Note: The CASCADE will delete them, but we log this for clarity
         logger.info("Deleting stream with child streams", {
           podName,
           streamId,
-          childCount: childStreamCount,
+          childCount: childStreams.length,
         });
       }
 
