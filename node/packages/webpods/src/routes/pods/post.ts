@@ -454,8 +454,10 @@ export const postHandler = async (
     if (!recordResult.success) {
       // Check for specific error codes
       let status = 500;
-      if ((recordResult.error as CodedError).code === "NAME_EXISTS") {
-        status = 409;
+      if (
+        (recordResult.error as CodedError).code === "CONCURRENT_WRITE_CONFLICT"
+      ) {
+        status = 409; // Conflict - client should retry
       } else if ((recordResult.error as CodedError).code === "NAME_CONFLICT") {
         status = 409;
       } else if ((recordResult.error as CodedError).code === "INVALID_NAME") {

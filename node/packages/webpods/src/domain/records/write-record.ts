@@ -5,7 +5,6 @@
 import { DataContext } from "../data-context.js";
 import { Result, success, failure } from "../../utils/result.js";
 import { createError } from "../../utils/errors.js";
-import { StreamDbRow } from "../../db-types.js";
 import { calculateContentHash, calculateRecordHash } from "../../utils.js";
 import { createLogger } from "../../logger.js";
 import { isValidRecordName } from "../../utils/stream-utils.js";
@@ -76,17 +75,8 @@ export async function writeRecord(
         );
       }
 
-      // First, lock the stream row to serialize writes to this stream
-      // This handles both empty streams (no records) and streams with existing records
-      await t.one<StreamDbRow>(
-        `SELECT * FROM stream
-         WHERE id = $(streamId)
-         FOR UPDATE`,
-        { streamId },
-      );
-
-      // Now safely get the previous record for hash chain
-      // No need for FOR UPDATE here since the stream lock serializes access
+      // Get the previous record for hash chain
+      // No lock needed - UNIQUE constraint on (stream_id, index) prevents conflicts
       const previousRecordResults = await executeSelect(
         t,
         schema,
@@ -317,12 +307,12 @@ export async function writeRecord(
     });
   } catch (error: unknown) {
     logger.error("Failed to write record", { error, streamId });
-    // Check if it's a unique constraint violation
+    // Check if it's a unique constraint violation on (stream_id, index)
     if ((error as { code?: string }).code === "23505") {
       return failure(
         createError(
-          "NAME_EXISTS",
-          "Record with this name already exists in this stream",
+          "CONCURRENT_WRITE_CONFLICT",
+          "Concurrent write detected - another record was written at the same time. Please retry.",
         ),
       );
     }

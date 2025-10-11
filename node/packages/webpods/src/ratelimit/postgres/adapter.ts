@@ -7,11 +7,11 @@ import type {
 import { getActionLimit } from "../types.js";
 import { getDb } from "../../db/index.js";
 import { createLogger } from "../../logger.js";
-import type { RateLimitDbRow } from "../../db-types.js";
 import { createSchema } from "@webpods/tinqer";
 import {
   executeSelect,
   executeInsert,
+  executeUpdate,
   executeDelete,
 } from "@webpods/tinqer-sql-pg-promise";
 import type { DatabaseSchema } from "../../db/schema.js";
@@ -76,23 +76,54 @@ export const postgresRateLimiterAdapter: RateLimiterAdapter = {
       let rateLimitRecord = rateLimitResults[0] || null;
 
       if (!rateLimitRecord) {
-        // Use UPSERT to handle concurrent inserts
-        const params = {
-          identifier: identifier,
-          action: action,
-          count: 0,
-          window_start: actualWindowStart,
-          window_end: windowEnd,
-        };
-
-        rateLimitRecord = await db.one<RateLimitDbRow>(
-          `INSERT INTO rate_limit (identifier, action, count, window_start, window_end)
-           VALUES ($(identifier), $(action), $(count), $(window_start), $(window_end))
-           ON CONFLICT (identifier, action, window_start)
-           DO UPDATE SET count = rate_limit.count
-           RETURNING *`,
-          params,
-        );
+        // Try to insert, handle conflict with SELECT if it already exists
+        try {
+          const insertResults = await executeInsert(
+            db,
+            schema,
+            (q, p) =>
+              q
+                .insertInto("rate_limit")
+                .values({
+                  identifier: p.identifier,
+                  action: p.action,
+                  count: p.count,
+                  window_start: p.windowStart,
+                  window_end: p.windowEnd,
+                })
+                .returning((r) => r),
+            {
+              identifier,
+              action,
+              count: 0,
+              windowStart: actualWindowStart,
+              windowEnd,
+            },
+          );
+          rateLimitRecord = insertResults[0]!;
+        } catch (error: unknown) {
+          // On conflict (concurrent insert), query again to get the existing record
+          if ((error as { code?: string }).code === "23505") {
+            const retryResults = await executeSelect(
+              db,
+              schema,
+              (q, p) =>
+                q
+                  .from("rate_limit")
+                  .where(
+                    (r) =>
+                      r.identifier === p.identifier &&
+                      r.action === p.action &&
+                      r.window_start === p.windowStart,
+                  )
+                  .take(1),
+              { identifier, action, windowStart: actualWindowStart },
+            );
+            rateLimitRecord = retryResults[0]!;
+          } else {
+            throw error;
+          }
+        }
       }
 
       const count = rateLimitRecord.count;
@@ -119,12 +150,16 @@ export const postgresRateLimiterAdapter: RateLimiterAdapter = {
       }
 
       // Increment counter only if allowed
-      // Note: Tinqer doesn't support count + 1, so we keep this as raw SQL
-      await db.none(
-        `UPDATE rate_limit
-         SET count = count + 1
-         WHERE id = $(id)`,
-        { id: rateLimitRecord.id },
+      const newCount = count + 1;
+      await executeUpdate(
+        db,
+        schema,
+        (q, p) =>
+          q
+            .update("rate_limit")
+            .set({ count: p.newCount })
+            .where((r) => r.id === p.id),
+        { id: rateLimitRecord.id, newCount },
       );
 
       return {

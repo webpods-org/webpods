@@ -55,25 +55,40 @@ export async function createTestStream(
     currentPath = currentPath ? `${currentPath}/${segment}` : segment;
 
     // Check if this stream already exists at this level
-    const existingResults: { id: number }[] = await executeSelect(
-      db,
-      schema,
-      (q, p) =>
-        q
-          .from("stream")
-          .where((s) =>
-            parentId === null
-              ? s.pod_name === p.podName &&
-                s.name === p.name &&
-                s.parent_id === null
-              : s.pod_name === p.podName &&
-                s.name === p.name &&
-                s.parent_id === p.parentId,
+    const existingResults: { id: number }[] =
+      parentId === null
+        ? await executeSelect(
+            db,
+            schema,
+            (q, p) =>
+              q
+                .from("stream")
+                .where(
+                  (s) =>
+                    s.pod_name === p.podName &&
+                    s.name === p.name &&
+                    s.parent_id === null,
+                )
+                .select((s) => ({ id: s.id }))
+                .take(1),
+            { podName, name: segment },
           )
-          .select((s) => ({ id: s.id }))
-          .take(1),
-      { podName, name: segment, parentId },
-    );
+        : await executeSelect(
+            db,
+            schema,
+            (q, p) =>
+              q
+                .from("stream")
+                .where(
+                  (s) =>
+                    s.pod_name === p.podName &&
+                    s.name === p.name &&
+                    s.parent_id === p.parentId,
+                )
+                .select((s) => ({ id: s.id }))
+                .take(1),
+            { podName, name: segment, parentId },
+          );
 
     const existing: { id: number } | null = existingResults[0] || null;
 

@@ -161,17 +161,8 @@ export async function deleteRecord(
         }
       }
 
-      // First, lock the stream row to serialize writes to this stream
-      // This handles both empty streams (no records) and streams with existing records
-      await t.one<{ id: number }>(
-        `SELECT id FROM stream
-         WHERE id = $(streamId)
-         FOR UPDATE`,
-        { streamId },
-      );
-
       // Get the last record to calculate the next index and hash chain
-      // No need for FOR UPDATE here since the stream lock serializes access
+      // No lock needed - UNIQUE constraint on (stream_id, index) prevents conflicts
       const lastRecordResults = await executeSelect(
         t,
         schema,

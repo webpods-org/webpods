@@ -700,6 +700,59 @@ MAX_RECORD_LIMIT=1000
 
 See [deployment guide](docs/deployment.md) for complete configuration options.
 
+## Development
+
+### Building from Source
+
+```bash
+# Clone the repository
+git clone https://github.com/webpods-org/webpods.git
+cd webpods
+
+# Install dependencies for all packages
+./scripts/install-deps.sh
+
+# Force reinstall all dependencies
+./scripts/install-deps.sh --force
+
+# Build all packages (includes dependency installation)
+./scripts/build.sh
+
+# Build with forced dependency reinstall
+./scripts/build.sh --install
+
+# Build without prettier formatting (faster during development)
+./scripts/build.sh --no-format
+
+# Build and run database migrations
+./scripts/build.sh --migrate
+```
+
+### Development Scripts
+
+```bash
+# Install dependencies only
+./scripts/install-deps.sh         # Install missing dependencies
+./scripts/install-deps.sh --force # Force reinstall all
+
+# Clean build artifacts
+./scripts/clean.sh
+
+# Format all code with Prettier
+./scripts/format-all.sh
+
+# Run ESLint on all packages
+./scripts/lint-all.sh
+./scripts/lint-all.sh --fix      # Auto-fix linting issues
+
+# Start the server
+./scripts/start.sh
+
+# Run tests
+npm test                          # Run all tests
+npm run test:grep -- "pattern"    # Run specific tests
+```
+
 ## Contributing
 
 WebPods is open source and welcomes contributions. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.

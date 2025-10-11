@@ -109,7 +109,7 @@ describe("CLI Schema Commands", () => {
                   .where(
                     (r) => r.stream_id === p.streamId && r.name === "schema",
                   )
-                  .orderBy((r) => ({ column: r.index, order: "asc" })),
+                  .orderBy((r) => r.index),
               { streamId: streamResults[0]!.id },
             )
           : [];
@@ -269,7 +269,7 @@ describe("CLI Schema Commands", () => {
                   .where(
                     (r) => r.stream_id === p.streamId && r.name === "schema",
                   )
-                  .orderBy((r) => ({ column: r.index, order: "desc" }))
+                  .orderByDescending((r) => r.index)
                   .take(1),
               { streamId: streamResults[0]!.id },
             )

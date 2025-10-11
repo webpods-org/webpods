@@ -1226,22 +1226,66 @@ describe("Cache Test Utilities - Comprehensive Tests", () => {
       client.setBaseUrl(baseUrl);
       await client.createStream(uniqueStreamName, "public");
 
-      // Perform multiple concurrent operations
+      // Helper function to write with retry on concurrent write conflicts
+      const writeWithRetry = async (
+        path: string,
+        data: any,
+        maxRetries = 10,
+      ) => {
+        let lastResponse = null;
+        for (let attempt = 0; attempt < maxRetries; attempt++) {
+          const response = await client.post(path, data);
+          lastResponse = response;
+
+          // Check if it's a successful response
+          if (response.status === 201 || response.status === 200) {
+            return response;
+          }
+
+          // Retry on concurrent write conflict (409 status)
+          if (
+            response.status === 409 &&
+            response.data?.error?.code === "CONCURRENT_WRITE_CONFLICT"
+          ) {
+            // Small delay before retry with exponential backoff
+            await new Promise((resolve) =>
+              setTimeout(
+                resolve,
+                10 * Math.pow(2, attempt) + Math.random() * 20,
+              ),
+            );
+            continue;
+          }
+
+          // For other errors, return the error response
+          return response;
+        }
+        return lastResponse!; // We know it's not null because we always set it in the loop
+      };
+
+      // Perform multiple concurrent operations with retry logic
       const operations = [];
       for (let i = 1; i <= 10; i++) {
         operations.push(
-          client
-            .post(`/${uniqueStreamName}/rec${i}`, { data: `data${i}` })
-            .then(() => client.get(`/${uniqueStreamName}/rec${i}`))
-            .catch(() => {
-              // Handle potential race conditions - silently continue
-              return null;
-            }),
+          writeWithRetry(`/${uniqueStreamName}/rec${i}`, {
+            data: `data${i}`,
+          }).then((writeResponse) => {
+            // Only try to read if the write was successful
+            if (
+              writeResponse &&
+              (writeResponse.status === 201 || writeResponse.status === 200)
+            ) {
+              return client.get(`/${uniqueStreamName}/rec${i}`);
+            }
+            return null;
+          }),
         );
       }
 
       const results = await Promise.all(operations);
-      const successfulOps = results.filter((r) => r !== null).length;
+      const successfulOps = results.filter(
+        (r) => r !== null && r.status === 200,
+      ).length;
 
       // Verify operations completed and cached correctly (at least some should succeed)
       client.setBaseUrl("http://localhost:3000");
@@ -1258,9 +1302,9 @@ describe("Cache Test Utilities - Comprehensive Tests", () => {
         }
       }
 
-      // At least some operations should have succeeded (concurrent writes can conflict)
-      expect(successfulOps).to.be.at.least(3);
-      expect(cachedCount).to.be.at.least(3);
+      // With retry logic, all operations should succeed
+      expect(successfulOps).to.equal(10); // All 10 should succeed with 10 retries
+      expect(cachedCount).to.equal(10);
 
       const stats = await client.get("/test-utils/cache/stats/singleRecords");
       expect(stats.data.entryCount).to.be.at.least(cachedCount);
