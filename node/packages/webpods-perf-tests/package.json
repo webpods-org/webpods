@@ -9,6 +9,7 @@
     "test:nocache": "WEBPODS_CONFIG_PATH=test-config-nocache.json LOG_LEVEL=warn mocha --exit --timeout 120000",
     "test:grep": "LOG_LEVEL=error mocha --exit --timeout 120000 --grep",
     "build": "tsc --noEmit",
+    "test:build": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix"

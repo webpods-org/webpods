@@ -8,6 +8,7 @@
     "test": "LOG_LEVEL=error mocha --exit",
     "test:grep": "LOG_LEVEL=error mocha --exit --grep",
     "build": "tsc --noEmit",
+    "test:build": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix"
