@@ -49,7 +49,21 @@ for pkg_name in "${PACKAGES[@]}"; do
   fi
 done
 
-# 4 ▸ run prettier formatting (unless --no-format is passed)
+# 4 ▸ verify test files compile with strict mode
+echo "Verifying test files compile with strict mode…"
+for pkg_name in "${PACKAGES[@]}"; do
+  pkg="node/packages/$pkg_name"
+  if [[ ! -f "$pkg/package.json" ]]; then
+    continue
+  fi
+  # Check if test:build script exists
+  if node -e "process.exit(require('./$pkg/package.json').scripts?.['test:build'] ? 0 : 1)"; then
+    echo "Checking test compilation in $pkg…"
+    (cd "$pkg" && npm run test:build)
+  fi
+done
+
+# 5 ▸ run prettier formatting (unless --no-format is passed)
 if [[ "$*" != *--no-format* ]]; then
   echo "Running prettier formatting…"
   ./scripts/format-all.sh
@@ -57,7 +71,7 @@ else
   echo "Skipping prettier formatting (--no-format flag)"
 fi
 
-# 5 ▸ optional migrations via root scripts
+# 6 ▸ optional migrations via root scripts
 if [[ "$*" == *--migrate* ]]; then
   echo "Running database migrations for all databases…"
   npm run migrate:all

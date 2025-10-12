@@ -8,6 +8,7 @@
     "test:grep": "LOG_LEVEL=error mocha --grep",
     "test:watch": "LOG_LEVEL=error mocha --watch",
     "build": "tsc --noEmit",
+    "test:build": "tsc --noEmit",
     "lint": "eslint src"
   },
   "dependencies": {
