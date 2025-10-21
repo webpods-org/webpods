@@ -1,6 +1,6 @@
 {
   "name": "@webpods/webpods",
-  "version": "0.0.72",
+  "version": "0.0.73",
   "description": "Append-only log service with OAuth authentication",
   "type": "module",
   "main": "./dist/index.js",
@@ -22,8 +22,8 @@
   "dependencies": {
     "@ory/hydra-client": "^2.4.0-alpha.1",
     "@types/express-session": "1.18.2",
-    "@webpods/tinqer": "^0.0.18",
-    "@webpods/tinqer-sql-pg-promise": "^0.0.18",
+    "@webpods/tinqer": "^0.0.21",
+    "@webpods/tinqer-sql-pg-promise": "^0.0.21",
     "ajv": "8.17.1",
     "compression": "1.8.1",
     "connect-pg-simple": "10.0.0",
