@@ -7,11 +7,6 @@ Complete code examples and real-world use cases for WebPods.
 ### JavaScript / Node.js
 
 ```javascript
-// Install the client (example - no official SDK yet)
-// npm install node-fetch
-
-const fetch = require("node-fetch");
-
 // Configuration
 const POD_URL = "https://my-pod.webpods.org";
 const AUTH_TOKEN = "your-jwt-token";
