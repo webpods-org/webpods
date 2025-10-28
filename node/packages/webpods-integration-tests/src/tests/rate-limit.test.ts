@@ -8,8 +8,8 @@ import {
 } from "webpods-test-utils";
 import { testDb } from "../test-setup.js";
 import crypto from "crypto";
-import { createSchema } from "@webpods/tinqer";
-import { executeSelect, executeInsert } from "@webpods/tinqer-sql-pg-promise";
+import { createSchema } from "@tinqerjs/tinqer";
+import { executeSelect, executeInsert } from "@tinqerjs/pg-promise-adapter";
 import type { DatabaseSchema } from "webpods-test-utils";
 
 const schema = createSchema<DatabaseSchema>();

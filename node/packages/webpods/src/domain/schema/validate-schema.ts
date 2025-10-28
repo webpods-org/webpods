@@ -5,8 +5,8 @@
 import Ajv from "ajv";
 import type { DataContext } from "../data-context.js";
 import type { Result, Stream } from "../../types.js";
-import { createSchema } from "@webpods/tinqer";
-import { executeSelect, executeUpdate } from "@webpods/tinqer-sql-pg-promise";
+import { createSchema } from "@tinqerjs/tinqer";
+import { executeSelect, executeUpdate } from "@tinqerjs/pg-promise-adapter";
 import type { DatabaseSchema } from "../../db/schema.js";
 
 const schema = createSchema<DatabaseSchema>();

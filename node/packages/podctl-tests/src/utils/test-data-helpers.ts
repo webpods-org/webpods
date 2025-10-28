@@ -5,8 +5,8 @@
 // Using any for database type to avoid dependency issues
 type IDatabase = any;
 import { createHash } from "crypto";
-import { createSchema } from "@webpods/tinqer";
-import { executeSelect, executeInsert } from "@webpods/tinqer-sql-pg-promise";
+import { createSchema } from "@tinqerjs/tinqer";
+import { executeSelect, executeInsert } from "@tinqerjs/pg-promise-adapter";
 import type { DatabaseSchema } from "webpods-test-utils";
 
 const schema = createSchema<DatabaseSchema>();

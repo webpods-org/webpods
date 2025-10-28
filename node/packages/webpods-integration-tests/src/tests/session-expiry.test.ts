@@ -5,12 +5,12 @@
 
 import { expect } from "chai";
 import { testDb } from "../test-setup.js";
-import { createSchema } from "@webpods/tinqer";
+import { createSchema } from "@tinqerjs/tinqer";
 import {
   executeSelect,
   executeInsert,
   executeDelete,
-} from "@webpods/tinqer-sql-pg-promise";
+} from "@tinqerjs/pg-promise-adapter";
 import type { DatabaseSchema } from "webpods-test-utils";
 
 const schema = createSchema<DatabaseSchema>();

@@ -10,8 +10,8 @@ import { createLogger } from "../../logger.js";
 import { createError } from "../../utils/errors.js";
 import { isValidStreamName } from "../../utils/stream-utils.js";
 import { getCache, cacheKeys } from "../../cache/index.js";
-import { createSchema } from "@webpods/tinqer";
-import { executeSelect, executeInsert } from "@webpods/tinqer-sql-pg-promise";
+import { createSchema } from "@tinqerjs/tinqer";
+import { executeSelect, executeInsert } from "@tinqerjs/pg-promise-adapter";
 import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:streams");
