@@ -17,8 +17,8 @@ import {
   createOwnerConfig,
   createStreamWithRecord,
 } from "../utils/test-data-helpers.js";
-import { createSchema } from "@webpods/tinqer";
-import { executeInsert, executeSelect } from "@webpods/tinqer-sql-pg-promise";
+import { createSchema } from "@tinqerjs/tinqer";
+import { executeInsert, executeSelect } from "@tinqerjs/pg-promise-adapter";
 import type { DatabaseSchema } from "webpods-test-utils";
 
 const schema = createSchema<DatabaseSchema>();

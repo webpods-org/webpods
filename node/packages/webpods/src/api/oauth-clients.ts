@@ -10,12 +10,12 @@ import { getHydraAdmin } from "../oauth/hydra-client.js";
 import { requireWebPodsJWT } from "../middleware/webpods-jwt.js";
 import { rateLimit } from "../middleware/ratelimit.js";
 import { createLogger } from "../logger.js";
-import { createSchema } from "@webpods/tinqer";
+import { createSchema } from "@tinqerjs/tinqer";
 import {
   executeSelect,
   executeInsert,
   executeDelete,
-} from "@webpods/tinqer-sql-pg-promise";
+} from "@tinqerjs/pg-promise-adapter";
 import type { DatabaseSchema } from "../db/schema.js";
 
 const logger = createLogger("webpods:api:oauth-clients");

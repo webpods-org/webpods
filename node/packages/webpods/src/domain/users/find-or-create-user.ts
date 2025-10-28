@@ -7,12 +7,12 @@ import { Result, success, failure } from "../../utils/result.js";
 import { UserDbRow, IdentityDbRow } from "../../db-types.js";
 import { User, Identity, OAuthProvider, OAuthUserInfo } from "../../types.js";
 import { createLogger } from "../../logger.js";
-import { createSchema } from "@webpods/tinqer";
+import { createSchema } from "@tinqerjs/tinqer";
 import {
   executeSelect,
   executeUpdate,
   executeInsert,
-} from "@webpods/tinqer-sql-pg-promise";
+} from "@tinqerjs/pg-promise-adapter";
 import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:users");

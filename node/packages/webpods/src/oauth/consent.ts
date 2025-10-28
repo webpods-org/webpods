@@ -9,8 +9,8 @@ import { getDb } from "../db/index.js";
 import { createLogger } from "../logger.js";
 import { getConfig } from "../config-loader.js";
 import { rateLimit } from "../middleware/ratelimit.js";
-import { createSchema } from "@webpods/tinqer";
-import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
+import { createSchema } from "@tinqerjs/tinqer";
+import { executeSelect } from "@tinqerjs/pg-promise-adapter";
 import type { DatabaseSchema } from "../db/schema.js";
 
 const logger = createLogger("webpods:oauth:consent");

@@ -6,12 +6,12 @@ import { getDb } from "../db/index.js";
 import { createLogger } from "../logger.js";
 import { generators } from "openid-client";
 import { getConfig } from "../config-loader.js";
-import { createSchema } from "@webpods/tinqer";
+import { createSchema } from "@tinqerjs/tinqer";
 import {
   executeSelect,
   executeInsert,
   executeDelete,
-} from "@webpods/tinqer-sql-pg-promise";
+} from "@tinqerjs/pg-promise-adapter";
 import type { DatabaseSchema } from "../db/schema.js";
 
 const logger = createLogger("webpods:auth:pkce");

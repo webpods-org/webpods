@@ -13,8 +13,8 @@ import {
   testUser,
 } from "../test-setup.js";
 import { randomUUID } from "crypto";
-import { createSchema } from "@webpods/tinqer";
-import { executeInsert } from "@webpods/tinqer-sql-pg-promise";
+import { createSchema } from "@tinqerjs/tinqer";
+import { executeInsert } from "@tinqerjs/pg-promise-adapter";
 import type { DatabaseSchema } from "webpods-test-utils";
 
 const schema = createSchema<DatabaseSchema>();

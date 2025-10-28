@@ -7,8 +7,8 @@ import { Result, success, failure } from "../../utils/result.js";
 import { createLogger } from "../../logger.js";
 import { createError } from "../../utils/errors.js";
 import { getCache, getCacheConfig, cacheKeys } from "../../cache/index.js";
-import { createSchema } from "@webpods/tinqer";
-import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
+import { createSchema } from "@tinqerjs/tinqer";
+import { executeSelect } from "@tinqerjs/pg-promise-adapter";
 import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:pods");

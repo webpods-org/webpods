@@ -7,13 +7,13 @@ import type {
 import { getActionLimit } from "../types.js";
 import { getDb } from "../../db/index.js";
 import { createLogger } from "../../logger.js";
-import { createSchema } from "@webpods/tinqer";
+import { createSchema } from "@tinqerjs/tinqer";
 import {
   executeSelect,
   executeInsert,
   executeUpdate,
   executeDelete,
-} from "@webpods/tinqer-sql-pg-promise";
+} from "@tinqerjs/pg-promise-adapter";
 import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:ratelimit:postgres");

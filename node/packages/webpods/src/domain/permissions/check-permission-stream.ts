@@ -5,8 +5,8 @@
 import { DataContext } from "../data-context.js";
 import { createLogger } from "../../logger.js";
 import { getStreamByPath } from "../streams/get-stream-by-path.js";
-import { createSchema } from "@webpods/tinqer";
-import { executeSelect } from "@webpods/tinqer-sql-pg-promise";
+import { createSchema } from "@tinqerjs/tinqer";
+import { executeSelect } from "@tinqerjs/pg-promise-adapter";
 import type { DatabaseSchema } from "../../db/schema.js";
 
 const logger = createLogger("webpods:domain:permissions");
