@@ -41,6 +41,12 @@ build/Release
 node_modules/
 jspm_packages/
 
+# Tsonic outputs (keep source + config in git)
+.tsonic/
+generated/
+out/
+dist/
+
 # Snowpack dependency directory (https://snowpack.dev/)
 web_modules/
 
@@ -124,6 +130,11 @@ dist
 
 # Stores VSCode versions used for testing VSCode extensions
 .vscode-test
+
+# Temporary directories (safe to delete)
+.tests/
+.temp/
+.tmp/
 
 # yarn v3
 .pnp.*
