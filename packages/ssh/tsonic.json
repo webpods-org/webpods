@@ -1,0 +1,22 @@
+{
+  "$schema": "https://tsonic.org/schema/v1.json",
+  "rootNamespace": "Webpods.SSH",
+  "entryPoint": "src/index.ts",
+  "sourceRoot": "src",
+  "outputDirectory": "generated",
+  "outputName": "Webpods.SSH",
+  "output": {
+    "type": "library",
+    "targetFrameworks": ["net10.0"],
+    "generateDocumentation": false,
+    "includeSymbols": false,
+    "packable": false
+  },
+  "buildOptions": {
+    "stripSymbols": true,
+    "invariantGlobalization": true
+  },
+  "dotnet": {
+    "typeRoots": ["../../node_modules/@tsonic/globals"]
+  }
+}

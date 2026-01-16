@@ -1,0 +1,22 @@
+{
+  "name": "@webpods/commands",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    "./package.json": "./package.json",
+    "./*.js": {
+      "types": "./dist/tsonic/bindings/*.d.ts",
+      "default": "./dist/tsonic/bindings/*.js"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsonic restore && tsc -p tsconfig.json",
+    "build": "tsonic build && node ./scripts/copy-nuget-dlls.mjs",
+    "bindings": "node ./scripts/generate-bindings.mjs"
+  },
+  "dependencies": {
+    "@webpods/ssh": "^0.0.0",
+    "tsbindgen": "^0.7.24"
+  }
+}
