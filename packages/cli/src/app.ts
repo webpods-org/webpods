@@ -1,6 +1,5 @@
-import { Environment } from "@tsonic/dotnet/System.js";
+import { Console, Environment } from "@tsonic/dotnet/System.js";
 import { List } from "@tsonic/dotnet/System.Collections.Generic.js";
-import { console } from "@tsonic/js/index.js";
 import { Webpods } from "@webpods/commands/Webpods.Commands.js";
 import {
   ContextArtifacts,
@@ -13,15 +12,15 @@ import {
   ContextSafety,
   ContextSafetyConfirm,
   ContextSSHConfig,
-} from "@webpods/commands/Webpods.Commands.Context.js";
-import { NodeCheckResult } from "@webpods/commands/Webpods.Commands.Node.js";
+} from "@webpods/commands/Webpods.Commands.context.js";
+import { NodeCheckResult } from "@webpods/commands/Webpods.Commands.node.js";
 
 const logLine = (message: string): void => {
-  console.log(message);
+  Console.WriteLine(message);
 };
 
 const logErrorLine = (message: string): void => {
-  console.error(message);
+  Console.Error.WriteLine(message);
 };
 
 const usage = (): void => {
@@ -48,21 +47,21 @@ const usage = (): void => {
 
 const toArgs = (argv: string[]): string[] => {
   const argsList = new List<string>();
-  for (let i = 1; i < argv.length; i++) argsList.add(argv[i]!);
-  return argsList.toArray();
+  for (let i = 1; i < argv.Length; i++) argsList.Add(argv[i]!);
+  return argsList.ToArray();
 };
 
 const tryGetFlagValue = (args: string[], longName: string, shortName: string): string | undefined => {
-  for (let i = 0; i < args.length; i++) {
+  for (let i = 0; i < args.Length; i++) {
     const a = args[i]!;
-    if ((a === longName || a === shortName) && i + 1 < args.length) return args[i + 1]!;
+    if ((a === longName || a === shortName) && i + 1 < args.Length) return args[i + 1]!;
   }
   return undefined;
 };
 
 const joinComma = (values: string[]): string => {
   let out = "";
-  for (let i = 0; i < values.length; i++) {
+  for (let i = 0; i < values.Length; i++) {
     if (i > 0) out += ",";
     out += values[i]!;
   }
@@ -73,7 +72,7 @@ const isHelpFlag = (arg: string): boolean => arg === "-h" || arg === "--help" ||
 const isVersionFlag = (arg: string): boolean => arg === "-v" || arg === "--version" || arg === "version";
 
 const requireRepoRoot = (): string | undefined => {
-  const cwd = Environment.currentDirectory;
+  const cwd = Environment.CurrentDirectory;
   const repoRoot = Webpods.tryGetRepoRoot(cwd);
   if (repoRoot !== undefined) return repoRoot;
   logErrorLine("No .webpods directory found (walked up from current directory).");
@@ -82,13 +81,13 @@ const requireRepoRoot = (): string | undefined => {
 };
 
 export function main(): void {
-  const argv = Environment.getCommandLineArgs();
+  const argv = Environment.GetCommandLineArgs();
   const args = toArgs(argv);
 
-  const first = args.length > 0 ? args[0]! : "";
-  if (first === "" || first.indexOf("-") === 0) {
+  const first = args.Length > 0 ? args[0]! : "";
+  if (first === "" || first.IndexOf("-") === 0) {
     let wantsHelp = false;
-    for (let i = 0; i < args.length; i++) {
+    for (let i = 0; i < args.Length; i++) {
       if (isHelpFlag(args[i]!)) {
         wantsHelp = true;
         break;
@@ -100,7 +99,7 @@ export function main(): void {
     }
 
     let wantsVersion = false;
-    for (let i = 0; i < args.length; i++) {
+    for (let i = 0; i < args.Length; i++) {
       if (isVersionFlag(args[i]!)) {
         wantsVersion = true;
         break;
@@ -123,39 +122,39 @@ export function main(): void {
   }
 
   if (first === "context") {
-    const sub = args.length > 1 ? args[1]! : "";
+    const sub = args.Length > 1 ? args[1]! : "";
     if (sub === "ls") {
       const repoRootForContextLs = requireRepoRoot();
       if (repoRootForContextLs === undefined) {
-        Environment.exitCode = 2;
+        Environment.ExitCode = 2;
         return;
       }
       const contexts = Webpods.listContextNames(repoRootForContextLs);
-      if (contexts.length === 0) {
+      if (contexts.Length === 0) {
         logLine("(no contexts found)");
         return;
       }
-      for (let i = 0; i < contexts.length; i++) logLine(contexts[i]!);
+      for (let i = 0; i < contexts.Length; i++) logLine(contexts[i]!);
       return;
     }
 
     if (sub === "inspect") {
-      if (args.length < 3) {
+      if (args.Length < 3) {
         logErrorLine("Missing <name> for `webpods context inspect`");
-        Environment.exitCode = 2;
+        Environment.ExitCode = 2;
         return;
       }
       const name = args[2]!;
       const repoRootForInspect = requireRepoRoot();
       if (repoRootForInspect === undefined) {
-        Environment.exitCode = 2;
+        Environment.ExitCode = 2;
         return;
       }
 
       const loaded = Webpods.loadContext(repoRootForInspect, name);
       if (!loaded.success || loaded.context === undefined) {
         logErrorLine(loaded.error ?? "Failed to load context.");
-        Environment.exitCode = 2;
+        Environment.ExitCode = 2;
         return;
       }
 
@@ -166,7 +165,7 @@ export function main(): void {
       logLine(`allow_from: ${joinComma(contextConfig.safety.allowFrom)}`);
       if (contextConfig.safety.level === "guarded") {
         logLine(`confirm.token: ${contextConfig.safety.confirm.token ?? contextConfig.name}`);
-        if (contextConfig.safety.confirm.requiredFor.length > 0) {
+        if (contextConfig.safety.confirm.requiredFor.Length > 0) {
           logLine(`confirm.required_for: ${joinComma(contextConfig.safety.confirm.requiredFor)}`);
         }
       }
@@ -187,14 +186,14 @@ export function main(): void {
       }
 
       logLine("hosts:");
-      for (let i = 0; i < contextConfig.hosts.length; i++) {
+      for (let i = 0; i < contextConfig.hosts.Length; i++) {
         const h = contextConfig.hosts[i]!;
         let line = `  - ${h.name} (${h.addr})`;
         const mesh = h.meshIP;
         if (mesh !== undefined) line += ` mesh_ip=${mesh}`;
-        if (h.labels.length > 0) {
+        if (h.labels.Length > 0) {
           line += " labels=";
-          for (let j = 0; j < h.labels.length; j++) {
+          for (let j = 0; j < h.labels.Length; j++) {
             if (j > 0) line += ",";
             const l = h.labels[j]!;
             line += `${l.key}=${l.value}`;
@@ -204,22 +203,22 @@ export function main(): void {
       }
 
       if (
-        contextConfig.defaults.composeFiles.length > 0 ||
+        contextConfig.defaults.composeFiles.Length > 0 ||
         contextConfig.defaults.envFile !== undefined ||
         contextConfig.defaults.projectName !== undefined
       ) {
         logLine("defaults:");
         if (contextConfig.defaults.projectName !== undefined) logLine(`  project_name: ${contextConfig.defaults.projectName}`);
         if (contextConfig.defaults.envFile !== undefined) logLine(`  env_file: ${contextConfig.defaults.envFile}`);
-        if (contextConfig.defaults.composeFiles.length > 0) {
+        if (contextConfig.defaults.composeFiles.Length > 0) {
           logLine(`  compose_files: ${joinComma(contextConfig.defaults.composeFiles)}`);
         }
       }
 
-      if (contextConfig.proxy.driver !== undefined || contextConfig.proxy.domains.length > 0) {
+      if (contextConfig.proxy.driver !== undefined || contextConfig.proxy.domains.Length > 0) {
         logLine("proxy:");
         if (contextConfig.proxy.driver !== undefined) logLine(`  driver: ${contextConfig.proxy.driver}`);
-        if (contextConfig.proxy.domains.length > 0) logLine(`  domains: ${joinComma(contextConfig.proxy.domains)}`);
+        if (contextConfig.proxy.domains.Length > 0) logLine(`  domains: ${joinComma(contextConfig.proxy.domains)}`);
       }
 
       if (
@@ -244,25 +243,25 @@ export function main(): void {
 
     logErrorLine("Unknown context subcommand.");
     usage();
-    Environment.exitCode = 2;
+    Environment.ExitCode = 2;
     return;
   }
 
   if (first === "node") {
-    const sub = args.length > 1 ? args[1]! : "";
+    const sub = args.Length > 1 ? args[1]! : "";
     if (sub === "check") {
       const repoRootForNodeCheck = requireRepoRoot();
       if (repoRootForNodeCheck === undefined) {
-        Environment.exitCode = 2;
+        Environment.ExitCode = 2;
         return;
       }
 
       const explicitContextForNodeCheck = tryGetFlagValue(args, "--context", "-c");
       const defaultContextForNodeCheck = Webpods.tryReadDefaultContext(repoRootForNodeCheck);
       const ctxName = (explicitContextForNodeCheck ?? defaultContextForNodeCheck) ?? "";
-      if (ctxName.trim() === "") {
+      if (ctxName.Trim() === "") {
         logErrorLine("Missing context: pass -c/--context, or set default_context in .webpods/config.yml.");
-        Environment.exitCode = 2;
+        Environment.ExitCode = 2;
         return;
       }
 
@@ -272,23 +271,23 @@ export function main(): void {
 
       const fromOverride = tryGetFlagValue(args, "--from", "--from") ?? "";
       const result = Webpods.nodeCheck(repoRootForNodeCheck, ctxName, fromOverride);
-      if (result.output.trim() !== "") logLine(result.output.trim());
+      if (result.output.Trim() !== "") logLine(result.output.Trim());
       if (!result.success) {
         logErrorLine(result.error ?? "Node check failed.");
-        Environment.exitCode = 2;
+        Environment.ExitCode = 2;
       }
       return;
     }
 
     logErrorLine("Unknown node subcommand.");
     usage();
-    Environment.exitCode = 2;
+    Environment.ExitCode = 2;
     return;
   }
 
   const repoRoot = requireRepoRoot();
   if (repoRoot === undefined) {
-    Environment.exitCode = 2;
+    Environment.ExitCode = 2;
     return;
   }
 
@@ -296,9 +295,9 @@ export function main(): void {
   const defaultContextForMain = Webpods.tryReadDefaultContext(repoRoot);
   const ctx = explicitContextForMain ?? defaultContextForMain;
 
-  if (ctx === undefined || ctx.trim() === "") {
+  if (ctx === undefined || ctx.Trim() === "") {
     logErrorLine("Missing context: pass -c/--context, or set default_context in .webpods/config.yml.");
-    Environment.exitCode = 2;
+    Environment.ExitCode = 2;
     return;
   }
 
@@ -308,5 +307,5 @@ export function main(): void {
 
   logErrorLine(`Command not implemented yet (ctx=${ctx}).`);
   logErrorLine("Start with: webpods context ls");
-  Environment.exitCode = 2;
+  Environment.ExitCode = 2;
 }

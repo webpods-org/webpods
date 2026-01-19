@@ -5,22 +5,11 @@
   "sourceRoot": "src",
   "outputDirectory": "generated",
   "outputName": "webpods",
-  "output": {
-    "nativeAot": false,
-    "trimmed": false,
-    "singleFile": false
-  },
   "buildOptions": {
     "stripSymbols": true,
     "invariantGlobalization": true
   },
-  "dotnet": {
-    "typeRoots": [
-      "../../node_modules/@tsonic/globals"
-    ],
-    "libraries": [
-      "../commands/dist/net10.0/Webpods.Commands.dll",
-      "lib/Tsonic.JSRuntime.dll"
-    ]
+  "references": {
+    "libraries": ["../commands/dist/net10.0/Webpods.Commands.dll"]
   }
 }

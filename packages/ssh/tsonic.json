@@ -15,8 +15,5 @@
   "buildOptions": {
     "stripSymbols": true,
     "invariantGlobalization": true
-  },
-  "dotnet": {
-    "typeRoots": ["../../node_modules/@tsonic/globals"]
   }
 }

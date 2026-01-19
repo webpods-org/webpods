@@ -31,43 +31,43 @@ export class ComposeResolveResult {
 export class Compose {
   static resolve(req: ComposeResolveRequest): ComposeResolveResult {
     const startInfo = new ProcessStartInfo();
-    startInfo.fileName = "docker";
-    startInfo.workingDirectory = req.workingDirectory;
-    startInfo.redirectStandardOutput = true;
-    startInfo.redirectStandardError = true;
-    startInfo.useShellExecute = false;
-    startInfo.createNoWindow = true;
+    startInfo.FileName = "docker";
+    startInfo.WorkingDirectory = req.workingDirectory;
+    startInfo.RedirectStandardOutput = true;
+    startInfo.RedirectStandardError = true;
+    startInfo.UseShellExecute = false;
+    startInfo.CreateNoWindow = true;
 
-    startInfo.argumentList.add("compose");
+    startInfo.ArgumentList.Add("compose");
 
-    if (req.projectName.trim() !== "") {
-      startInfo.argumentList.add("-p");
-      startInfo.argumentList.add(req.projectName);
+    if (req.projectName.Trim() !== "") {
+      startInfo.ArgumentList.Add("-p");
+      startInfo.ArgumentList.Add(req.projectName);
     }
 
-    for (let i = 0; i < req.composeFiles.length; i++) {
-      startInfo.argumentList.add("-f");
-      startInfo.argumentList.add(req.composeFiles[i]!);
+    for (let i = 0; i < req.composeFiles.Length; i++) {
+      startInfo.ArgumentList.Add("-f");
+      startInfo.ArgumentList.Add(req.composeFiles[i]!);
     }
 
-    if (req.envFile !== undefined && req.envFile.trim() !== "") {
-      startInfo.argumentList.add("--env-file");
-      startInfo.argumentList.add(req.envFile);
+    if (req.envFile !== undefined && req.envFile.Trim() !== "") {
+      startInfo.ArgumentList.Add("--env-file");
+      startInfo.ArgumentList.Add(req.envFile);
     }
 
-    startInfo.argumentList.add("config");
-    startInfo.argumentList.add("--format");
-    startInfo.argumentList.add("json");
+    startInfo.ArgumentList.Add("config");
+    startInfo.ArgumentList.Add("--format");
+    startInfo.ArgumentList.Add("json");
 
-    const process = Process.start(startInfo);
+    const process = Process.Start(startInfo);
     if (process === undefined) {
       return new ComposeResolveResult(-1, "", "Failed to start docker process");
     }
 
-    process.waitForExit();
+    process.WaitForExit();
 
-    const stdout = process.standardOutput.readToEnd() ?? "";
-    const stderr = process.standardError.readToEnd() ?? "";
-    return new ComposeResolveResult(process.exitCode, stdout, stderr);
+    const stdout = process.StandardOutput.ReadToEnd() ?? "";
+    const stderr = process.StandardError.ReadToEnd() ?? "";
+    return new ComposeResolveResult(process.ExitCode, stdout, stderr);
   }
 }

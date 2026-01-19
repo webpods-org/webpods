@@ -18,16 +18,7 @@
     "stripSymbols": true,
     "invariantGlobalization": true
   },
-  "dotnet": {
-    "typeRoots": [
-      "../../node_modules/@tsonic/globals"
-    ],
-    "libraries": ["../ssh/dist/net10.0/Webpods.SSH.dll"],
-    "packageReferences": [
-      {
-        "id": "YamlDotNet",
-        "version": "16.3.0"
-      }
-    ]
+  "references": {
+    "libraries": ["../ssh/dist/net10.0/Webpods.SSH.dll"]
   }
 }
