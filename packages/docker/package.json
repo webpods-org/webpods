@@ -12,11 +12,7 @@
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
-    "build": "tsonic build",
-    "bindings": "node ./scripts/generate-bindings.mjs"
-  },
-  "dependencies": {
-    "tsbindgen": "^0.7.24"
+    "build": "tsonic build"
   },
   "devDependencies": {
     "@webpods/ssh": "^0.0.0"

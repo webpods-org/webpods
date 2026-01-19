@@ -34,7 +34,7 @@ export const checkNodes = (repoRoot: string, contextName: string, fromOverride: 
   }
 
   let allowed = false;
-  for (let i = 0; i < ctx.safety.allowFrom.length; i++) {
+  for (let i = 0; i < ctx.safety.allowFrom.Length; i++) {
     if (ctx.safety.allowFrom[i] === origin) {
       allowed = true;
       break;
@@ -43,7 +43,7 @@ export const checkNodes = (repoRoot: string, contextName: string, fromOverride: 
 
   if (!allowed) {
     let allowedList = "";
-    for (let i = 0; i < ctx.safety.allowFrom.length; i++) {
+    for (let i = 0; i < ctx.safety.allowFrom.Length; i++) {
       if (i > 0) allowedList += ",";
       allowedList += ctx.safety.allowFrom[i]!;
     }
@@ -62,7 +62,7 @@ export const checkNodes = (repoRoot: string, contextName: string, fromOverride: 
   let allOk = true;
   let out = "";
 
-  for (let i = 0; i < ctx.hosts.length; i++) {
+  for (let i = 0; i < ctx.hosts.Length; i++) {
     const host = ctx.hosts[i]!;
     const req = new SSHExecRequest(host.addr, ["docker", "version"]);
     req.config = sshCfg;
@@ -74,8 +74,8 @@ export const checkNodes = (repoRoot: string, contextName: string, fromOverride: 
     } else {
       allOk = false;
       const code: int = res.exitCode;
-      let reason = res.stderr.trim();
-      if (reason === "") reason = res.stdout.trim();
+      let reason = res.stderr.Trim();
+      if (reason === "") reason = res.stdout.Trim();
       if (reason !== "") {
         line += `FAIL (exit=${code}) ${reason}`;
       } else {

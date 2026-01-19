@@ -15,17 +15,17 @@ import {
 } from "../yaml/yaml.js";
 
 const isSafeContextName = (name: string): boolean => {
-  const trimmed = name.trim();
+  const trimmed = name.Trim();
   if (trimmed === "") return false;
-  if (trimmed.indexOf("/") >= 0) return false;
-  if (trimmed.indexOf("\\") >= 0) return false;
-  if (trimmed.indexOf("..") >= 0) return false;
+  if (trimmed.IndexOf("/") >= 0) return false;
+  if (trimmed.IndexOf("\\") >= 0) return false;
+  if (trimmed.IndexOf("..") >= 0) return false;
   return true;
 };
 
 const parseInt = (value: string): int | undefined => {
   let parsed: int = 0;
-  const ok = Int32.tryParse(value, parsed);
+  const ok = Int32.TryParse(value, parsed);
   return ok ? parsed : undefined;
 };
 
@@ -34,10 +34,10 @@ export const loadContextConfig = (repoRoot: string, contextName: string): Contex
     return ContextLoadResult.fail(`Invalid context name: '${contextName}'.`);
   }
 
-  const contextPath = Path.combine(repoRoot, ".webpods", "contexts", `${contextName}.yml`);
-  if (!File.exists(contextPath)) return ContextLoadResult.fail(`Context not found: ${contextPath}`);
+  const contextPath = Path.Combine(repoRoot, ".webpods", "contexts", `${contextName}.yml`);
+  if (!File.Exists(contextPath)) return ContextLoadResult.fail(`Context not found: ${contextPath}`);
 
-  const text = File.readAllText(contextPath);
+  const text = File.ReadAllText(contextPath);
   const parsedRoot = parseYamlRootMapping(text);
   if (!parsedRoot.success || parsedRoot.root === undefined) return ContextLoadResult.fail(parsedRoot.error ?? "Invalid YAML.");
 
@@ -77,9 +77,9 @@ export const loadContextConfig = (repoRoot: string, contextName: string): Contex
   if (hostsSeq === undefined) return ContextLoadResult.fail("Missing required field: hosts");
 
   const hosts = new List<ContextHost>();
-  const hostIt = hostsSeq.children.getEnumerator();
-  while (hostIt.moveNext()) {
-    const node = hostIt.current;
+  const hostIt = hostsSeq.GetEnumerator();
+  while (hostIt.MoveNext()) {
+    const node = hostIt.Current;
     const hostMap = asYamlMapping(node);
     if (hostMap === undefined) continue;
 
@@ -96,28 +96,28 @@ export const loadContextConfig = (repoRoot: string, contextName: string): Contex
       const labelsMap = asYamlMapping(labelsNode);
       if (labelsMap !== undefined) {
         const labels = new List<ContextHostLabel>();
-        const labelsIt = labelsMap.children.getEnumerator();
-        while (labelsIt.moveNext()) {
-          const pair = labelsIt.current;
-          const k = asYamlScalar(pair.key);
-          const v = asYamlScalar(pair.value);
+        const labelsIt = labelsMap.GetEnumerator();
+        while (labelsIt.MoveNext()) {
+          const pair = labelsIt.Current;
+          const k = asYamlScalar(pair.Key);
+          const v = asYamlScalar(pair.Value);
           if (k === undefined || v === undefined) continue;
-          const rawKey = k.value ?? "";
-          const key = rawKey.trim();
-          const rawValue = v.value ?? "";
-          const value = rawValue.trim();
-          if (key !== "") labels.add(new ContextHostLabel(key, value));
+          const rawKey = k.Value ?? "";
+          const key = rawKey.Trim();
+          const rawValue = v.Value ?? "";
+          const value = rawValue.Trim();
+          if (key !== "") labels.Add(new ContextHostLabel(key, value));
         }
-        host.labels = labels.toArray();
+        host.labels = labels.ToArray();
       }
     }
 
-    hosts.add(host);
+    hosts.Add(host);
   }
 
-  ctx.hosts = hosts.toArray();
+  ctx.hosts = hosts.ToArray();
 
-  if (ctx.hosts.length === 0) return ContextLoadResult.fail("Context hosts list is empty.");
+  if (ctx.hosts.Length === 0) return ContextLoadResult.fail("Context hosts list is empty.");
 
   const defaultsMap = tryGetChildMapping(root, "defaults");
   if (defaultsMap !== undefined) {
@@ -160,7 +160,7 @@ export const loadContextConfig = (repoRoot: string, contextName: string): Contex
     if (level !== undefined) ctx.safety.level = level;
 
     const allowFrom = tryGetStringArray(safetyMap, "allow_from");
-    if (allowFrom !== undefined && allowFrom.length > 0) ctx.safety.allowFrom = allowFrom;
+    if (allowFrom !== undefined && allowFrom.Length > 0) ctx.safety.allowFrom = allowFrom;
 
     const confirmMap = tryGetChildMapping(safetyMap, "confirm");
     if (confirmMap !== undefined) {
@@ -171,16 +171,16 @@ export const loadContextConfig = (repoRoot: string, contextName: string): Contex
   }
 
   // Safety defaults
-  if (ctx.safety.allowFrom.length === 0) ctx.safety.allowFrom = ["local", "ci"];
+  if (ctx.safety.allowFrom.Length === 0) ctx.safety.allowFrom = ["local", "ci"];
 
-  const levelLower = ctx.safety.level.toLowerInvariant();
+  const levelLower = ctx.safety.level.ToLowerInvariant();
   if (levelLower !== "safe" && levelLower !== "guarded") {
     return ContextLoadResult.fail(`Invalid safety.level: ${ctx.safety.level} (expected safe|guarded)`);
   }
   ctx.safety.level = levelLower;
 
   if (ctx.safety.level === "guarded") {
-    if (ctx.safety.confirm.requiredFor.length === 0) {
+    if (ctx.safety.confirm.requiredFor.Length === 0) {
       ctx.safety.confirm.requiredFor = ["down", "rm", "prune", "cleanup"];
     }
     if (ctx.safety.confirm.token === undefined) ctx.safety.confirm.token = ctx.name;

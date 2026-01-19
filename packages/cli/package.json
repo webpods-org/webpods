@@ -5,13 +5,11 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
-    "setup:js": "tsonic add js",
-    "build": "npm run setup:js && tsonic build",
-    "build:aot": "npm run setup:js && tsonic build -c tsonic.aot.json",
-    "dev": "npm run setup:js && tsonic run -- --help"
+    "build": "tsonic build",
+    "build:jit": "tsonic build --no-aot",
+    "dev": "tsonic run --no-aot -- --help"
   },
   "devDependencies": {
-    "@tsonic/js": "^0.1.3",
     "@webpods/commands": "^0.0.0"
   }
 }

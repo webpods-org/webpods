@@ -11,15 +11,15 @@
     "packages/commands"
   ],
   "scripts": {
-    "build": "npm run -w @webpods/ssh build && npm run -w @webpods/ssh bindings && npm run -w @webpods/compose build && npm run -w @webpods/compose bindings && npm run -w @webpods/docker build && npm run -w @webpods/docker bindings && npm run -w @webpods/artifacts build && npm run -w @webpods/artifacts bindings && npm run -w @webpods/commands build && npm run -w @webpods/commands bindings && npm run -w webpods-cli build",
-    "typecheck": "npm run -w @webpods/ssh typecheck && npm run -w @webpods/compose typecheck && npm run -w @webpods/docker typecheck && npm run -w @webpods/artifacts typecheck && npm run -w @webpods/commands typecheck && npm run -w webpods-cli typecheck"
+    "build": "tsonic restore && npm run -w @webpods/ssh build && npm run -w @webpods/compose build && npm run -w @webpods/docker build && npm run -w @webpods/artifacts build && npm run -w @webpods/commands build && npm run -w webpods-cli build",
+    "typecheck": "npm run build && npm run -w @webpods/ssh typecheck && npm run -w @webpods/compose typecheck && npm run -w @webpods/docker typecheck && npm run -w @webpods/artifacts typecheck && npm run -w @webpods/commands typecheck && npm run -w webpods-cli typecheck"
   },
   "devDependencies": {
-    "@tsonic/js": "^0.1.3",
-    "@tsonic/dotnet": "^0.8.10",
-    "@tsonic/globals": "^0.3.11",
-    "tsbindgen": "^0.7.24",
-    "tsonic": "^0.0.27",
+    "@tsonic/core": "^10.0.1",
+    "@tsonic/dotnet": "^10.0.1",
+    "@tsonic/globals": "^10.0.1",
+    "@tsonic/tsbindgen": "^0.7.26",
+    "tsonic": "^0.0.29",
     "typescript": "^5.9.2"
   },
   "engines": {

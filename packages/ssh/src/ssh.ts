@@ -61,19 +61,14 @@ export class SSH {
   private static quoteForSh(value: string): string {
     if (value === "") return "''";
 
-    const parts = value.split("'");
-    if (parts.length === 1) return `'${value}'`;
-
-    let out = `'${parts[0] ?? ""}'`;
-    for (let i = 1; i < parts.length; i++) {
-      out += `'"'"'${parts[i] ?? ""}'`;
-    }
-    return out;
+    if (value.IndexOf("'") < 0) return `'${value}'`;
+    const escaped = value.Replace("'", `'"'"'`);
+    return `'${escaped}'`;
   }
 
   private static buildRemoteCommand(argv: string[]): string {
     let out = "";
-    for (let i = 0; i < argv.length; i++) {
+    for (let i = 0; i < argv.Length; i++) {
       if (i > 0) out += " ";
       out += SSH.quoteForSh(argv[i]!);
     }
@@ -82,58 +77,58 @@ export class SSH {
 
   static exec(req: SSHExecRequest): SSHExecResult {
     const startInfo = new ProcessStartInfo();
-    startInfo.fileName = "ssh";
-    startInfo.redirectStandardOutput = true;
-    startInfo.redirectStandardError = true;
-    startInfo.useShellExecute = false;
-    startInfo.createNoWindow = true;
+    startInfo.FileName = "ssh";
+    startInfo.RedirectStandardOutput = true;
+    startInfo.RedirectStandardError = true;
+    startInfo.UseShellExecute = false;
+    startInfo.CreateNoWindow = true;
 
-    startInfo.argumentList.add("-o");
-    startInfo.argumentList.add("BatchMode=yes");
+    startInfo.ArgumentList.Add("-o");
+    startInfo.ArgumentList.Add("BatchMode=yes");
 
     const cfg = req.config;
     if (cfg !== undefined) {
       if (cfg.port !== undefined) {
-        startInfo.argumentList.add("-p");
-        startInfo.argumentList.add(cfg.port.toString());
+        startInfo.ArgumentList.Add("-p");
+        startInfo.ArgumentList.Add(cfg.port.ToString());
       }
       const key = cfg.key;
-      if (key !== undefined && key.trim() !== "") {
-        startInfo.argumentList.add("-i");
-        startInfo.argumentList.add(key);
+      if (key !== undefined && key.Trim() !== "") {
+        startInfo.ArgumentList.Add("-i");
+        startInfo.ArgumentList.Add(key);
       }
       if (cfg.connectTimeoutSeconds !== undefined) {
-        startInfo.argumentList.add("-o");
-        startInfo.argumentList.add(`ConnectTimeout=${cfg.connectTimeoutSeconds.toString()}`);
+        startInfo.ArgumentList.Add("-o");
+        startInfo.ArgumentList.Add(`ConnectTimeout=${cfg.connectTimeoutSeconds.ToString()}`);
       }
       const bastion = cfg.bastion;
-      if (bastion !== undefined && bastion.trim() !== "") {
-        startInfo.argumentList.add("-J");
-        startInfo.argumentList.add(bastion);
+      if (bastion !== undefined && bastion.Trim() !== "") {
+        startInfo.ArgumentList.Add("-J");
+        startInfo.ArgumentList.Add(bastion);
       }
     }
 
     let target = req.target;
     const user = cfg?.user;
-    if (user !== undefined && user.trim() !== "" && target.indexOf("@") < 0) {
+    if (user !== undefined && user.Trim() !== "" && target.IndexOf("@") < 0) {
       target = `${user}@${target}`;
     }
 
-    startInfo.argumentList.add(target);
+    startInfo.ArgumentList.Add(target);
 
-    if (req.command.length > 0) {
-      startInfo.argumentList.add(SSH.buildRemoteCommand(req.command));
+    if (req.command.Length > 0) {
+      startInfo.ArgumentList.Add(SSH.buildRemoteCommand(req.command));
     }
 
-    const process = Process.start(startInfo);
+    const process = Process.Start(startInfo);
     if (process === undefined) {
       return new SSHExecResult(-1, "", "Failed to start ssh process");
     }
 
-    process.waitForExit();
+    process.WaitForExit();
 
-    const stdout = process.standardOutput.readToEnd() ?? "";
-    const stderr = process.standardError.readToEnd() ?? "";
-    return new SSHExecResult(process.exitCode, stdout, stderr);
+    const stdout = process.StandardOutput.ReadToEnd() ?? "";
+    const stderr = process.StandardError.ReadToEnd() ?? "";
+    return new SSHExecResult(process.ExitCode, stdout, stderr);
   }
 }
